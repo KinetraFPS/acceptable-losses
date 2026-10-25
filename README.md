@@ -1,0 +1,22 @@
+# Acceptable Losses
+
+A satirical neo-pixel roguelite tower defence game. You work for **Kindly Security Solutions™**, a private security company that is happy to protect anyone's crystals for the right price and does not care much what happens to you while you do it.
+
+Pick contracts on a star map, deploy a randomly generated crew next to the path, and hold until the drill finishes. If losses push company profit margin to 0%, you're abandoned on a hostile planet.
+
+**Play:** https://kinetrafps.github.io/acceptable-losses/ *(once GitHub Pages is enabled)*
+
+## What's in the vertical slice
+- Procedurally generated maps, 5 crew roles, 4 enemy factions in 5 categories and 3 tiers, and a boss
+- Randomly generated crew who keep their look through the run, earn promotions (no raise), and can be injured
+- A star map, satirical HR emails and payslips, a Company Store that only takes scrip, relics, and a Colony of the Abandoned that gives meta-progression
+- Pixel art, music and sound effects all generated in code, with no asset files
+- A settings menu for volume, mute and screen shake
+
+## Project layout
+- `src/game.html` is the game source, a single self-contained page fragment
+- `index.html` is built from it by `node scripts/build.mjs` and served by GitHub Pages
+- `DESIGN.md` has the design notes and balance tuning settings
+
+## Controls
+Click a crew card (or press 1–8), then a tile next to the path. **Space** starts extraction and pauses. **M** mutes. The gear button opens settings.

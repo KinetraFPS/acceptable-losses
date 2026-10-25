@@ -1,0 +1,46 @@
+# Acceptable Losses: design notes
+
+Satirical roguelite tower defence. You work for Kindly Security Solutions™, an immoral private
+security company. You defend clients' crystal extractions across Earth and the galaxy.
+
+## Core loop (vertical slice)
+1. **Star map**: pick one of 3 contracts (planet bubbles). Each shows the client, whether they're good or bad people, the hostile faction, biome hazard, difficulty and pay.
+2. **Mission** (about 2.5–4.5 min): procedurally generated map. Deploy crew next to the path and hold until the drill reaches 100%, then clear the area to evacuate.
+3. **Debrief**: a satirical HR email plus a payslip in Company Scrip, with itemised deductions.
+4. **Company Store**: hire crew, buy relics, promote crew, or use creative accounting to restore margin.
+5. Repeat. Sector 1 is 4 contracts, then a boss. The boss faction is whichever faction you fought most.
+
+## Rules
+- **Profit margin** is run-wide HP (starts at 100%). Leaked enemies reduce it. At 0% you're abandoned and stranded.
+- **Budget** is spent during a mission to deploy crew (from kills plus a trickle). **Scrip** is spent between missions, only at the store.
+- **Crew** are named towers that carry over between contracts. They gain XP and promotions (a new title, no raise). Saboteurs can injure them for the rest of a contract.
+- **Enemies**: 5 categories (Swarm, Runner, Armoured, Flyer, Saboteur) × 3 tiers (Grunt, Veteran, Elite), skinned by 4 factions.
+- **Persistence**: factions you've fought return with a grudge (+10% HP). The boss is chosen from your history. Hints about the mind-control twist show up in email P.S. lines.
+- **Meta**: every failed run adds a survivor to the Colony of the Abandoned (+5 starting scrip each, capped at 50).
+
+## Art direction: neo-pixel
+- The playfield is drawn into a low-res buffer (1 art px = 2 game px) and scaled up crisply. Lights, tracers, taser arcs, muzzle flashes and the laser sight are drawn on top at full resolution with additive glow.
+- **Crew** are 12×17 chibi sprites. The body is random (10 skin tones, 12 hair styles including afro, braids, bun and headscarf, natural or dyed hair colours, facial hair, glasses, build, and extras like freckles, an eyepatch or a plaster). The role sets the outfit: hi-vis guard, taser tech with a battery pack, hard-hat mortar crew, pink-polo intern with a lanyard, hoodie drone operator. Everyone stands on a company-issued pallet.
+- **Firing**: weapons track the target smoothly and kick back on recoil. Effects include muzzle flash sprites and light, ejected shell casings, gunner two-round bursts, taser arcs, foam mortar shells with smoke trails and foam splats, the marksman's charging laser sight and screen shake, and the drone's hover-and-tilt.
+- **Enemies**: humans for the miner, protester and VectorCorp factions use the same random people generator with faction outfits and props. Each faction has its own vehicle (treads, van, walker) and drone. Wildlife are hand-built creature sprites. Veterans get a white outline and Elites a gold one.
+- **Terrain**: per-biome noise ground, a path sunk below the ground, biome decorations, and obstacle sprites with their own light sources.
+
+## Audio
+- Everything is synthesised live with Web Audio. There are no audio files. Audio starts on the first tap or key press, which is a browser rule.
+- **Music**: a small chiptune sequencer with five tracks.
+  - Corporate hold music on the menus, mail and store.
+  - Drifting arpeggios on the star map.
+  - A driving mission loop that adds layers as the drill fills.
+  - A faster boss variant that kicks in when the boss arrives.
+  - A sad trombone when you're abandoned, and a fanfare when you evacuate or win.
+- **Sound effects**: one per crew role (burst rifle, taser zap, mortar thump and foam splat, sniper crack, drone blips). Also kills, leaks, saboteur clanks, injuries, deploying and reassigning crew, promotions, the boss arrival horn, and UI clicks. The store has a "ka-ching". Effects are panned left or right by their position on the map and rate-limited so big fights don't clip.
+- **Settings** (gear button, bottom-right): master, music and effects volume, mute (also the M key), and a screen shake toggle. Settings are saved in the browser. Opening settings mid-contract pauses the game.
+
+## Balance tuning knobs (in index.html)
+- `genWave`: wave threat budget `(5.5 + idx*2.7) * (1 + prog*1.7) * diff.mod`
+- `spawnEnemy`: HP scaling `(1 + 0.16*idx)`
+- `startMission`: starting budget `110 + 10*idx`
+- An auto-play bot (greedy placement, no relics) won about 70% of simulated runs.
+
+## Next up
+Sector 2+, more factions and relics, crew permadeath (an option), real art and audio, a narrative event system, deeper colony meta.

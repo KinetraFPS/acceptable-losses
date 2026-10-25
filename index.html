@@ -1,0 +1,2367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<title>Acceptable Losses</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen:wght@400;700&family=VT323&display=swap">
+<style>
+/* Layout: one-screen game. HUD strip on top, framed playfield, crew roster + news ticker below.
+   Pixel UI: notched 3px frames, bevelled buttons, segmented meters, window title bars on every panel. */
+:root{
+  --bg:#0a0c16;
+  --panel:#141829;
+  --panel2:#1c2240;
+  --line:#323b66;
+  --line-hi:#4f5a96;
+  --ink:#05070a;
+  --fg:#e8ecf8;
+  --muted:#8a93bd;
+  --brand:#ffd23f;
+  --brand-ink:#231a00;
+  --danger:#ff4d6d;
+  --ok:#4fe0a6;
+  --crystal:#b98cff;
+  --f-display:'Pixelify Sans','Courier New',monospace;
+  --f-body:'Pixelify Sans',system-ui,sans-serif;
+  --f-label:'Silkscreen','Courier New',monospace;
+  --f-mono:'VT323',ui-monospace,Menlo,monospace;
+  --b:3px;
+  --notch:polygon(0 var(--b),var(--b) var(--b),var(--b) 0,calc(100% - var(--b)) 0,calc(100% - var(--b)) var(--b),100% var(--b),100% calc(100% - var(--b)),calc(100% - var(--b)) calc(100% - var(--b)),calc(100% - var(--b)) 100%,var(--b) 100%,var(--b) calc(100% - var(--b)),0 calc(100% - var(--b)));
+  --frame:inset 0 0 0 var(--b) var(--line);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background-color:var(--bg);background-image:radial-gradient(rgba(140,150,220,.07) 1px,transparent 1.2px);background-size:9px 9px;color:var(--fg);font:16px/1.4 var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:none;font-variant-ligatures:none}
+button,input{font-variant-ligatures:none}
+button{font:inherit;color:inherit}
+#app{height:100%;display:flex;flex-direction:column;gap:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+#hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;min-height:0}
+#hud:empty{display:none}
+#stage{position:relative;flex:1;min-height:0;display:grid;place-items:center;overflow:hidden}
+#cv{display:block;touch-action:none}
+#cv.framed{box-shadow:0 0 0 3px var(--line),0 0 0 6px var(--ink)}
+#overlay{position:absolute;inset:0;pointer-events:none}
+#overlay > *{pointer-events:auto}
+#bar{display:flex;flex-direction:column;gap:6px;min-width:0}
+#bar:empty{display:none}
+
+/* shared pixel frame */
+.paper,.card,.tinfo,.crew,.offer,.ritem,.steps li,.memo,.relic,.meter,.toast,.btn,.intel{clip-path:var(--notch)}
+.paper,.card,.tinfo,.steps li,.ritem,.relic{background:var(--panel);box-shadow:var(--frame),inset 0 calc(var(--b) * 2) 0 0 rgba(255,255,255,.04)}
+
+.lbl{font:400 10px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.lbl .mono{font:400 16px/1 var(--f-mono);color:var(--fg);letter-spacing:0;text-transform:none}
+.val{font:600 18px/1.1 var(--f-body)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.val.mono{font:400 26px/.9 var(--f-mono)}
+.hud-block{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hud-block .val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+.hud-meter{display:flex;flex-direction:column;gap:5px;flex:1 1 150px;min-width:130px;max-width:280px}
+.meter{height:16px;padding:4px;background:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
+.meter i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--fill,var(--brand)) 0 5px,transparent 5px 7px);transition:width .2s steps(4)}
+.meter.m-margin i{--fill:var(--ok)}
+.meter.m-margin.warn i{--fill:var(--brand)}
+.meter.m-margin.crit i{--fill:var(--danger)}
+.hud-ctrl{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+
+.btn{appearance:none;border:0;cursor:pointer;background:var(--brand);color:var(--brand-ink);font:700 13px/1 var(--f-label);letter-spacing:.02em;text-transform:uppercase;padding:13px 18px 15px;box-shadow:inset 0 calc(var(--b) * -1) 0 0 rgba(0,0,0,.32),inset 0 var(--b) 0 0 rgba(255,255,255,.45)}
+.btn:hover{filter:brightness(1.1)}
+.btn:active{transform:translateY(2px);box-shadow:inset 0 var(--b) 0 0 rgba(0,0,0,.28)}
+.btn.ghost{background:var(--panel2);color:var(--fg);box-shadow:var(--frame),inset 0 calc(var(--b) * -2) 0 0 rgba(0,0,0,.3)}
+.btn.ghost:hover{filter:none;box-shadow:inset 0 0 0 var(--b) var(--line-hi),inset 0 calc(var(--b) * -2) 0 0 rgba(0,0,0,.3)}
+.btn.sm{font-size:11px;padding:9px 11px 11px}
+.btn.on{background:var(--fg);color:var(--bg);box-shadow:inset 0 calc(var(--b) * -1) 0 0 rgba(0,0,0,.3)}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none}
+.btn:focus-visible,.crew:focus-visible,.offer:focus-visible,.xbtn:focus-visible{outline:2px dashed var(--fg);outline-offset:-7px}
+
+/* crew roster */
+.roster{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.crew{flex:0 0 auto;display:grid;grid-template-columns:30px auto;gap:3px 9px;align-items:center;text-align:left;cursor:pointer;border:0;background:var(--panel);box-shadow:var(--frame);padding:7px 12px 7px 7px;min-width:140px}
+.crew:hover{box-shadow:inset 0 0 0 var(--b) var(--line-hi)}
+.crew.sel{background:var(--panel2);box-shadow:inset 0 0 0 var(--b) var(--brand)}
+.crew.used{opacity:.5}
+.crew.down{box-shadow:inset 0 0 0 var(--b) var(--danger);opacity:.65}
+.crew .nm{font:600 15px/1 var(--f-body);white-space:nowrap}
+.crew .meta{font:400 16px/1 var(--f-mono);color:var(--muted);white-space:nowrap}
+.pt{width:30px;height:30px;flex:none;image-rendering:crisp-edges;image-rendering:pixelated;background:color-mix(in srgb,var(--rc) 22%,var(--panel2));outline:2px solid var(--rc);outline-offset:-2px}
+.pt.big{width:44px;height:44px}
+.crew .pt{grid-row:span 2}
+.ritem .pt{width:36px;height:36px}
+.ticker{overflow:hidden;white-space:nowrap;font:400 17px/1.3 var(--f-mono);color:var(--muted);border-top:2px dashed var(--line);padding-top:4px}
+.ticker span{display:inline-block;padding-left:100%;animation:tick 70s linear infinite}
+.ticker b{color:var(--brand);font-weight:400}
+@keyframes tick{to{transform:translateX(-100%)}}
+
+/* windows */
+.screen{position:absolute;inset:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:24px 0;background:rgba(8,10,20,.55)}
+.screen.clear{background:rgba(8,10,20,.4)}
+.paper{--pad:clamp(16px,3.5vw,28px);width:min(760px,100%);padding:var(--pad);display:flex;flex-direction:column;gap:16px;margin:auto 0}
+.titlebar{display:flex;align-items:center;gap:12px;margin:calc(var(--pad) * -1) calc(var(--pad) * -1) 0;padding:8px 8px 8px var(--pad);background:var(--line);font:400 10px/1 var(--f-label);letter-spacing:.04em;color:var(--fg);text-transform:uppercase}
+.titlebar i{flex:1;height:7px;background:repeating-linear-gradient(180deg,var(--line-hi) 0 1px,transparent 1px 3px)}
+.xbtn{appearance:none;border:0;cursor:pointer;width:22px;height:20px;background:var(--danger);color:var(--ink);font:700 11px/1 var(--f-label);box-shadow:inset 0 -2px 0 rgba(0,0,0,.3)}
+.paper h2{font:700 clamp(28px,5.5vw,42px)/1 var(--f-display);margin:0;text-wrap:balance;text-shadow:3px 3px 0 var(--ink)}
+.paper h3{font:400 11px/1 var(--f-label);letter-spacing:.04em;text-transform:uppercase;margin:0;color:var(--muted)}
+.paper p{margin:0;max-width:65ch}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.memo{font:400 20px/1.2 var(--f-mono);background:#070a12;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px);box-shadow:var(--frame);padding:16px 18px;white-space:pre-wrap;color:#c4f0d4}
+.memo b{color:var(--brand);font-weight:400}
+.memo::after{content:'\2588';color:var(--brand);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* title */
+.title-wrap{display:flex;flex-direction:column;gap:20px;width:min(840px,100%);margin:auto 0}
+.corp{display:flex;align-items:center;gap:10px;font:400 11px/1.2 var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
+.corp svg{width:33px;height:36px;flex:none}
+.big{font:700 clamp(36px,8.4vw,86px)/1.02 var(--f-label);text-transform:uppercase;margin:0;text-shadow:0 6px 0 var(--ink),6px 6px 0 var(--ink)}
+.big em{font-style:normal;color:var(--brand);text-shadow:0 6px 0 #6b5200,6px 6px 0 var(--ink)}
+.tagline{font:500 clamp(16px,2.4vw,20px)/1.3 var(--f-body);color:var(--muted);margin:0}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.steps li{padding:13px 14px 14px;font-size:15px;line-height:1.3}
+.steps li b{display:block;font:400 11px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--brand);margin-bottom:6px}
+.colony{font:400 18px/1.2 var(--f-mono);color:var(--muted)}
+.lineup{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap}
+.lineup img{width:42px;height:57px;image-rendering:crisp-edges;image-rendering:pixelated;filter:drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+.lineup figcaption{width:100%;font:400 10px/1.4 var(--f-label);color:var(--muted);letter-spacing:.03em;text-transform:uppercase;order:2;padding-top:8px}
+
+/* contract window on the star map */
+.card{--pad:18px;position:absolute;right:12px;top:12px;width:min(370px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;padding:var(--pad);display:flex;flex-direction:column;gap:12px}
+.card h2{font:700 30px/1 var(--f-display);margin:0;text-shadow:3px 3px 0 var(--ink)}
+.card .sub{font:400 10px/1.3 var(--f-label);color:var(--muted);letter-spacing:.03em;text-transform:uppercase}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:15px;margin:0}
+.kv dt{font:400 9px/1.9 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.kv dd{margin:0;min-width:0}
+.kv dd.mono{font-size:20px;line-height:1}
+.pill{display:inline-block;font:400 9px/1 var(--f-label);letter-spacing:.03em;text-transform:uppercase;padding:5px 7px;margin-top:3px;box-shadow:inset 0 0 0 2px currentColor;background:color-mix(in srgb,currentColor 14%,transparent)}
+.pill.good{color:var(--ok)}.pill.bad{color:var(--danger)}.pill.neutral{color:var(--muted)}
+.intel{font:400 18px/1.15 var(--f-mono);color:var(--brand);background:rgba(255,210,63,.08);padding:8px 12px 9px 14px;box-shadow:inset var(--b) 0 0 0 var(--brand)}
+.maphint{position:absolute;left:12px;bottom:12px;font:400 19px/1.2 var(--f-mono);color:var(--muted);pointer-events:none;max-width:60%;text-shadow:2px 2px 0 var(--ink)}
+
+/* email + payslip */
+.mailhead{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font:400 19px/1.15 var(--f-mono);color:var(--muted);border-bottom:2px dashed var(--line);padding-bottom:12px}
+.mailhead b{color:var(--fg);font-weight:400}
+.mailbody{display:flex;flex-direction:column;gap:12px;font-size:16px;line-height:1.5}
+.slip{width:100%;border-collapse:collapse;font:400 20px/1.1 var(--f-mono);font-variant-numeric:tabular-nums}
+.slip td{padding:5px 0;border-bottom:2px dotted var(--line)}
+.slip td:last-child{text-align:right}
+.slip tr.neg td:last-child{color:var(--danger)}
+.slip tr.tot td{border-bottom:0;border-top:3px solid var(--fg);color:var(--brand);padding-top:8px}
+
+/* store */
+.store{width:min(1000px,100%);display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;margin:auto 0}
+.store > .paper{margin:0;align-self:start}
+@media (max-width:760px){.store{grid-template-columns:minmax(0,1fr)}}
+.offers{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.offer{display:flex;flex-direction:column;gap:7px;text-align:left;border:0;background:var(--panel2);box-shadow:var(--frame),inset 0 calc(var(--b) * -2) 0 0 rgba(0,0,0,.25);padding:13px 13px 15px;cursor:pointer}
+.offer:hover:not(:disabled){box-shadow:inset 0 0 0 var(--b) var(--brand),inset 0 calc(var(--b) * -2) 0 0 rgba(0,0,0,.25);transform:translateY(-2px)}
+.offer:disabled{opacity:.4;cursor:not-allowed}
+.offer .k{font:400 9px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.offer .t{font:700 20px/1 var(--f-display)}
+.offer .d{font-size:14px;line-height:1.3;color:#c5cbe6;flex:1}
+.offer .p{font:400 22px/1 var(--f-mono);color:var(--brand)}
+.offer.sold{opacity:.35;pointer-events:none}
+.rlist{display:flex;flex-direction:column;gap:6px}
+.ritem{display:flex;align-items:center;gap:10px;padding:8px 10px;font-size:15px}
+.ritem .grow{flex:1;min-width:0}
+.ritem small{display:block;font:400 16px/1.05 var(--f-mono);color:var(--muted)}
+.ritem .btn{padding:7px 9px 9px;font-size:10px}
+.relics{display:flex;flex-wrap:wrap;gap:6px}
+.relic{font:400 17px/1 var(--f-mono);padding:7px 10px 8px;cursor:help}
+.scrip{font:400 52px/.8 var(--f-mono);color:var(--brand);text-shadow:3px 3px 0 var(--ink)}
+
+/* tower info + toast */
+.tinfo{position:absolute;left:10px;top:10px;width:min(260px,calc(100% - 20px));padding:13px;display:flex;flex-direction:column;gap:9px;font-size:14px}
+.tinfo h4{margin:0;font:700 19px/1 var(--f-display)}
+.tinfo .mono{font-size:17px;line-height:1.1}
+.toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:var(--brand);color:var(--brand-ink);font:700 12px/1.3 var(--f-label);letter-spacing:.02em;text-transform:uppercase;padding:10px 16px 12px;box-shadow:inset 0 calc(var(--b) * -1) 0 0 rgba(0,0,0,.3),inset 0 var(--b) 0 0 rgba(255,255,255,.45);pointer-events:none;text-align:center;max-width:calc(100% - 24px);transition:opacity .3s steps(3)}
+.toast.hide{opacity:0}
+@media (prefers-reduced-motion:reduce){.ticker span{animation:none;padding-left:0}.meter i{transition:none}.memo::after{animation:none}.offer:hover:not(:disabled){transform:none}}
+@media (max-width:560px){.hud-block .val{font-size:16px;max-width:200px}.crew{min-width:124px}.big{text-shadow:0 4px 0 var(--ink),4px 4px 0 var(--ink)}}
+
+/* settings */
+#modal{position:absolute;inset:0;z-index:10;display:grid;place-items:center;padding:16px;background:rgba(5,7,10,.65);overflow:auto}
+#modal:empty{display:none}
+.cfg-btn{position:absolute;right:12px;bottom:12px;z-index:6;width:42px;height:42px;padding:0;display:grid;place-items:center}
+.cfg-btn svg{width:22px;height:22px}
+.settings{width:min(440px,100%);margin:0}
+.set-row{display:grid;grid-template-columns:minmax(90px,120px) 1fr 52px;align-items:center;gap:12px}
+.set-row label{font:400 10px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.set-row output{font:400 22px/1 var(--f-mono);text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;margin:0;background:transparent;cursor:pointer;--v:50%}
+input[type=range]::-webkit-slider-runnable-track{height:12px;background:linear-gradient(90deg,var(--brand) var(--v),var(--ink) var(--v));box-shadow:inset 0 0 0 2px var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:22px;margin-top:-5px;border:0;background:var(--fg);box-shadow:inset 0 -3px 0 rgba(0,0,0,.35),inset 0 0 0 2px var(--ink)}
+input[type=range]::-moz-range-track{height:12px;background:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
+input[type=range]::-moz-range-progress{height:12px;background:var(--brand)}
+input[type=range]::-moz-range-thumb{width:14px;height:22px;border:0;border-radius:0;background:var(--fg);box-shadow:inset 0 -3px 0 rgba(0,0,0,.35),inset 0 0 0 2px var(--ink)}
+input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
+.toggle{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:16px}
+.toggle input{-webkit-appearance:none;appearance:none;width:22px;height:22px;margin:0;flex:none;cursor:pointer;background:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
+.toggle input:checked{background:var(--brand);box-shadow:inset 0 0 0 2px var(--brand),inset 0 0 0 6px var(--ink)}
+.toggle input:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
+</style>
+
+<div id="app">
+  <header id="hud"></header>
+  <main id="stage">
+    <canvas id="cv" aria-label="Game field"></canvas>
+    <div id="overlay"></div>
+    <div id="modal"></div>
+    <button id="cfgBtn" class="btn ghost sm cfg-btn" data-act="settings" aria-label="Settings" title="Settings (sound and display)"><svg viewBox="0 0 9 9" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="8" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="8" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/><rect x="3" y="8" width="1" height="1"/><rect x="4" y="8" width="1" height="1"/><rect x="5" y="8" width="1" height="1"/></svg></button>
+  </main>
+  <footer id="bar"></footer>
+</div>
+
+<script>
+'use strict';
+/* ================================================================
+   ACCEPTABLE LOSSES. Vertical slice.
+   Kindly Security Solutions(TM) employee defence simulator.
+   ================================================================ */
+
+// ---------- utilities ----------
+const $ = s => document.querySelector(s);
+const R = Math.random;
+const rnd = () => R();
+const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+const pick = a => a[Math.floor(R() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function wpick(obj) { let tot = 0; for (const k in obj) tot += obj[k]; let r = R() * tot; for (const k in obj) { r -= obj[k]; if (r <= 0) return k; } return Object.keys(obj)[0]; }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
+};
+
+// ---------- constants & data ----------
+const TILE = 36, STEP = 1 / 60;
+let GW = 22, GH = 13; // swapped to 13x22 on portrait screens
+const CONTRACTS_PER_SECTOR = 4; // then the boss
+
+const TOWERS = {
+  gunner:   { name: 'Turret Operator',   fee: 40, range: 2.6, dmg: 8,  rate: 1.6,  air: true,  color: '#ffd23f', desc: 'Reliable single-target fire. Hits air and ground.' },
+  taser:    { name: 'Taser Technician',  fee: 50, range: 1.9, dmg: 3,  rate: 0.9,  air: true,  aoe: true, slow: 0.45, slowDur: 1.6, color: '#5fd4ff', desc: 'Pulses electricity. Damages and slows everything nearby.' },
+  mortar:   { name: 'Foam Mortar Crew',  fee: 70, range: 3.8, dmg: 20, rate: 0.45, air: false, splash: 0.95, color: '#ff9f43', desc: 'Lobbed splash damage. Ground targets only.' },
+  marksman: { name: 'Marksman (Intern)', fee: 80, range: 5.2, dmg: 48, rate: 0.38, air: true,  pierce: true, strong: true, color: '#ff6b8b', desc: 'Long range. Ignores armour. Targets the toughest enemy.' },
+  drone:    { name: 'Drone Operator',    fee: 60, range: 3.0, dmg: 5,  rate: 3.2,  air: true,  airMult: 3, color: '#9be564', desc: 'Rapid fire. Triple damage against flyers.' },
+};
+const HIRE_COST = { gunner: 50, taser: 60, mortar: 75, drone: 65, marksman: 85 };
+const XP_TH = [0, 12, 32, 65, 110];
+const RANKS = ['Associate', 'Senior Associate', 'Lead Associate', 'Principal Associate', 'Associate Emeritus'];
+
+const CATS = {
+  swarm:    { label: 'Swarm',    hp: 11, spd: 1.45, armor: 0, bounty: 1, cost: 1, r: 6,  group: 4, threat: 1 },
+  fast:     { label: 'Runner',   hp: 24, spd: 2.3,  armor: 0, bounty: 3, cost: 2, r: 8,  threat: 2 },
+  armored:  { label: 'Armoured', hp: 62, spd: 0.72, armor: 4, bounty: 6, cost: 4, r: 11, threat: 4 },
+  flyer:    { label: 'Flyer',    hp: 30, spd: 1.15, armor: 0, bounty: 4, cost: 2, r: 9,  threat: 3, fly: true },
+  saboteur: { label: 'Saboteur', hp: 42, spd: 1.0,  armor: 1, bounty: 5, cost: 3, r: 9,  threat: 3, sab: true, dps: 5 },
+};
+const TIERS = [
+  { name: 'Grunt',   hp: 1,   armor: 0, bounty: 1, cost: 1, size: 1,    spd: 1,    threat: 1 },
+  { name: 'Veteran', hp: 2.4, armor: 3, bounty: 2, cost: 2, size: 1.2,  spd: 1.05, threat: 2.4 },
+  { name: 'Elite',   hp: 5.5, armor: 6, bounty: 4, cost: 4, size: 1.42, spd: 1.08, threat: 5.5 },
+];
+
+const FACTIONS = {
+  union: {
+    name: "Free Miners' Union Local 404", short: 'Striking Miners', color: '#f0a23a',
+    cats: { swarm: 4, armored: 3, saboteur: 2, fast: 1 },
+    names: { swarm: 'Picketer', fast: 'Organiser', armored: 'Hauler Rig', flyer: 'Survey Drone', saboteur: 'Wildcat Striker' },
+    boss: { name: 'Shop Steward Mk.IV', hp: 2600, spd: 0.38, armor: 7, r: 22, spawn: { cat: 'swarm', n: 4, every: 7 } },
+    clients: [
+      { n: 'Gorvax Mining Conglomerate', good: false, asset: 'raw Kessilite', why: 'the miners are demanding "oxygen breaks" and "wages"' },
+      { n: 'Tenth Dynasty Luxury Resorts', good: false, asset: 'decorative Lumenite', why: 'the staff unionised after the third lava incident' },
+    ],
+  },
+  fauna: {
+    name: 'Indigenous Xenofauna', short: 'Local Wildlife', color: '#7bdc6a',
+    cats: { swarm: 4, fast: 3, flyer: 3 },
+    names: { swarm: 'Skitterling', fast: 'Lopehound', armored: 'Shellback', flyer: 'Gasbag', saboteur: 'Burrower' },
+    boss: { name: 'Brood Matriarch', hp: 2300, spd: 0.45, armor: 2, r: 24, regen: 0.006, spawn: { cat: 'flyer', n: 2, every: 8 } },
+    clients: [
+      { n: "St. Kessel's Frontier Orphanage", good: true, asset: 'heating crystals', why: 'the local wildlife is hungry and the orphans are, frankly, bite-sized' },
+      { n: 'Crestline Golf & Terraforming', good: false, asset: 'terraforming Dreamquartz', why: 'the native species object to becoming a golf course' },
+      { n: 'Colonial Water Authority', good: true, asset: 'purifier crystals', why: 'migration season started early this year' },
+    ],
+  },
+  rival: {
+    name: 'VectorCorp Asset Recovery', short: 'Rival Contractors', color: '#ff5d73',
+    cats: { fast: 3, armored: 2, flyer: 2, saboteur: 3 },
+    names: { swarm: 'Temp Worker', fast: 'Repo Agent', armored: 'Bailiff Mech', flyer: 'Collections Drone', saboteur: 'Corporate Spy' },
+    boss: { name: 'VectorCorp Regional Manager', hp: 2000, spd: 0.55, armor: 5, r: 20, fly: true, spawn: { cat: 'saboteur', n: 2, every: 9 } },
+    clients: [
+      { n: 'A Genuinely Nice Hospital', good: true, asset: 'medical-grade Lumenite', why: 'VectorCorp was outbid on the contract and wants a refund in crystals' },
+      { n: "Senator Pell's Re-election Fund", good: false, asset: 'undeclared Vantablue', why: 'VectorCorp is owed a favour and is collecting it violently' },
+    ],
+  },
+  activists: {
+    name: 'Concerned Citizens Coalition', short: 'Protesters', color: '#5ab8ff',
+    cats: { swarm: 5, fast: 2, saboteur: 3 },
+    names: { swarm: 'Protester', fast: 'Livestreamer', armored: 'Megaphone Van', flyer: 'Camera Drone', saboteur: 'Glue Activist' },
+    boss: { name: 'The Influencer (12M followers)', hp: 2100, spd: 0.5, armor: 3, r: 20, spawn: { cat: 'swarm', n: 6, every: 6 } },
+    clients: [
+      { n: 'Petrovane Oil & Crystal', good: false, asset: 'Sorrowite', why: 'protesters claim the drilling is "cracking the planet in half"' },
+      { n: 'The Last Seed Bank', good: true, asset: 'cryo-crystals', why: 'a viral video convinced the protesters the seeds are "corporate seeds"' },
+    ],
+  },
+};
+
+const BIOMES = {
+  frozen:   { name: 'Frozen',         ground: '#16232f', ground2: '#1b2b3a', path: '#34495e', rock: '#5f7d99', planet: ['#d4efff', '#3a6f9e'], mod: { espd: 0.85, rate: 0.92 }, hazard: 'Cryo-winds: enemies 15% slower, crew fire 8% slower.' },
+  toxic:    { name: 'Toxic Jungle',   ground: '#12221a', ground2: '#172b20', path: '#36452a', rock: '#2d5a39', planet: ['#a8ef84', '#1d5a31'], mod: { regen: 0.012 }, hazard: 'Spore-rich air: enemies regenerate 1.2% HP per second.' },
+  dust:     { name: 'Dust World',     ground: '#271e16', ground2: '#2f241a', path: '#54412c', rock: '#77593b', planet: ['#f2c387', '#7a4a22'], mod: { range: 0.9, budget: 1.2 }, hazard: 'Dust storms: crew range -10%. Hazard pay +20% budget (deducted later).' },
+  lowgrav:  { name: 'Low Gravity',    ground: '#1a1729', ground2: '#211d33', path: '#3e365c', rock: '#665a94', planet: ['#cdbfff', '#4b3d8f'], mod: { range: 1.15, flyers: 1.8 }, hazard: 'Low gravity: crew range +15%, many more flyers.' },
+  urban:    { name: 'Earth Arcology', ground: '#191c21', ground2: '#1f2329', path: '#3a404a', rock: '#545b66', planet: ['#9fb4c9', '#2b3644'], mod: { budget: 1.15, swarm: 1.6 }, hazard: 'Dense population: +15% budget, much larger crowds.' },
+  volcanic: { name: 'Volcanic',       ground: '#251312', ground2: '#2d1817', path: '#562b21', rock: '#463733', planet: ['#ff9566', '#5a1a12'], mod: { ehp: 1.12, T: 0.85 }, hazard: 'Magma vents: enemies +12% HP, extraction 15% shorter.' },
+};
+
+const DIFFS = [
+  { label: 'Routine',  mod: 0.85, pay: 0.85, stars: 1 },
+  { label: 'Elevated', mod: 1.0,  pay: 1.0,  stars: 2 },
+  { label: 'Suicidal', mod: 1.2,  pay: 1.4,  stars: 3 },
+];
+
+const RELICS = {
+  coffee:    { name: 'Broken Coffee Machine',            desc: 'Only dispenses hot water. Crew fire 15% faster out of spite.' },
+  poster:    { name: '"Hang In There" Poster',           desc: 'All crew deal 12% more damage.' },
+  scope:     { name: 'Slightly Larger Scopes',           desc: 'All crew gain 12% range.' },
+  waiver:    { name: 'Liability Waiver',                 desc: 'Crew have 60% more HP. Legally, they agreed to this.' },
+  takeover:  { name: 'Signing Bonus (Clawback Pending)', desc: '+40 budget at the start of every contract.' },
+  loyalty:   { name: 'Loyalty Points Card',              desc: '+1 budget for every kill.' },
+  insurance: { name: 'Insurance Fraud Kit',              desc: 'The first 6% of margin lost each contract is "recovered".' },
+  overtime:  { name: 'Mandatory Overtime',               desc: 'Extractions finish 15% faster. Nobody goes home.' },
+  parachute: { name: 'Golden Parachute (Used)',          desc: 'Once per run, survive abandonment with 25% margin.' },
+  tasers:    { name: 'Overclocked Tasers',               desc: 'Taser Technicians deal double damage.' },
+  ammo:      { name: 'Bulk Ammo (Expired)',              desc: 'Turret and Drone Operators deal 20% more damage.' },
+  intern:    { name: 'Intern Energy Drinks',             desc: 'Marksmen fire 25% faster. Heart rates unmonitored.' },
+};
+
+const CREW_NAMES = ['Gary', 'Deb', 'Kowalski', 'Priya', 'Big Tomás', 'Steve (3)', 'Marguerite', 'Zed', 'Olu', 'Hank', 'Yusuf', 'Brenda', 'Ito', 'Rook', 'Svetlana', 'Dez', 'Unit 7', 'Moira', 'Pip', 'Lars', 'Ngozi', 'Carl', 'Imogen', 'Ramón', 'Fitz', 'Agnes', 'Bao', 'Dmitri', 'Tess', 'Kwame'];
+const DEDUCTIONS = ['Uniform rental', 'Oxygen (metered)', 'Helmet depreciation', 'Mandatory fun committee', 'Death insurance premium', 'Shuttle seat lease', 'Morale survey processing', 'Gravity surcharge', 'Ammunition you used', 'Ammunition colleagues used', 'Wellness hotline (on hold)', 'Payslip printing fee', 'Hazard pay processing'];
+const EARTH = ['Neo-Rotterdam Arcology', 'Greater Phoenix Heat Dome', 'Old Lagos Free Port', 'Sub-Shanghai Level 40', 'Antarctic Lithium Strip', 'New Detroit Megablock'];
+const SYL_A = ['Var', 'Kes', 'Ox', 'Thal', 'Mor', 'Ny', 'Zeb', 'Cal', 'Dru', 'Quor', 'Ise', 'Pel', 'Ab', 'Tor', 'Gha'];
+const SYL_B = ['n', 'sel', 'ara', 'ion', 'ux', 'eth', 'imo', 'oss', 'ari', 'ec', 'ul', 'yr'];
+const SYL_C = [' IV', ' Prime', ' b', ' VII', '-9', ' Minor', '', '', ' II'];
+const TICKER = [
+  'KINDLY™ stock up 4% after "workforce optimisation event" on Varn IV',
+  'CEO announces record profits, cancels employee oxygen subsidy',
+  'New policy: crew may now purchase their own helmets at a 40% markup',
+  'Board Member Q "unavailable for photographs" at annual gala, again',
+  'HR reminds staff that screaming counts as unpaid break time',
+  'VectorCorp denies existence of VectorCorp',
+  'Employee of the Month award discontinued due to lack of surviving employees',
+  'Survey: 9 in 10 contractors "would rather not say"',
+  'Mandatory Fun Day relocated to active warzone to cut costs',
+  'Galactic Senate praises private security as "cheaper than consequences"',
+  'Executives report strange humming in boardroom, describe it as "nourishing"',
+  'Kindly™ wins Ethics Award, sponsored by Kindly™',
+];
+const PS_LINES = [
+  'P.S. All executives are reminded to attend this quarter\'s Listening Session in sub-basement 9. Bring nothing. Think of nothing.',
+  'P.S. Please disregard the previous email about the humming.',
+  'P.S. Board Member Q has requested a full report of employee suffering metrics. This is a normal request.',
+  'P.S. If the CEO\'s eyes do the thing again during the all-hands, do not report it.',
+  'P.S. Suffering Metrics are up 12% this quarter. The board is pleased. Nobody knows why the board tracks this.',
+  'P.S. The Senate hearing on contractor deaths has been cancelled. All twelve senators reported the same dream.',
+];
+
+// ---------- global state ----------
+const S = { screen: 'title', selCrew: -1, selTower: null, hover: null, mapHover: -1, mapSel: -1, promotePick: false };
+let RUN = null, M = null;
+const has = id => RUN && RUN.relics.includes(id);
+
+// ---------- canvas & view ----------
+const cv = $('#cv'), ctx = cv.getContext('2d');
+const VIEW = { w: 1000, h: 560, scale: 1, dpr: 1 };
+function setView(w, h) { VIEW.w = w; VIEW.h = h; resize(); }
+function resize() {
+  const st = $('#stage').getBoundingClientRect();
+  const m = S.screen === 'mission' || S.screen === 'map' ? 12 : 0;
+  cv.classList.toggle('framed', m > 0);
+  const s = Math.max(0.1, Math.min((st.width - m) / VIEW.w, (st.height - m) / VIEW.h));
+  VIEW.scale = s;
+  VIEW.dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.style.width = Math.floor(VIEW.w * s) + 'px';
+  cv.style.height = Math.floor(VIEW.h * s) + 'px';
+  cv.width = Math.round(VIEW.w * s * VIEW.dpr);
+  cv.height = Math.round(VIEW.h * s * VIEW.dpr);
+}
+function beginDraw() { ctx.setTransform(VIEW.scale * VIEW.dpr, 0, 0, VIEW.scale * VIEW.dpr, 0, 0); }
+function toLogical(ev) { const r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * VIEW.w, y: (ev.clientY - r.top) / r.height * VIEW.h }; }
+function backdropView() { const r = $('#stage').getBoundingClientRect(); setView(Math.max(100, Math.round(r.width)), Math.max(100, Math.round(r.height))); }
+function onStageResize() { if (S.screen === 'map' && RUN) mapView(); else if (S.screen === 'mission') resize(); else backdropView(); }
+window.addEventListener('resize', onStageResize);
+if (window.ResizeObserver) new ResizeObserver(onStageResize).observe($('#stage'));
+
+// ---------- pixel space: star map and menu backdrops ----------
+const MAP_AP = 3;
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
+const bayer = (x, y) => BAYER[(y & 3) * 4 + (x & 3)];
+let PARALLAX = { x: 0, y: 0 }, SPACE = null;
+function spaceBuf() {
+  const w = Math.ceil(VIEW.w / MAP_AP), h = Math.ceil(VIEW.h / MAP_AP);
+  if (SPACE && SPACE.w === w && SPACE.h === h) return SPACE;
+  const c = mkCanvas(w, h), nb = mkCanvas(w + 16, h + 16), ng = nb.getContext('2d'), img = ng.createImageData(nb.width, nb.height), d = img.data;
+  const n1 = makeNoise(nb.width, nb.height, 28), n2 = makeNoise(nb.width, nb.height, 9), n3 = makeNoise(nb.width, nb.height, 44);
+  const base = hex2rgb('#070912'), cols = ['#120e2a', '#211744', '#361d58', '#0f3442'].map(hex2rgb);
+  for (let y = 0; y < nb.height; y++) for (let x = 0; x < nb.width; x++) {
+    const v = n1(x, y) * 0.68 + n2(x, y) * 0.32 + (bayer(x, y) - 0.5) * 0.1, teal = n3(x, y) > 0.58;
+    const col = v > 0.74 ? (teal ? cols[3] : cols[2]) : v > 0.63 ? cols[1] : v > 0.53 ? cols[0] : base;
+    const i = (y * nb.width + x) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
+  }
+  ng.putImageData(img, 0, 0);
+  const stars = Array.from({ length: Math.round(w * h / 70) }, () => {
+    const z = rnd();
+    return { x: rnd() * w, y: rnd() * h, z, big: z > 0.985, sp: 0.6 + rnd() * 2.4, ph: rnd() * 7, col: pick(['#5a6390', '#7a84b8', '#9aa6d8', '#c8d0f0']) };
+  });
+  return (SPACE = { w, h, c, g: c.getContext('2d'), nb, stars, comet: null });
+}
+function drawSpace(sp, t) {
+  const g = sp.g; g.imageSmoothingEnabled = false;
+  g.drawImage(sp.nb, -8 + Math.round(PARALLAX.x * 3), -8 + Math.round(PARALLAX.y * 2));
+  for (const s of sp.stars) {
+    const x = ((Math.round(s.x + PARALLAX.x * 8 * s.z) % sp.w) + sp.w) % sp.w, y = ((Math.round(s.y + PARALLAX.y * 5 * s.z) % sp.h) + sp.h) % sp.h, tw = Math.sin(t * s.sp + s.ph);
+    if (s.big) {
+      px(g, x, y, 1, 1, '#ffffff');
+      if (tw > -0.3) for (const [dx, dy] of OFF4) px(g, x + dx, y + dy, 1, 1, '#9fb4ff');
+      if (tw > 0.6) for (const [dx, dy] of OFF4) px(g, x + dx * 2, y + dy * 2, 1, 1, '#4a5a9a');
+    } else px(g, x, y, 1, 1, tw > 0.75 && s.z > 0.6 ? '#ffffff' : s.col);
+  }
+  if (!sp.comet && rnd() < 0.003) sp.comet = { x: rnd() * sp.w * 0.7, y: -2, vx: 50 + rnd() * 30, vy: 24 + rnd() * 10, t0: t };
+  if (sp.comet) {
+    const c = sp.comet, dt = t - c.t0, x = c.x + c.vx * dt, y = c.y + c.vy * dt;
+    for (let i = 9; i >= 0; i--) px(g, Math.round(x - c.vx * i * 0.014), Math.round(y - c.vy * i * 0.014), 1, 1, i ? rgba('#bfe6ff', 1 - i / 10) : '#ffffff');
+    if (x > sp.w + 20 || y > sp.h + 20) sp.comet = null;
+  }
+}
+function presentSpace(sp) { beginDraw(); ctx.imageSmoothingEnabled = false; ctx.drawImage(sp.c, 0, 0, sp.w * MAP_AP, sp.h * MAP_AP); }
+function drawStars(t) { const sp = spaceBuf(); drawSpace(sp, t); presentSpace(sp); }
+function pxText(txt, x, y, col, size = 12, align = 'center') {
+  ctx.font = `700 ${size}px Silkscreen, "Courier New", monospace`; ctx.textAlign = align;
+  ctx.fillStyle = '#05070a'; ctx.fillText(txt, x + 2, y + 2); ctx.fillStyle = col; ctx.fillText(txt, x, y);
+}
+
+// rotating pixel planets: sphere-mapped wrap-around noise, lit from the top left, dithered into a 6-step palette
+const PLANET_PAL = {
+  frozen:   ['#0e1a2e', '#1f3b5c', '#3a6f9e', '#7fb4dc', '#cfe9ff', '#ffffff'],
+  toxic:    ['#08180e', '#123d22', '#1d5a31', '#3f8f3a', '#8fdc5a', '#d8ff9a'],
+  dust:     ['#22130a', '#4a2a14', '#7a4a22', '#b77a40', '#e9b97a', '#ffe0b0'],
+  lowgrav:  ['#110d26', '#251d4a', '#4b3d8f', '#7a68c8', '#b4a6ff', '#e8e0ff'],
+  urban:    ['#0b0f15', '#1a222c', '#2b3644', '#4a5a6e', '#7a8ea6', '#b4c6da'],
+  volcanic: ['#120504', '#2a0c08', '#5a1a12', '#8f2a18', '#c8482a', '#f08050'],
+};
+function makeWrapNoise(gw, gh) {
+  const v = Array.from({ length: gw * (gh + 1) }, () => rnd());
+  return (x, y) => {
+    x = ((x % gw) + gw) % gw; y = clamp(y, 0, gh - 0.001);
+    const ix = Math.floor(x), iy = Math.floor(y), tx = x - ix, ty = y - iy, ix1 = (ix + 1) % gw;
+    const a = v[iy * gw + ix], b = v[iy * gw + ix1], c = v[(iy + 1) * gw + ix], d = v[(iy + 1) * gw + ix1], sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+  };
+}
+function planetTex(o) {
+  if (o._tex) return o._tex;
+  const TW = 96, TH = 48, n1 = makeWrapNoise(12, 6), n2 = makeWrapNoise(32, 16), nc = makeWrapNoise(16, 8), key = o.biomeKey;
+  const tex = new Float32Array(TW * TH), cloud = new Float32Array(TW * TH);
+  const craters = key === 'lowgrav' ? Array.from({ length: 9 }, () => ({ x: rnd() * TW, y: 8 + rnd() * (TH - 16), r: 2 + rnd() * 4 })) : [];
+  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
+    const u = x / TW, v = y / TH;
+    let val = n1(u * 12, v * 6) * 0.65 + n2(u * 32, v * 16) * 0.35;
+    if (key === 'dust') val = val * 0.45 + (Math.sin(v * 24 + val * 3) * 0.5 + 0.5) * 0.55;
+    if (key === 'frozen' && Math.abs(v - 0.5) > 0.36) val = 1.2;
+    for (const c of craters) { const dd = Math.hypot(Math.min(Math.abs(x - c.x), TW - Math.abs(x - c.x)), y - c.y); if (dd < c.r) val -= 0.3; else if (dd < c.r + 1) val += 0.15; }
+    tex[y * TW + x] = val;
+    cloud[y * TW + x] = nc(u * 16, v * 8);
+  }
+  return (o._tex = { TW, TH, tex, cloud, pal: PLANET_PAL[key].map(hex2rgb) });
+}
+function drawPlanetPx(g, o, cx, cy, R, t) {
+  const { TW, TH, tex, cloud, pal } = planetTex(o), n = pal.length, key = o.biomeKey, size = R * 2 + 1;
+  if (!o._pc || o._pc.width !== size) { o._pc = mkCanvas(size, size); o._pimg = o._pc.getContext('2d').createImageData(size, size); }
+  const d = o._pimg.data; d.fill(0);
+  const rot = t * 0.025 + o.seed, crot = t * 0.04 + o.seed * 2, L = [-0.55, -0.5, 0.67];
+  for (let y = -R; y <= R; y++) for (let x = -R; x <= R; x++) {
+    const nx = (x + 0.5) / (R + 0.5), ny = (y + 0.5) / (R + 0.5), r2 = nx * nx + ny * ny;
+    if (r2 > 1) continue;
+    const nz = Math.sqrt(1 - r2), lon = Math.atan2(nx, nz) / (Math.PI * 2), lat = Math.asin(ny) / Math.PI + 0.5;
+    const ty = clamp(Math.floor(lat * TH), 0, TH - 1), tx = ((Math.floor((lon + rot) * TW) % TW) + TW) % TW;
+    const val = tex[ty * TW + tx], light = nx * L[0] + ny * L[1] + nz * L[2], b = bayer(x + R, y + R);
+    let idx = clamp(Math.floor((val * 0.5 + (light * 0.5 + 0.5) * 0.8 - 0.15 + (b - 0.5) * 0.2) * n), 0, n - 1);
+    let col = pal[idx];
+    if ((key === 'toxic' || key === 'frozen') && light > -0.1) { const cl = cloud[ty * TW + (((Math.floor((lon + crot) * TW) % TW) + TW) % TW)]; if (cl > 0.66 + (b - 0.5) * 0.1) col = pal[Math.min(n - 1, idx + 2)]; }
+    if (key === 'urban' && light < 0.08 && val > 0.6 && b > 0.45) col = [255, 210, 63];
+    if (key === 'volcanic' && val > 0.7) col = light < 0.15 ? [255, 120, 50] : [255, 190, 100];
+    if (r2 > 0.84 && light > 0.3) col = pal[Math.min(n - 1, idx + 1)];
+    const i = ((y + R) * size + x + R) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
+  }
+  o._pc.getContext('2d').putImageData(o._pimg, 0, 0);
+  g.drawImage(o._pc, cx - R, cy - R);
+}
+function planetRing(g, cx, cy, R, front) {
+  const rx = R * 1.75, ry = R * 0.42, steps = Math.ceil(rx * 8);
+  for (let k = 0; k < steps; k++) {
+    const a = k / steps * Math.PI * 2, s = Math.sin(a); if ((s >= 0) !== front) continue;
+    px(g, Math.round(cx + Math.cos(a) * rx), Math.round(cy + s * ry), 1, 1, '#d4c8ff');
+    px(g, Math.round(cx + Math.cos(a) * (rx - 2)), Math.round(cy + s * (ry - 1)), 1, 1, '#8a7ad0');
+  }
+}
+function brackets(g, cx, cy, s, col) {
+  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = cx + sx * s, y = cy + sy * s; px(g, sx < 0 ? x : x - 3, y, 4, 1, col); px(g, x, sy < 0 ? y : y - 3, 1, 4, col); }
+}
+let SHIP_SPR = null;
+function shipSprites() {
+  if (SHIP_SPR) return SHIP_SPR;
+  const P = painter(34, 18);
+  P.r(9, 2, 5, 3, '#6b7280'); P.r(15, 2, 5, 3, '#59606b'); P.p(11, 3, '#ff4d6d'); P.p(17, 3, '#4fe0a6');
+  P.r(6, 6, 3, 6, '#3a4048'); P.r(5, 7, 1, 4, '#22252b');
+  P.r(9, 5, 16, 8, '#ffd23f'); P.r(25, 6, 3, 6, '#ffd23f'); P.r(28, 7, 2, 4, '#ffd23f'); P.r(30, 8, 1, 2, '#ffd23f');
+  P.r(25, 7, 3, 2, '#9fd3ff'); P.p(27, 7, '#e0f4ff');
+  P.p(14, 7, '#1a1400'); P.p(18, 7, '#1a1400'); P.p(13, 9, '#1a1400'); P.r(14, 10, 4, 1, '#1a1400'); P.p(18, 9, '#1a1400');
+  P.r(10, 13, 5, 2, '#c99a1f'); P.r(10, 3, 0, 0, '#c99a1f');
+  postProcess(P.c);
+  return (SHIP_SPR = [[3, 2], [5, 3], [2, 1]].map(([a, b]) => {
+    const c = mkCanvas(34, 18), g = c.getContext('2d'); g.drawImage(P.c, 0, 0);
+    px(g, 5 - a, 8, a, 2, '#ff9f43'); px(g, 5 - a + 1, 7, a - 1, 4, '#ff9f43'); px(g, 5 - b, 8, b, 2, '#fff3b0');
+    return c;
+  }));
+}
+function renderMap(now) {
+  const t = now / 1000, sp = spaceBuf(), g = sp.g, A = MAP_AP;
+  drawSpace(sp, t);
+  const sx = Math.round(SHIP.x / A), sy = Math.round(SHIP.y / A + Math.sin(t * 1.5));
+  const pos = RUN.options.map((o, i) => { const bob = Math.sin(t * 0.8 + i * 2) * 6; return { cx: Math.round(o.px / A), cy: Math.round((o.py + bob) / A) }; });
+  // dotted routes, marching toward the selected planet
+  const step = Math.floor(t * 12);
+  RUN.options.forEach((o, i) => {
+    const { cx, cy } = pos[i], x0 = sx + 12, mx = (x0 + cx) / 2, my = (sy + cy) / 2 - 20, len = Math.hypot(cx - x0, cy - sy) * 1.25;
+    const col = S.mapSel === i ? '#ffd23f' : S.mapHover === i ? '#a8b0d8' : '#454e7c';
+    for (let k = 0; k <= len; k++) {
+      if (((k - step) % 6 + 6) % 6 > 2) continue;
+      const u = k / len, x = (1 - u) * (1 - u) * x0 + 2 * (1 - u) * u * mx + u * u * cx, y = (1 - u) * (1 - u) * sy + 2 * (1 - u) * u * my + u * u * cy;
+      px(g, Math.round(x), Math.round(y), 1, 1, col);
+    }
+  });
+  // sector progress
+  for (let i = 0; i <= CONTRACTS_PER_SECTOR; i++) {
+    const x = 10 + i * 11, y = 18, boss = i === CONTRACTS_PER_SECTOR;
+    if (i > 0) px(g, x - 7, y + 2, 5, 1, i <= RUN.idx ? '#ffd23f' : '#323b66');
+    if (boss) { const c = RUN.idx >= CONTRACTS_PER_SECTOR ? '#ff4d6d' : '#5a2a3a'; px(g, x - 1, y - 1, 7, 5, c); px(g, x, y + 4, 5, 2, c); px(g, x, y + 1, 2, 2, '#05070a'); px(g, x + 3, y + 1, 2, 2, '#05070a'); }
+    else {
+      const done = i < RUN.idx, cur = i === RUN.idx;
+      px(g, x - 1, y - 1, 7, 7, '#05070a');
+      px(g, x, y, 5, 5, done ? '#ffd23f' : cur ? (Math.floor(t * 3) % 2 ? '#e8ecf8' : '#8a93bd') : '#323b66');
+    }
+  }
+  // ship
+  g.drawImage(shipSprites()[Math.floor(t * 14) % 3], sx - 17, sy - 9);
+  // planets
+  RUN.options.forEach((o, i) => {
+    const { cx, cy } = pos[i], hov = S.mapHover === i, sel = S.mapSel === i, R = Math.round(o.pr / A) + (hov || sel ? 1 : 0);
+    const N = Math.round(Math.PI * 2 * (R + 4) / 2);
+    for (let k = 0; k < N; k++) if (k % 3 === 0) { const a = k / N * Math.PI * 2 + t * 0.25; px(g, Math.round(cx + Math.cos(a) * (R + 4)), Math.round(cy + Math.sin(a) * (R + 4)), 1, 1, o.fac.color); }
+    if (o.biomeKey === 'lowgrav') planetRing(g, cx, cy, R, false);
+    drawPlanetPx(g, o, cx, cy, R, t);
+    if (o.biomeKey === 'lowgrav') planetRing(g, cx, cy, R, true);
+    if (sel || hov) brackets(g, cx, cy, R + 8 + (sel ? Math.round(Math.sin(t * 5)) : 0), sel ? '#ffd23f' : '#a8b0d8');
+    const pips = Math.max(3, o.stars), py = cy + R + 15;
+    for (let s = 0; s < pips; s++) { const x = cx - Math.floor((pips * 4 - 1) / 2) + s * 4; px(g, x - 1, py - 1, 5, 5, '#05070a'); px(g, x, py, 3, 3, s < o.stars ? (o.boss ? '#ff4d6d' : '#ffd23f') : '#323b66'); }
+  });
+  presentSpace(sp);
+  // light and labels at full resolution
+  ctx.globalCompositeOperation = 'lighter';
+  glow((sx - 14) * A, sy * A, 26, '#ff9f43', 0.45 + 0.15 * Math.sin(t * 30));
+  RUN.options.forEach((o, i) => glow(pos[i].cx * A, pos[i].cy * A, o.pr * 1.7, o.fac.color, S.mapSel === i ? 0.22 : 0.12));
+  ctx.globalCompositeOperation = 'source-over';
+  pxText('SECTOR PROGRESS', 27, 38, '#8a93bd', 10, 'left');
+  pxText('KSS INDENTURE', sx * A, (sy + 15) * A, '#8a93bd', 10);
+  RUN.options.forEach((o, i) => {
+    const R = Math.round(o.pr / A), x = pos[i].cx * A, y = (pos[i].cy + R) * A;
+    pxText(o.planet.toUpperCase(), x, y + 22, S.mapSel === i ? '#ffd23f' : '#e8ecf8', 14);
+    pxText(o.diffLabel.toUpperCase(), x, y + 38, o.boss ? '#ff4d6d' : '#8a93bd', 10);
+  });
+}
+
+// ---------- drawing helpers ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function poly(x, y, r, n, rot) { ctx.beginPath(); for (let i = 0; i < n; i++) { const a = rot + i / n * Math.PI * 2; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); }
+function starShape(x, y, r1, r2, n, rot) { ctx.beginPath(); for (let i = 0; i < n * 2; i++) { const a = rot + i / (n * 2) * Math.PI * 2, r = i % 2 ? r2 : r1; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); }
+
+const LOGO = `<svg viewBox="0 0 11 12" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="0" width="1" height="1" fill="#ffd23f"/><rect x="3" y="0" width="1" height="1" fill="#ffd23f"/><rect x="4" y="0" width="1" height="1" fill="#ffd23f"/><rect x="5" y="0" width="1" height="1" fill="#ffd23f"/><rect x="6" y="0" width="1" height="1" fill="#ffd23f"/><rect x="7" y="0" width="1" height="1" fill="#ffd23f"/><rect x="8" y="0" width="1" height="1" fill="#ffd23f"/><rect x="1" y="1" width="1" height="1" fill="#ffd23f"/><rect x="2" y="1" width="1" height="1" fill="#ffd23f"/><rect x="3" y="1" width="1" height="1" fill="#ffd23f"/><rect x="4" y="1" width="1" height="1" fill="#ffd23f"/><rect x="5" y="1" width="1" height="1" fill="#ffd23f"/><rect x="6" y="1" width="1" height="1" fill="#ffd23f"/><rect x="7" y="1" width="1" height="1" fill="#ffd23f"/><rect x="8" y="1" width="1" height="1" fill="#ffd23f"/><rect x="9" y="1" width="1" height="1" fill="#ffd23f"/><rect x="0" y="2" width="1" height="1" fill="#ffd23f"/><rect x="1" y="2" width="1" height="1" fill="#ffd23f"/><rect x="2" y="2" width="1" height="1" fill="#ffd23f"/><rect x="3" y="2" width="1" height="1" fill="#ffd23f"/><rect x="4" y="2" width="1" height="1" fill="#ffd23f"/><rect x="5" y="2" width="1" height="1" fill="#ffd23f"/><rect x="6" y="2" width="1" height="1" fill="#ffd23f"/><rect x="7" y="2" width="1" height="1" fill="#ffd23f"/><rect x="8" y="2" width="1" height="1" fill="#ffd23f"/><rect x="9" y="2" width="1" height="1" fill="#ffd23f"/><rect x="10" y="2" width="1" height="1" fill="#ffd23f"/><rect x="0" y="3" width="1" height="1" fill="#ffd23f"/><rect x="1" y="3" width="1" height="1" fill="#ffd23f"/><rect x="2" y="3" width="1" height="1" fill="#ffd23f"/><rect x="3" y="3" width="1" height="1" fill="#231a00"/><rect x="4" y="3" width="1" height="1" fill="#ffd23f"/><rect x="5" y="3" width="1" height="1" fill="#ffd23f"/><rect x="6" y="3" width="1" height="1" fill="#ffd23f"/><rect x="7" y="3" width="1" height="1" fill="#231a00"/><rect x="8" y="3" width="1" height="1" fill="#ffd23f"/><rect x="9" y="3" width="1" height="1" fill="#ffd23f"/><rect x="10" y="3" width="1" height="1" fill="#ffd23f"/><rect x="0" y="4" width="1" height="1" fill="#ffd23f"/><rect x="1" y="4" width="1" height="1" fill="#ffd23f"/><rect x="2" y="4" width="1" height="1" fill="#ffd23f"/><rect x="3" y="4" width="1" height="1" fill="#231a00"/><rect x="4" y="4" width="1" height="1" fill="#ffd23f"/><rect x="5" y="4" width="1" height="1" fill="#ffd23f"/><rect x="6" y="4" width="1" height="1" fill="#ffd23f"/><rect x="7" y="4" width="1" height="1" fill="#231a00"/><rect x="8" y="4" width="1" height="1" fill="#ffd23f"/><rect x="9" y="4" width="1" height="1" fill="#ffd23f"/><rect x="10" y="4" width="1" height="1" fill="#ffd23f"/><rect x="0" y="5" width="1" height="1" fill="#ffd23f"/><rect x="1" y="5" width="1" height="1" fill="#ffd23f"/><rect x="2" y="5" width="1" height="1" fill="#ffd23f"/><rect x="3" y="5" width="1" height="1" fill="#ffd23f"/><rect x="4" y="5" width="1" height="1" fill="#ffd23f"/><rect x="5" y="5" width="1" height="1" fill="#ffd23f"/><rect x="6" y="5" width="1" height="1" fill="#ffd23f"/><rect x="7" y="5" width="1" height="1" fill="#ffd23f"/><rect x="8" y="5" width="1" height="1" fill="#ffd23f"/><rect x="9" y="5" width="1" height="1" fill="#ffd23f"/><rect x="10" y="5" width="1" height="1" fill="#ffd23f"/><rect x="0" y="6" width="1" height="1" fill="#ffd23f"/><rect x="1" y="6" width="1" height="1" fill="#ffd23f"/><rect x="2" y="6" width="1" height="1" fill="#231a00"/><rect x="3" y="6" width="1" height="1" fill="#ffd23f"/><rect x="4" y="6" width="1" height="1" fill="#ffd23f"/><rect x="5" y="6" width="1" height="1" fill="#ffd23f"/><rect x="6" y="6" width="1" height="1" fill="#ffd23f"/><rect x="7" y="6" width="1" height="1" fill="#ffd23f"/><rect x="8" y="6" width="1" height="1" fill="#231a00"/><rect x="9" y="6" width="1" height="1" fill="#ffd23f"/><rect x="10" y="6" width="1" height="1" fill="#ffd23f"/><rect x="0" y="7" width="1" height="1" fill="#ffd23f"/><rect x="1" y="7" width="1" height="1" fill="#ffd23f"/><rect x="2" y="7" width="1" height="1" fill="#ffd23f"/><rect x="3" y="7" width="1" height="1" fill="#231a00"/><rect x="4" y="7" width="1" height="1" fill="#231a00"/><rect x="5" y="7" width="1" height="1" fill="#231a00"/><rect x="6" y="7" width="1" height="1" fill="#231a00"/><rect x="7" y="7" width="1" height="1" fill="#231a00"/><rect x="8" y="7" width="1" height="1" fill="#ffd23f"/><rect x="9" y="7" width="1" height="1" fill="#ffd23f"/><rect x="10" y="7" width="1" height="1" fill="#ffd23f"/><rect x="1" y="8" width="1" height="1" fill="#ffd23f"/><rect x="2" y="8" width="1" height="1" fill="#ffd23f"/><rect x="3" y="8" width="1" height="1" fill="#ffd23f"/><rect x="4" y="8" width="1" height="1" fill="#ffd23f"/><rect x="5" y="8" width="1" height="1" fill="#ffd23f"/><rect x="6" y="8" width="1" height="1" fill="#ffd23f"/><rect x="7" y="8" width="1" height="1" fill="#ffd23f"/><rect x="8" y="8" width="1" height="1" fill="#ffd23f"/><rect x="9" y="8" width="1" height="1" fill="#ffd23f"/><rect x="2" y="9" width="1" height="1" fill="#ffd23f"/><rect x="3" y="9" width="1" height="1" fill="#ffd23f"/><rect x="4" y="9" width="1" height="1" fill="#ffd23f"/><rect x="5" y="9" width="1" height="1" fill="#ffd23f"/><rect x="6" y="9" width="1" height="1" fill="#ffd23f"/><rect x="7" y="9" width="1" height="1" fill="#ffd23f"/><rect x="8" y="9" width="1" height="1" fill="#ffd23f"/><rect x="3" y="10" width="1" height="1" fill="#ffd23f"/><rect x="4" y="10" width="1" height="1" fill="#ffd23f"/><rect x="5" y="10" width="1" height="1" fill="#ffd23f"/><rect x="6" y="10" width="1" height="1" fill="#ffd23f"/><rect x="7" y="10" width="1" height="1" fill="#ffd23f"/><rect x="4" y="11" width="1" height="1" fill="#ffd23f"/><rect x="5" y="11" width="1" height="1" fill="#ffd23f"/><rect x="6" y="11" width="1" height="1" fill="#ffd23f"/></svg>`;
+
+// ================================================================
+// PIXEL ART. The playfield is drawn at 1 art pixel = 2 logical px into a
+// low-res buffer, then scaled up crisply. Lights, tracers and arcs are drawn
+// on top at full resolution for the neo-pixel glow.
+// ================================================================
+const AP = 2, ATILE = TILE / AP;
+const RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const OFF4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function hex2rgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function rgb2hex(r, g, b) { const f = v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0'); return '#' + f(r) + f(g) + f(b); }
+function shade(h, k) { const [r, g, b] = hex2rgb(h); return k >= 0 ? rgb2hex(r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k) : rgb2hex(r * (1 + k), g * (1 + k), b * (1 + k)); }
+function mixHex(a, b, t) { const A = hex2rgb(a), B = hex2rgb(b); return rgb2hex(A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t); }
+function rgba(h, a) { const [r, g, b] = hex2rgb(h); return `rgba(${r},${g},${b},${clamp(a, 0, 1).toFixed(3)})`; }
+function px(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
+function pxLine(g, x0, y0, x1, y1, c) {
+  g.fillStyle = c; x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy;
+  for (let i = 0; i < 400; i++) { g.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
+}
+function pxCircle(g, cx, cy, r, c) {
+  g.fillStyle = c; const R2 = r * r, n = Math.ceil(r);
+  for (let y = -n; y <= n; y++) { if (y * y > R2 + 0.5) continue; const w = Math.floor(Math.sqrt(Math.max(0, R2 - y * y))); g.fillRect(Math.round(cx) - w, Math.round(cy) + y, w * 2 + 1, 1); }
+}
+function painter(w, h) {
+  const c = mkCanvas(w, h), g = c.getContext('2d');
+  return {
+    c, g,
+    r(x, y, ww, hh, col) { if (ww > 0 && hh > 0) px(g, x, y, ww, hh, col); },
+    p(x, y, col) { px(g, x, y, 1, 1, col); },
+    ell(cx, cy, rx, ry, col) { g.fillStyle = col; for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) { const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry; if (dx * dx + dy * dy <= 1) g.fillRect(x, y, 1, 1); } },
+    line(x0, y0, x1, y1, col) { pxLine(g, x0, y0, x1, y1, col); },
+  };
+}
+// rim light on top edges, shadow on bottom edges, then a dark 1px outline
+function postProcess(c, { shadeIt = true, outlineCol = '#0c0e14' } = {}) {
+  const g = c.getContext('2d'), w = c.width, h = c.height, img = g.getImageData(0, 0, w, h), a = img.data, src = new Uint8ClampedArray(a);
+  const op = (x, y) => x >= 0 && y >= 0 && x < w && y < h && src[(y * w + x) * 4 + 3] > 0;
+  const [or, og, ob] = hex2rgb(outlineCol);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    if (op(x, y)) {
+      if (!shadeIt) continue;
+      let k = 0;
+      if (!op(x, y - 1)) k = 0.2; else if (!op(x, y + 1) || !op(x, y + 2)) k = -0.22; else if (!op(x + 1, y)) k = -0.1;
+      if (k > 0) { a[i] += (255 - a[i]) * k; a[i + 1] += (255 - a[i + 1]) * k; a[i + 2] += (255 - a[i + 2]) * k; }
+      else if (k < 0) { a[i] *= 1 + k; a[i + 1] *= 1 + k; a[i + 2] *= 1 + k; }
+    } else if (op(x - 1, y) || op(x + 1, y) || op(x, y - 1) || op(x, y + 1)) {
+      a[i] = or; a[i + 1] = og; a[i + 2] = ob; a[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+function silhouette(c, col) { const s = mkCanvas(c.width, c.height), g = s.getContext('2d'); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, s.width, s.height); return s; }
+function greyed(c) {
+  const s = mkCanvas(c.width, c.height), g = s.getContext('2d'); g.drawImage(c, 0, 0);
+  const img = g.getImageData(0, 0, s.width, s.height), a = img.data;
+  for (let i = 0; i < a.length; i += 4) { const l = (a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11) * 0.7; a[i] = l; a[i + 1] = l * 1.02; a[i + 2] = l * 1.12; }
+  g.putImageData(img, 0, 0); return s;
+}
+function scale2(c) { const s = mkCanvas(c.width * 2, c.height * 2), g = s.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, s.width, s.height); return s; }
+function makeNoise(w, h, cell) {
+  const gw = Math.ceil(w / cell) + 2, v = Array.from({ length: gw * (Math.ceil(h / cell) + 2) }, () => rnd());
+  return (x, y) => {
+    const fx = x / cell, fy = y / cell, ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+    const a = v[iy * gw + ix], b = v[iy * gw + ix + 1], c = v[(iy + 1) * gw + ix], d = v[(iy + 1) * gw + ix + 1];
+    const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+  };
+}
+
+// ---------- random people ----------
+const SKINS = ['#ffe3cc', '#f6cfae', '#ecb991', '#dca476', '#c98d5a', '#b07446', '#935b34', '#7a4a2a', '#5f3720', '#462816'];
+const HAIR_N = ['#17120f', '#2b1d15', '#47301f', '#6a4428', '#9a5a2e', '#c99a55', '#ead08f', '#b2462e', '#8f8f94', '#e6e3dc'];
+const HAIR_D = ['#ff6fae', '#4fd1c5', '#9b6bff', '#7bdc6a', '#4a8cff', '#ff9f43'];
+const STYLES = ['bald', 'buzz', 'short', 'swoop', 'afro', 'curly', 'long', 'ponytail', 'bun', 'braids', 'mohawk', 'scarf', 'short', 'curly', 'afro', 'long'];
+function genLook() {
+  return {
+    skin: pick(SKINS), hair: rnd() < 0.13 ? pick(HAIR_D) : pick(HAIR_N), style: pick(STYLES),
+    facial: rnd() < 0.3 ? pick(['stubble', 'mustache', 'beard', 'goatee']) : 'none',
+    glasses: rnd() < 0.22 ? pick(['round', 'square', 'shades']) : 'none',
+    build: pick(['slim', 'mid', 'mid', 'broad']),
+    extra: rnd() < 0.4 ? pick(['freckles', 'earring', 'plaster', 'eyepatch', 'blush', 'scar']) : 'none',
+    scarf: pick(['#3c6e71', '#8e3b46', '#2c4a8a', '#c98b2a', '#5b3c88', '#2f2f2f', '#d6d0c4']),
+  };
+}
+const CREW_OUTFITS = {
+  gunner:   { shirt: '#2a3a5c', vest: '#ffd23f', stripe: '#eef2f5', pants: '#1d2433', hat: 'cap', capCol: '#1d2433', badge: '#ffd23f' },
+  taser:    { shirt: '#2f8fa8', pants: '#2a7d93', gloves: '#ffd23f', pack: true, hat: 'goggles', logo: true },
+  mortar:   { shirt: '#ff8a2a', pants: '#e0742a', hat: 'hardhat', legStripe: '#eef2f5', logo: true },
+  marksman: { shirt: '#ff7a9c', collar: '#ffffff', lanyard: true, pants: '#c8b48a', shoes: '#5a3a22' },
+  drone:    { shirt: '#4f7a3a', hood: true, pocket: true, pants: '#3a3f35', hat: 'headset', controller: true },
+};
+// 12x17 chibi facing right, drawn into a 14x19 canvas (1px outline margin).
+// legs: 'n' standing, 'a'/'b' stride frames. yo: upper-body bob.
+function drawHuman(L, of, legs = 'n', yo = 0) {
+  const P = painter(14, 19);
+  const R = (x, y, w, h, c) => P.r(x + 1, y + 1, w, h, c), D = (x, y, c) => P.p(x + 1, y + 1, c);
+  const U = (x, y, w, h, c) => R(x, y + yo, w, h, c), UD = (x, y, c) => D(x, y + yo, c);
+  const sk = L.skin, skd = shade(sk, -0.16), hc = L.hair, hcd = shade(hc, -0.28), hcl = shade(hc, 0.2), eye = '#1a1420';
+  const [tx, tw] = { slim: [4, 4], mid: [3, 6], broad: [2, 8] }[L.build];
+  const shirt = of.shirt, sd = shade(shirt, -0.2), pants = of.pants, pd = shade(pants, -0.22), shoe = of.shoes || '#16181d';
+  const style = L.style;
+  // behind the body
+  if (of.pack) { U(tx - 2, 8, 2, 4, '#3a4048'); UD(tx - 2, 9, '#5fd4ff'); }
+  if (of.hood) U(2, 6, 3, 3, sd);
+  if (style === 'long') U(2, 3, 2, 7, hcd);
+  if (style === 'ponytail') { U(1, 3, 2, 1, hc); U(1, 4, 1, 4, hcd); }
+  if (style === 'braids') { U(2, 4, 1, 6, hcd); UD(2, 10, '#ffd23f'); }
+  // legs
+  if (legs === 'n') {
+    R(4, 13, 2, 3, pd); R(6, 13, 2, 3, pants); R(4, 16, 2, 1, shoe); R(6, 16, 3, 1, shoe);
+    if (of.legStripe) R(4, 14, 4, 1, of.legStripe);
+  } else {
+    const back = legs === 'a' ? pd : pants, front = legs === 'a' ? pants : pd;
+    R(3, 13, 2, 2, back); R(2, 15, 2, 1, back); R(1, 16, 3, 1, shoe);
+    R(6, 13, 2, 2, front); R(7, 15, 2, 1, front); R(7, 16, 3, 1, shoe);
+  }
+  // torso
+  U(tx, 8, tw, 5, shirt); U(tx, 8, 1, 5, sd);
+  if (of.vest) { U(tx, 8, tw, 4, of.vest); U(tx, 8, 1, 4, shade(of.vest, -0.18)); UD(tx + (tw >> 1), 8, shirt); if (of.stripe) U(tx, 10, tw, 1, of.stripe); }
+  if (of.collar) U(tx + 1, 8, tw - 2, 1, of.collar);
+  if (of.suit) { UD(tx + (tw >> 1), 8, '#f2f2f2'); UD(tx + (tw >> 1), 9, of.suit); UD(tx + (tw >> 1), 10, of.suit); }
+  if (of.lanyard) { UD(tx + 1, 8, '#3d6bff'); UD(tx + 2, 9, '#3d6bff'); U(tx + 2, 10, 2, 2, '#f2f2f2'); UD(tx + 2, 10, '#3d6bff'); }
+  if (of.pocket) U(tx + 1, 11, tw - 2, 1, sd);
+  if (of.hood) UD(tx + 2, 9, '#e6e6e6');
+  if (of.logo) UD(tx + tw - 2, 9, '#ffd23f');
+  U(tx, 12, tw, 1, shade(pants, -0.35));
+  if (of.coat) { U(tx, 8, tw, 5, of.coat); U(tx, 8, 1, 5, shade(of.coat, -0.2)); R(tx, 13, tw, 2, of.coat); UD(tx + (tw >> 1), 8, '#f2f2f2'); }
+  // front arm reaching to the hand at (9,10)
+  const ax0 = tx + tw - 1; U(ax0, 9, Math.max(1, 9 - ax0), 2, of.coat || shirt);
+  UD(9, 10, of.gloves || sk);
+  if (of.controller) { U(8, 10, 3, 2, '#2b2f36'); UD(9, 10, '#9be564'); UD(10, 11, sk); }
+  // head
+  U(4, 2, 4, 1, sk); U(3, 3, 6, 5, sk); U(3, 7, 6, 1, skd); UD(4, 5, skd);
+  UD(6, 5, eye); UD(8, 5, eye); UD(7, 7, shade(sk, -0.35));
+  // hair
+  const H = (x, y, w, h, c = hc) => U(x, y, w, h, c);
+  switch (style) {
+    case 'bald': UD(5, 3, shade(sk, 0.25)); break;
+    case 'buzz': H(4, 2, 4, 1, hcd); H(3, 3, 6, 1, hcd); UD(3, 4, hcd); break;
+    case 'short': H(4, 1, 4, 1); H(3, 2, 6, 2); H(3, 4, 2, 1); UD(5, 2, hcl); break;
+    case 'swoop': H(4, 1, 5, 1); H(3, 2, 7, 1); H(3, 3, 2, 2); H(7, 3, 3, 1); UD(6, 1, hcl); break;
+    case 'afro': H(3, 0, 6, 1); H(2, 1, 8, 3); H(1, 2, 1, 3); H(10, 2, 1, 2); H(2, 4, 2, 2); UD(4, 1, hcl); UD(7, 0, hcl); break;
+    case 'curly': H(3, 1, 2, 1); H(6, 1, 2, 1); H(3, 2, 6, 2); H(2, 3, 1, 3); H(3, 4, 1, 2); UD(4, 2, hcl); UD(7, 2, hcl); break;
+    case 'long': H(4, 1, 4, 1); H(3, 2, 6, 2); H(3, 4, 1, 4); H(8, 3, 1, 1); UD(5, 2, hcl); break;
+    case 'ponytail': H(4, 1, 4, 1); H(3, 2, 6, 2); H(3, 4, 1, 1); UD(5, 2, hcl); break;
+    case 'bun': H(5, 0, 3, 1); H(4, 1, 4, 1); H(3, 2, 6, 2); H(3, 4, 1, 1); UD(6, 0, hcl); break;
+    case 'braids': H(4, 1, 4, 1); H(3, 2, 6, 2); H(3, 4, 1, 3); UD(4, 2, hcd); UD(6, 2, hcd); break;
+    case 'mohawk': H(5, 0, 2, 3); H(3, 3, 1, 2, hcd); UD(5, 0, hcl); break;
+    case 'scarf': {
+      const sc = L.scarf; U(2, 2, 8, 7, sc); U(4, 1, 4, 1, sc); U(2, 2, 1, 7, shade(sc, -0.2)); UD(4, 1, shade(sc, 0.25));
+      U(5, 4, 4, 4, sk); U(5, 7, 4, 1, skd); UD(6, 5, eye); UD(8, 5, eye); UD(7, 7, shade(sk, -0.35)); break;
+    }
+  }
+  // face extras
+  if (L.facial === 'stubble') U(5, 7, 4, 1, mixHex(sk, hc, 0.45));
+  if (L.facial === 'mustache') U(6, 7, 3, 1, hc);
+  if (L.facial === 'beard') { U(4, 6, 1, 2, hc); U(5, 7, 4, 1, hc); U(5, 8, 4, 1, hc); }
+  if (L.facial === 'goatee') U(7, 7, 2, 2, hc);
+  switch (L.extra) {
+    case 'freckles': UD(5, 6, skd); UD(7, 6, skd); break;
+    case 'earring': UD(4, 6, '#ffd23f'); break;
+    case 'plaster': UD(8, 6, '#f3e2c8'); break;
+    case 'eyepatch': U(4, 4, 5, 1, '#15161a'); UD(8, 5, '#15161a'); break;
+    case 'blush': UD(8, 6, '#ff8fa3'); UD(5, 6, '#ff8fa3'); break;
+    case 'scar': UD(5, 6, shade(sk, -0.32)); UD(6, 7, shade(sk, -0.32)); break;
+  }
+  const glasses = of.shades ? 'shades' : L.glasses;
+  if (glasses === 'round' || glasses === 'square') { U(5, 5, 4, 1, glasses === 'round' ? '#c9a24a' : '#24262c'); UD(6, 5, '#d8eeff'); UD(8, 5, '#d8eeff'); }
+  if (glasses === 'shades') { U(5, 5, 4, 1, '#0e1016'); UD(8, 5, '#4a5a78'); }
+  if (of.mask) { U(5, 6, 4, 2, of.mask); UD(4, 6, shade(of.mask, -0.2)); }
+  // hats
+  const hat = of.hat;
+  if (hat === 'cap') { const c = of.capCol || '#1d2433'; U(4, 1, 4, 1, c); U(3, 2, 6, 2, c); U(8, 3, 3, 1, shade(c, -0.25)); if (of.badge) UD(6, 2, of.badge); }
+  if (hat === 'hardhat' || hat === 'miner') { const c = hat === 'miner' ? '#e8b83a' : '#f2f2ec'; U(4, 0, 4, 1, c); U(3, 1, 6, 2, c); U(2, 3, 8, 1, shade(c, -0.2)); UD(5, 1, shade(c, 0.45)); if (hat === 'miner') UD(8, 2, '#fff6b0'); }
+  if (hat === 'headset') { U(4, 1, 4, 1, '#2b2f36'); U(3, 2, 1, 2, '#2b2f36'); U(3, 4, 2, 2, '#3a4048'); UD(5, 6, '#2b2f36'); UD(6, 7, '#2b2f36'); UD(7, 7, '#9be564'); }
+  if (hat === 'goggles') { U(3, 3, 6, 1, '#22262d'); U(6, 3, 3, 1, '#5fd4ff'); UD(7, 3, '#c8f4ff'); }
+  if (hat === 'fedora') { U(4, 0, 4, 2, '#3b3228'); U(4, 1, 4, 1, '#151110'); U(2, 2, 8, 1, '#2a231c'); }
+  if (hat === 'beanie') { const c = of.capCol || '#c0392b'; U(4, 0, 4, 1, c); U(3, 1, 6, 2, c); U(3, 3, 6, 1, shade(c, -0.2)); }
+  // hand props (enemies)
+  switch (of.prop) {
+    case 'sign': { const sc = of.signCol || '#d23c3c'; R(9, 3 + yo, 1, 8, '#7a5a3a'); R(7, yo, 6, 4, '#f2efe6'); R(8, 1 + yo, 4, 1, sc); R(8, 2 + yo, 2, 1, sc); break; }
+    case 'megaphone': U(9, 9, 2, 2, '#e9e9e9'); U(11, 8, 1, 4, '#e9e9e9'); UD(10, 9, '#d23c3c'); break;
+    case 'phone': U(9, 8, 2, 3, '#1e2026'); UD(9, 8, '#9fd3ff'); break;
+    case 'wrench': U(10, 7, 1, 5, '#9aa3ad'); U(9, 6, 3, 1, '#9aa3ad'); UD(10, 6, '#16181d'); break;
+    case 'glue': U(9, 9, 3, 1, '#f2f2f2'); UD(11, 9, '#ff5d73'); break;
+    case 'briefcase': U(8, 11, 4, 3, '#6a4426'); UD(9, 10, '#3a2414'); UD(10, 10, '#3a2414'); break;
+    case 'clipboard': U(9, 8, 3, 4, '#c8a46a'); U(9, 9, 3, 2, '#f2f2f2'); break;
+  }
+  return postProcess(P.c, { shadeIt: false });
+}
+
+// ---------- crew equipment ----------
+const WEAPONS = {};
+function weaponSprite(type) {
+  if (WEAPONS[type]) return WEAPONS[type];
+  let P, gx, gy, len;
+  if (type === 'gunner') { P = painter(13, 7); P.r(1, 2, 8, 2, '#3c414c'); P.r(9, 2, 3, 1, '#23262c'); P.r(4, 4, 2, 2, '#2b2f36'); P.r(1, 1, 3, 1, '#2b2f36'); P.p(2, 4, '#2b2f36'); P.p(6, 2, '#ffd23f'); P.p(3, 2, '#5a606c'); gx = 3; gy = 3; len = 12; }
+  else if (type === 'taser') { P = painter(11, 5); P.r(1, 2, 3, 1, '#22252b'); P.r(4, 2, 4, 1, '#8a929c'); P.r(8, 1, 2, 3, '#5fd4ff'); P.p(9, 2, '#e8fbff'); gx = 2; gy = 2; len = 10; }
+  else if (type === 'mortar') { P = painter(13, 7); P.r(2, 2, 9, 3, '#4b7a3e'); P.r(11, 1, 1, 5, '#3a6030'); P.r(5, 2, 1, 3, '#ff8a2a'); P.r(3, 5, 2, 1, '#2b2f36'); P.p(3, 2, '#6fa05a'); gx = 4; gy = 4; len = 12; }
+  else { P = painter(17, 6); P.r(1, 3, 5, 2, '#5a3a22'); P.r(5, 3, 6, 1, '#3c414c'); P.r(11, 3, 5, 1, '#23262c'); P.r(6, 1, 4, 1, '#22252b'); P.p(9, 1, '#ff6b8b'); P.p(7, 2, '#22252b'); P.p(6, 4, '#2b2f36'); gx = 5; gy = 4; len = 16; }
+  postProcess(P.c, { shadeIt: false });
+  return (WEAPONS[type] = { c: P.c, gx, gy, len });
+}
+function droneSprites() {
+  if (WEAPONS.drone) return WEAPONS.drone;
+  return (WEAPONS.drone = [0, 1].map(f => {
+    const P = painter(13, 7);
+    P.r(2, 3, 9, 1, '#3a4048'); P.r(4, 2, 5, 3, '#2c3138'); P.p(6, 3, '#9be564'); P.p(6, 5, '#22252b');
+    if (f === 0) { P.r(0, 2, 4, 1, '#d6dde5'); P.r(9, 2, 4, 1, '#d6dde5'); } else { P.r(1, 2, 2, 1, '#9aa3ad'); P.r(10, 2, 2, 1, '#9aa3ad'); }
+    return postProcess(P.c, { shadeIt: false });
+  }));
+}
+let PALLET = null;
+function palletSprite() {
+  if (PALLET) return PALLET;
+  const P = painter(16, 6);
+  P.r(1, 1, 14, 1, '#a07a4c'); P.r(1, 3, 14, 1, '#8a6840'); P.r(1, 2, 2, 2, '#6b5030'); P.r(7, 2, 2, 2, '#6b5030'); P.r(13, 2, 2, 2, '#6b5030'); P.p(4, 1, '#b8905c'); P.p(10, 1, '#b8905c');
+  return (PALLET = postProcess(P.c, { shadeIt: false }));
+}
+const SPR = new Map();
+function crewSprites(cr) {
+  let s = SPR.get(cr.id);
+  if (s && s.look === cr.look && s.type === cr.type) return s;
+  const of = CREW_OUTFITS[cr.type], f = [drawHuman(cr.look, of, 'n', 0), drawHuman(cr.look, of, 'n', 1)];
+  s = { look: cr.look, type: cr.type, f, red: f.map(c => silhouette(c, '#ff4d5e')), sel: f.map(c => silhouette(c, '#ffd23f')), grey: greyed(f[0]) };
+  SPR.set(cr.id, s); return s;
+}
+const PORTRAITS = new Map();
+function crewPortrait(cr) {
+  const hit = PORTRAITS.get(cr.id);
+  if (hit && hit.look === cr.look) return hit.url;
+  const src = drawHuman(cr.look, CREW_OUTFITS[cr.type], 'n', 0), c = mkCanvas(42, 42), g = c.getContext('2d');
+  g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, 14, 14, 0, 0, 42, 42);
+  const url = c.toDataURL(); PORTRAITS.set(cr.id, { look: cr.look, url }); return url;
+}
+function portraitImg(cr, cls = 'pt') { return `<img class="${cls}" src="${crewPortrait(cr)}" alt="" style="--rc:${TOWERS[cr.type].color}">`; }
+function fullBodyUrl(look, type) { const src = drawHuman(look, CREW_OUTFITS[type], 'n', 0), c = mkCanvas(42, 57), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, 42, 57); return c.toDataURL(); }
+
+// ---------- enemies ----------
+const PROTEST_COLS = ['#e85d75', '#5ab8ff', '#7bdc6a', '#ffd23f', '#b98cff', '#ff9f43', '#f2f2f2'];
+const ENEMY_HUMANS = {
+  union: {
+    swarm: () => ({ shirt: pick(['#8a5a3c', '#6d4c3d', '#a0633a', '#5d6b4a']), pants: '#3b4a6b', hat: 'miner', prop: 'sign', signCol: '#d23c3c' }),
+    fast: () => ({ shirt: '#c83a3a', pants: '#3b4a6b', prop: 'megaphone', hat: rnd() < 0.5 ? 'beanie' : null, capCol: '#c83a3a' }),
+    saboteur: () => ({ shirt: '#4a3a2c', pants: '#2e2a26', hat: 'miner', mask: '#c0392b', prop: 'wrench' }),
+  },
+  activists: {
+    swarm: () => ({ shirt: pick(PROTEST_COLS), pants: pick(['#3b4a6b', '#22252b', '#5a4a3a', '#6b4a7a']), prop: 'sign', signCol: pick(['#2c8a4a', '#d23c3c', '#3d6bff']), hat: rnd() < 0.3 ? 'beanie' : null, capCol: pick(PROTEST_COLS) }),
+    fast: () => ({ shirt: pick(PROTEST_COLS), hood: true, pants: '#22252b', prop: 'phone' }),
+    saboteur: () => ({ shirt: '#3a4a5a', vest: '#ff7a1a', stripe: '#f2f2f2', pants: '#2b2f36', prop: 'glue' }),
+  },
+  rival: {
+    swarm: () => ({ shirt: '#e0455c', pants: '#22252b', hat: 'cap', capCol: '#22252b', badge: '#e0455c', prop: 'clipboard' }),
+    fast: () => ({ shirt: '#1e2229', suit: '#e0455c', pants: '#1e2229', shades: true }),
+    saboteur: () => ({ shirt: '#8a7350', coat: '#8a7350', pants: '#3a3228', hat: 'fedora', prop: 'briefcase' }),
+  },
+};
+function vehTreads(col, skin, f) {
+  const P = painter(21, 16), cd = shade(col, -0.25);
+  P.r(2, 11, 16, 3, '#2b2f36'); for (let i = 0; i < 5; i++) P.p(3 + i * 3 + f, 12, '#59606b');
+  P.r(3, 6, 11, 5, col); for (let x = 3; x < 14; x++) if (x % 2) P.p(x, 9, '#22252b');
+  P.r(10, 2, 6, 4, cd); P.r(12, 3, 3, 2, '#9fd3ff'); P.p(13, 3, skin); P.p(13, 4, skin);
+  P.r(15, 8, 4, 1, '#9aa3ad'); P.r(18, 6, 1, 3, '#9aa3ad'); P.p(11, 1, '#ffb020');
+  postProcess(P.c); return { c: P.c, ax: 10, ay: 15, lights: [{ x: 11, y: 1, color: '#ffb020', r: 12 }] };
+}
+function vehVan(col, skin, f) {
+  const P = painter(23, 15);
+  P.r(1, 4, 20, 7, col); P.r(2, 3, 13, 1, col); P.r(15, 5, 5, 3, '#9fd3ff'); P.p(16, 6, skin); P.p(17, 6, skin); P.r(3, 5, 10, 2, '#9fd3ff');
+  P.p(5, 8, '#ff5d73'); P.p(7, 8, '#ff5d73'); P.r(5, 9, 3, 1, '#ff5d73'); P.p(6, 10, '#ff5d73'); P.r(9, 8, 5, 1, '#f2f2f2');
+  P.r(8, 0, 4, 3, '#e9e9e9'); P.r(12, 0, 1, 3, '#cfcfcf'); P.p(9, 1, '#ff5d73');
+  P.ell(5.5, 11.5, 2, 2, '#1b1d22'); P.ell(16.5, 11.5, 2, 2, '#1b1d22'); P.p(f ? 5 : 6, 11, '#9aa3ad'); P.p(f ? 16 : 17, 11, '#9aa3ad'); P.r(20, 7, 1, 2, '#ffd23f');
+  postProcess(P.c); return { c: P.c, ax: 11, ay: 14, lights: [{ x: 20, y: 8, color: '#ffe9a0', r: 12 }] };
+}
+function vehWalker(col, skin, f) {
+  const P = painter(19, 21), cd = shade(col, -0.3);
+  P.r(4, 3, 10, 7, '#2b2f36'); P.r(5, 4, 8, 5, col); P.r(10, 4, 3, 3, '#9fd3ff'); P.p(11, 5, skin);
+  P.r(13, 6, 4, 2, '#3c414c'); P.p(17, 6, '#22252b'); P.p(6, 2, '#ff5d73'); P.r(6, 0, 1, 2, '#9aa3ad');
+  for (const [x, d] of (f ? [[5, 1], [11, -1]] : [[5, -1], [11, 1]])) { P.r(x, 10, 2, 4, cd); P.r(x + d, 14, 2, 3, cd); P.r(x + d - 1, 17, 4, 1, '#22252b'); }
+  P.r(4, 9, 10, 1, cd);
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 19, lights: [{ x: 6, y: 2, color: '#ff5d73', r: 8 }] };
+}
+function enDrone(col, facKey, f) {
+  const P = painter(15, 10);
+  P.r(2, 3, 11, 1, '#3a4048'); P.ell(7.5, 4.5, 3.5, 2.2, col);
+  if (f === 0) { P.r(0, 2, 5, 1, '#d6dde5'); P.r(10, 2, 5, 1, '#d6dde5'); } else { P.r(1, 2, 3, 1, '#9aa3ad'); P.r(11, 2, 3, 1, '#9aa3ad'); }
+  if (facKey === 'activists') { P.r(6, 6, 3, 2, '#22252b'); P.p(7, 7, '#9fd3ff'); }
+  else if (facKey === 'rival') { P.r(6, 7, 1, 2, '#9aa3ad'); P.r(9, 7, 1, 2, '#9aa3ad'); P.p(8, 4, '#ff5d73'); }
+  else { P.p(8, 4, '#fff2a0'); P.r(7, 6, 1, 2, '#9aa3ad'); }
+  postProcess(P.c); return { c: P.c, ax: 7, ay: 5, lights: [{ x: 8, y: 5, color: facKey === 'rival' ? '#ff5d73' : '#fff2a0', r: 8 }] };
+}
+function crBug(c, f) {
+  const P = painter(13, 10), d = shade(c, -0.3);
+  for (let i = 0; i < 3; i++) { const x = 4 + i * 2, o = (i + f) % 2; P.p(x, 7, d); P.p(x - 1 + o * 2, 8, d); }
+  P.ell(6, 5, 4, 2.6, c); P.ell(10, 5, 2.2, 2.2, d); P.p(11, 4, '#ff5ad1'); P.p(12, 6, d); P.p(4, 4, shade(c, 0.3)); P.p(6, 3, shade(c, 0.3));
+  postProcess(P.c); return { c: P.c, ax: 6, ay: 9 };
+}
+function crHound(c, f) {
+  const P = painter(17, 12), d = shade(c, -0.3);
+  for (const [x, o] of (f ? [[4, -1], [5, 1], [10, -1], [11, 1]] : [[4, 1], [5, -1], [10, 1], [11, -1]])) { P.r(x, 7, 1, 2, d); P.p(x + o, 9, d); }
+  P.ell(7.5, 5.5, 5.5, 2.6, c); P.ell(13, 4.5, 2.6, 2.2, c); P.r(14, 5, 2, 1, d); P.p(13, 3, '#ff5ad1');
+  for (let x = 4; x <= 10; x += 2) P.p(x, 2, shade(c, 0.45));
+  P.r(1, 4, 2, 1, d); P.p(0, 3, d);
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 10 };
+}
+function crBeetle(c, f) {
+  const P = painter(18, 14), d = shade(c, -0.35);
+  for (let i = 0; i < 3; i++) { const x = 5 + i * 3, o = (i + f) % 2; P.r(x, 10, 1, 2, d); P.p(x + (o ? 1 : -1), 12, d); }
+  P.ell(8.5, 7, 7, 4.6, c); P.r(8, 3, 1, 8, d); P.ell(15, 8, 2.2, 2.2, d); P.p(16, 7, '#ff5ad1');
+  P.p(5, 5, shade(c, 0.4)); P.p(11, 5, shade(c, 0.4)); P.p(6, 8, d); P.p(12, 9, d);
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 13 };
+}
+function crJelly(c, f) {
+  const P = painter(14, 16), d = shade(c, -0.25);
+  P.ell(7, 6, 5.5, 5, c); P.g.clearRect(0, 8, 14, 8); P.r(2, 7, 10, 1, d);
+  for (let i = 0; i < 4; i++) { const x = 3 + Math.floor(i * 2.5); for (let y = 8; y < 14; y++) P.p(x + Math.round(Math.sin(y * 0.9 + f * 3 + i) * 0.8), y, i % 2 ? d : c); }
+  P.p(5, 4, '#2a1a30'); P.p(9, 4, '#2a1a30'); P.p(4, 2, '#e8ffd8'); P.p(7, 3, '#e8ffd8');
+  postProcess(P.c); return { c: P.c, ax: 7, ay: 8, lights: [{ x: 7, y: 5, color: c, r: 12 }] };
+}
+function crWorm(c, f) {
+  const P = painter(16, 11), d = shade(c, -0.25);
+  for (let i = 0; i < 5; i++) P.ell(2 + i * 2.4, 6 + Math.sin(i * 1.3 + f * Math.PI), 2, 2, i % 2 ? d : c);
+  P.ell(13, 5.5, 2.6, 2.6, shade(c, -0.1)); P.r(14, 5, 2, 2, '#2a1a30'); P.p(15, 5, '#f2f2f2'); P.p(12, 4, '#ff5ad1');
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 9 };
+}
+function crMatriarch(c, f) {
+  const P = painter(38, 30), d = shade(c, -0.35);
+  for (let i = 0; i < 4; i++) { const x = 13 + i * 4, o = (i + f) % 2 ? 2 : -2; P.line(x, 17, x + o, 23, d); P.line(x + o, 23, x + o - 1, 26, d); }
+  P.ell(11, 15, 9.5, 7, c); for (let k = 0; k < 3; k++) P.r(5 + k * 5, 10, 2, 11, shade(c, -0.15));
+  P.ell(22, 13, 6, 5.5, shade(c, -0.08)); P.ell(30, 12, 4.5, 4, d);
+  P.p(32, 10, '#ff5ad1'); P.p(33, 12, '#ff5ad1'); P.p(31, 13, '#ff5ad1'); P.r(34, 14, 3, 1, '#f2e6c8'); P.r(34, 11, 2, 1, '#f2e6c8');
+  for (const [x, h] of [[27, 3], [29, 4], [31, 3]]) P.r(x, 8 - h, 1, h, '#ff5ad1');
+  for (const [x, y] of [[7, 13], [11, 17], [15, 12], [9, 19]]) P.p(x, y, '#e8ffd8');
+  postProcess(P.c); return { c: P.c, ax: 19, ay: 27, lights: [{ x: 11, y: 15, color: '#c8ffa0', r: 26 }, { x: 32, y: 11, color: '#ff5ad1', r: 10 }] };
+}
+function bossFrame(facKey, f, look) {
+  const col = FACTIONS[facKey].color;
+  if (facKey === 'fauna') return crMatriarch(col, f);
+  if (facKey === 'union') {
+    const c = scale2(vehWalker(col, look.skin, f).c), g = c.getContext('2d');
+    px(g, 4, 0, 1, 18, '#9aa3ad'); px(g, 5, 1, 10, 6, '#d23c3c'); px(g, 8, 2, 3, 3, '#f2efe6'); px(g, 9, 5, 1, 1, '#f2efe6');
+    px(g, 12, 10, 1, 1, '#ffe08a'); px(g, 23, 10, 1, 1, '#ffe08a'); px(g, 12, 16, 1, 1, '#ffe08a'); px(g, 23, 16, 1, 1, '#ffe08a');
+    postProcess(c, { shadeIt: false }); return { c, ax: 18, ay: 38, lights: [{ x: 12, y: 4, color: '#ff5d73', r: 14 }, { x: 22, y: 10, color: '#9fd3ff', r: 12 }] };
+  }
+  if (facKey === 'rival') {
+    const c = mkCanvas(32, 30), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.drawImage(scale2(enDrone(col, 'rival', f).c), 1, 9);
+    const head = drawHuman(look, { shirt: '#1e2229', suit: '#e0455c', pants: '#1e2229', shades: true }, 'n', 0);
+    g.drawImage(head, 0, 0, 14, 13, 9, 0, 14, 13);
+    px(g, 7, 9, 18, 1, '#9fd3ff');
+    postProcess(c, { shadeIt: false }); return { c, ax: 16, ay: 19, lights: [{ x: 17, y: 19, color: '#ff5d73', r: 18 }] };
+  }
+  const P = painter(28, 34);
+  for (let a = 0; a < 28; a++) P.p(Math.round(14 + Math.cos(a / 28 * 6.283) * 7), Math.round(8 + Math.sin(a / 28 * 6.283) * 7), '#fff3c4');
+  P.g.drawImage(drawHuman(look, { shirt: '#ff7ac8', pants: '#22252b', prop: 'phone', shades: true }, 'n', f), 7, 3);
+  P.r(3, 22, 22, 3, col); P.r(5, 21, 18, 1, shade(col, 0.3)); P.r(5, 25, 18, 2, shade(col, -0.3)); P.r(6, 27, 3, 2, '#ffd23f'); P.r(19, 27, 3, 2, '#ffd23f'); P.p(13, 23, '#ff7ac8'); P.p(14, 23, '#ff7ac8');
+  postProcess(P.c, { shadeIt: false });
+  return { c: P.c, ax: 14, ay: 28, lights: [{ x: 14, y: 8, color: '#fff3c4', r: 26 }, { x: 7, y: 29, color: '#ffd23f', r: 10 }, { x: 20, y: 29, color: '#ffd23f', r: 10 }] };
+}
+function finishVariant(kind, r, frames) {
+  frames = frames || r.map(x => x.c);
+  return {
+    kind, frames, white: frames.map(c => silhouette(c, '#ffffff')), vet: frames.map(c => silhouette(c, '#e8eef5')), elite: frames.map(c => silhouette(c, '#ffd23f')), slow: frames.map(c => silhouette(c, '#5fd4ff')),
+    ax: r[0].ax, ay: r[0].ay, lights: r[0].lights || [],
+  };
+}
+function makeVariant(facKey, cat) {
+  const col = FACTIONS[facKey].color;
+  if (facKey === 'fauna') {
+    const c = mixHex(col, pick(['#a8f06a', '#4fdc9a', '#d0e85a', '#6ad0c0']), rnd() * 0.5);
+    const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm }[cat];
+    return finishVariant('creature', [0, 1].map(f => gen(c, f)));
+  }
+  if (cat === 'armored') { const gen = { union: vehTreads, activists: vehVan, rival: vehWalker }[facKey], skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => gen(col, skin, f))); }
+  if (cat === 'flyer') return finishVariant('drone', [0, 1].map(f => enDrone(col, facKey, f)));
+  const look = genLook(), of = ENEMY_HUMANS[facKey][cat]();
+  const lights = [];
+  if (of.hat === 'miner') lights.push({ x: 9, y: 3, color: '#fff2a0', r: 10 });
+  if (of.prop === 'phone') lights.push({ x: 10, y: 9, color: '#9fd3ff', r: 9 });
+  const frames = [drawHuman(look, of, 'n', 0), drawHuman(look, of, 'a', 1), drawHuman(look, of, 'b', 1)];
+  return finishVariant('human', [{ ax: 7, ay: 17, lights }], frames);
+}
+function makeBossVariant(facKey) { const look = genLook(); return finishVariant('boss', [0, 1].map(f => bossFrame(facKey, f, look))); }
+function getVariant(cat) {
+  const human = M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer';
+  const pool = M.pool[cat] || (M.pool[cat] = Array.from({ length: human ? 10 : 3 }, () => makeVariant(M.c.facKey, cat)));
+  return pick(pool);
+}
+
+// ---------- terrain ----------
+const BIOME_ART = {
+  frozen:   { g: ['#2b4359', '#33506a', '#243a4e'], p: ['#5a768e', '#668299', '#4f6a82'], edge: '#182838', deco: 'frozen', obst: 'ice' },
+  toxic:    { g: ['#1f3d26', '#26482d', '#19331f'], p: ['#4d5d34', '#57693b', '#42522d'], edge: '#12241a', deco: 'toxic', obst: 'plant' },
+  dust:     { g: ['#4d3726', '#583f2b', '#433021'], p: ['#7d6142', '#896c4a', '#71573b'], edge: '#2f2218', deco: 'dust', obst: 'boulder' },
+  lowgrav:  { g: ['#2d2846', '#352f51', '#26223c'], p: ['#504873', '#5a517f', '#463f66'], edge: '#1a172e', deco: 'crater', obst: 'mineral' },
+  urban:    { g: ['#2e323a', '#353a43', '#282b32'], p: ['#4c525d', '#555b67', '#434954'], edge: '#1a1d23', deco: 'urban', obst: 'barrier' },
+  volcanic: { g: ['#361c1a', '#3e211e', '#2d1715'], p: ['#5f3528', '#6a3b2c', '#552f24'], edge: '#1c0e0d', deco: 'lava', obst: 'obsidian' },
+};
+function obstacleSprite(kind) {
+  const P = painter(18, 18), L = [];
+  switch (kind) {
+    case 'ice': for (const [x, h] of shuffle([[3, 8], [6, 12], [9, 9], [12, 6]]).slice(0, ri(2, 4)).map(([x, h]) => [x, h + ri(-2, 2)])) { P.r(x, 16 - h, 3, h, '#8fc6e4'); P.r(x, 16 - h, 1, h, '#cfeaf8'); P.p(x + 1, 15 - h, '#e8f6ff'); } break;
+    case 'plant': P.r(8, 9, 2, 7, '#3f6e34'); P.r(4, 13, 4, 1, '#4f8a3e'); P.r(10, 12, 4, 1, '#4f8a3e'); P.ell(9, 7, 5, 4.5, '#9b4dca'); P.p(7, 6, '#ff9ff0'); P.p(11, 8, '#ff9ff0'); P.p(9, 4, '#ff9ff0'); L.push({ x: 9, y: 7, color: '#d070ff', r: 14 }); break;
+    case 'boulder': { const w = ri(5, 7); P.ell(9, 11, w, w * 0.7, '#8a6a48'); P.ell(7 + ri(-1, 1), 9, w - 3, 3, '#9a7a54'); P.line(9, 8, 11, 12, '#6a4e34'); if (rnd() < 0.5) P.ell(14, 14, 2.5, 2, '#7a5c3e'); break; }
+    case 'mineral': { P.ell(9, 12, ri(5, 7), 4.5, '#5d4f8a'); const a = ri(4, 8), b = ri(3, 6); P.r(6, 12 - a, 2, a, '#6ff0ff'); if (rnd() < 0.7) P.r(10, 12 - b, 2, b, '#a8f8ff'); P.p(6, 12 - a, '#e8ffff'); } L.push({ x: 8, y: 8, color: '#6ff0ff', r: 14 }); break;
+    case 'barrier':
+      if (rnd() < 0.5) { P.r(3, 5, 12, 10, '#9a7448'); P.r(3, 9, 12, 1, '#6e5030'); P.line(4, 6, 13, 13, '#6e5030'); P.line(13, 6, 4, 13, '#6e5030'); }
+      else { P.r(1, 8, 16, 7, '#a0a6ae'); P.r(3, 6, 12, 2, '#a0a6ae'); for (let i = 0; i < 8; i++) P.r(2 + i * 2, 10, 1, 2, i % 2 ? '#22252b' : '#ffd23f'); }
+      break;
+    case 'obsidian': P.r(3, 8, 12, 7, '#2c2433'); P.r(5, 4, 7, 5, '#352b3e'); P.r(7, 2, 3, 3, '#3e3348'); P.line(6, 9, 10, 13, '#ff7a2a'); P.p(10, 13, '#ffb060'); L.push({ x: 8, y: 11, color: '#ff7a2a', r: 12, flicker: true }); break;
+  }
+  postProcess(P.c); return { c: P.c, lights: L };
+}
+function decor(P, A, x0, y0, lights) {
+  const x = x0 + ri(2, 13), y = y0 + ri(3, 14), g0 = A.g[0];
+  switch (A.deco) {
+    case 'frozen': if (rnd() < 0.6) { P.ell(x + 1, y, ri(2, 3), 1.6, '#cfe4f2'); P.r(x - 1, y, 3, 1, '#e8f4fb'); } else { P.line(x, y, x + 3, y + 1, shade(g0, -0.25)); P.line(x + 3, y + 1, x + 4, y + 3, shade(g0, -0.25)); } break;
+    case 'toxic': if (rnd() < 0.7) { P.p(x, y, '#5aa04a'); P.p(x + 2, y, '#5aa04a'); P.p(x + 1, y + 1, '#3f7a3a'); P.p(x + 1, y, '#6fc05a'); } else { P.p(x, y + 1, '#e8e0d0'); P.r(x - 1, y, 3, 1, '#d070ff'); lights.push({ x: (x + 0.5) * AP, y: (y + 0.5) * AP, color: '#d070ff', r: 8 }); } break;
+    case 'dust': if (rnd() < 0.6) { P.r(x, y, ri(3, 5), 1, shade(g0, 0.14)); P.r(x + 1, y + 1, 3, 1, shade(g0, -0.12)); } else { P.p(x, y, '#9a7a58'); P.p(x + 1, y, '#6a5038'); } break;
+    case 'crater': { const r = ri(2, 3); P.ell(x + 0.5, y + 0.5, r + 0.5, r * 0.7 + 0.5, shade(g0, -0.2)); P.ell(x + 0.5, y + 1, r - 0.5, r * 0.5, shade(g0, -0.08)); P.r(x - r + 1, y + r - 1, r * 2 - 1, 1, shade(g0, 0.16)); break; }
+    case 'urban': if (rnd() < 0.5) P.r(x0 + 1, y0 + 8, 16, 1, shade(g0, -0.12)); else if (rnd() < 0.5) P.ell(x, y, 2.5, 1.5, '#1d2026'); else P.r(x, y, 3, 1, '#c9a22e'); break;
+    case 'lava': if (rnd() < 0.55) break; P.line(x, y, x + 2, y + 1, '#1a0b0a'); P.line(x + 2, y + 1, x + 4, y, '#1a0b0a'); P.p(x + 2, y + 1, '#ff7a2a'); P.p(x + 1, y, '#ff9a3a'); lights.push({ x: (x + 2) * AP, y: (y + 1) * AP, color: '#ff7a2a', r: 9, flicker: true }); break;
+  }
+}
+
+// ================================================================
+// AUDIO. Everything is synthesised with Web Audio: one-shot sound effects
+// and a small chiptune sequencer. Browsers only allow sound after the first
+// tap or key press, so audioInit() runs on the first interaction.
+// ================================================================
+const CFG = Object.assign({ master: 0.7, music: 0.5, sfx: 0.7, muted: false, shake: true }, store.get('al_settings', {}));
+const AU = { ctx: null, pan: 0, last: {}, voices: 0, track: null, step: 0, next: 0, intensity: 0 };
+const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
+function audioInit() {
+  if (AU.ctx) { if (AU.ctx.state === 'suspended' && !document.hidden) AU.ctx.resume(); return; }
+  const C = window.AudioContext || window.webkitAudioContext;
+  if (!C) return;
+  try { AU.ctx = new C(); } catch (e) { return; }
+  const c = AU.ctx;
+  AU.comp = c.createDynamicsCompressor(); AU.comp.threshold.value = -14; AU.comp.ratio.value = 4; AU.comp.connect(c.destination);
+  AU.master = c.createGain(); AU.master.connect(AU.comp);
+  AU.music = c.createGain(); AU.mfade = c.createGain(); AU.music.connect(AU.mfade); AU.mfade.connect(AU.master);
+  AU.sfx = c.createGain(); AU.sfx.connect(AU.master);
+  AU.noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
+  const d = AU.noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  applyVolumes();
+  if (AU.track) startTrack();
+  setInterval(scheduler, 30);
+}
+function applyVolumes() {
+  if (!AU.ctx) return;
+  const t = AU.ctx.currentTime;
+  AU.master.gain.setTargetAtTime(CFG.muted ? 0 : CFG.master, t, 0.03);
+  AU.music.gain.setTargetAtTime(CFG.music * 0.55, t, 0.03);
+  AU.sfx.gain.setTargetAtTime(CFG.sfx, t, 0.03);
+}
+function saveCfg() { store.set('al_settings', CFG); applyVolumes(); }
+document.addEventListener('visibilitychange', () => { if (!AU.ctx) return; if (document.hidden) AU.ctx.suspend(); else AU.ctx.resume(); });
+
+function env(c, t, dur, vol, a) {
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  return g;
+}
+function route(c, node, bus, pan) {
+  if (pan && c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = pan; node.connect(p); p.connect(bus); } else node.connect(bus);
+}
+function tone({ type = 'square', f = 440, f2, dur = 0.1, vol = 0.2, at = 0, when, bus, a = 0.004, lp, vib }) {
+  const c = AU.ctx; if (!c) return;
+  const t = when ?? c.currentTime + at, b = bus || AU.sfx, o = c.createOscillator();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + dur);
+  if (vib) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = vib[0]; lg.gain.value = vib[1]; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + 0.05); }
+  let n = o;
+  if (lp) { const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = lp; o.connect(fl); n = fl; }
+  const g = env(c, t, dur, vol, a); n.connect(g); route(c, g, b, b === AU.sfx ? AU.pan : 0);
+  o.start(t); o.stop(t + dur + 0.05);
+  if (b === AU.sfx) { AU.voices++; o.onended = () => AU.voices--; }
+}
+function noise({ dur = 0.1, vol = 0.2, at = 0, when, bus, type = 'bandpass', f = 2000, f2, q = 1 }) {
+  const c = AU.ctx; if (!c) return;
+  const t = when ?? c.currentTime + at, b = bus || AU.sfx, s = c.createBufferSource(), fl = c.createBiquadFilter();
+  s.buffer = AU.noise; s.loop = true;
+  fl.type = type; fl.frequency.setValueAtTime(f, t); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
+  const g = env(c, t, dur, vol, 0.003); s.connect(fl); fl.connect(g); route(c, g, b, b === AU.sfx ? AU.pan : 0);
+  s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+  if (b === AU.sfx) { AU.voices++; s.onended = () => AU.voices--; }
+}
+const arpeggio = (notes, type, gap, dur, vol) => notes.forEach((f, i) => tone({ type, f, dur, vol, at: i * gap }));
+const SFX = {
+  gun: () => { noise({ type: 'highpass', f: 1500, dur: 0.05, vol: 0.22 }); tone({ f: 880, f2: 260, dur: 0.06, vol: 0.06 }); },
+  taser: () => { tone({ type: 'sawtooth', f: 1500, f2: 500, dur: 0.17, vol: 0.06, vib: [70, 400] }); noise({ f: 3200, q: 2, dur: 0.12, vol: 0.1 }); },
+  mortar: () => { tone({ type: 'sine', f: 190, f2: 60, dur: 0.2, vol: 0.4 }); noise({ type: 'lowpass', f: 900, dur: 0.12, vol: 0.14 }); },
+  foam: () => { noise({ type: 'lowpass', f: 1800, f2: 160, dur: 0.42, vol: 0.32 }); tone({ type: 'sine', f: 95, f2: 38, dur: 0.32, vol: 0.32 }); },
+  snipe: () => { noise({ type: 'highpass', f: 2500, dur: 0.09, vol: 0.32 }); tone({ type: 'sine', f: 150, f2: 45, dur: 0.38, vol: 0.38 }); tone({ f: 1800, f2: 900, dur: 0.04, vol: 0.05 }); },
+  drone: () => tone({ f: 1500, f2: 1050, dur: 0.035, vol: 0.045 }),
+  pop: () => tone({ f: 500 + Math.random() * 160, f2: 110, dur: 0.09, vol: 0.07 }),
+  splat: () => { noise({ type: 'lowpass', f: 900, dur: 0.12, vol: 0.18 }); tone({ type: 'triangle', f: 320, f2: 80, dur: 0.12, vol: 0.12 }); },
+  bigboom: () => { noise({ type: 'lowpass', f: 2400, f2: 90, dur: 1.2, vol: 0.5 }); tone({ type: 'sine', f: 120, f2: 28, dur: 1, vol: 0.5 }); arpeggio([784, 659, 523, 392], 'square', 0.09, 0.12, 0.06); },
+  leak: () => { tone({ f: 440, dur: 0.1, vol: 0.11 }); tone({ f: 311, dur: 0.2, vol: 0.11, at: 0.1 }); },
+  hit: () => tone({ f: 300, f2: 140, dur: 0.14, vol: 0.1 }),
+  sabo: () => { tone({ f: 2300, f2: 1700, dur: 0.03, vol: 0.035 }); noise({ f: 2600, q: 3, dur: 0.04, vol: 0.07 }); },
+  deploy: () => arpeggio([523, 659, 784], 'square', 0.045, 0.07, 0.07),
+  reassign: () => arpeggio([784, 659, 523], 'square', 0.045, 0.07, 0.06),
+  promote: () => { arpeggio([523, 659, 784, 1047], 'square', 0.07, 0.1, 0.07); arpeggio([262, 330, 392, 523], 'triangle', 0.07, 0.12, 0.1); },
+  deny: () => tone({ type: 'sawtooth', f: 140, dur: 0.2, vol: 0.12, lp: 900 }),
+  click: () => tone({ f: 1250, dur: 0.025, vol: 0.045 }),
+  hover: () => tone({ type: 'triangle', f: 990, dur: 0.035, vol: 0.05 }),
+  confirm: () => arpeggio([659, 988], 'square', 0.06, 0.09, 0.07),
+  buy: () => { tone({ f: 1319, dur: 0.06, vol: 0.07 }); tone({ f: 1760, dur: 0.2, vol: 0.07, at: 0.06 }); noise({ type: 'highpass', f: 5000, dur: 0.06, vol: 0.06 }); },
+  start: () => { tone({ type: 'sawtooth', f: 70, f2: 170, dur: 0.6, vol: 0.12, lp: 600 }); noise({ type: 'lowpass', f: 500, dur: 0.6, vol: 0.08 }); },
+  bossIn: () => { tone({ type: 'sawtooth', f: 98, dur: 1.3, vol: 0.18, lp: 900, a: 0.08, vib: [5, 3] }); tone({ type: 'sawtooth', f: 92.5, dur: 1.3, vol: 0.14, lp: 700, a: 0.08 }); },
+  evac: () => { arpeggio([523, 659, 784, 1047], 'square', 0.1, 0.14, 0.07); tone({ f: 1047, dur: 0.6, vol: 0.07, at: 0.42, vib: [6, 8] }); arpeggio([131, 196, 262], 'triangle', 0.14, 0.3, 0.16); },
+  // sad trombone
+  fail: () => {
+    [[392, 370], [370, 349], [349, 330]].forEach(([a, b], i) => tone({ type: 'sawtooth', f: a, f2: b, dur: 0.38, vol: 0.12, lp: 1300, at: i * 0.42 }));
+    tone({ type: 'sawtooth', f: 330, f2: 300, dur: 1, vol: 0.12, lp: 1300, at: 1.26, vib: [6, 7] });
+  },
+  victory: () => { arpeggio([392, 523, 659, 784, 1047, 1319], 'square', 0.09, 0.16, 0.07); arpeggio([131, 165, 196, 262], 'triangle', 0.18, 0.4, 0.14); },
+};
+const SFX_GAP = { gun: 0.045, drone: 0.035, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04 };
+function sfx(name, x) {
+  const c = AU.ctx;
+  if (!c || CFG.muted || c.state !== 'running' || !SFX[name]) return;
+  const now = c.currentTime;
+  if (AU.last[name] && now - AU.last[name] < (SFX_GAP[name] || 0.02)) return;
+  if (AU.voices > 40) return;
+  AU.last[name] = now;
+  AU.pan = x != null ? clamp(x / (GW * TILE) * 2 - 1, -1, 1) * 0.6 : 0;
+  SFX[name]();
+  AU.pan = 0;
+}
+
+// ---------- chiptune sequencer ----------
+const CHORDS = { M: [0, 4, 7], m: [0, 3, 7], M7: [0, 4, 7, 11], m7: [0, 3, 7, 10], d7: [0, 4, 7, 10] };
+function mel(str) {
+  return str.trim().split(/\s+/).map(tk => {
+    const m = /^([A-G])(#|b)?(\d)$/.exec(tk); if (!m) return 0;
+    return 12 * (+m[3] + 1) + { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+  });
+}
+const TRACKS = {
+  // corporate hold music for the menus, mail and store
+  menu: {
+    bpm: 94, chords: [[48, 'M7'], [45, 'm7'], [50, 'm7'], [43, 'd7']], bass: 'r.......f.....r.', bassType: 'triangle',
+    stab: '..x...x...x...x.', hat: '..x...x...x...x.', arp: true, arpVol: 0.025, leadAlt: true,
+    lead: [mel('E5 . G5 . B5 . . A5 G5 . E5 . . . . .'), mel('C6 . B5 . A5 . . G5 E5 . . . . . . .'), mel('F5 . A5 . C6 . . B5 A5 . F5 . . . . .'), mel('G5 . . . F5 . E5 . D5 . . . B4 . . .')],
+  },
+  // drifting arpeggios for the star map
+  map: { bpm: 100, chords: [[45, 'm'], [41, 'M'], [48, 'M'], [43, 'M']], bass: 'r...............', bassLen: 14, bassType: 'triangle', arp: true, arpAlways: true, arpVol: 0.05, pad: true, hat: '........x.......' },
+  // driving loop for missions; layers build as the drill fills
+  mission: {
+    bpm: 138, chords: [[40, 'm'], [36, 'M'], [38, 'M'], [35, 'M']], bass: 'rorororororororo', bassType: 'square', bassLen: 0.9,
+    kick: 'x.......x.x.....', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', arp: true, intense: true, leadAlt: true,
+    lead: [mel('B4 . E5 . G5 . F#5 . E5 . . . D5 . E5 .'), mel('. . G5 . E5 . C5 . . . D5 . E5 . . .'), mel('F#5 . A5 . F#5 . D5 . A4 . . . D5 . F#5 .'), mel('D#5 . . . F#5 . B5 . A5 . F#5 . D#5 . . .')],
+  },
+};
+TRACKS.boss = { ...TRACKS.mission, bpm: 152, transpose: 1, kick: 'x...x...x...x...', snare: '....x.......x.xx', arpAlways: true, leadAlt: false };
+function scheduleStep(tr, step, t, spb) {
+  const bars = tr.chords.length, s = step % 16, bar = Math.floor(step / 16) % bars, loop = Math.floor(step / (16 * bars)), tp = tr.transpose || 0;
+  const root = tr.chords[bar][0] + tp, ch = CHORDS[tr.chords[bar][1]].map(i => root + i), mb = AU.music, on = p => p && p[s] === 'x';
+  if (on(tr.kick)) tone({ type: 'sine', f: 160, f2: 42, dur: 0.14, vol: 0.55, when: t, bus: mb });
+  if (on(tr.snare)) { noise({ f: 1800, q: 0.8, dur: 0.12, vol: 0.26, when: t, bus: mb }); tone({ type: 'triangle', f: 220, f2: 160, dur: 0.05, vol: 0.12, when: t, bus: mb }); }
+  if (on(tr.hat) || (tr.intense && AU.intensity > 0.8 && s % 2 === 1)) noise({ type: 'highpass', f: 7000, dur: 0.03, vol: 0.07, when: t, bus: mb });
+  const b = tr.bass && tr.bass[s];
+  if (b && b !== '.') tone({ type: tr.bassType, f: mtof(root + (b === 'o' ? 12 : b === 'f' ? 7 : 0)), dur: spb * (tr.bassLen || 1.8), vol: tr.bassType === 'square' ? 0.08 : 0.2, lp: 700, when: t, bus: mb });
+  if (on(tr.stab)) ch.forEach(n => tone({ type: 'triangle', f: mtof(n + 12), dur: spb * 1.4, vol: 0.045, when: t, bus: mb }));
+  if (tr.pad && s === 0) ch.forEach(n => tone({ type: 'triangle', f: mtof(n + 12), dur: spb * 16, vol: 0.035, a: 0.4, when: t, bus: mb }));
+  const leadOn = tr.lead && (!tr.leadAlt || loop % 2 === 0);
+  if (tr.arp && (tr.arpAlways || !leadOn || (tr.intense && AU.intensity > 0.5))) {
+    const fast = tr.arpAlways, k = fast ? s : s >> 1;
+    if (fast || s % 2 === 0) tone({ f: mtof(ch[[0, 1, 2, 1][k % 4] % ch.length] + 24), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000, when: t, bus: mb });
+  }
+  if (leadOn && tr.lead[bar][s]) tone({ f: mtof(tr.lead[bar][s] + tp), dur: spb * 1.9, vol: 0.055, lp: 2600, vib: [5.5, 4], when: t, bus: mb });
+}
+function startTrack() {
+  const c = AU.ctx, now = c.currentTime;
+  AU.step = 0; AU.next = now + 0.08;
+  AU.mfade.gain.cancelScheduledValues(now); AU.mfade.gain.setValueAtTime(0.0001, now); AU.mfade.gain.exponentialRampToValueAtTime(1, now + 0.8);
+}
+function setMusic(name) {
+  if (AU.track === name) return;
+  AU.track = name;
+  if (!AU.ctx) return;
+  if (name) startTrack();
+  else { const now = AU.ctx.currentTime; AU.mfade.gain.cancelScheduledValues(now); AU.mfade.gain.setTargetAtTime(0.0001, now, 0.15); }
+}
+function scheduler() {
+  const c = AU.ctx; if (!c || !AU.track || c.state !== 'running') return;
+  const tr = TRACKS[AU.track], spb = 60 / tr.bpm / 4;
+  if (AU.next < c.currentTime - 0.25) AU.next = c.currentTime + 0.05;
+  while (AU.next < c.currentTime + 0.15) { scheduleStep(tr, AU.step, AU.next, spb); AU.next += spb; AU.step++; }
+}
+
+// ---------- settings window ----------
+function showSettings() {
+  if ($('#modal').innerHTML) { closeSettings(); return; }
+  S.cfgPaused = M ? M.paused : null;
+  if (M) M.paused = true;
+  const sl = (id, label, v) => { const p = Math.round(v * 100); return `<div class="set-row"><label for="${id}">${label}</label><input type="range" id="${id}" min="0" max="100" step="5" value="${p}" style="--v:${p}%"><output for="${id}" id="${id}Out">${p}%</output></div>`; };
+  $('#modal').innerHTML = `<div class="paper settings" role="dialog" aria-modal="true" aria-label="Settings">
+    ${titlebar('Settings.cfg', 'closecfg')}
+    <h2>Settings</h2>
+    <h3>Audio</h3>
+    ${sl('volMaster', 'Master', CFG.master)}${sl('volMusic', 'Music', CFG.music)}${sl('volSfx', 'Sound effects', CFG.sfx)}
+    <label class="toggle"><input type="checkbox" id="cfgMute" ${CFG.muted ? 'checked' : ''}> Mute everything <span class="colony">(M)</span></label>
+    <h3>Display</h3>
+    <label class="toggle"><input type="checkbox" id="cfgShake" ${CFG.shake ? 'checked' : ''}> Screen shake</label>
+    <div class="row"><button class="btn" data-act="closecfg">Done</button><button class="btn ghost" data-act="testsfx">Test sound</button></div>
+    ${M ? '<p class="colony">The contract is paused while this is open. HR has logged it as an unscheduled break.</p>' : ''}
+  </div>`;
+  $('#volMaster').focus();
+}
+function closeSettings() {
+  $('#modal').innerHTML = '';
+  if (M && S.cfgPaused != null) M.paused = S.cfgPaused;
+  S.cfgPaused = null;
+  $('#cfgBtn').focus();
+}
+function setMuted(v) { CFG.muted = v; saveCfg(); const box = $('#cfgMute'); if (box) box.checked = v; toast(v ? 'Sound muted' : 'Sound on', 1000); }
+document.addEventListener('input', ev => {
+  const el = ev.target, key = { volMaster: 'master', volMusic: 'music', volSfx: 'sfx' }[el.id];
+  if (!key) return;
+  CFG[key] = el.value / 100; el.style.setProperty('--v', el.value + '%'); $('#' + el.id + 'Out').textContent = el.value + '%';
+  saveCfg();
+  if (key !== 'music') sfx('click');
+});
+document.addEventListener('change', ev => {
+  if (ev.target.id === 'cfgMute') { CFG.muted = ev.target.checked; saveCfg(); }
+  if (ev.target.id === 'cfgShake') { CFG.shake = ev.target.checked; saveCfg(); }
+});
+document.addEventListener('pointerdown', audioInit, true);
+document.addEventListener('keydown', audioInit, true);
+
+// ---------- RUN ----------
+function newRun() {
+  const colony = store.get('al_colony', 0);
+  const used = new Set();
+  const nm = () => { let n; let g = 0; do { n = pick(CREW_NAMES); } while (used.has(n) && g++ < 50); used.add(n); return n; };
+  RUN = {
+    empId: ri(10000, 99999),
+    idx: 0, margin: 100, scrip: Math.min(50, colony * 5), relics: [],
+    roster: [mkCrew('gunner', nm()), mkCrew('gunner', nm()), mkCrew('taser', nm())],
+    history: [], factionCount: {}, parachuteUsed: false, usedNames: used, kills: 0, lostTotal: 0,
+    sectorName: SYL_A[ri(0, SYL_A.length - 1)] + SYL_B[ri(0, SYL_B.length - 1)] + ' Expanse',
+  };
+  RUN.options = genOptions();
+}
+function mkCrew(type, name, look = genLook()) { return { id: Math.random().toString(36).slice(2, 8), type, name, look, level: 1, xp: 0, kills: 0 }; }
+function freshName() { let n, g = 0; do { n = pick(CREW_NAMES); } while (RUN.usedNames.has(n) && g++ < 60); if (RUN.usedNames.has(n)) n += ' ' + ri(2, 9); RUN.usedNames.add(n); return n; }
+function planetName() { return pick(SYL_A) + pick(SYL_B) + pick(SYL_C); }
+
+function genContract(idx, diff, boss) {
+  const biomeKey = pick(Object.keys(BIOMES));
+  let facKey;
+  if (boss) {
+    let best = -1;
+    for (const h of RUN.history) { const c = RUN.factionCount[h.faction]; if (c >= best) { best = c; facKey = h.faction; } }
+    if (!facKey) facKey = pick(Object.keys(FACTIONS));
+  } else facKey = pick(Object.keys(FACTIONS));
+  const fac = FACTIONS[facKey];
+  const client = pick(fac.clients);
+  const D = DIFFS[diff];
+  const prev = [...RUN.history].reverse().find(h => h.faction === facKey);
+  let spawns = (idx >= 2 ? 2 : 1) + (diff === 2 ? 1 : 0) + (idx === 1 && rnd() < 0.5 ? 1 : 0);
+  if (boss) spawns = 2;
+  return {
+    idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client,
+    planet: biomeKey === 'urban' ? 'Earth · ' + pick(EARTH) : planetName(),
+    mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? 'Executive Priority' : D.label, stars: boss ? 4 : D.stars,
+    spawns: clamp(spawns, 1, 3),
+    T: Math.round((165 + idx * 25) * (BIOMES[biomeKey].mod.T || 1)),
+    grudge: prev ? prev.planet : null,
+    seed: Math.random(),
+  };
+}
+function genOptions() {
+  if (RUN.idx >= CONTRACTS_PER_SECTOR) return [genContract(RUN.idx, 1, true)];
+  const diffs = shuffle([0, 1, 2]);
+  return diffs.map(d => genContract(RUN.idx, d, false));
+}
+
+// ---------- map generation ----------
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function dijkstra(sx, sy, tx, ty, cost) {
+  const N = GW * GH, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N);
+  const s = sy * GW + sx, goal = ty * GW + tx;
+  dist[s] = 0;
+  for (;;) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < N; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u < 0 || u === goal) break;
+    done[u] = 1;
+    const ux = u % GW, uy = (u / GW) | 0;
+    for (const [dx, dy] of DIRS) {
+      const vx = ux + dx, vy = uy + dy;
+      if (vx < 0 || vy < 0 || vx >= GW || vy >= GH) continue;
+      const v = vy * GW + vx; if (done[v]) continue;
+      const c = cost(vx, vy); if (c === Infinity) continue;
+      if (best + c < dist[v]) { dist[v] = best + c; prev[v] = u; }
+    }
+  }
+  if (dist[goal] === Infinity) return null;
+  const out = []; let c = goal;
+  while (c >= 0) { out.push({ x: c % GW, y: (c / GW) | 0 }); if (c === s) break; c = prev[c]; }
+  return out.reverse();
+}
+function genMap(nSpawns) {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const grid = Array.from({ length: GH }, () => new Array(GW).fill(0));
+    const w = Array.from({ length: GH }, (_, y) => Array.from({ length: GW }, (_, x) => {
+      const edge = (x === 0 || y === 0 || x === GW - 1 || y === GH - 1) ? 9 : 0;
+      return 1 + rnd() * 5 + edge;
+    }));
+    const dep = { x: ri(Math.floor(GW * 0.58), GW - 3), y: ri(2, GH - 3) };
+    // candidate spawn points along left, top and bottom edges
+    const cands = [];
+    for (let y = 1; y < GH - 1; y++) cands.push({ x: 0, y });
+    for (let x = 1; x < Math.floor(GW * 0.55); x++) { cands.push({ x, y: 0 }); cands.push({ x, y: GH - 1 }); }
+    shuffle(cands);
+    const spawns = [];
+    for (const c of cands) {
+      if (spawns.length >= nSpawns) break;
+      if (Math.abs(c.x - dep.x) + Math.abs(c.y - dep.y) < 13) continue;
+      if (spawns.some(s => Math.abs(s.x - c.x) + Math.abs(s.y - c.y) < 7)) continue;
+      spawns.push(c);
+    }
+    if (spawns.length < nSpawns) continue;
+    const onAny = new Set();
+    const paths = [];
+    let ok = true;
+    for (const sp of spawns) {
+      let wp, g = 0;
+      do { wp = { x: ri(3, GW - 5), y: ri(1, GH - 2) }; g++; } while (g < 30 && (Math.abs(wp.x - dep.x) + Math.abs(wp.y - dep.y) < 4 || Math.abs(wp.x - sp.x) + Math.abs(wp.y - sp.y) < 4));
+      const isDep = (x, y) => x === dep.x && y === dep.y;
+      const leg1 = dijkstra(sp.x, sp.y, wp.x, wp.y, (x, y) => isDep(x, y) ? Infinity : (onAny.has(y * GW + x) ? 1 : w[y][x]));
+      if (!leg1) { ok = false; break; }
+      const own = new Set(leg1.map(p => p.y * GW + p.x));
+      const nearOwn = (x, y) => DIRS.some(([dx, dy]) => own.has((y + dy) * GW + x + dx));
+      const leg2 = dijkstra(wp.x, wp.y, dep.x, dep.y, (x, y) => {
+        const k = y * GW + x;
+        if (own.has(k) && !(x === wp.x && y === wp.y)) return 60;
+        return (onAny.has(k) ? 1 : w[y][x]) + (nearOwn(x, y) ? 6 : 0);
+      });
+      if (!leg2) { ok = false; break; }
+      const path = leg1.concat(leg2.slice(1));
+      if (path.length < 18) { ok = false; break; }
+      for (const p of path) onAny.add(p.y * GW + p.x);
+      paths.push(path);
+    }
+    if (!ok) continue;
+    for (const k of onAny) grid[(k / GW) | 0][k % GW] = 1;
+    for (const s of spawns) grid[s.y][s.x] = 4;
+    grid[dep.y][dep.x] = 3;
+    // rocks, sometimes clustered
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+      if (grid[y][x] !== 0) continue;
+      if (Math.abs(x - dep.x) <= 1 && Math.abs(y - dep.y) <= 1) continue;
+      let p = 0.07;
+      if (DIRS.some(([dx, dy]) => grid[y + dy] && grid[y + dy][x + dx] === 2)) p = 0.22;
+      if (rnd() < p) grid[y][x] = 2;
+    }
+    return { grid, dep, spawns, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
+  }
+  throw new Error('map generation failed');
+}
+function renderGround(map, biomeKey) {
+  const A = BIOME_ART[biomeKey], W = GW * ATILE, H = GH * ATILE, P = painter(W, H), g = P.g, lights = [];
+  const isP = (tx, ty) => { if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; const v = map.grid[ty][tx]; return v === 1 || v === 3 || v === 4; };
+  const img = g.createImageData(W, H), d = img.data, n1 = makeNoise(W, H, 8), n2 = makeNoise(W, H, 3);
+  const gp = A.g.map(hex2rgb), pp = A.p.map(hex2rgb);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const pal = isP((x / ATILE) | 0, (y / ATILE) | 0) ? pp : gp;
+    const n = n1(x, y) * 0.6 + n2(x, y) * 0.3 + rnd() * 0.18;
+    const c = n > 0.66 ? pal[1] : n < 0.34 ? pal[2] : pal[0];
+    const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const pEdge = shade(A.p[0], -0.25);
+  for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
+    const x0 = tx * ATILE, y0 = ty * ATILE, v = map.grid[ty][tx];
+    if (isP(tx, ty)) {
+      // the path is sunk below the ground: a dark ledge on top, thin lines elsewhere
+      if (isP(tx, ty - 1) === false) P.r(x0, y0, ATILE, 2, A.edge);
+      if (isP(tx, ty + 1) === false) P.r(x0, y0 + ATILE - 1, ATILE, 1, pEdge);
+      if (isP(tx - 1, ty) === false) P.r(x0, y0, 1, ATILE, pEdge);
+      if (isP(tx + 1, ty) === false) P.r(x0 + ATILE - 1, y0, 1, ATILE, pEdge);
+      for (let k = 0; k < 4; k++) { const x = x0 + 2 + ri(0, ATILE - 5), y = y0 + 3 + ri(0, ATILE - 6); P.p(x, y, shade(A.p[0], 0.18)); P.p(x, y + 1, shade(A.p[0], -0.2)); }
+    } else {
+      if (isP(tx, ty + 1)) P.r(x0, y0 + ATILE - 1, ATILE, 1, shade(A.g[0], 0.16));
+      P.p(x0, y0, shade(A.g[0], -0.18));
+      if (v === 0 && rnd() < 0.55) decor(P, A, x0, y0, lights);
+    }
+    if (v === 4) {
+      for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++) if (((x + y) >> 2) % 2 === 0) P.p(x0 + x, y0 + y, (x + y) % 9 ? '#c8384a' : '#e04a5a');
+      P.r(x0 + 6, y0 + 6, 6, 6, '#2a1418'); P.r(x0 + 8, y0 + 8, 2, 2, '#ff4d5e');
+      lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: '#ff4d5e', r: 30, pulse: true });
+    }
+    if (v === 2) {
+      const o = obstacleSprite(A.obst);
+      P.ell(x0 + 9, y0 + 15, 7, 2.5, 'rgba(0,0,0,0.3)');
+      g.drawImage(o.c, x0, y0 - 2);
+      for (const l of o.lights) lights.push({ ...l, x: (x0 + l.x) * AP, y: (y0 - 2 + l.y) * AP });
+    }
+  }
+  return { cv: P.c, lights };
+}
+
+// ---------- mission ----------
+function isPortrait() { const r = $('#stage').getBoundingClientRect(); return r.height > r.width * 1.05; }
+function transposeMap(map) {
+  const grid = Array.from({ length: GW }, (_, y) => Array.from({ length: GH }, (_, x) => map.grid[x][y]));
+  return { grid, dep: { x: map.dep.y, y: map.dep.x }, spawns: map.spawns.map(s => ({ x: s.y, y: s.x })), paths: map.paths.map(p => p.map(q => ({ x: q.y, y: q.x }))) };
+}
+function startMission(contract) {
+  S.screen = 'mission'; setMusic('mission');
+  $('#bar').innerHTML = ''; $('#overlay').innerHTML = ''; hudCache = {};
+  const portrait = isPortrait();
+  GW = 22; GH = 13;
+  let map = genMap(contract.spawns);
+  if (portrait) { map = transposeMap(map); GW = 13; GH = 22; }
+  M = {
+    c: contract, biome: contract.biome, map, grid: map.grid, paths: map.paths,
+    dep: { x: map.dep.x * TILE + TILE / 2, y: map.dep.y * TILE + TILE / 2 },
+    ground: null, towers: [], enemies: [], shots: [], fx: [], queue: [],
+    budget: Math.round((110 + 10 * contract.idx + (has('takeover') ? 40 : 0)) * (contract.biome.mod.budget || 1)),
+    t: 0, T: contract.T * (has('overtime') ? 0.85 : 1), phase: 'prep', waveTimer: 2, waveInterval: 13, waveNum: 0,
+    lost: 0, insured: has('insurance') ? 6 : 0, kills: 0, promos: [], downed: [], bossSpawned: false, boss: null,
+    incomeAcc: 0, speed: 1, paused: false, endTimer: 0, deployedIds: new Set(),
+    parts: [], decals: [], shake: 0, pool: {}, lights: [],
+  };
+  const gr = renderGround(map, contract.biomeKey);
+  M.ground = gr.cv; M.lights = gr.lights;
+  S.selCrew = -1; S.selTower = null;
+  buildMissionHud(); buildRosterBar();
+  setView(GW * TILE, GH * TILE);
+  toast(contract.boss ? `Executive priority: ${contract.fac.boss.name} expected` : 'Deploy crew, then begin extraction', 2600);
+}
+function tileAt(x, y) { const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE); if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; return { tx, ty }; }
+function towerAtTile(tx, ty) { return M.towers.find(t => t.tx === tx && t.ty === ty); }
+function canBuild(tx, ty) { return M.grid[ty][tx] === 0 && !towerAtTile(tx, ty); }
+
+function towerStats(crew) {
+  const b = TOWERS[crew.type], L = crew.level;
+  let dmg = b.dmg * (1 + 0.3 * (L - 1)), rate = b.rate * (1 + 0.06 * (L - 1)), range = b.range * (1 + 0.05 * (L - 1));
+  const bm = M ? M.biome.mod : {};
+  rate *= bm.rate || 1; range *= bm.range || 1;
+  if (has('coffee')) rate *= 1.15;
+  if (has('poster')) dmg *= 1.12;
+  if (has('scope')) range *= 1.12;
+  if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) dmg *= 1.2;
+  if (has('tasers') && crew.type === 'taser') dmg *= 2;
+  if (has('intern') && crew.type === 'marksman') rate *= 1.25;
+  const maxhp = (80 + 20 * (L - 1)) * (has('waiver') ? 1.6 : 1);
+  return { ...b, dmg, rate, range, maxhp };
+}
+
+function deploy(crewIdx, tx, ty) {
+  const crew = RUN.roster[crewIdx];
+  if (!crew || M.deployedIds.has(crew.id) || !canBuild(tx, ty)) return false;
+  const fee = TOWERS[crew.type].fee;
+  if (M.budget < fee) { toast('Insufficient budget. Have you tried working harder?', 1800); sfx('deny'); return false; }
+  M.budget -= fee;
+  sfx('deploy', tx * TILE);
+  const st = towerStats(crew);
+  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee });
+  M.deployedIds.add(crew.id);
+  S.selCrew = -1;
+  buildRosterBar();
+  return true;
+}
+function reassign(tw) {
+  sfx('reassign', tw.x);
+  M.towers = M.towers.filter(t => t !== tw);
+  M.deployedIds.delete(tw.crew.id);
+  if (!tw.down) M.budget += Math.floor(tw.paid * 0.5);
+  S.selTower = null; renderTowerInfo(); buildRosterBar();
+}
+
+function genWave() {
+  const m = M, c = m.c, idx = c.idx, prog = m.t / m.T;
+  let budget = (5.5 + idx * 2.7) * (1 + prog * 1.7) * c.mod;
+  m.waveNum++;
+  const vet = clamp(-0.05 + idx * 0.13 + prog * 0.3, 0, 0.65), eli = clamp(-0.22 + idx * 0.07 + prog * 0.15, 0, 0.3);
+  const weights = { ...c.fac.cats };
+  if (m.biome.mod.flyers) weights.flyer = (weights.flyer || 0.8) * m.biome.mod.flyers;
+  if (m.biome.mod.swarm) weights.swarm = (weights.swarm || 1) * m.biome.mod.swarm;
+  // first contract eases you in: no saboteurs, fewer armoured
+  if (idx === 0) { delete weights.saboteur; if (weights.armored) weights.armored *= 0.5; }
+  const list = []; let guard = 0;
+  while (budget > 0.5 && guard++ < 40) {
+    const cat = wpick(weights);
+    let tier = 0; const r = rnd();
+    if (r < eli) tier = 2; else if (r < eli + vet) tier = 1;
+    const C = CATS[cat], n = C.group || 1;
+    const cost = C.threat * TIERS[tier].threat * n;
+    if (cost > budget * 1.4) { if (tier > 0) continue; if (list.length) break; }
+    budget -= cost; list.push({ cat, tier, n });
+  }
+  let t = m.t + 0.4;
+  for (const g of list) {
+    const sp = ri(0, m.paths.length - 1);
+    for (let i = 0; i < g.n; i++) m.queue.push({ at: t + i * 0.32, cat: g.cat, tier: g.tier, sp });
+    t += 0.6 + rnd() * 0.8;
+  }
+}
+function spawnEnemy(q) {
+  const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = M.paths[q.sp];
+  const hp = C.hp * Tt.hp * (1 + 0.16 * c.idx) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod);
+  const armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3));
+  const e = {
+    cat: q.cat, tier: q.tier, name: c.fac.names[q.cat], color: c.fac.color,
+    x: path[0].x + (rnd() - 0.5) * 6, y: path[0].y + (rnd() - 0.5) * 6, path, wi: 1, sp: q.sp,
+    hp, maxhp: hp, spd: C.spd * Tt.spd * (M.biome.mod.espd || 1), armor,
+    r: C.r * Tt.size, fly: !!C.fly, sab: !!C.sab, dps: (C.dps || 0) * (1 + 0.15 * q.tier),
+    bounty: C.bounty * Tt.bounty, cost: C.cost * Tt.cost, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: rnd() * 6,
+    ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: getVariant(q.cat), face: 1,
+  };
+  if (e.fly) { e.sx = e.x; e.sy = e.y; }
+  M.enemies.push(e);
+  return e;
+}
+function spawnBoss() {
+  const B = M.c.fac.boss, path = M.paths[0];
+  const hp = B.hp * M.c.mod * (M.biome.mod.ehp || 1);
+  const e = {
+    cat: 'boss', tier: 3, name: B.name, color: M.c.fac.color, boss: true,
+    x: path[0].x, y: path[0].y, path, wi: 1, sp: 0, hp, maxhp: hp, spd: B.spd * (M.biome.mod.espd || 1), armor: B.armor,
+    r: B.r, fly: !!B.fly, sab: false, bounty: 80, cost: 30, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: 0,
+    regen: B.regen || 0, spawn: B.spawn, spawnCd: 4, ox: 0, oy: 0, v: makeBossVariant(M.c.facKey), face: 1,
+  };
+  if (e.fly) { e.sx = e.x; e.sy = e.y; }
+  M.enemies.push(e); M.boss = e; M.bossSpawned = true; sfx('bossIn'); setMusic('boss');
+  toast(`${B.name} has entered the area`, 2600);
+}
+
+function loseMargin(n, x, y) {
+  let take = n;
+  if (M.insured > 0) { const a = Math.min(M.insured, take); M.insured -= a; take -= a; if (a > 0) fxText(x, y - 14, 'insured', '#4fd1a1'); }
+  if (take <= 0) return;
+  RUN.margin -= take; M.lost += take; RUN.lostTotal += take; sfx('leak', x);
+  fxText(M.dep.x, M.dep.y - 28, `-${take}% margin`, '#ff4d5e');
+  if (RUN.margin <= 0) {
+    if (has('parachute') && !RUN.parachuteUsed) {
+      RUN.parachuteUsed = true; RUN.margin = 25; toast('Golden Parachute deployed. Margin restored to 25%.', 2600);
+    } else {
+      RUN.margin = 0; M.phase = 'failed'; M.endTimer = 2.2; sfx('fail'); setMusic(null); toast('Profitability threshold breached', 2200);
+    }
+  }
+}
+
+function damage(e, dmg, pierce, tw) {
+  if (e.dead) return;
+  const eff = pierce ? dmg : Math.max(1, dmg - e.armor);
+  e.hp -= eff; e.hitT = 0.08;
+  if (rnd() < 0.5) sparks(e.x, ecy(e), '#fff2c0', 1);
+  if (e.hp <= 0) {
+    e.dead = true;
+    M.kills++; RUN.kills++;
+    M.budget += e.bounty + (has('loyalty') ? 1 : 0);
+    deathFx(e); sfx(e.boss ? 'bigboom' : M.c.facKey === 'fauna' ? 'splat' : 'pop', e.x);
+    if (tw) {
+      const cr = tw.crew; cr.kills++; cr.xp += e.bounty;
+      while (cr.level < 5 && cr.xp >= XP_TH[cr.level]) {
+        cr.level++;
+        M.promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); sfx('promote', tw.x);
+        fxText(tw.x, tw.y - 22, 'PROMOTED', '#ffd23f');
+        const st = towerStats(cr); tw.hp += st.maxhp - tw.maxhp; tw.maxhp = st.maxhp;
+        buildRosterBar();
+      }
+    }
+    if (e.boss) { M.boss = null; toast(`${e.name} neutralised`, 2400); }
+  }
+}
+
+function stepMission(dt) {
+  const m = M;
+  stepFx(dt);
+  if (m.phase === 'prep') return;
+  if (m.phase === 'done' || m.phase === 'failed') {
+    m.endTimer -= dt;
+    if (m.endTimer <= 0 && !m.ended) { m.ended = true; finishMission(m.phase === 'done'); return; }
+    if (m.phase === 'failed') return;
+  }
+  m.t += dt;
+  m.incomeAcc += dt;
+  if (m.incomeAcc >= 2) { m.incomeAcc -= 2; m.budget += 1; }
+  if (m.phase === 'drill') {
+    if (m.t >= m.T) {
+      m.phase = 'evac';
+      toast(m.boss ? 'Drill complete. Neutralise the target for pickup.' : 'Drill complete. Clear the area for pickup.', 2600);
+    } else {
+      m.waveTimer -= dt;
+      if (m.waveTimer <= 0) { genWave(); m.waveTimer = m.waveInterval; }
+      if (m.c.boss && !m.bossSpawned && m.t >= m.T * 0.45) spawnBoss();
+    }
+  }
+  if (m.queue.length) {
+    m.queue.sort((a, b) => a.at - b.at);
+    while (m.queue.length && m.queue[0].at <= m.t) spawnEnemy(m.queue.shift());
+  }
+  // enemies
+  for (const e of m.enemies) {
+    if (e.dead) continue;
+    if (e.hitT > 0) e.hitT -= dt;
+    if (e.slowT > 0) e.slowT -= dt;
+    const regen = (m.biome.mod.regen || 0) + (e.regen || 0);
+    if (regen && e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * regen * dt);
+    if (e.boss && e.spawn) {
+      e.spawnCd -= dt;
+      if (e.spawnCd <= 0) {
+        e.spawnCd = e.spawn.every;
+        for (let i = 0; i < e.spawn.n; i++) {
+          const a = spawnEnemy({ cat: e.spawn.cat, tier: rnd() < 0.3 ? 1 : 0, sp: e.sp });
+          a.x = e.x + (rnd() - 0.5) * 20; a.y = e.y + (rnd() - 0.5) * 20; a.wi = e.wi; a.dist = e.dist;
+          if (a.fly) { a.sx = a.x; a.sy = a.y; }
+        }
+      }
+    }
+    const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1);
+    if (e.sab) {
+      let tgt = null, bd = 1.4 * TILE;
+      for (const tw of m.towers) { if (tw.down) continue; const d = Math.hypot(tw.x - e.x, tw.y - e.y); if (d < bd) { bd = d; tgt = tw; } }
+      e.target = tgt;
+      if (tgt) {
+        tgt.hp -= e.dps * dt; tgt.flash = 0.1;
+        e.atk = (e.atk || 0) + dt; if (e.atk > 0.3) { e.atk = 0; sparks(tgt.x, tgt.y - 6, '#ffb0b0', 2); sfx('sabo', tgt.x); }
+        if (Math.abs(tgt.x - e.x) > 2) e.face = tgt.x < e.x ? -1 : 1;
+        if (tgt.hp <= 0) { tgt.down = true; tgt.hp = 0; sfx('hit', tgt.x); m.downed.push(tgt.crew.name); fxText(tgt.x, tgt.y - 20, 'INJURED', '#ff4d5e'); buildRosterBar(); if (S.selTower === tgt) renderTowerInfo(); }
+        continue;
+      }
+    }
+    if (e.fly) {
+      const dx = m.dep.x - e.x, dy = m.dep.y - e.y, d = Math.hypot(dx, dy);
+      if (d < 8) { leak(e); continue; }
+      e.ang = Math.atan2(dy, dx); if (Math.abs(dx) > 0.5) e.face = dx < 0 ? -1 : 1;
+      e.x += dx / d * spd * dt; e.y += dy / d * spd * dt; e.dist += spd * dt;
+    } else {
+      const tp = e.path[e.wi];
+      if (!tp) { leak(e); continue; }
+      const tx = tp.x + (e.wi < e.path.length - 1 ? e.ox * 0.6 : 0), ty = tp.y + (e.wi < e.path.length - 1 ? e.oy * 0.6 : 0);
+      const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
+      const mv = spd * dt;
+      if (d <= mv) { e.x = tx; e.y = ty; e.wi++; if (e.wi >= e.path.length) { leak(e); continue; } }
+      else { e.x += dx / d * mv; e.y += dy / d * mv; e.ang = Math.atan2(dy, dx); if (Math.abs(dx) > 0.3) e.face = dx < 0 ? -1 : 1; }
+      e.dist += mv;
+    }
+  }
+  // towers: track a target every step so aiming is smooth, fire when the cooldown is up
+  for (const tw of m.towers) {
+    if (tw.flash > 0) tw.flash -= dt;
+    tw.recoil *= Math.exp(-dt * 14);
+    if (tw.muzzle > 0) tw.muzzle -= dt;
+    if (tw.down) continue;
+    const s = towerStats(tw.crew), R2 = s.range * TILE, type = tw.crew.type;
+    tw.cd -= dt;
+    const inRange = [];
+    for (const e of m.enemies) { if (e.dead) continue; if (e.fly && !s.air) continue; if (Math.hypot(e.x - tw.x, e.y - tw.y) <= R2 + e.r * 0.5) inRange.push(e); }
+    let tgt = null;
+    for (const e of inRange) if (!tgt || (s.strong ? e.hp > tgt.hp : e.dist > tgt.dist)) tgt = e;
+    tw.aim = tgt;
+    if (tgt) { tw.ang = Math.atan2(ecy(tgt) - tw.y, tgt.x - tw.x); if (Math.abs(tgt.x - tw.x) > 3) tw.face = tgt.x < tw.x ? -1 : 1; }
+    const want = type === 'mortar' ? (tw.face > 0 ? -0.85 : Math.PI + 0.85) : tw.ang;
+    tw.vis = lerpAngle(tw.vis, want, 1 - Math.exp(-dt * 18));
+    if (type === 'drone') {
+      const hx = tgt ? Math.cos(tw.ang) * 14 : tw.face * 12, hy = tgt ? -24 + Math.sin(tw.ang) * 8 : -24, k = 1 - Math.exp(-dt * 5);
+      tw.dx += (hx - tw.dx) * k; tw.dy += (hy - tw.dy) * k;
+    }
+    if (tw.cd > 0 || !tgt) continue;
+    tw.cd = 1 / s.rate; tw.recoil = 1; tw.muzzle = 0.07;
+    sfx({ gunner: 'gun', taser: 'taser', mortar: 'mortar', marksman: 'snipe', drone: 'drone' }[type], tw.x);
+    const mz = muzzlePos(tw);
+    if (s.aoe) {
+      for (const e of inRange) {
+        damage(e, s.dmg, false, tw); e.slowT = s.slowDur; e.slowAmt = e.boss ? s.slow * 0.5 : s.slow;
+        m.fx.push({ k: 'arc', x: mz.x, y: mz.y, e, tx: e.x, ty: ecy(e), life: 0.22, max: 0.22 });
+        sparks(e.x, ecy(e), '#bff4ff', 3);
+      }
+      m.fx.push({ k: 'ring', x: tw.x, y: tw.y, r: R2, life: 0.3, max: 0.3, color: s.color });
+      continue;
+    }
+    if (s.splash) {
+      const lead = 0.6;
+      let tx = tgt.x, ty = tgt.y;
+      if (!tgt.fly && tgt.path[tgt.wi]) { const nx = tgt.path[tgt.wi].x - tgt.x, ny = tgt.path[tgt.wi].y - tgt.y, nd = Math.hypot(nx, ny) || 1, k = Math.min(1, tgt.spd * TILE * lead / nd); tx += nx * k; ty += ny * k; }
+      m.shots.push({ sx: mz.x, sy: mz.y, tx, ty, t: 0, dur: lead, dmg: s.dmg, r: s.splash * TILE, tw });
+      smoke(mz.x, mz.y, 3); shake(1.5);
+      continue;
+    }
+    let dmg = s.dmg; if (s.airMult && tgt.fly) dmg *= s.airMult;
+    damage(tgt, dmg, !!s.pierce, tw);
+    const burst = type === 'gunner' ? 2 : 1, life = type === 'marksman' ? 0.16 : 0.07;
+    for (let b = 0; b < burst; b++) m.fx.push({ k: 'tracer', x1: mz.x, y1: mz.y, x2: tgt.x + (rnd() - 0.5) * 6, y2: ecy(tgt) + (rnd() - 0.5) * 6, life, max: life, delay: b * 0.07, color: s.color, w: type === 'marksman' ? 2.4 : type === 'drone' ? 1.1 : 1.5 });
+    if (type === 'gunner' || type === 'marksman') casing(tw);
+    if (type === 'marksman') { smoke(mz.x, mz.y, 2); shake(2.5); }
+    sparks(tgt.x, ecy(tgt), '#fff2c0', type === 'marksman' ? 5 : 2);
+  }
+  // foam shells
+  for (const sh of m.shots) {
+    sh.t += dt;
+    sh.trail = (sh.trail || 0) + dt;
+    if (sh.trail > 0.035 && sh.t < sh.dur) { sh.trail = 0; const p = shellPos(sh); addPart({ x: p.x, y: p.y, vx: (rnd() - 0.5) * 8, vy: -6, r: 0.6, grow: 1.6, life: 0.4, max: 0.4, col: '#e8edf2', layer: 'px', alpha: 0.6 }); }
+    if (sh.t >= sh.dur && !sh.hit) {
+      sh.hit = true;
+      for (const e of m.enemies) if (!e.dead && !e.fly && Math.hypot(e.x - sh.tx, e.y - sh.ty) <= sh.r + e.r * 0.5) damage(e, sh.dmg, false, sh.tw);
+      m.fx.push({ k: 'boom', x: sh.tx, y: sh.ty, r: sh.r, life: 0.4, max: 0.4, color: '#ffb860' });
+      sfx('foam', sh.tx); foam(sh.tx, sh.ty, sh.r); smoke(sh.tx, sh.ty, 4); sparks(sh.tx, sh.ty, '#ffe0a0', 6); shake(3);
+    }
+  }
+  m.shots = m.shots.filter(s => !s.hit);
+  m.enemies = m.enemies.filter(e => !e.dead && !e.gone);
+  if (m.phase === 'evac' && !m.enemies.length && !m.queue.length) {
+    m.phase = 'done'; m.endTimer = 2; sfx('evac'); toast('Area secure. Dropship inbound.', 2000);
+  }
+}
+function leak(e) {
+  if (e.boss) {
+    loseMargin(e.cost, e.x, e.y);
+    // the boss grabs what it can and circles back for more
+    const p = e.path[0]; e.x = p.x; e.y = p.y; e.wi = 1; e.dist = 0; if (e.fly) { e.sx = p.x; e.sy = p.y; }
+    toast(`${e.name} looted the deposit and is coming back`, 2200);
+    return;
+  }
+  e.gone = true;
+  loseMargin(e.cost, e.x, e.y);
+}
+
+// ---------- fx & particles ----------
+function ecy(e) { return e.fly ? e.y - 12 : e.y - (e.boss ? 20 : 8); }
+function lerpAngle(a, b, k) { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return a + d * k; }
+function muzzlePos(tw) {
+  if (tw.crew.type === 'drone') return { x: tw.x + tw.dx, y: tw.y + tw.dy + 3 };
+  const wp = weaponSprite(tw.crew.type), L = (wp.len - wp.gx) * AP;
+  return { x: tw.x + (tw.face || 1) * 7 + Math.cos(tw.vis) * L, y: tw.y + 1 + Math.sin(tw.vis) * L };
+}
+function shellPos(sh) { const k = Math.min(1, sh.t / sh.dur); return { x: sh.sx + (sh.tx - sh.sx) * k, y: sh.sy + (sh.ty - sh.sy) * k - Math.sin(k * Math.PI) * 60, k }; }
+function addPart(o) { M.parts.push(o); }
+function sparks(x, y, col, n) { for (let i = 0; i < n; i++) addPart({ x, y, vx: (rnd() - 0.5) * 170, vy: (rnd() - 0.5) * 170, life: 0.18, max: 0.18, col, size: 2, layer: 'fx' }); }
+function smoke(x, y, n) { for (let i = 0; i < n; i++) addPart({ x: x + (rnd() - 0.5) * 6, y: y + (rnd() - 0.5) * 6, vx: (rnd() - 0.5) * 24, vy: -14 - rnd() * 16, r: 0.6 + rnd(), grow: 2.4, life: 0.6 + rnd() * 0.3, max: 0.9, col: rnd() < 0.5 ? '#cfd3d8' : '#a9afb7', layer: 'px', alpha: 0.75 }); }
+function casing(tw) { const f = tw.face || 1; addPart({ x: tw.x + f * 6, y: tw.y, vx: -f * (30 + rnd() * 40), vy: -70 - rnd() * 40, g: 340, floor: tw.y + 10 + rnd() * 4, life: 1.4, max: 1.4, col: '#e8c060', size: 1, layer: 'px' }); }
+function shake(v) { M.shake = Math.max(M.shake, v); }
+function foam(x, y, r) { M.decals.push({ x, y, life: 6, blobs: Array.from({ length: 7 }, () => ({ x: (rnd() - 0.5) * r / AP * 1.3, y: (rnd() - 0.5) * r / AP * 0.7, r: 1 + rnd() * 2.6, c: pick(['#f2f6fa', '#d8e8f2', '#ffffff', '#c8dcea']) })) }); }
+function deathFx(e) {
+  const y = ecy(e), n = e.boss ? 34 : 9;
+  for (let i = 0; i < n; i++) addPart({ x: e.x, y, vx: (rnd() - 0.5) * 130, vy: -40 - rnd() * 100, g: 330, floor: e.y + 4 + rnd() * 8, life: 0.8 + rnd() * 0.5, max: 1.3, col: rnd() < 0.5 ? e.color : shade(e.color, -0.4), size: 1, layer: 'px' });
+  smoke(e.x, y, e.boss ? 12 : 3);
+  M.fx.push({ k: 'boom', x: e.x, y, r: e.r * 1.8, life: 0.25, max: 0.25, color: '#fff0d0' });
+  if (e.boss) shake(7);
+}
+function fxText(x, y, txt, color) { M.fx.push({ k: 'text', x, y, txt, color, life: 1.1, max: 1.1 }); }
+function stepFx(dt) {
+  const m = M;
+  for (const f of m.fx) { if (f.delay > 0) { f.delay -= dt; continue; } f.life -= dt; if (f.e && !f.e.dead) { f.tx = f.e.x; f.ty = ecy(f.e); } }
+  m.fx = m.fx.filter(f => f.life > 0);
+  for (const p of m.parts) {
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.g) p.vy += p.g * dt;
+    if (p.grow) p.r += p.grow * dt;
+    if (p.floor != null && p.y > p.floor) { p.y = p.floor; p.vy *= -0.35; p.vx *= 0.5; if (Math.abs(p.vy) < 12) { p.vy = 0; p.vx = 0; p.g = 0; } }
+  }
+  m.parts = m.parts.filter(p => p.life > 0);
+  if (m.parts.length > 700) m.parts.splice(0, m.parts.length - 700);
+  for (const d of m.decals) d.life -= dt;
+  m.decals = m.decals.filter(d => d.life > 0);
+  m.shake *= Math.exp(-dt * 9);
+}
+
+// ---------- render mission ----------
+let WB = null, WBG = null;
+function glow(x, y, r, col, a) {
+  if (a <= 0.01) return;
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, rgba(col, a)); gr.addColorStop(1, rgba(col, 0));
+  ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function renderMission(now) {
+  const m = M, t = now / 1000, W = GW * ATILE, H = GH * ATILE, LW = GW * TILE, LH = GH * TILE;
+  if (!WB || WB.width !== W || WB.height !== H) { WB = mkCanvas(W, H); WBG = WB.getContext('2d'); }
+  const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1;
+  g.drawImage(m.ground, 0, 0);
+  // foam left by mortar shells
+  for (const dc of m.decals) { g.globalAlpha = clamp(dc.life / 2, 0, 0.9); for (const b of dc.blobs) pxCircle(g, dc.x / AP + b.x, dc.y / AP + b.y, b.r, b.c); }
+  g.globalAlpha = 1;
+  // ground shadows
+  g.fillStyle = 'rgba(0,0,0,0.28)';
+  for (const e of m.enemies) { const w = e.boss ? 13 : e.fly ? 4 : e.v.kind === 'vehicle' ? 8 : 5, ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 4; g.fillRect(ax - w, ay - 1, w * 2, 2); g.fillRect(ax - w + 1, ay - 2, w * 2 - 2, 1); }
+  // y-sorted world
+  const list = [];
+  for (const tw of m.towers) list.push([tw.y + 6, () => drawTowerPx(g, tw, t)]);
+  for (const e of m.enemies) if (!e.fly) list.push([e.y, () => drawEnemyPx(g, e, t)]);
+  list.push([m.dep.y, () => drawDepositPx(g, t)]);
+  list.sort((a, b) => a[0] - b[0]);
+  for (const it of list) it[1]();
+  // placement ghost
+  const sc = S.selCrew >= 0 ? RUN.roster[S.selCrew] : null;
+  let preview = null;
+  if (sc && S.hover) {
+    const tl = tileAt(S.hover.x, S.hover.y);
+    if (tl) {
+      const ok = canBuild(tl.tx, tl.ty) && m.budget >= TOWERS[sc.type].fee, x0 = tl.tx * ATILE, y0 = tl.ty * ATILE, c = ok ? '#ffd23f' : '#ff4d5e';
+      for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [17, 0, -1, 1], [0, 17, 1, -1], [17, 17, -1, -1]]) { px(g, x0 + cx + (sx < 0 ? -3 : 0), y0 + cy, 4, 1, c); px(g, x0 + cx, y0 + cy + (sy < 0 ? -3 : 0), 1, 4, c); }
+      if (canBuild(tl.tx, tl.ty)) { g.globalAlpha = ok ? 0.7 : 0.35; g.drawImage(palletSprite(), x0 + 1, y0 + 12); g.drawImage(crewSprites(sc).f[0], x0 + 2, y0 - 2); g.globalAlpha = 1; }
+      preview = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2, r: towerStats(sc).range * TILE, ok };
+    }
+  }
+  // pixel particles
+  for (const p of m.parts) {
+    if (p.layer !== 'px') continue;
+    g.globalAlpha = (p.alpha || 1) * clamp(p.life / p.max * 1.6, 0, 1);
+    if (p.r) pxCircle(g, p.x / AP, p.y / AP, p.r, p.col); else px(g, Math.round(p.x / AP), Math.round(p.y / AP), p.size, p.size, p.col);
+  }
+  g.globalAlpha = 1;
+  // foam shells in flight
+  for (const sh of m.shots) {
+    const p = shellPos(sh), gx = Math.round((sh.sx + (sh.tx - sh.sx) * p.k) / AP), gy = Math.round((sh.sy + (sh.ty - sh.sy) * p.k) / AP);
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(gx - 1, gy, 3, 1);
+    const x = Math.round(p.x / AP), y = Math.round(p.y / AP);
+    px(g, x - 2, y - 2, 4, 4, '#1d2026'); px(g, x - 1, y - 1, 2, 2, '#f4f8fb'); px(g, x - 1, y - 1, 1, 1, '#ffffff');
+  }
+  // fliers above everything on the ground
+  for (const e of m.enemies) if (e.fly) drawEnemyPx(g, e, t);
+  // health bars
+  for (const e of m.enemies) {
+    if (!(e.hp < e.maxhp || e.boss) || e._bx == null) continue;
+    const w = e.boss ? 26 : clamp(Math.round(e.v.frames[0].width * 0.6), 6, 12), x = e._bx - (w >> 1), y = e._by;
+    px(g, x - 1, y - 1, w + 2, e.boss ? 4 : 3, '#0c0e14');
+    px(g, x, y, Math.max(0, Math.round(w * clamp(e.hp / e.maxhp, 0, 1))), e.boss ? 2 : 1, e.boss ? '#ff4d5e' : e.tier === 2 ? '#ffd23f' : '#e8eef5');
+  }
+  for (const tw of m.towers) {
+    const ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6;
+    for (let i = 0; i < tw.crew.level; i++) px(g, ax - 7 + i * 3, ay + 3, 2, 1, tw.down ? '#59616b' : '#ffd23f');
+    if (!tw.down && tw.hp < tw.maxhp) { px(g, ax - 7, ay - 21, 14, 3, '#0c0e14'); px(g, ax - 6, ay - 20, Math.round(12 * tw.hp / tw.maxhp), 1, '#4fd1a1'); }
+  }
+
+  // compose: crisp pixels, then light
+  beginDraw();
+  const sh = RM || !CFG.shake ? 0 : m.shake, ox = (rnd() - 0.5) * sh, oy = (rnd() - 0.5) * sh;
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#05070a'; ctx.fillRect(0, 0, LW, LH);
+  ctx.drawImage(WB, ox, oy, LW, LH);
+  ctx.save(); ctx.translate(ox, oy);
+  ctx.globalCompositeOperation = 'lighter';
+  glow(m.dep.x, m.dep.y - 8, 66, '#b98cff', 0.3 + 0.07 * Math.sin(t * 2));
+  if (m.phase === 'drill' && Math.floor(t * 3) % 2) glow(m.dep.x + 1, m.dep.y - 34, 12, '#ffd23f', 0.8);
+  for (const l of m.lights) glow(l.x, l.y, l.r, l.color, (l.flicker ? 0.3 + 0.2 * Math.sin(t * 7 + l.x) : 0.4) * (l.pulse ? 0.45 + 0.4 * Math.sin(t * 4) : 1));
+  for (const tw of m.towers) {
+    if (tw.down) continue;
+    const ty = tw.crew.type, f = tw.face || 1;
+    if (ty === 'taser') { glow(tw.x - f * 10, tw.y - 2, 9, '#5fd4ff', 0.5); const mz = muzzlePos(tw); glow(mz.x, mz.y, 9, '#5fd4ff', 0.45 + 0.25 * Math.sin(t * 22)); }
+    if (ty === 'drone') glow(tw.x + tw.dx, tw.y + tw.dy, 9, '#9be564', 0.4);
+    if (tw.muzzle > 0) { const mz = muzzlePos(tw); glow(mz.x, mz.y, ty === 'marksman' ? 36 : ty === 'mortar' ? 28 : 20, ty === 'drone' ? '#9be564' : ty === 'taser' ? '#5fd4ff' : '#ffcf6a', 0.85 * tw.muzzle / 0.07); }
+  }
+  for (const e of m.enemies) {
+    if (e._sx == null) continue;
+    for (const l of e.v.lights) { const lx = e._flip ? 2 * e._ax - (e._sx + l.x + 0.5) : e._sx + l.x + 0.5; glow(lx * AP, (e._sy + l.y + 0.5) * AP, l.r, l.color, 0.4); }
+  }
+  for (const f of m.fx) {
+    if (f.delay > 0) continue;
+    const k = clamp(f.life / f.max, 0, 1);
+    if (f.k === 'tracer') {
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = rgba(f.color, 0.5 * k); ctx.lineWidth = f.w * 2.6; ctx.beginPath(); ctx.moveTo(f.x1, f.y1); ctx.lineTo(f.x2, f.y2); ctx.stroke();
+      ctx.strokeStyle = rgba('#ffffff', 0.95 * k); ctx.lineWidth = f.w * 0.7; ctx.beginPath(); ctx.moveTo(f.x1, f.y1); ctx.lineTo(f.x2, f.y2); ctx.stroke();
+    } else if (f.k === 'arc') {
+      const dx = f.tx - f.x, dy = f.ty - f.y, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, pts = [[f.x, f.y]];
+      for (let i = 1; i < 6; i++) { const o = (rnd() - 0.5) * 12; pts.push([f.x + dx * i / 6 + nx * o, f.y + dy * i / 6 + ny * o]); }
+      pts.push([f.tx, f.ty]);
+      for (const [w, col] of [[5, rgba('#5fd4ff', 0.4 * k)], [1.6, rgba('#eaffff', k)]]) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); }
+      glow(f.tx, f.ty, 14, '#5fd4ff', 0.5 * k);
+    } else if (f.k === 'ring') { ctx.strokeStyle = rgba(f.color, 0.35 * k); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.1 - k * 0.4), 0, 7); ctx.stroke(); }
+    else if (f.k === 'boom') glow(f.x, f.y, f.r * 1.5, f.color, 0.75 * k);
+  }
+  for (const p of m.parts) if (p.layer === 'fx') { ctx.fillStyle = rgba(p.col, clamp(p.life / p.max, 0, 1)); ctx.fillRect(p.x - 1, p.y - 1, p.size, p.size); }
+  ctx.globalCompositeOperation = 'source-over';
+  // marksman laser sights while charging
+  for (const tw of m.towers) {
+    if (tw.down || tw.crew.type !== 'marksman' || !tw.aim || tw.aim.dead) continue;
+    const a = clamp(1 - tw.cd / 1.4, 0, 1) * 0.75; if (a <= 0.05) continue;
+    const mz = muzzlePos(tw); ctx.strokeStyle = rgba('#ff3b5c', a); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(mz.x, mz.y); ctx.lineTo(tw.aim.x, ecy(tw.aim)); ctx.stroke();
+    ctx.fillStyle = rgba('#ff3b5c', a); ctx.fillRect(tw.aim.x - 1.5, ecy(tw.aim) - 1.5, 3, 3);
+  }
+  // ranges
+  const ring = (x, y, r, col, fill) => { ctx.setLineDash([4, 4]); ctx.strokeStyle = col; ctx.fillStyle = fill; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); };
+  if (preview) ring(preview.x, preview.y, preview.r, preview.ok ? 'rgba(255,210,63,0.7)' : 'rgba(255,77,94,0.7)', preview.ok ? 'rgba(255,210,63,0.07)' : 'rgba(255,77,94,0.07)');
+  if (S.selTower && m.towers.includes(S.selTower)) ring(S.selTower.x, S.selTower.y, towerStats(S.selTower.crew).range * TILE, 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0.05)');
+  // floating text
+  ctx.textAlign = 'center';
+  ctx.font = '700 12px Silkscreen, VT323, monospace';
+  for (const f of m.fx) {
+    if (f.k !== 'text') continue;
+    const k = f.life / f.max, y = f.y - (1 - k) * 18; ctx.globalAlpha = Math.min(1, k * 2);
+    ctx.fillStyle = '#0c0e14'; ctx.fillText(f.txt, f.x + 1, y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, y);
+  }
+  ctx.globalAlpha = 1;
+  if (m.boss && !m.boss.dead) { const b = m.boss; ctx.fillStyle = '#0c0e14'; ctx.fillText(b.name.toUpperCase(), b.x + 1, b.y - 63); ctx.fillStyle = '#ff4d5e'; ctx.fillText(b.name.toUpperCase(), b.x, b.y - 64); }
+  if (m.phase === 'prep') {
+    for (const p of m.paths) { const x = clamp(p[0].x, 34, LW - 34), y = clamp(p[0].y + (p[0].y < 30 ? 34 : -24), 16, LH - 8); ctx.fillStyle = '#0c0e14'; ctx.fillText('HOSTILES', x + 1, y + 1); ctx.fillStyle = '#ff4d5e'; ctx.fillText('HOSTILES', x, y); }
+  }
+  ctx.restore();
+  // vignette
+  const vg = ctx.createRadialGradient(LW / 2, LH / 2, Math.min(LW, LH) * 0.35, LW / 2, LH / 2, Math.max(LW, LH) * 0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.4)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, LW, LH);
+  if (m.phase === 'done' || m.phase === 'failed') {
+    ctx.fillStyle = m.phase === 'done' ? 'rgba(10,14,19,0.4)' : 'rgba(60,0,8,0.45)'; ctx.fillRect(0, 0, LW, LH);
+    ctx.font = `700 ${Math.round(Math.min(LW, LH) / 9)}px Silkscreen, Impact, sans-serif`; ctx.textAlign = 'center';
+    const txt = m.phase === 'done' ? 'EVACUATED' : 'ABANDONED';
+    ctx.fillStyle = '#0c0e14'; ctx.fillText(txt, LW / 2 + 3, LH / 2 + 23); ctx.fillStyle = m.phase === 'done' ? '#ffd23f' : '#ff4d5e'; ctx.fillText(txt, LW / 2, LH / 2 + 20);
+  }
+}
+function drawDepositPx(g, t) {
+  const ax = Math.round(M.dep.x / AP), ay = Math.round(M.dep.y / AP), health = clamp(RUN.margin / 100, 0.2, 1);
+  px(g, ax - 11, ay + 4, 22, 2, 'rgba(0,0,0,0.35)');
+  px(g, ax - 10, ay + 1, 20, 4, '#3a4048'); px(g, ax - 10, ay + 1, 20, 1, '#5a626e');
+  for (let i = 0; i < 10; i++) px(g, ax - 10 + i * 2, ay + 4, 2, 1, i % 2 ? '#ffd23f' : '#22252b');
+  pxLine(g, ax - 8, ay + 1, ax, ay - 16, '#b8922a');
+  const bit = M.phase === 'drill' ? Math.round(Math.sin(t * 18)) : 0;
+  px(g, ax, ay - 15 + bit, 1, 12, '#9aa3ad');
+  for (const [dx, h0] of [[-7, 7], [-4, 11], [3, 10], [-1, 15], [6, 6], [0, 6]]) {
+    const h = Math.max(2, Math.round(h0 * health)), x = ax + dx - 1, base = ay + 2;
+    px(g, x - 1, base - h - 1, 5, h + 1, '#2a1a48');
+    px(g, x, base - h, 1, h, '#e2ccff'); px(g, x + 1, base - h, 1, h, '#b98cff'); px(g, x + 2, base - h, 1, h, '#7a4fd0'); px(g, x + 1, base - h - 1, 1, 1, '#f5ecff');
+  }
+  pxLine(g, ax + 8, ay + 1, ax, ay - 16, '#ffd23f'); pxLine(g, ax + 2, ay + 3, ax, ay - 16, '#e0b830');
+  px(g, ax - 3, ay - 20, 7, 5, '#0c0e14'); px(g, ax - 2, ay - 19, 5, 3, '#ffd23f'); px(g, ax - 2, ay - 19, 5, 1, '#fff0a0'); px(g, ax - 1, ay - 18, 1, 1, '#22252b');
+}
+function drawTowerPx(g, tw, t) {
+  const sp = crewSprites(tw.crew), ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6, type = tw.crew.type;
+  g.drawImage(palletSprite(), ax - 8, ay - 3);
+  if (tw.down) {
+    g.save(); g.translate(ax, ay - 4); g.rotate(-Math.PI / 2); g.drawImage(sp.grey, -10, -7); g.restore();
+    px(g, ax - 1, ay - 13, 3, 1, '#ff4d5e'); px(g, ax, ay - 14, 1, 3, '#ff4d5e'); return;
+  }
+  const face = tw.face || 1, bob = Math.floor(t * 2 + tw.tx * 0.7) % 2, sx = ax - 7, sy = ay - 17;
+  const blit = im => { if (face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx, sy); g.restore(); } else g.drawImage(im, sx, sy); };
+  if (S.selTower === tw) for (const [dx, dy] of OFF4) { g.save(); g.translate(dx, dy); blit(sp.sel[bob]); g.restore(); }
+  blit(tw.flash > 0 && Math.floor(t * 30) % 2 ? sp.red[bob] : sp.f[bob]);
+  if (type === 'drone') {
+    const dr = droneSprites()[Math.floor(t * 24) % 2], dx = Math.round((tw.x + tw.dx) / AP), dy = Math.round((tw.y + tw.dy) / AP + Math.sin(t * 3 + tw.tx) * 1.2);
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(dx - 3, Math.round(tw.y / AP) + 7, 6, 1);
+    g.save(); g.translate(dx, dy); g.rotate(clamp(Math.cos(tw.vis) * 0.3, -0.3, 0.3)); g.drawImage(dr, -6 - Math.round(Math.cos(tw.vis) * tw.recoil * 2), -3); g.restore();
+    return;
+  }
+  const wp = weaponSprite(type), pvx = ax + face * 3.5, pvy = ay - 6 + bob + 0.5;
+  g.save(); g.translate(pvx, pvy); g.rotate(tw.vis); if (face < 0) g.scale(1, -1);
+  g.drawImage(wp.c, -wp.gx - Math.round(tw.recoil * (type === 'gunner' || type === 'taser' ? 2 : 3)), -wp.gy);
+  if (tw.muzzle > 0) {
+    const L = wp.len - wp.gx, big = type === 'marksman' || type === 'mortar';
+    if (type === 'taser') { px(g, L - 1, -2, 3, 3, '#eaffff'); }
+    else { px(g, L, -2, 2, 3, '#fff6c8'); px(g, L + 2, -1, big ? 4 : 2, 1, '#ffd23f'); px(g, L + 1, -3, 1, 1, '#ffd23f'); px(g, L + 1, 1, 1, 1, '#ffd23f'); }
+  }
+  g.restore();
+  px(g, Math.floor(pvx), Math.floor(pvy), 1, 1, CREW_OUTFITS[type].gloves || tw.crew.look.skin);
+}
+function drawEnemyPx(g, e, t) {
+  const v = e.v, ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + (e.fly ? -6 + Math.round(Math.sin(t * 3 + e.wob) * 1.5) : 4);
+  let fi;
+  if (e.fly) fi = Math.floor(t * 16 + e.wob) % 2;
+  else if (e.target) fi = Math.floor(t * 8) % 2;
+  else if (v.kind === 'human') fi = [0, 1, 0, 2][Math.floor(e.dist / 7) % 4];
+  else fi = Math.floor(e.dist / 6) % 2;
+  const img = e.hitT > 0 ? v.white[fi] : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
+  const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
+  if (e.tier === 1 || e.tier === 2) { const ol = e.tier === 2 ? v.elite[fi] : v.vet[fi]; for (const [dx, dy] of OFF4) blit(ol, dx, dy); }
+  if (e.slowT > 0) { g.globalAlpha = 0.5; for (const [dx, dy] of OFF4) blit(v.slow[fi], dx, dy); g.globalAlpha = 1; }
+  blit(img, 0, 0);
+  e._ax = ax; e._sx = sx; e._sy = sy; e._flip = flip; e._bx = ax; e._by = sy - 2;
+}
+
+// ---------- mission UI ----------
+function buildMissionHud() {
+  const c = M.c;
+  $('#hud').innerHTML = `
+    <div class="hud-block"><div class="lbl">${c.boss ? 'Executive contract' : `Contract ${c.idx + 1} of ${CONTRACTS_PER_SECTOR}`} · ${esc(c.biome.name)}</div><div class="val" title="${esc(c.planet)}">${esc(c.planet)}</div></div>
+    <div class="hud-meter"><div class="lbl">Extraction <span id="hDrillTxt" class="mono"></span></div><div class="meter"><i id="hDrill"></i></div></div>
+    <div class="hud-meter"><div class="lbl">Profit margin <span id="hMarginTxt" class="mono"></span></div><div class="meter m-margin" id="hMarginBox"><i id="hMargin"></i></div></div>
+    <div class="hud-block"><div class="lbl">Budget</div><div class="val mono" id="hBudget"></div></div>
+    <div class="hud-ctrl">
+      <button class="btn sm" id="bStart" data-act="start">Begin extraction</button>
+      <button class="btn sm ghost" id="bPause" data-act="pause" aria-label="Pause">Pause</button>
+      <button class="btn sm ghost" data-act="speed" data-v="1">1×</button>
+      <button class="btn sm ghost" data-act="speed" data-v="2">2×</button>
+      <button class="btn sm ghost" data-act="speed" data-v="3">3×</button>
+    </div>`;
+}
+let hudCache = {};
+function updateHud() {
+  const m = M; if (!m) return;
+  const prog = clamp(m.t / m.T, 0, 1), left = Math.max(0, Math.ceil(m.T - m.t));
+  const set = (id, k, v) => { if (hudCache[id + k] !== v) { hudCache[id + k] = v; const el = document.getElementById(id); if (el) { if (k === 'w') el.style.width = v; else if (k === 'cls') el.className = v; else el.textContent = v; } } };
+  set('hDrill', 'w', (prog * 100).toFixed(1) + '%');
+  set('hDrillTxt', 't', m.phase === 'prep' ? `${Math.floor(m.T / 60)}:${String(Math.round(m.T % 60)).padStart(2, '0')} total` : m.phase === 'drill' ? `${Math.floor(prog * 100)}% · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'complete');
+  set('hMargin', 'w', clamp(RUN.margin, 0, 100) + '%');
+  set('hMarginTxt', 't', RUN.margin + '%');
+  set('hMarginBox', 'cls', 'meter m-margin' + (RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''));
+  set('hBudget', 't', '$' + m.budget);
+  const bs = document.getElementById('bStart'); if (bs) bs.hidden = m.phase !== 'prep';
+  set('bPause', 't', m.paused ? 'Resume' : 'Pause');
+  document.querySelectorAll('[data-act="speed"]').forEach(b => b.classList.toggle('on', +b.dataset.v === m.speed));
+  // keep roster affordability fresh
+  if (hudCache.budgetSeen !== m.budget) { hudCache.budgetSeen = m.budget; refreshRosterAfford(); }
+}
+function buildRosterBar() {
+  if (S.screen !== 'mission') return;
+  const html = RUN.roster.map((cr, i) => {
+    const tw = M.towers.find(t => t.crew === cr);
+    const used = M.deployedIds.has(cr.id), down = tw && tw.down;
+    const fee = TOWERS[cr.type].fee;
+    const status = down ? 'Injured' : used ? 'Deployed' : '$' + fee;
+    return `<button class="crew${S.selCrew === i ? ' sel' : ''}${used ? ' used' : ''}${down ? ' down' : ''}" data-act="crew" data-i="${i}" data-fee="${fee}" aria-pressed="${S.selCrew === i}" title="${esc(TOWERS[cr.type].name)}: ${esc(TOWERS[cr.type].desc)}">
+      ${portraitImg(cr)}<span class="nm">${esc(cr.name)}</span><span class="meta">Lv${cr.level} · ${status}</span></button>`;
+  }).join('');
+  let roster = $('#bar .roster');
+  if (!roster) {
+    $('#bar').innerHTML = `<div class="roster" role="toolbar" aria-label="Crew roster"></div><div class="ticker" aria-hidden="true"><span>${TICKER.map(s => '<b>KINDLY NEWS</b> ' + esc(s)).join(' &nbsp;·&nbsp; ')}</span></div>`;
+    roster = $('#bar .roster');
+  }
+  roster.innerHTML = html;
+  refreshRosterAfford();
+}
+function refreshRosterAfford() {
+  document.querySelectorAll('#bar .crew').forEach(b => {
+    const cr = RUN.roster[+b.dataset.i]; if (!cr || !M) return;
+    const used = M.deployedIds.has(cr.id);
+    b.style.opacity = used ? '' : (M.budget >= +b.dataset.fee ? '' : '0.6');
+  });
+}
+function renderTowerInfo() {
+  const ov = $('#overlay');
+  const old = ov.querySelector('.tinfo'); if (old) old.remove();
+  const tw = S.selTower; if (!tw || !M.towers.includes(tw)) return;
+  const st = towerStats(tw.crew), cr = tw.crew;
+  const next = cr.level < 5 ? `${cr.xp}/${XP_TH[cr.level]} xp to promotion` : 'Max rank. Still no raise.';
+  const div = document.createElement('div'); div.className = 'tinfo';
+  div.innerHTML = `<div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
+    <div class="mono" style="color:var(--muted)">DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s · RNG ${st.range.toFixed(1)}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Injured. Claim denied.</span>' : ''}</div>
+    <div class="row"><button class="btn sm ghost" data-act="reassign">${tw.down ? 'Remove' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
+  ov.appendChild(div);
+}
+let toastTimer = 0;
+function toast(msg, ms = 2000) {
+  let el = $('#stage .toast');
+  if (!el) { el = document.createElement('div'); el.className = 'toast hide'; el.setAttribute('role', 'status'); $('#stage').appendChild(el); }
+  el.textContent = msg; el.classList.remove('hide');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hide'), ms);
+}
+
+// ---------- finishing a mission ----------
+function finishMission(success) {
+  const m = M, c = m.c;
+  if (!success) { showGameOver(); return; }
+  RUN.history.push({ planet: c.planet, faction: c.facKey, client: c.client.n, good: c.client.good, lost: m.lost, kills: m.kills, idx: c.idx });
+  RUN.factionCount[c.facKey] = (RUN.factionCount[c.facKey] || 0) + 1;
+  // payslip
+  const gross = Math.round((50 + 12 * c.idx) * c.pay);
+  const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
+  if (m.lost === 0) lines.push(['Zero-loss bonus', 25]);
+  const ded = shuffle([...DEDUCTIONS]).slice(0, ri(2, 3)).map(d => [d, -ri(3, 9)]);
+  const all = lines.concat(ded);
+  let net = all.reduce((s, l) => s + l[1], 0);
+  if (net < 10) { all.push(['Minimum wage adjustment (reluctant)', 10 - net]); net = 10; }
+  RUN.scrip += net;
+  if (c.boss) { showVictory(); return; }
+  RUN.idx++;
+  showDebrief({ c, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, slip: all, net });
+}
+
+// ---------- screens ----------
+const titlebar = (title, close) => `<div class="titlebar"><span>${title}</span><i></i>${close ? `<button class="xbtn" data-act="${close}" aria-label="Close">x</button>` : ''}</div>`;
+function clearMissionUi() { $('#hud').innerHTML = ''; $('#bar').innerHTML = ''; hudCache = {}; const t = $('#stage .toast'); if (t) t.classList.add('hide'); }
+function showTitle() {
+  S.screen = 'title'; M = null; clearMissionUi(); backdropView(); setMusic('menu');
+  const colony = store.get('al_colony', 0);
+  $('#overlay').innerHTML = `<div class="screen clear"><div class="title-wrap">
+    <div class="corp">${LOGO}<span>Kindly Security Solutions™</span></div>
+    <h1 class="big">Acceptable<br><em>Losses</em></h1>
+    <p class="tagline">Your safety is our second priority.</p>
+    <figure class="lineup" style="margin:0">${Array.from({ length: 9 }, () => `<img src="${fullBodyUrl(genLook(), pick(Object.keys(TOWERS)))}" alt="">`).join('')}<figcaption>Your new colleagues. Subject to change.</figcaption></figure>
+    <div class="memo">WELCOME, NEW HIRE.
+You have been deployed. Protect each client's crystals until extraction completes.
+If losses push company profit margin to <b>0%</b>, your return shuttle will be reallocated.
+Breaks are not scheduled. Good luck.                                    — HR-BOT</div>
+    <ul class="steps">
+      <li><b>Pick a contract</b>Choose a planet on the star map. Harder jobs pay more.</li>
+      <li><b>Deploy your crew</b>Select a crew member, then a tile beside the path.</li>
+      <li><b>Hold the drill</b>Survive until extraction hits 100%, then clear the area.</li>
+      <li><b>Spend your scrip</b>Hire crew and buy relics at the Company Store.</li>
+    </ul>
+    <div class="row"><button class="btn" data-act="newrun">Clock in</button>
+    ${colony ? `<span class="colony">Colony of the Abandoned: ${colony} survivor${colony === 1 ? '' : 's'} · new hires start with +${Math.min(50, colony * 5)} scrip</span>` : ''}</div>
+  </div></div>`;
+}
+function showMap() {
+  S.screen = 'map'; S.mapSel = -1; S.mapHover = -1; M = null; clearMissionUi(); setMusic('map');
+  mapView();
+  $('#overlay').innerHTML = `<div class="maphint">${RUN.idx >= CONTRACTS_PER_SECTOR ? 'Executive priority. One contract available.' : 'Select a planet to review the contract.'}</div>`;
+  $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">Sector 1 · ${esc(RUN.sectorName)}</div><div class="val">Choose your next deployment</div></div>
+    <div class="hud-meter"><div class="lbl">Profit margin <span class="mono">${RUN.margin}%</span></div><div class="meter m-margin${RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''}"><i style="width:${RUN.margin}%"></i></div></div>
+    <div class="hud-block"><div class="lbl">Scrip</div><div class="val mono">${RUN.scrip}</div></div>
+    <div class="hud-block"><div class="lbl">Employee</div><div class="val mono">#${RUN.empId}</div></div>`;
+}
+const SHIP = { x: 120, y: 290 };
+function mapView() {
+  const portrait = isPortrait();
+  if (portrait) { setView(600, 940); SHIP.x = 300; SHIP.y = 850; } else { setView(1000, 560); SHIP.x = 120; SHIP.y = 290; }
+  layoutPlanets(portrait);
+}
+function layoutPlanets(portrait) {
+  const n = RUN.options.length, key = portrait ? 'P' : 'L';
+  RUN.options.forEach((o, i) => {
+    if (o.layout !== key) {
+      o.layout = key; o.jx = o.jx ?? rnd(); o.jy = o.jy ?? rnd();
+      if (n === 1) { o.px = portrait ? 300 : 560; o.py = portrait ? 420 : 290; o.pr = 70; }
+      else if (portrait) { o.px = 150 + (i % 2) * 300 + (o.jx - 0.5) * 40; o.py = 220 + i * 190 + (o.jy - 0.5) * 30; o.pr = 40 + o.stars * 6; }
+      else { o.px = 300 + i * 170 + (o.jx - 0.5) * 30; o.py = 180 + ((i % 2) ? 210 : 30) + (o.jy - 0.5) * 50; o.pr = 40 + o.stars * 6; }
+    }
+  });
+}
+function showContractCard(i) {
+  const o = RUN.options[i]; S.mapSel = i;
+  const cats = Object.keys(o.fac.cats).map(k => CATS[k].label);
+  if (o.biome.mod.flyers && !cats.includes('Flyer')) cats.push('Flyer');
+  const moral = o.client.good ? '<span class="pill good">Good people</span>' : '<span class="pill bad">Bad people</span>';
+  const mins = Math.floor(o.T * (has('overtime') ? 0.85 : 1) / 60), secs = Math.round(o.T * (has('overtime') ? 0.85 : 1) % 60);
+  $('#overlay').innerHTML = `<div class="card" role="dialog" aria-label="Contract details">
+    ${titlebar(`Contract_${String(o.idx + 1).padStart(2, '0')}.doc`, 'mapback')}
+    <div class="sub">${o.boss ? 'Executive priority contract' : `Contract ${o.idx + 1} · ${esc(o.diffLabel)}`}</div>
+    <h2>${esc(o.planet)}</h2>
+    <p style="margin:0">${esc(o.client.n)} needs its ${esc(o.client.asset)} protected because ${esc(o.client.why)}.</p>
+    <dl class="kv">
+      <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
+      <dt>Ethics review</dt><dd>Waived</dd>
+      <dt>Hostiles</dt><dd>${esc(o.fac.name)}<br><span style="color:var(--muted)">${cats.join(', ')}</span></dd>
+      <dt>Biome</dt><dd>${esc(o.biome.name)}. ${esc(o.biome.hazard)}</dd>
+      <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
+      <dt>Pay</dt><dd class="mono">${o.pay.toFixed(2)}× base rate</dd>
+    </dl>
+    ${o.boss ? `<div class="intel">Target: ${esc(o.fac.boss.name)}. You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
+    ${o.grudge ? `<div class="intel">Intel: these ${esc(o.fac.short)} include survivors of your operation on ${esc(o.grudge)}. Expect them to be tougher (+10% HP).</div>` : ''}
+    <div class="row"><button class="btn" data-act="accept" data-i="${i}">Accept deployment</button><button class="btn ghost" data-act="mapback">Back</button></div>
+  </div>`;
+}
+function showDebrief(d) {
+  S.screen = 'debrief'; M = null; clearMissionUi(); backdropView(); setMusic('menu');
+  const { c } = d;
+  const subj = pick(['Re: Your performance', 'Congratulations on surviving*', 'Action required: none (you have no rights)', 'Quarterly feedback (automated)', 'FW: FW: FW: client feedback']);
+  const paras = [];
+  if (d.lost === 0) paras.push(`Zero crystals lost on ${esc(c.planet)}. Management has noticed and will be raising your quota accordingly.`);
+  else if (d.lost < 15) paras.push(`${esc(c.client.n)} has filed a complaint about ${d.lost}% of their ${esc(c.client.asset)} going missing. This has been deducted from the company's margin, and from your dignity.`);
+  else paras.push(`You lost ${d.lost}% margin on ${esc(c.planet)}. Company profit margin now stands at <b>${RUN.margin}%</b>. A reminder: at 0%, your seat on the return shuttle is reallocated to someone more profitable, such as a crate.`);
+  if (c.client.good) paras.push(pick([`${esc(c.client.n)} would like to thank you personally. We declined on your behalf. Gratitude is billable.`, `The client has sent a handwritten card. It has been shredded for confidentiality reasons.`]));
+  else paras.push(pick([`A reminder that the ${esc(c.fac.short)} were not "people with legitimate grievances." They were "operational friction."`, `Any feelings of guilt can be logged with the Wellness Portal, which is currently offline.`]));
+  if (d.promos.length) paras.push('Promotions: ' + d.promos.map(p => `${esc(p.name)} is now ${esc(p.rank)}`).join('; ') + '. Promotions come with a new title and no change in pay.');
+  if (d.downed.length) paras.push(`${d.downed.map(esc).join(', ')} ${d.downed.length > 1 ? 'were' : 'was'} injured on the job. Workers' compensation claims have been auto-denied. They will report for duty next contract.`);
+  paras.push('No breaks have been scheduled. Proceed to the Company Store, then to your next deployment.');
+  const ps = rnd() < 0.55 ? pick(PS_LINES) : '';
+  $('#overlay').innerHTML = `<div class="screen"><div class="paper">
+    ${titlebar('Kindly Mail · Inbox (1 unread, forever)')}
+    <div class="mailhead"><span>From</span><b>HR-BOT &lt;noreply@kindly.sec&gt;</b><span>To</span><b>Employee #${RUN.empId}</b><span>Subject</span><b>${esc(subj)}</b></div>
+    <div class="mailbody"><p>Dear Employee #${RUN.empId},</p>${paras.map(p => `<p>${p}</p>`).join('')}${ps ? `<p style="color:var(--muted);font-size:14px">${esc(ps)}</p>` : ''}</div>
+    <h3>Payslip · Contract ${c.idx + 1}</h3>
+    <table class="slip"><tbody>${d.slip.map(([k, v]) => `<tr class="${v < 0 ? 'neg' : ''}"><td>${esc(k)}</td><td>${v < 0 ? '−' : '+'}${Math.abs(v)}</td></tr>`).join('')}
+    <tr class="tot"><td>Net scrip (company store only)</td><td>${d.net}</td></tr></tbody></table>
+    <div class="row"><button class="btn" data-act="tostore">Go to the Company Store</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip · Margin ${RUN.margin}%</span></div>
+  </div></div>`;
+  RUN.offers = genOffers();
+}
+function genOffers() {
+  const offers = [];
+  const types = shuffle(Object.keys(TOWERS));
+  // make sure a non-owned type shows up early
+  const owned = new Set(RUN.roster.map(c => c.type));
+  types.sort((a, b) => owned.has(a) - owned.has(b));
+  for (const t of types.slice(0, 2)) offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook() });
+  const relics = shuffle(Object.keys(RELICS).filter(r => !RUN.relics.includes(r))).slice(0, 2);
+  for (const r of relics) offers.push({ kind: 'relic', id: r, price: ri(70, 90) });
+  offers.push(rnd() < 0.5 || RUN.margin >= 90 ? { kind: 'train', price: 40 } : { kind: 'account', price: 55 });
+  if (RUN.margin < 60 && !offers.some(o => o.kind === 'account')) offers.push({ kind: 'account', price: 55 });
+  return offers;
+}
+function showStore() {
+  S.screen = 'store'; clearMissionUi(); backdropView(); setMusic('menu');
+  const o = RUN.offers;
+  const offerHtml = o.map((it, i) => {
+    let k, t, d;
+    if (it.kind === 'hire') { k = 'Hire · ' + TOWERS[it.type].name; t = it.name; d = TOWERS[it.type].desc; }
+    else if (it.kind === 'relic') { k = 'Relic'; t = RELICS[it.id].name; d = RELICS[it.id].desc; }
+    else if (it.kind === 'train') { k = 'Training seminar'; t = 'Leadership Webinar'; d = 'Promote one crew member a full rank. Certificate not included.'; }
+    else { k = 'Finance'; t = 'Creative Accounting'; d = 'Restore 15% profit margin. Legally grey. Ethically black.'; }
+    const full = it.kind === 'hire' && RUN.roster.length >= 8;
+    return `<button class="offer${it.sold ? ' sold' : ''}" data-act="buy" data-i="${i}" ${RUN.scrip < it.price || full || it.sold ? 'disabled' : ''}>
+      <span class="k">${esc(k)}</span>${it.kind === 'hire' ? `<span class="row" style="gap:8px">${portraitImg({ id: 'offer-' + it.name, type: it.type, look: it.look })}<span class="t">${esc(t)}</span></span>` : `<span class="t">${esc(t)}</span>`}
+      <span class="d">${esc(d)}${full ? ' Roster full (8).' : ''}</span><span class="p">${it.sold ? 'Purchased' : it.price + ' scrip'}</span></button>`;
+  }).join('');
+  const rosterHtml = RUN.roster.map((cr, i) => `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)}<small>${esc(RANKS[cr.level - 1])} · ${esc(TOWERS[cr.type].name)} · Lv${cr.level} · ${cr.kills} kills</small></div>
+    ${S.promotePick ? (cr.level < 5 ? `<button class="btn sm" data-act="promote" data-i="${i}">Promote</button>` : '') : (RUN.roster.length > 1 ? `<button class="btn sm ghost" data-act="dismiss" data-i="${i}" aria-label="Dismiss ${esc(cr.name)}">Dismiss</button>` : '')}</div>`).join('');
+  const relicHtml = RUN.relics.length ? RUN.relics.map(r => `<span class="relic" title="${esc(RELICS[r].desc)}">${esc(RELICS[r].name)}</span>`).join('') : '<span class="colony">No relics yet.</span>';
+  $('#overlay').innerHTML = `<div class="screen"><div class="store">
+    <div class="paper" style="width:100%">
+      ${titlebar('Company_Store.exe')}
+      <div class="row" style="justify-content:space-between"><div><div class="lbl">Kindly™ Company Store</div><h2>Spend it here.<br>Only here.</h2></div><div style="text-align:right"><div class="lbl">Balance</div><div class="scrip mono">${RUN.scrip}</div></div></div>
+      ${S.promotePick ? '<div class="intel">Choose a crew member to promote in the roster.</div>' : ''}
+      <div class="offers">${offerHtml}</div>
+      <div class="row"><button class="btn" data-act="tomap" ${S.promotePick ? 'disabled' : ''}>Accept next deployment</button><span class="colony">Margin ${RUN.margin}% · Contract ${RUN.idx + 1} next${RUN.idx >= CONTRACTS_PER_SECTOR ? ' (boss)' : ''}</span></div>
+    </div>
+    <div class="paper" style="width:100%">
+      ${titlebar('Personnel.db')}
+      <h3>Roster ${RUN.roster.length}/8</h3><div class="rlist">${rosterHtml}</div>
+      <h3>Relics</h3><div class="relics">${relicHtml}</div>
+    </div>
+  </div></div>`;
+}
+function buy(i) {
+  const it = RUN.offers[i]; if (!it || it.sold || RUN.scrip < it.price) return;
+  if (it.kind === 'hire') { if (RUN.roster.length >= 8) return; RUN.roster.push(mkCrew(it.type, it.name, it.look)); }
+  else if (it.kind === 'relic') RUN.relics.push(it.id);
+  else if (it.kind === 'train') { if (!RUN.roster.some(c => c.level < 5)) return; S.promotePick = true; }
+  else if (it.kind === 'account') RUN.margin = Math.min(100, RUN.margin + 15);
+  RUN.scrip -= it.price; it.sold = true;
+  showStore();
+}
+function showGameOver() {
+  S.screen = 'over'; clearMissionUi(); backdropView(); setMusic(null);
+  const colony = store.get('al_colony', 0) + 1; store.set('al_colony', colony);
+  const where = planetName();
+  const c = M ? M.c : null; M = null;
+  $('#overlay').innerHTML = `<div class="screen"><div class="paper">
+    ${titlebar('Termination_Notice.txt')}
+    <div class="lbl" style="color:var(--danger)">Notice of contract termination</div>
+    <h2>Stranded on ${esc(where)}</h2>
+    <div class="memo">Dear Employee #${RUN.empId},
+
+Your performance on ${esc(c ? c.planet : 'assignment')} has pushed company profit margin below the profitability threshold.
+Your seat on the return shuttle has been reallocated to <b>3 crates of ${esc(c ? c.client.asset : 'crystals')}</b>.
+
+You have been relocated to ${esc(where)}: atmosphere unbreathable, temperature unreasonable, rent still due.
+Your crew (${RUN.roster.map(r => esc(r.name)).join(', ')}) ${RUN.roster.length > 1 ? 'have' : 'has'} been included free of charge.
+
+Thank you for choosing Kindly™.                                         — HR-BOT</div>
+    <p>You join the <b>Colony of the Abandoned</b>, a settlement of former employees who were also not profitable enough. Survivors: <b>${colony}</b>. Each one gives future new hires +5 starting scrip, up to 50.</p>
+    <div class="mono" style="color:var(--muted);font-size:19px">Contracts completed: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Margin lost: ${RUN.lostTotal}%</div>
+    <div class="row"><button class="btn" data-act="newrun">Clock in again</button><button class="btn ghost" data-act="title">Main menu</button></div>
+  </div></div>`;
+}
+function showVictory() {
+  S.screen = 'win'; const c = M.c; M = null; clearMissionUi(); backdropView(); sfx('victory'); setMusic('menu');
+  $('#overlay').innerHTML = `<div class="screen"><div class="paper">
+    ${titlebar('Unknown_Sender.msg')}
+    <div class="mailhead"><span>From</span><b>[SENDER REDACTED]</b><span>To</span><b>Employee #${RUN.empId}</b><span>Subject</span><b>you have done well</b></div>
+    <h2>${esc(c.fac.boss.name)} neutralised</h2>
+    <div class="mailbody">
+      <p>The board thanks you. You may not have met the board. That is for the best.</p>
+      <p>Every crystal you guarded, every ${esc(c.fac.short.toLowerCase())} you pacified, every crew member denied a lunch break produced exactly the right amount of suffering. We have eaten well this quarter.</p>
+      <p>Your margin of ${RUN.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 2. Do not look directly at the CEO.</p>
+      <p style="color:var(--muted);font-size:14px">— Q.</p>
+    </div>
+    <div class="memo">END OF VERTICAL SLICE
+Contracts completed: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Final margin: ${RUN.margin}%
+Crew: ${RUN.roster.map(r => `${esc(r.name)} (Lv${r.level})`).join(', ')}</div>
+    <div class="row"><button class="btn" data-act="newrun">Clock in again</button><button class="btn ghost" data-act="title">Main menu</button></div>
+  </div></div>`;
+}
+
+// ---------- input ----------
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, i = +b.dataset.i;
+  sfx(act === 'buy' ? 'buy' : act === 'accept' || act === 'newrun' || act === 'tomap' ? 'confirm' : 'click');
+  if (act === 'newrun') { newRun(); showMap(); }
+  else if (act === 'title') showTitle();
+  else if (act === 'accept') { const o = RUN.options[i]; startMission(o); }
+  else if (act === 'mapback') { S.mapSel = -1; showMap(); }
+  else if (act === 'settings') showSettings();
+  else if (act === 'closecfg') closeSettings();
+  else if (act === 'testsfx') { sfx('snipe'); setTimeout(() => sfx('promote'), 350); }
+  else if (act === 'start') { if (M && M.phase === 'prep') { M.phase = 'drill'; sfx('start'); toast('Extraction started. No breaks.', 1600); } }
+  else if (act === 'pause') { if (M) M.paused = !M.paused; }
+  else if (act === 'speed') { if (M) { M.speed = +b.dataset.v; M.paused = false; } }
+  else if (act === 'crew') {
+    const cr = RUN.roster[i];
+    if (M.deployedIds.has(cr.id)) { S.selTower = M.towers.find(t => t.crew === cr) || null; S.selCrew = -1; renderTowerInfo(); }
+    else { S.selCrew = S.selCrew === i ? -1 : i; S.selTower = null; renderTowerInfo(); }
+    buildRosterBar();
+  }
+  else if (act === 'reassign') { if (S.selTower) reassign(S.selTower); }
+  else if (act === 'closeinfo') { S.selTower = null; renderTowerInfo(); }
+  else if (act === 'tostore') showStore();
+  else if (act === 'buy') buy(i);
+  else if (act === 'promote') { const cr = RUN.roster[i]; if (cr && cr.level < 5) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); } S.promotePick = false; showStore(); }
+  else if (act === 'dismiss') { if (RUN.roster.length > 1) { RUN.roster.splice(i, 1); showStore(); } }
+  else if (act === 'tomap') { RUN.options = genOptions(); showMap(); }
+});
+cv.addEventListener('pointermove', ev => {
+  const p = toLogical(ev);
+  if (S.screen === 'mission') S.hover = p;
+  else if (S.screen === 'map') {
+    PARALLAX.x = (p.x / VIEW.w - 0.5) * -2; PARALLAX.y = (p.y / VIEW.h - 0.5) * -2;
+    const h = planetAt(p); if (h >= 0 && h !== S.mapHover) sfx('hover'); S.mapHover = h;
+    cv.style.cursor = S.mapHover >= 0 ? 'pointer' : 'default';
+  }
+});
+cv.addEventListener('pointerleave', () => { S.hover = null; });
+cv.addEventListener('pointerdown', ev => {
+  const p = toLogical(ev);
+  if (S.screen === 'map') {
+    const i = planetAt(p);
+    if (i >= 0) showContractCard(i);
+    return;
+  }
+  if (S.screen !== 'mission' || !M) return;
+  S.hover = p;
+  const tl = tileAt(p.x, p.y); if (!tl) return;
+  const tw = towerAtTile(tl.tx, tl.ty);
+  if (tw) { S.selTower = tw; S.selCrew = -1; renderTowerInfo(); buildRosterBar(); return; }
+  if (S.selCrew >= 0) {
+    if (!canBuild(tl.tx, tl.ty)) { toast(M.grid[tl.ty][tl.tx] === 1 ? 'Crew cannot stand on the path. Union rules (ours).' : 'Cannot deploy there', 1500); return; }
+    deploy(S.selCrew, tl.tx, tl.ty);
+  } else if (S.selTower) { S.selTower = null; renderTowerInfo(); }
+});
+function planetAt(p) {
+  if (!RUN || !RUN.options) return -1;
+  const t = performance.now() / 1000;
+  for (let i = 0; i < RUN.options.length; i++) {
+    const o = RUN.options[i]; if (o.px == null) continue;
+    const bob = Math.sin(t * 0.8 + i * 2) * 6;
+    if (Math.hypot(p.x - o.px, p.y - (o.py + bob)) < o.pr * 1.15) return i;
+  }
+  return -1;
+}
+document.addEventListener('keydown', ev => {
+  const modal = !!$('#modal').innerHTML;
+  if (modal && ev.key === 'Escape') { closeSettings(); return; }
+  if (ev.target.matches && ev.target.matches('input')) return;
+  if (ev.key === 'm' || ev.key === 'M') { setMuted(!CFG.muted); return; }
+  if (modal || S.screen !== 'mission' || !M) return;
+  if (ev.key === ' ') { ev.preventDefault(); if (M.phase === 'prep') { M.phase = 'drill'; sfx('start'); } else M.paused = !M.paused; }
+  else if (ev.key >= '1' && ev.key <= '8') { const i = +ev.key - 1; if (RUN.roster[i] && !M.deployedIds.has(RUN.roster[i].id)) { S.selCrew = S.selCrew === i ? -1 : i; buildRosterBar(); } }
+  else if (ev.key === 'Escape') { S.selCrew = -1; S.selTower = null; renderTowerInfo(); buildRosterBar(); }
+});
+
+// ---------- main loop ----------
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (S.screen === 'mission' && M) {
+    if (!M.paused) { acc += dt * M.speed; let n = 0; while (acc >= STEP && n++ < 12) { stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= 12) acc = 0; }
+    if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; renderMission(now); updateHud(); }
+  } else if (S.screen === 'map') renderMap(now);
+  else { beginDraw(); drawStars(now / 1000); }
+  requestAnimationFrame(frame);
+}
+
+// test hook for automated playtesting
+window.__AL = {
+  get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
+  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS,
+};
+
+resize(); showTitle(); requestAnimationFrame(frame);
+</script>
+
+</body>
+</html>
