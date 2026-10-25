@@ -49,6 +49,13 @@ security company. You defend clients' crystal extractions across Earth and the g
 - **Firing**: weapons track the target smoothly and kick back on recoil. Effects include muzzle flash sprites and light, ejected shell casings, gunner two-round bursts, taser arcs, foam mortar shells with smoke trails and foam splats, the marksman's charging laser sight and screen shake, and the drone's hover-and-tilt.
 - **Enemies**: humans for the miner, protester and VectorCorp factions use the same random people generator with faction outfits and props. Each faction has its own vehicle (treads, van, walker) and drone. Wildlife are hand-built creature sprites. Veterans get a white outline and Elites a gold one.
 - **Terrain**: per-biome noise ground, a path sunk below the ground, biome decorations, and obstacle sprites with their own light sources.
+- **Spawn points** are animated transit chambers on steel landing pads:
+  - The sliding doors open just before a hostile arrives, flooding the path with blue light.
+  - A transporter beam materialises the hostile: first blue scanlines, then the real sprite fading in. It can't be targeted for those 0.45s.
+  - The doors close once it has walked out.
+- **The client's crystals** are a cluster of 12 faceted crystals (light, mid and dark faces, tips, edge highlights, travelling glints) on an ore mound under the drill rig:
+  - The number visible follows your profit margin.
+  - When margin is lost, the smallest crystals break off first, shattering into shards and leaving stumps. The big central crystal goes last.
 
 ## Map generation
 Maps are built in this order, so the big structures shape the roads rather than being sprinkled on afterwards:

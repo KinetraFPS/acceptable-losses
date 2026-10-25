@@ -1844,6 +1844,8 @@ const SFX = {
   deny: () => tone({ type: 'sawtooth', f: 140, dur: 0.2, vol: 0.12, lp: 900 }),
   click: () => tone({ f: 1250, dur: 0.025, vol: 0.045 }),
   hover: () => tone({ type: 'triangle', f: 990, dur: 0.035, vol: 0.05 }),
+  beam: () => { tone({ type: 'sine', f: 260, f2: 1400, dur: 0.32, vol: 0.035 }); tone({ type: 'triangle', f: 520, f2: 2100, dur: 0.28, vol: 0.02, at: 0.04 }); },
+  shatter: () => { noise({ type: 'highpass', f: 3500, dur: 0.18, vol: 0.12 }); tone({ f: 2400, f2: 1800, dur: 0.12, vol: 0.04 }); tone({ f: 3100, f2: 2600, dur: 0.1, vol: 0.03, at: 0.05 }); },
   type: () => tone({ type: 'square', f: 1300 + Math.random() * 400, dur: 0.012, vol: 0.02 }),
   confirm: () => arpeggio([659, 988], 'square', 0.06, 0.09, 0.07),
   buy: () => { tone({ f: 1319, dur: 0.06, vol: 0.07 }); tone({ f: 1760, dur: 0.2, vol: 0.07, at: 0.06 }); noise({ type: 'highpass', f: 5000, dur: 0.06, vol: 0.06 }); },
@@ -1857,7 +1859,7 @@ const SFX = {
   },
   victory: () => { arpeggio([392, 523, 659, 784, 1047, 1319], 'square', 0.09, 0.16, 0.07); arpeggio([131, 165, 196, 262], 'triangle', 0.18, 0.4, 0.14); },
 };
-const SFX_GAP = { gun: 0.06, drone: 0.05, crit: 0.05, terminated: 0.1, overcharge: 0.15, heal: 0.3, thunder: 0.3, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04 };
+const SFX_GAP = { gun: 0.06, drone: 0.05, crit: 0.05, terminated: 0.1, overcharge: 0.15, heal: 0.3, thunder: 0.3, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04, beam: 0.12, shatter: 0.15 };
 function sfx(name, x, arg) {
   const c = AU.ctx;
   if (!c || CFG.muted || c.state !== 'running' || !SFX[name]) return;
@@ -2578,9 +2580,9 @@ function renderGround(map, biomeKey) {
       if (v === 0 && rnd() < 0.6) decor(P, A, x0, y0, lights);
     }
     if (v === 4) {
-      for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++) if (((x + y) >> 2) % 2 === 0) P.p(x0 + x, y0 + y, (x + y) % 9 ? '#c8384a' : '#e04a5a');
-      P.r(x0 + 6, y0 + 6, 6, 6, '#2a1418'); P.r(x0 + 8, y0 + 8, 2, 2, '#ff4d5e');
-      lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: '#ff4d5e', r: 30, pulse: true });
+      // steel landing pad under the transit chamber
+      P.r(x0, y0, ATILE, ATILE, '#2a2e38'); for (let k = 0; k < ATILE; k += 3) { P.r(x0 + k, y0, 1, ATILE, '#22252e'); P.r(x0, y0 + k, ATILE, 1, '#22252e'); }
+      P.r(x0, y0, ATILE, 1, '#5a606e'); P.r(x0, y0 + ATILE - 1, ATILE, 1, '#16181e');
     }
   }
   const addAll = (o, ox, oy) => { for (const l of o.lights) lights.push({ ...l, x: (ox + l.x) * AP, y: (oy + l.y) * AP }); for (const p of o.props) props.push({ ...p, x: ox + p.x, y: oy + p.y }); };
@@ -2650,7 +2652,7 @@ function startMission(contract) {
     deal: S.pendingDeal ? makeDeal(S.pendingDeal, contract) : null, allies: null,
   };
   S.pendingDeal = null;
-  startAllies(M);
+  startAllies(M); initPortals(M);
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade;
@@ -2897,7 +2899,7 @@ function spawnBoss(B, mini, child) {
   };
   if (child) e.name = B.name;
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
-  M.enemies.push(e); if (!child) sfx('bossIn');
+  M.enemies.push(e); if (!child) { sfx('bossIn'); portalSpawn(e); }
   if (mini) { if (!child) toast(`Mini-boss: ${e.name}`, 2600); return e; }
   if (RUN.story.flags.takeover) { e.hp *= 0.7; e.maxhp = e.hp; e.vulnT = 1e9; e.vulnAmt = 0.2; toast('VectorCorp restructured the target: -30% HP, permanently marked', 2600); }
   if (has('doxx')) { e.vulnT = 1e9; e.vulnAmt = Math.max(e.vulnAmt || 0, 0.15); }
@@ -2925,7 +2927,7 @@ function loseMargin(n, x, y) {
 
 function stepMission(dt) {
   const m = M;
-  stepFx(dt);
+  stepFx(dt); stepPortals(dt);
   if (m.phase === 'prep') return;
   if (m.phase === 'done' || m.phase === 'failed') {
     m.endTimer -= dt;
@@ -2949,7 +2951,7 @@ function stepMission(dt) {
   stepDeal(dt); stepAllies(dt);
   if (m.queue.length) {
     m.queue.sort((a, b) => a.at - b.at);
-    while (m.queue.length && m.queue[0].at <= m.t) spawnEnemy(m.queue.shift());
+    while (m.queue.length && m.queue[0].at <= m.t) portalSpawn(spawnEnemy(m.queue.shift()));
   }
   // enemy auras: healing, shields and crew jamming
   for (const e of m.enemies) e.dr = 0;
@@ -2964,6 +2966,7 @@ function stepMission(dt) {
   for (const e of m.enemies) {
     if (e.dead) continue;
     if (e.hitT > 0) e.hitT -= dt;
+    if (e.beamT > 0) { e.beamT -= dt; continue; }
     stepCancel(e, dt);
     if (e.uploading != null) { stepUpload(e, dt); continue; }
     if (e.cloakT != null) { e.cloakT += dt; e.cloaked = e.cloakT % 5 > 2.5; }
@@ -3269,6 +3272,7 @@ function renderMission(now) {
   const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1;
   g.drawImage(m.ground, 0, 0);
   drawLiquidFx(g, t);
+  drawPortals(g, t);
   // foam left by mortar shells
   for (const dc of m.decals) { g.globalAlpha = clamp(dc.life / 2, 0, 0.9); for (const b of dc.blobs) pxCircle(g, dc.x / AP + b.x, dc.y / AP + b.y, b.r, b.c); }
   // burning and foam patches, dithered
@@ -3357,6 +3361,8 @@ function renderMission(now) {
   glow(m.dep.x, m.dep.y - 8, 66, '#b98cff', 0.3 + 0.07 * Math.sin(t * 2));
   if (m.phase === 'drill' && Math.floor(t * 3) % 2) glow(m.dep.x + 1, m.dep.y - 34, 12, '#ffd23f', 0.8);
   for (const l of m.lights) glow(l.x, l.y, l.r, l.color, (l.flicker ? 0.3 + 0.2 * Math.sin(t * 7 + l.x) : 0.4) * (l.pulse ? 0.45 + 0.4 * Math.sin(t * 4) : 1));
+  for (const p of m.portals || []) { const cx = p.tx * TILE + TILE / 2, cy = p.ty * TILE + TILE / 2; glow(cx, cy, 26 + 40 * p.open, '#3af0ff', 0.12 + 0.45 * p.open + (p.beam > 0 ? 0.3 : 0)); }
+  glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);
   for (const tw of m.towers) {
     if (tw.down) continue;
     const ty = tw.crew.type, f = tw.face || 1;
@@ -3435,22 +3441,159 @@ function renderMission(now) {
     ctx.fillStyle = '#0c0e14'; ctx.fillText(txt, LW / 2 + 3, LH / 2 + 23); ctx.fillStyle = m.phase === 'done' ? '#ffd23f' : '#ff4d5e'; ctx.fillText(txt, LW / 2, LH / 2 + 20);
   }
 }
-function drawDepositPx(g, t) {
-  const ax = Math.round(M.dep.x / AP), ay = Math.round(M.dep.y / AP), health = clamp(RUN.margin / 100, 0.2, 1);
-  px(g, ax - 11, ay + 4, 22, 2, 'rgba(0,0,0,0.35)');
-  px(g, ax - 10, ay + 1, 20, 4, '#3a4048'); px(g, ax - 10, ay + 1, 20, 1, '#5a626e');
-  for (let i = 0; i < 10; i++) px(g, ax - 10 + i * 2, ay + 4, 2, 1, i % 2 ? '#ffd23f' : '#22252b');
-  pxLine(g, ax - 8, ay + 1, ax, ay - 16, '#b8922a');
-  const bit = M.phase === 'drill' ? Math.round(Math.sin(t * 18)) : 0;
-  px(g, ax, ay - 15 + bit, 1, 12, '#9aa3ad');
-  for (const [dx, h0] of [[-7, 7], [-4, 11], [3, 10], [-1, 15], [6, 6], [0, 6]]) {
-    const h = Math.max(2, Math.round(h0 * health)), x = ax + dx - 1, base = ay + 2;
-    px(g, x - 1, base - h - 1, 5, h + 1, '#2a1a48');
-    px(g, x, base - h, 1, h, '#e2ccff'); px(g, x + 1, base - h, 1, h, '#b98cff'); px(g, x + 2, base - h, 1, h, '#7a4fd0'); px(g, x + 1, base - h - 1, 1, 1, '#f5ecff');
-  }
-  pxLine(g, ax + 8, ay + 1, ax, ay - 16, '#ffd23f'); pxLine(g, ax + 2, ay + 3, ax, ay - 16, '#e0b830');
-  px(g, ax - 3, ay - 20, 7, 5, '#0c0e14'); px(g, ax - 2, ay - 19, 5, 3, '#ffd23f'); px(g, ax - 2, ay - 19, 5, 1, '#fff0a0'); px(g, ax - 1, ay - 18, 1, 1, '#22252b');
+// ---------- transit chambers: hostiles are beamed in through these ----------
+const PORTAL_W = 22, PORTAL_H = 24, BEAM_T = 0.45;
+let PORTAL_FRAME = null;
+// the static shell: base, pillars and roof; doors, light and beam are drawn live
+function portalFrame() {
+  if (PORTAL_FRAME) return PORTAL_FRAME;
+  const P = painter(PORTAL_W, PORTAL_H);
+  P.r(0, 19, 22, 5, '#2a2e38'); P.r(0, 19, 22, 1, '#6a707e'); for (let x = 0; x < 22; x += 4) { P.r(x, 22, 2, 2, '#ffd23f'); P.r(x + 2, 22, 2, 2, '#16181e'); }
+  for (const x of [0, 18]) { P.r(x, 3, 4, 17, '#3a3e4a'); P.r(x === 0 ? 3 : 18, 3, 1, 17, '#6a707e'); P.r(x === 0 ? 0 : 21, 3, 1, 17, '#22252e'); P.r(x + 1, 5, 2, 1, '#22252e'); P.r(x + 1, 17, 2, 1, '#22252e'); }
+  P.r(0, 0, 22, 4, '#4a4e5a'); P.r(0, 0, 22, 1, '#8a909e'); P.r(1, 3, 20, 1, '#22252e');
+  P.r(8, 1, 6, 2, '#16181e');
+  postProcess(P.c, { shadeIt: false });
+  return (PORTAL_FRAME = P.c);
 }
+function initPortals(m) {
+  m.portals = m.map.spawns.map(s => ({ tx: s.x, ty: s.y, open: 0, hold: 0, beam: 0 }));
+}
+function portalOrigin(p) {
+  const x = p.tx * ATILE + 9 - (PORTAL_W >> 1), y = Math.max(0, p.ty * ATILE + 18 - PORTAL_H);
+  return { x, y };
+}
+// doors open a moment before anything arrives, stay open while it beams in, then close
+function stepPortals(dt) {
+  const m = M; if (!m.portals) return;
+  m.portals.forEach((p, i) => {
+    if (m.queue.some(q => q.sp === i && q.at - m.t < 0.45)) p.hold = Math.max(p.hold, 0.25);
+    p.hold -= dt; p.beam -= dt;
+    p.open = clamp(p.open + (p.hold > 0 ? 5 : -2.5) * dt, 0, 1);
+  });
+}
+function portalSpawn(e) {
+  const p = M.portals && M.portals[e.sp]; if (!p) return;
+  p.hold = Math.max(p.hold, 0.8); p.beam = BEAM_T;
+  e.beamT = BEAM_T; e.invuln = true;
+  sfx('beam', e.x);
+}
+function drawPortals(g, t) {
+  const m = M; if (!m.portals) return;
+  const frame = portalFrame();
+  for (const p of m.portals) {
+    const { x, y } = portalOrigin(p), o = p.open, ix = x + 4, iy = y + 4, iw = 14, ih = 15;
+    // light spilling onto the ground in front
+    if (o > 0.05) for (let r = 0; r < 8; r++) { g.globalAlpha = o * 0.32 * (1 - r / 8); g.fillStyle = '#3af0ff'; g.fillRect(ix - r, y + PORTAL_H + r - 1, iw + r * 2, 1); }
+    g.globalAlpha = 1;
+    // interior: dark when shut, a wash of blue light when open
+    px(g, ix, iy, iw, ih, '#0a0c14');
+    if (o > 0) {
+      for (let r = 0; r < ih; r++) { g.globalAlpha = o * (0.55 + 0.45 * (r / ih)); px(g, ix, iy + r, iw, 1, r % 2 ? '#1a6aff' : '#3af0ff'); }
+      g.globalAlpha = o * 0.7; px(g, ix, iy + ((Math.floor(t * 30)) % ih), iw, 1, '#e8ffff');
+      g.globalAlpha = 1;
+    }
+    // the transporter beam while something materialises
+    if (p.beam > 0) { const k = p.beam / BEAM_T; g.globalAlpha = 0.85 * k; px(g, ix + 4, iy, 6, ih, '#bff8ff'); px(g, ix + 6, iy, 2, ih, '#ffffff'); g.globalAlpha = 1; }
+    // sliding doors, tucked behind the pillars as they open
+    const slide = Math.round(o * 7);
+    for (const side of [-1, 1]) {
+      const dx0 = side < 0 ? ix - slide : ix + 7 + slide, w = 7;
+      const a = Math.max(ix, dx0), b = Math.min(ix + iw, dx0 + w); if (b <= a) continue;
+      px(g, a, iy, b - a, ih, '#5a606e'); px(g, a, iy + 4, b - a, 1, '#464b57'); px(g, a, iy + 10, b - a, 1, '#464b57'); px(g, a, iy + 7, b - a, 2, '#e8a030');
+      const edge = side < 0 ? dx0 + w - 1 : dx0;
+      if (edge >= ix && edge < ix + iw) px(g, edge, iy, 1, ih, o > 0 || p.hold > 0 ? '#3af0ff' : '#2a2e38');
+    }
+    g.drawImage(frame, x, y);
+    // pillar light strips and roof emitter
+    const lit = 0.25 + 0.75 * o, pulse = 0.5 + 0.5 * Math.sin(t * 3 + p.tx);
+    g.globalAlpha = lit; px(g, x + 1, y + 7, 1, 10, '#3af0ff'); px(g, x + 20, y + 7, 1, 10, '#3af0ff'); g.globalAlpha = 1;
+    px(g, x + 9, y + 1, 4, 2, o > 0 ? '#bff8ff' : rgba('#3af0ff', 0.4 + 0.3 * pulse));
+    px(g, x + 18, y + 1, 2, 1, o > 0 ? (Math.floor(t * 8) % 2 ? '#3af0ff' : '#ffffff') : '#ff4d5e');
+  }
+}
+// a materialising hostile: scanlines of blue first, then the real thing fading in
+function drawBeamIn(g, e, t, v, fi, ax, sx, sy, flip) {
+  const k = 1 - e.beamT / BEAM_T, w = v.frames[0].width, h = v.frames[0].height;
+  const blit = (im, a) => { g.globalAlpha = a; if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx, sy); g.restore(); } else g.drawImage(im, sx, sy); g.globalAlpha = 1; };
+  g.save(); g.beginPath();
+  const fx0 = flip ? 2 * ax - sx - w : sx;
+  for (let r = 0; r < h; r++) if ((r + Math.floor(t * 40)) % 2 === 0 || k > 0.6) g.rect(fx0, sy + r, w, 1);
+  g.clip();
+  blit(v.slow[fi], Math.min(1, k * 2));
+  g.restore();
+  if (k > 0.4) blit(v.frames[fi], (k - 0.4) / 0.6);
+  g.globalAlpha = 0.5 * (1 - k); px(g, ax - 2, sy - 6, 4, h + 6, '#bff8ff'); g.globalAlpha = 1;
+  e._sx = null; e._bx = null;
+}
+
+// ---------- the client's crystals: a faceted cluster that shrinks as margin is lost ----------
+const DEP_CRYSTALS = [
+  // dx, height, width, lean, base offset (back to front); sorted later by size for which go first
+  [0, 21, 7, 0, -3], [-4, 15, 5, -2, -2], [5, 16, 5, 2, -2], [-9, 10, 4, -3, -1], [10, 9, 4, 3, -1],
+  [-1, 9, 5, -1, 1], [-13, 6, 3, -3, 0], [13, 6, 3, 3, 0], [3, 7, 4, 1, 2], [-6, 6, 4, -2, 2], [8, 5, 3, 2, 2], [-3, 4, 3, 0, 3],
+];
+const DEP_KEEP = DEP_CRYSTALS.map((c, i) => [i, c[1] * c[2]]).sort((a, b) => b[1] - a[1]).map(a => a[0]);
+const CRYSTAL_CACHE = {};
+function crystalSprite(h, w, lean) {
+  const key = h + '_' + w + '_' + lean; if (CRYSTAL_CACHE[key]) return CRYSTAL_CACHE[key];
+  const W = w + Math.abs(lean) + 2, P = painter(W, h + 2), tip = Math.ceil(w / 2), base = 1 + Math.max(0, -lean);
+  for (let r = 0; r < h; r++) {
+    const off = Math.round(lean * (1 - r / h)), cw = r < tip ? Math.max(1, Math.round(w * (r + 1) / tip)) : w;
+    const x0 = base + off + Math.floor((w - cw) / 2);
+    for (let c = 0; c < cw; c++) {
+      const u = (x0 + c - base - off) / Math.max(1, w - 1);
+      let col = u < 0.34 ? '#cfb2ff' : u < 0.67 ? '#9466e8' : '#4e2a9e';
+      if (r < tip) col = u < 0.5 ? '#f2e8ff' : '#7a4ad0';
+      else if (r > h - 3) col = u < 0.34 ? '#a888f0' : u < 0.67 ? '#6a3fc0' : '#36197a';
+      P.p(x0 + c, r + 1, col);
+    }
+  }
+  // a bright edge down the light side and a glint near the tip
+  for (let r = tip; r < h - 2; r += 1) P.p(base + Math.round(lean * (1 - r / h)), r + 1, r % 3 ? '#e8dcff' : '#ffffff');
+  // a faint inner fracture line on the mid face
+  if (h > 8) for (let r = Math.floor(h * 0.45); r < Math.floor(h * 0.7); r++) P.p(base + Math.round(lean * (1 - r / h)) + Math.round(w * 0.5), r + 1, '#c8a8ff');
+  postProcess(P.c, { shadeIt: false, outlineCol: '#1a0f30' });
+  return (CRYSTAL_CACHE[key] = { c: P.c, ox: base });
+}
+function depositShown() { return Math.max(0, Math.ceil(DEP_CRYSTALS.length * clamp(RUN.margin, 0, 100) / 100)); }
+function drawDepositPx(g, t) {
+  const ax = Math.round(M.dep.x / AP), ay = Math.round(M.dep.y / AP) + 2, n = depositShown();
+  const keep = new Set(DEP_KEEP.slice(0, n));
+  // a crystal just broke off: shards fly
+  if (M.depShown == null) M.depShown = n;
+  if (n < M.depShown) {
+    for (const i of DEP_KEEP.slice(n, M.depShown)) {
+      const [dx, h, , , bo] = DEP_CRYSTALS[i], cx = (ax + dx) * AP, cy = (ay + bo - h / 2) * AP;
+      for (let k = 0; k < 10; k++) addPart({ x: cx, y: cy, vx: (rnd() - 0.5) * 120, vy: -60 - rnd() * 80, g: 300, floor: (ay + 4) * AP + rnd() * 8, life: 1.2, max: 1.2, col: pick(['#efe2ff', '#b98cff', '#6a3fc0']), size: 1, layer: 'px' });
+      sparks(cx, cy, '#e2ccff', 6);
+    }
+    sfx('shatter', M.dep.x);
+  }
+  M.depShown = n;
+  // ore mound and drill rig
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(ax - 15, ay + 3, 30, 2);
+  for (const [dx, w, c] of [[-14, 28, '#2a2236'], [-12, 24, '#3a2e4a'], [-9, 18, '#4a3c5c']]) px(g, ax + dx, ay - 1 + (w === 28 ? 2 : w === 24 ? 0 : -1), w, 3, c);
+  const bit = M.phase === 'drill' ? Math.round(Math.sin(t * 18)) : 0;
+  pxLine(g, ax - 11, ay + 1, ax - 2, ay - 26, '#b8922a'); pxLine(g, ax + 11, ay + 1, ax + 2, ay - 26, '#b8922a');
+  px(g, ax - 4, ay - 28, 9, 3, '#3a3e4a'); px(g, ax - 4, ay - 28, 9, 1, '#6a707e');
+  px(g, ax, ay - 25 + bit, 1, 6, '#9aa3ad');
+  // crystals, back to front; broken stumps where they used to be
+  DEP_CRYSTALS.forEach(([dx, h, w, lean, bo], i) => {
+    const bx = ax + dx, by = ay + bo;
+    if (!keep.has(i)) { px(g, bx - (w >> 1), by - 2, w, 2, '#3a2a5a'); px(g, bx - (w >> 1), by - 2, w, 1, '#6a4aa0'); return; }
+    const s = crystalSprite(h, w, lean);
+    g.drawImage(s.c, bx - (w >> 1) - s.ox, by - h - 1);
+  });
+  // glints travelling over the cluster
+  for (let k = 0; k < 3; k++) {
+    const i = DEP_KEEP[(Math.floor(t * 1.3) + k * 3) % Math.max(1, n)]; if (i == null || !keep.has(i)) continue;
+    const [dx, h, w, lean, bo] = DEP_CRYSTALS[i], ph = (t * 1.3 + k * 0.33) % 1, gy = ay + bo - Math.round(h * (1 - ph)), gx = ax + dx - (w >> 1) + 1 + Math.round(lean * ph * 0.5);
+    px(g, gx, gy, 1, 1, '#ffffff'); if (ph < 0.5) { px(g, gx - 1, gy, 3, 1, 'rgba(255,255,255,0.6)'); px(g, gx, gy - 1, 1, 3, 'rgba(255,255,255,0.6)'); }
+  }
+  // drill lamp on top of the rig
+  px(g, ax - 2, ay - 31, 5, 3, '#0c0e14'); px(g, ax - 1, ay - 30, 3, 1, M.phase === 'drill' && Math.floor(t * 4) % 2 ? '#fff0a0' : '#ffd23f');
+}
+
 function drawTowerPx(g, tw, t) {
   const sp = crewSprites(tw.crew), ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6, type = tw.crew.type;
   g.drawImage(palletSprite(), ax - 8, ay - 3);
@@ -3497,6 +3640,7 @@ function drawEnemyPx(g, e, t) {
   else if (v.kind === 'human') fi = [0, 1, 0, 2][Math.floor(e.dist / 7) % 4];
   else fi = Math.floor(e.dist / 6) % 2;
   const img = e.hitT > 0 ? v.white[fi] : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
+  if (e.beamT > 0) { drawBeamIn(g, e, t, v, fi % v.slow.length, ax, sx, sy, flip); return; }
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
   if (e.tier === 1 || e.tier === 2) { const ol = e.tier === 2 ? v.elite[fi] : v.vet[fi]; for (const [dx, dy] of OFF4) blit(ol, dx, dy); }
   if (e.deal) { const ol = v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6'))); for (const [dx, dy] of OFF4) blit(ol[fi], dx, dy); }
@@ -4219,7 +4363,7 @@ function stepDeal(dt) {
   const d = M.deal; if (!d || d.broken || M.phase !== 'drill') return;
   while (d.spawned < d.ask.n && M.t >= d.at[d.spawned] * M.T) {
     d.spawned++;
-    spawnEnemy({ cat: d.ask.cat, tier: 0, sp: ri(0, M.paths.length - 1), deal: d });
+    portalSpawn(spawnEnemy({ cat: d.ask.cat, tier: 0, sp: ri(0, M.paths.length - 1), deal: d }));
     if (d.spawned === 1) toast(`${d.A.envoy}'s ${{ skim: 'drones are', escort: 'broods are', uplink: 'hacker is' }[d.ask.kind] || 'people are'} here. Marked units: hold fire.`, 2600);
   }
 }
@@ -4870,7 +5014,7 @@ function frame(now) {
 // test hook for automated playtesting
 window.__AL = {
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
-  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, spawnEnemy, AFFIXES, damage, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
+  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, spawnEnemy, AFFIXES, damage, depositShown, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
 
 resize(); showTitle(); requestAnimationFrame(frame);
