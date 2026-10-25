@@ -25,6 +25,19 @@ security company. You defend clients' crystal extractions across Earth and the g
 - **Enemies**: humans for the miner, protester and VectorCorp factions use the same random people generator with faction outfits and props. Each faction has its own vehicle (treads, van, walker) and drone. Wildlife are hand-built creature sprites. Veterans get a white outline and Elites a gold one.
 - **Terrain**: per-biome noise ground, a path sunk below the ground, biome decorations, and obstacle sprites with their own light sources.
 
+## Worlds
+Seven trope worlds, each with its own ground and path palette, path treatment, ground decor, 5 obstacle types, 2x2 landmarks (1–3 per map), animated props, weather, a colour grade, and 2–3 planet colour schemes on the star map.
+
+| World | Trope | Path | Obstacles | Landmarks | Weather | Planet schemes |
+|---|---|---|---|---|---|---|
+| Ice World | Classic ice planet | Packed snow with footprints | Ice shards, snow boulders, survey beacons, frozen ribcages, snowdrifts | Research dome | Snow | Ice Planet, Glacier World, Frost Giant Moon |
+| Death World Jungle | Everything bites | Mud with puddles | Alien bulbs, carnivorous pitchers, glowing mushrooms, giant skulls, thorn bushes | Glowing alien tree | Spores | Death World Jungle, Fungal Planet, Acid Swamp |
+| Desert Planet | Twin suns, sandworm skeletons | Rippled sand | Boulders, moisture vaporators, sandworm ribs, crashed pods, alien cacti | Crashed starship | Blowing sand | Twin-Sun Desert, Red Planet, Spice Dunes |
+| Crystal Moon | Low-gravity crystal moon | Regolith with bootprints | Crystal rocks and spires, floating rocks, radar dishes, crater rims | Dish array | Floating motes | Crystal Moon, Grey Moon, Ringed Shard |
+| **Neon Megacity** | Cyberpunk | Wet asphalt with neon kerbs and puddles | Vending machines, neon signs, dumpsters, AC units, holo kiosks, barriers | Holo billboard cycling ads | Rain | Ecumenopolis, Neon Sprawl |
+| **Solarpunk Commune** | Solarpunk | Mossy stone pavers | Solar panels, planters, fruit trees, beehives, fountains | Wind turbine or garden tower | Pollen and butterflies | Garden World, Terraformed Paradise (gold solar rings) |
+| Forge World | Lava hellscape | Basalt tiles with glowing cracks | Obsidian, lava pools, mining drills, basalt columns, steam vents | Ruined forge tower | Rising embers | Forge World, Hell Moon |
+
 ## Crew progression: performance reviews
 Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per rank) and a **performance review** in which you pick a card. Reviews can be held mid-contract (click the highlighted crew card, or press R; the game pauses) or between contracts ("Hold performance reviews").
 

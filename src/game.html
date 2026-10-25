@@ -325,12 +325,13 @@ const FACTIONS = {
 };
 
 const BIOMES = {
-  frozen:   { name: 'Frozen',         ground: '#16232f', ground2: '#1b2b3a', path: '#34495e', rock: '#5f7d99', planet: ['#d4efff', '#3a6f9e'], mod: { espd: 0.85, rate: 0.92 }, hazard: 'Cryo-winds: enemies 15% slower, crew fire 8% slower.' },
-  toxic:    { name: 'Toxic Jungle',   ground: '#12221a', ground2: '#172b20', path: '#36452a', rock: '#2d5a39', planet: ['#a8ef84', '#1d5a31'], mod: { regen: 0.012 }, hazard: 'Spore-rich air: enemies regenerate 1.2% HP per second.' },
-  dust:     { name: 'Dust World',     ground: '#271e16', ground2: '#2f241a', path: '#54412c', rock: '#77593b', planet: ['#f2c387', '#7a4a22'], mod: { range: 0.9, budget: 1.2 }, hazard: 'Dust storms: crew range -10%. Hazard pay +20% budget (deducted later).' },
-  lowgrav:  { name: 'Low Gravity',    ground: '#1a1729', ground2: '#211d33', path: '#3e365c', rock: '#665a94', planet: ['#cdbfff', '#4b3d8f'], mod: { range: 1.15, flyers: 1.8 }, hazard: 'Low gravity: crew range +15%, many more flyers.' },
-  urban:    { name: 'Earth Arcology', ground: '#191c21', ground2: '#1f2329', path: '#3a404a', rock: '#545b66', planet: ['#9fb4c9', '#2b3644'], mod: { budget: 1.15, swarm: 1.6 }, hazard: 'Dense population: +15% budget, much larger crowds.' },
-  volcanic: { name: 'Volcanic',       ground: '#251312', ground2: '#2d1817', path: '#562b21', rock: '#463733', planet: ['#ff9566', '#5a1a12'], mod: { ehp: 1.12, T: 0.85 }, hazard: 'Magma vents: enemies +12% HP, extraction 15% shorter.' },
+  frozen:   { name: 'Ice World', mod: { espd: 0.85, rate: 0.92 }, hazard: 'Blizzards: enemies 15% slower, crew fire 8% slower.' },
+  toxic:    { name: 'Death World Jungle', mod: { regen: 0.012 }, hazard: 'Spore-rich air: enemies regenerate 1.2% HP per second.' },
+  dust:     { name: 'Desert Planet', mod: { range: 0.9, budget: 1.2 }, hazard: 'Sandstorms: crew range -10%. Hazard pay +20% budget (deducted later).' },
+  lowgrav:  { name: 'Crystal Moon', mod: { range: 1.15, flyers: 1.8 }, hazard: 'Low gravity: crew range +15%, many more flyers.' },
+  cyber:    { name: 'Neon Megacity', mod: { budget: 1.25, swarm: 1.6, espd: 1.08 }, hazard: 'Rain-slick streets and bribeable cops: +25% budget, bigger crowds, enemies 8% faster.' },
+  solar:    { name: 'Solarpunk Commune', mod: { rate: 1.1, regen: 0.006 }, hazard: 'Solar surplus: crew fire 10% faster. Community medics heal enemies 0.6% HP per second.' },
+  volcanic: { name: 'Forge World', mod: { ehp: 1.12, T: 0.85 }, hazard: 'Magma vents: enemies +12% HP, extraction 15% shorter.' },
 };
 
 const DIFFS = [
@@ -460,14 +461,6 @@ function pxText(txt, x, y, col, size = 12, align = 'center') {
 }
 
 // rotating pixel planets: sphere-mapped wrap-around noise, lit from the top left, dithered into a 6-step palette
-const PLANET_PAL = {
-  frozen:   ['#0e1a2e', '#1f3b5c', '#3a6f9e', '#7fb4dc', '#cfe9ff', '#ffffff'],
-  toxic:    ['#08180e', '#123d22', '#1d5a31', '#3f8f3a', '#8fdc5a', '#d8ff9a'],
-  dust:     ['#22130a', '#4a2a14', '#7a4a22', '#b77a40', '#e9b97a', '#ffe0b0'],
-  lowgrav:  ['#110d26', '#251d4a', '#4b3d8f', '#7a68c8', '#b4a6ff', '#e8e0ff'],
-  urban:    ['#0b0f15', '#1a222c', '#2b3644', '#4a5a6e', '#7a8ea6', '#b4c6da'],
-  volcanic: ['#120504', '#2a0c08', '#5a1a12', '#8f2a18', '#c8482a', '#f08050'],
-};
 function makeWrapNoise(gw, gh) {
   const v = Array.from({ length: gw * (gh + 1) }, () => rnd());
   return (x, y) => {
@@ -479,22 +472,22 @@ function makeWrapNoise(gw, gh) {
 }
 function planetTex(o) {
   if (o._tex) return o._tex;
-  const TW = 96, TH = 48, n1 = makeWrapNoise(12, 6), n2 = makeWrapNoise(32, 16), nc = makeWrapNoise(16, 8), key = o.biomeKey;
+  const TW = 96, TH = 48, n1 = makeWrapNoise(12, 6), n2 = makeWrapNoise(32, 16), nc = makeWrapNoise(16, 8), st = planetStyle(o);
   const tex = new Float32Array(TW * TH), cloud = new Float32Array(TW * TH);
-  const craters = key === 'lowgrav' ? Array.from({ length: 9 }, () => ({ x: rnd() * TW, y: 8 + rnd() * (TH - 16), r: 2 + rnd() * 4 })) : [];
+  const craters = st.craters ? Array.from({ length: 9 }, () => ({ x: rnd() * TW, y: 8 + rnd() * (TH - 16), r: 2 + rnd() * 4 })) : [];
   for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
     const u = x / TW, v = y / TH;
     let val = n1(u * 12, v * 6) * 0.65 + n2(u * 32, v * 16) * 0.35;
-    if (key === 'dust') val = val * 0.45 + (Math.sin(v * 24 + val * 3) * 0.5 + 0.5) * 0.55;
-    if (key === 'frozen' && Math.abs(v - 0.5) > 0.36) val = 1.2;
+    if (st.bands) val = val * 0.45 + (Math.sin(v * 24 + val * 3) * 0.5 + 0.5) * 0.55;
+    if (st.caps && Math.abs(v - 0.5) > 0.37) val = 1.2;
     for (const c of craters) { const dd = Math.hypot(Math.min(Math.abs(x - c.x), TW - Math.abs(x - c.x)), y - c.y); if (dd < c.r) val -= 0.3; else if (dd < c.r + 1) val += 0.15; }
     tex[y * TW + x] = val;
     cloud[y * TW + x] = nc(u * 16, v * 8);
   }
-  return (o._tex = { TW, TH, tex, cloud, pal: PLANET_PAL[key].map(hex2rgb) });
+  return (o._tex = { TW, TH, tex, cloud, st, pal: st.pal.map(hex2rgb), neon: st.neon ? st.neon.map(hex2rgb) : null });
 }
 function drawPlanetPx(g, o, cx, cy, R, t) {
-  const { TW, TH, tex, cloud, pal } = planetTex(o), n = pal.length, key = o.biomeKey, size = R * 2 + 1;
+  const { TW, TH, tex, cloud, pal, st, neon } = planetTex(o), n = pal.length, size = R * 2 + 1;
   if (!o._pc || o._pc.width !== size) { o._pc = mkCanvas(size, size); o._pimg = o._pc.getContext('2d').createImageData(size, size); }
   const d = o._pimg.data; d.fill(0);
   const rot = t * 0.025 + o.seed, crot = t * 0.04 + o.seed * 2, L = [-0.55, -0.5, 0.67];
@@ -506,21 +499,27 @@ function drawPlanetPx(g, o, cx, cy, R, t) {
     const val = tex[ty * TW + tx], light = nx * L[0] + ny * L[1] + nz * L[2], b = bayer(x + R, y + R);
     let idx = clamp(Math.floor((val * 0.5 + (light * 0.5 + 0.5) * 0.8 - 0.15 + (b - 0.5) * 0.2) * n), 0, n - 1);
     let col = pal[idx];
-    if ((key === 'toxic' || key === 'frozen') && light > -0.1) { const cl = cloud[ty * TW + (((Math.floor((lon + crot) * TW) % TW) + TW) % TW)]; if (cl > 0.66 + (b - 0.5) * 0.1) col = pal[Math.min(n - 1, idx + 2)]; }
-    if (key === 'urban' && light < 0.08 && val > 0.6 && b > 0.45) col = [255, 210, 63];
-    if (key === 'volcanic' && val > 0.7) col = light < 0.15 ? [255, 120, 50] : [255, 190, 100];
+    if (st.clouds && light > -0.1) { const cl = cloud[ty * TW + (((Math.floor((lon + crot) * TW) % TW) + TW) % TW)]; if (cl > 0.66 + (b - 0.5) * 0.1) col = pal[Math.min(n - 1, idx + 2)]; }
+    if (neon) {
+      // city-planet: glowing street grid, brightest on the night side
+      if ((tx % 8 === 0 || ty % 6 === 0) && val > 0.3) { const c = neon[((tx >> 3) + ty) % 2]; col = light < 0.1 ? c : col.map((v, j) => v + (c[j] - v) * 0.45); }
+      else if (light < 0.08 && val > 0.55 && b > 0.5) col = neon[1];
+    }
+    if (st.caps && val > 1.1) col = light > -0.15 ? [236, 244, 252] : [120, 132, 150];
+    if (st.lava && val > 0.7) col = light < 0.15 ? [255, 120, 50] : [255, 190, 100];
     if (r2 > 0.84 && light > 0.3) col = pal[Math.min(n - 1, idx + 1)];
     const i = ((y + R) * size + x + R) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
   }
   o._pc.getContext('2d').putImageData(o._pimg, 0, 0);
   g.drawImage(o._pc, cx - R, cy - R);
 }
-function planetRing(g, cx, cy, R, front) {
+function planetRing(g, cx, cy, R, front, st) {
   const rx = R * 1.75, ry = R * 0.42, steps = Math.ceil(rx * 8);
   for (let k = 0; k < steps; k++) {
     const a = k / steps * Math.PI * 2, s = Math.sin(a); if ((s >= 0) !== front) continue;
-    px(g, Math.round(cx + Math.cos(a) * rx), Math.round(cy + s * ry), 1, 1, '#d4c8ff');
-    px(g, Math.round(cx + Math.cos(a) * (rx - 2)), Math.round(cy + s * (ry - 1)), 1, 1, '#8a7ad0');
+    if (st.dashed && Math.floor(k / 4) % 3 === 2) continue;
+    px(g, Math.round(cx + Math.cos(a) * rx), Math.round(cy + s * ry), 1, 1, st.ring[0]);
+    px(g, Math.round(cx + Math.cos(a) * (rx - 2)), Math.round(cy + s * (ry - 1)), 1, 1, st.ring[1]);
   }
 }
 function brackets(g, cx, cy, s, col) {
@@ -577,9 +576,10 @@ function renderMap(now) {
     const { cx, cy } = pos[i], hov = S.mapHover === i, sel = S.mapSel === i, R = Math.round(o.pr / A) + (hov || sel ? 1 : 0);
     const N = Math.round(Math.PI * 2 * (R + 4) / 2);
     for (let k = 0; k < N; k++) if (k % 3 === 0) { const a = k / N * Math.PI * 2 + t * 0.25; px(g, Math.round(cx + Math.cos(a) * (R + 4)), Math.round(cy + Math.sin(a) * (R + 4)), 1, 1, o.fac.color); }
-    if (o.biomeKey === 'lowgrav') planetRing(g, cx, cy, R, false);
+    const pst = planetStyle(o);
+    if (pst.ring) planetRing(g, cx, cy, R, false, pst);
     drawPlanetPx(g, o, cx, cy, R, t);
-    if (o.biomeKey === 'lowgrav') planetRing(g, cx, cy, R, true);
+    if (pst.ring) planetRing(g, cx, cy, R, true, pst);
     if (sel || hov) brackets(g, cx, cy, R + 8 + (sel ? Math.round(Math.sin(t * 5)) : 0), sel ? '#ffd23f' : '#a8b0d8');
     const pips = Math.max(3, o.stars), py = cy + R + 15;
     for (let s = 0; s < pips; s++) { const x = cx - Math.floor((pips * 4 - 1) / 2) + s * 4; px(g, x - 1, py - 1, 5, 5, '#05070a'); px(g, x, py, 3, 3, s < o.stars ? (o.boss ? '#ff4d6d' : '#ffd23f') : '#323b66'); }
@@ -998,40 +998,329 @@ function getVariant(cat) {
 }
 
 // ---------- terrain ----------
+// ---------- terrain: seven trope worlds ----------
+// Each world sets ground and path palettes, a path treatment, ground decor,
+// five obstacle types, 2x2 landmarks, weather and a colour grade.
 const BIOME_ART = {
-  frozen:   { g: ['#2b4359', '#33506a', '#243a4e'], p: ['#5a768e', '#668299', '#4f6a82'], edge: '#182838', deco: 'frozen', obst: 'ice' },
-  toxic:    { g: ['#1f3d26', '#26482d', '#19331f'], p: ['#4d5d34', '#57693b', '#42522d'], edge: '#12241a', deco: 'toxic', obst: 'plant' },
-  dust:     { g: ['#4d3726', '#583f2b', '#433021'], p: ['#7d6142', '#896c4a', '#71573b'], edge: '#2f2218', deco: 'dust', obst: 'boulder' },
-  lowgrav:  { g: ['#2d2846', '#352f51', '#26223c'], p: ['#504873', '#5a517f', '#463f66'], edge: '#1a172e', deco: 'crater', obst: 'mineral' },
-  urban:    { g: ['#2e323a', '#353a43', '#282b32'], p: ['#4c525d', '#555b67', '#434954'], edge: '#1a1d23', deco: 'urban', obst: 'barrier' },
-  volcanic: { g: ['#361c1a', '#3e211e', '#2d1715'], p: ['#5f3528', '#6a3b2c', '#552f24'], edge: '#1c0e0d', deco: 'lava', obst: 'obsidian' },
+  frozen:   { g: ['#2f4a63', '#385672', '#284057'], p: ['#9fb8cc', '#aec5d6', '#8faabf'], edge: '#1a2c3e', path: 'snow', deco: 'frozen',
+              obst: ['ice', 'snowrock', 'beacon', 'bones', 'drift'], land: ['dome'], weather: 'snow', grade: ['#bfe6ff', '#2a5a9a', 0.16] },
+  toxic:    { g: ['#1f3d26', '#26482d', '#19331f'], p: ['#5e4c2c', '#6a583a', '#524226'], edge: '#10200f', path: 'mud', deco: 'toxic',
+              obst: ['plant', 'pitcher', 'shrooms', 'skull', 'thorns'], land: ['tree'], weather: 'spores', grade: ['#8aff6a', '#3a0a5a', 0.16] },
+  dust:     { g: ['#8a6a44', '#97764e', '#7c5e3c'], p: ['#c49a62', '#d0a86e', '#b88e58'], edge: '#5a4228', path: 'sand', deco: 'dust',
+              obst: ['boulder', 'vaporator', 'ribs', 'pod', 'succulent'], land: ['hull'], weather: 'dust', grade: ['#ffd090', '#a04a1a', 0.18] },
+  lowgrav:  { g: ['#2d2846', '#352f51', '#26223c'], p: ['#625a86', '#6c6492', '#58507a'], edge: '#1a172e', path: 'regolith', deco: 'crater',
+              obst: ['mineral', 'spire', 'floatrock', 'dish', 'rim'], land: ['array'], weather: 'motes', grade: ['#d0b8ff', '#1a2a6a', 0.16] },
+  cyber:    { g: ['#1c1e2c', '#22253a', '#171928'], p: ['#2b2d3e', '#31344a', '#26283a'], edge: '#0b0c14', path: 'neon', deco: 'cyber',
+              obst: ['vending', 'neonpost', 'dumpster', 'acunit', 'holokiosk', 'barrier'], land: ['billboard'], weather: 'rain', grade: ['#ff3ad6', '#2a6aff', 0.2] },
+  solar:    { g: ['#4c8a42', '#58984c', '#427a3a'], p: ['#d2c9ac', '#ded6bc', '#c2b99c'], edge: '#2e5a28', path: 'paver', deco: 'solar',
+              obst: ['panel', 'planter', 'fruittree', 'beehive', 'fountain'], land: ['turbine', 'gardentower'], weather: 'pollen', grade: ['#fff0b0', '#ffb04a', 0.16] },
+  volcanic: { g: ['#361c1a', '#3e211e', '#2d1715'], p: ['#4e4648', '#58504f', '#443c3e'], edge: '#1c0e0d', path: 'basalt', deco: 'lava',
+              obst: ['obsidian', 'lavapool', 'drill', 'basalt', 'vent'], land: ['forge'], weather: 'embers', grade: ['#ff8a3a', '#5a0a0a', 0.18] },
 };
+// obstacles are 18 wide, up to 24 tall, bottom-aligned on their tile
 function obstacleSprite(kind) {
-  const P = painter(18, 18), L = [];
+  let H = 18; if (['vaporator', 'beacon', 'spire', 'vending', 'neonpost', 'fruittree', 'holokiosk'].includes(kind)) H = 24;
+  const P = painter(18, H), L = [], props = [], o = H - 18;
   switch (kind) {
+    // ice world
     case 'ice': for (const [x, h] of shuffle([[3, 8], [6, 12], [9, 9], [12, 6]]).slice(0, ri(2, 4)).map(([x, h]) => [x, h + ri(-2, 2)])) { P.r(x, 16 - h, 3, h, '#8fc6e4'); P.r(x, 16 - h, 1, h, '#cfeaf8'); P.p(x + 1, 15 - h, '#e8f6ff'); } break;
+    case 'snowrock': { const w = ri(5, 7); P.ell(9, 12, w, w * 0.65, '#5a6a80'); P.ell(9, 9, w - 1, 2.5, '#eef6fc'); P.p(6, 12, '#3e4a5c'); P.p(12, 13, '#3e4a5c'); break; }
+    case 'beacon': P.r(8, 4 + o, 2, 12, '#8a929c'); P.r(5, 15 + o, 8, 2, '#5a626e'); P.r(7, 2 + o, 4, 3, '#2b2f36'); P.p(8, 3 + o, '#ff4d6d'); P.r(10, 8 + o, 4, 2, '#ffd23f'); L.push({ x: 8, y: 3 + o, color: '#ff4d6d', r: 14, pulse: true }); break;
+    case 'bones': for (let i = 0; i < 4; i++) { const x = 3 + i * 3; P.line(x, 15, x + 1, 6 + (i % 2), '#e2dccb'); P.line(x + 1, 6 + (i % 2), x + 3, 5 + (i % 2), '#e2dccb'); } P.r(2, 15, 14, 1, '#cfc8b6'); P.ell(15, 13, 2, 1.5, '#e2dccb'); break;
+    case 'drift': P.ell(9, 13, 8, 4, '#dcecf6'); P.ell(6, 11, 4, 3, '#f2f8fc'); P.ell(13, 12, 3, 2, '#c8dcea'); P.p(10, 14, '#a8c4d8'); break;
+    // death world jungle
     case 'plant': P.r(8, 9, 2, 7, '#3f6e34'); P.r(4, 13, 4, 1, '#4f8a3e'); P.r(10, 12, 4, 1, '#4f8a3e'); P.ell(9, 7, 5, 4.5, '#9b4dca'); P.p(7, 6, '#ff9ff0'); P.p(11, 8, '#ff9ff0'); P.p(9, 4, '#ff9ff0'); L.push({ x: 9, y: 7, color: '#d070ff', r: 14 }); break;
-    case 'boulder': { const w = ri(5, 7); P.ell(9, 11, w, w * 0.7, '#8a6a48'); P.ell(7 + ri(-1, 1), 9, w - 3, 3, '#9a7a54'); P.line(9, 8, 11, 12, '#6a4e34'); if (rnd() < 0.5) P.ell(14, 14, 2.5, 2, '#7a5c3e'); break; }
-    case 'mineral': { P.ell(9, 12, ri(5, 7), 4.5, '#5d4f8a'); const a = ri(4, 8), b = ri(3, 6); P.r(6, 12 - a, 2, a, '#6ff0ff'); if (rnd() < 0.7) P.r(10, 12 - b, 2, b, '#a8f8ff'); P.p(6, 12 - a, '#e8ffff'); } L.push({ x: 8, y: 8, color: '#6ff0ff', r: 14 }); break;
+    case 'pitcher': P.r(8, 8, 2, 8, '#2f5e2a'); P.r(3, 14, 5, 1, '#3f7a3a'); P.r(11, 13, 5, 1, '#3f7a3a'); P.ell(9, 6, 5, 4, '#b8323e'); P.ell(9, 5, 3, 2, '#3a0a10'); for (let x = 6; x <= 12; x += 2) P.p(x, 3, '#f2eedc'); P.p(7, 8, '#e85a6a'); break;
+    case 'shrooms': for (const [x, h, r] of [[5, 6, 3], [11, 9, 4], [8, 4, 2]]) { P.r(x, 16 - h, 1, h, '#e8e0d0'); P.ell(x + 0.5, 16 - h, r, r * 0.6, '#3ae8d0'); P.p(x, 15 - h, '#c8fff6'); } L.push({ x: 10, y: 8, color: '#3ae8d0', r: 16 }); break;
+    case 'skull': P.ell(9, 10, 7, 6, '#e2dccb'); P.r(4, 12, 10, 4, '#e2dccb'); P.ell(6, 10, 1.6, 1.6, '#2a2418'); P.ell(12, 10, 1.6, 1.6, '#2a2418'); for (let x = 6; x <= 12; x += 2) P.r(x, 15, 1, 2, '#cfc8b6'); P.line(2, 14, 7, 6, '#3f7a3a'); P.line(15, 15, 13, 5, '#3f7a3a'); break;
+    case 'thorns': P.ell(9, 11, 7, 5, '#1f3a1e'); for (let k = 0; k < 9; k++) { const a = k / 9 * 6.28, x = Math.round(9 + Math.cos(a) * 7), y = Math.round(11 + Math.sin(a) * 5); P.p(x, y, '#5a7a3a'); } P.p(6, 9, '#ff6fae'); P.p(12, 10, '#ff6fae'); P.p(9, 13, '#ff6fae'); break;
+    // desert planet
+    case 'boulder': { const w = ri(5, 7); P.ell(9, 11, w, w * 0.7, '#a07a52'); P.ell(7 + ri(-1, 1), 9, w - 3, 3, '#b48a5e'); P.line(9, 8, 11, 12, '#7a5a3a'); if (rnd() < 0.5) P.ell(14, 14, 2.5, 2, '#8a6a46'); break; }
+    case 'vaporator': P.r(7, 3 + o, 4, 14, '#b8bcc4'); for (let y = 5; y < 16; y += 3) P.r(6, y + o, 6, 1, '#7a808a'); P.r(4, 2 + o, 10, 2, '#9aa0aa'); P.r(5, 16 + o, 8, 2, '#6a707a'); P.p(9, 9 + o, '#6ff0ff'); L.push({ x: 9, y: 9 + o, color: '#6ff0ff', r: 9, pulse: true }); break;
+    case 'ribs': for (let i = 0; i < 5; i++) { const x = 2 + i * 3, h = 7 + (i === 2 ? 3 : i % 2 ? 1 : 0); P.line(x, 16, x + 2, 16 - h, '#efe6cf'); } P.r(1, 16, 16, 1, '#d8ccb0'); break;
+    case 'pod': P.ell(9, 11, 7, 4.5, '#8a909a'); P.ell(11, 9, 3, 2, '#2b3a4a'); P.p(12, 8, '#9fd3ff'); P.r(3, 11, 12, 1, '#ffd23f'); P.ell(9, 15, 8, 2, '#c49a62'); P.p(4, 9, '#ff4d6d'); L.push({ x: 4, y: 9, color: '#ff4d6d', r: 10, pulse: true }); break;
+    case 'succulent': P.r(8, 6, 3, 10, '#3a8a7a'); P.r(4, 9, 2, 5, '#3a8a7a'); P.r(5, 13, 3, 1, '#3a8a7a'); P.r(13, 8, 2, 5, '#3a8a7a'); P.r(11, 12, 2, 1, '#3a8a7a'); P.p(9, 5, '#ff6fae'); P.p(4, 8, '#ff6fae'); P.p(13, 7, '#ff6fae'); break;
+    // crystal moon
+    case 'mineral': { P.ell(9, 12, ri(5, 7), 4.5, '#5d4f8a'); const a = ri(4, 8), b = ri(3, 6); P.r(6, 12 - a, 2, a, '#6ff0ff'); if (rnd() < 0.7) P.r(10, 12 - b, 2, b, '#a8f8ff'); P.p(6, 12 - a, '#e8ffff'); L.push({ x: 8, y: 8, color: '#6ff0ff', r: 14 }); break; }
+    case 'spire': for (const [x, h, c] of [[5, 14, '#b48aff'], [9, 20, '#d4b8ff'], [12, 11, '#9a6ae8']]) { P.r(x, 22 - h, 3, h, c); P.p(x + 1, 21 - h, '#f2e8ff'); P.r(x, 22 - h, 1, h, '#efe2ff'); } L.push({ x: 10, y: 10, color: '#b48aff', r: 16 }); break;
+    case 'floatrock': P.ell(9, 15, 5, 1.5, 'rgba(0,0,0,0.35)'); P.ell(9, 6, 6, 4, '#6a5f94'); P.ell(8, 5, 4, 2, '#8478b0'); P.p(4, 10, '#6a5f94'); P.p(14, 9, '#6a5f94'); P.p(9, 11, '#6ff0ff'); break;
+    case 'dish': P.line(6, 16, 9, 10, '#8a929c'); P.line(12, 16, 9, 10, '#8a929c'); P.ell(9, 7, 6, 3.5, '#e8eef4'); P.ell(10, 7, 3, 1.5, '#b8c4d0'); P.line(9, 7, 12, 3, '#5a626e'); P.p(12, 3, '#ff4d6d'); L.push({ x: 12, y: 3, color: '#ff4d6d', r: 8, pulse: true }); break;
+    case 'rim': P.ell(9, 12, 8, 4, '#4a4270'); P.ell(9, 12, 5, 2.3, '#26223c'); P.ell(9, 10, 7, 1.5, '#6a609a'); break;
+    // neon megacity
+    case 'vending': P.r(4, 5, 10, 18, '#22243a'); P.r(5, 6, 6, 10, '#3af0ff'); for (let y = 7; y < 16; y += 3) P.r(6, y, 4, 1, '#ff3ad6'); P.r(12, 9, 1, 4, '#ffd23f'); P.r(5, 19, 6, 2, '#0e0f18'); L.push({ x: 8, y: 10, color: '#3af0ff', r: 16 }); break;
+    case 'neonpost': { const c = pick(['#ff3ad6', '#3af0ff', '#ffd23f']); P.r(8, 6, 2, 18, '#4a4e5e'); P.r(3, 1, 12, 7, '#0e0f18'); P.r(4, 2, 10, 5, c); P.r(6, 3, 2, 3, '#0e0f18'); P.r(9, 3, 1, 3, '#0e0f18'); P.r(11, 4, 2, 1, '#0e0f18'); L.push({ x: 9, y: 4, color: c, r: 18, flicker: true }); break; }
+    case 'dumpster': P.r(2, 7, 14, 9, '#2a6a5a'); P.r(1, 6, 16, 2, '#1e4e42'); P.ell(5, 6, 3, 2, '#141418'); P.ell(11, 5, 2.5, 2, '#1a1a20'); P.r(4, 10, 10, 1, '#1e4e42'); P.p(14, 9, '#ffd23f'); break;
+    case 'acunit': P.r(2, 6, 14, 10, '#7a808e'); P.ell(7, 11, 3.5, 3.5, '#3a3e4a'); P.line(5, 11, 9, 11, '#9aa0ae'); P.line(7, 9, 7, 13, '#9aa0ae'); P.r(12, 8, 3, 1, '#4a4e5e'); P.r(12, 10, 3, 1, '#4a4e5e'); P.p(14, 14, '#4fe0a6'); L.push({ x: 14, y: 14, color: '#4fe0a6', r: 6 }); break;
+    case 'holokiosk': P.r(5, 18, 8, 4, '#2a2c3e'); P.r(6, 17, 6, 1, '#3af0ff'); P.ell(9, 10, 3, 3, 'rgba(58,240,255,0.55)'); P.r(7, 12, 4, 5, 'rgba(58,240,255,0.45)'); P.p(9, 9, '#ffffff'); L.push({ x: 9, y: 12, color: '#3af0ff', r: 16, flicker: true }); break;
     case 'barrier':
       if (rnd() < 0.5) { P.r(3, 5, 12, 10, '#9a7448'); P.r(3, 9, 12, 1, '#6e5030'); P.line(4, 6, 13, 13, '#6e5030'); P.line(13, 6, 4, 13, '#6e5030'); }
       else { P.r(1, 8, 16, 7, '#a0a6ae'); P.r(3, 6, 12, 2, '#a0a6ae'); for (let i = 0; i < 8; i++) P.r(2 + i * 2, 10, 1, 2, i % 2 ? '#22252b' : '#ffd23f'); }
       break;
+    // solarpunk commune
+    case 'panel': P.line(5, 16, 7, 11, '#8a6a44'); P.line(13, 16, 11, 11, '#8a6a44'); for (let y = 0; y < 7; y++) P.r(2 + Math.floor(y / 2), 5 + y, 14 - Math.floor(y / 2), 1, y % 3 === 2 ? '#e8eef4' : '#2a5aa8'); P.r(2, 4, 14, 1, '#e8eef4'); P.p(6, 6, '#8ac4ff'); P.p(11, 7, '#8ac4ff'); break;
+    case 'planter': P.r(2, 10, 14, 6, '#9a6a3a'); P.r(2, 10, 14, 1, '#b8844e'); for (let x = 3; x < 15; x += 2) { P.r(x, 6 + (x % 3), 1, 4 - (x % 3), '#3f8a3a'); P.p(x, 5 + (x % 3), pick(['#ff6fae', '#ffd23f', '#ffffff', '#ff8a3a'])); } break;
+    case 'fruittree': P.r(8, 14, 2, 10, '#7a5230'); P.ell(9, 9, 7, 6, '#3a7a34'); P.ell(7, 7, 4, 3, '#4c9440'); for (const [x, y] of [[5, 9], [11, 7], [9, 12], [13, 10], [7, 5]]) P.p(x, y, '#ff8a3a'); break;
+    case 'beehive': P.r(4, 6, 10, 10, '#f2ecd8'); P.r(4, 9, 10, 1, '#ffd23f'); P.r(4, 12, 10, 1, '#ffd23f'); P.r(3, 5, 12, 2, '#b8844e'); P.r(8, 14, 2, 1, '#2a2418'); P.p(15, 4, '#ffd23f'); P.p(2, 8, '#ffd23f'); break;
+    case 'fountain': P.ell(9, 13, 8, 3.5, '#c8c0a8'); P.ell(9, 12.5, 6, 2.2, '#4ab4e8'); P.r(8, 6, 2, 7, '#c8c0a8'); P.ell(9, 6, 3, 1.5, '#d8d0b8'); P.p(9, 4, '#a8e4ff'); P.p(7, 11, '#d8f4ff'); L.push({ x: 9, y: 12, color: '#7fd8ff', r: 10 }); break;
+    // forge world
     case 'obsidian': P.r(3, 8, 12, 7, '#2c2433'); P.r(5, 4, 7, 5, '#352b3e'); P.r(7, 2, 3, 3, '#3e3348'); P.line(6, 9, 10, 13, '#ff7a2a'); P.p(10, 13, '#ffb060'); L.push({ x: 8, y: 11, color: '#ff7a2a', r: 12, flicker: true }); break;
+    case 'lavapool': P.ell(9, 12, 8, 4, '#2a1412'); P.ell(9, 12, 6, 2.6, '#ff6a1a'); P.ell(8, 12, 3, 1.2, '#ffc060'); P.p(12, 11, '#3a1a14'); P.p(6, 13, '#3a1a14'); L.push({ x: 9, y: 12, color: '#ff6a1a', r: 18, flicker: true }); break;
+    case 'drill': P.r(3, 12, 12, 4, '#5a3a2a'); P.line(5, 12, 9, 2, '#8a5a3a'); P.line(13, 12, 9, 2, '#8a5a3a'); P.r(8, 4, 2, 10, '#6a707a'); P.r(7, 2, 4, 2, '#ffd23f'); P.p(4, 13, '#ff7a2a'); break;
+    case 'basalt': for (const [x, h] of [[3, 8], [7, 11], [11, 7], [14, 5]]) { P.r(x, 16 - h, 4, h, '#3a3236'); P.r(x, 16 - h, 4, 1, '#5a5058'); P.r(x, 16 - h, 1, h, '#4a4046'); } break;
+    case 'vent': P.ell(9, 13, 7, 3.5, '#3a2a26'); P.ell(9, 12, 3, 1.5, '#120808'); P.p(9, 12, '#ff7a2a'); props.push({ kind: 'steam', x: 9, y: 11 }); break;
   }
-  postProcess(P.c); return { c: P.c, lights: L };
+  postProcess(P.c); return { c: P.c, lights: L, props };
 }
+// 2x2 landmarks: 36 wide, up to 44 tall, bottom-aligned on the block
+function landmarkSprite(kind) {
+  const P = painter(36, 44), L = [], props = [];
+  switch (kind) {
+    case 'dome':
+      P.ell(18, 40, 17, 3.5, '#e8f2fa'); P.ell(18, 30, 15, 13, '#e2ecf4'); P.g.clearRect(0, 31, 36, 13); P.r(3, 30, 30, 6, '#8a929c'); P.r(3, 30, 30, 1, '#b8c0ca');
+      for (const x of [8, 15, 22]) { P.r(x, 25, 4, 2, '#9fe0ff'); L.push({ x: x + 2, y: 26, color: '#9fe0ff', r: 10 }); }
+      P.r(16, 32, 4, 4, '#2b2f36'); P.r(28, 6, 1, 14, '#8a929c'); P.r(26, 10, 5, 1, '#8a929c'); P.p(28, 5, '#ff4d6d'); L.push({ x: 28, y: 5, color: '#ff4d6d', r: 12, pulse: true });
+      P.r(6, 33, 6, 2, '#ffd23f'); break;
+    case 'tree':
+      P.r(15, 22, 6, 20, '#4a2a3a'); P.line(15, 30, 9, 40, '#4a2a3a'); P.line(20, 32, 27, 41, '#4a2a3a'); P.ell(18, 16, 16, 11, '#3a2050'); P.ell(12, 13, 8, 6, '#552e72'); P.ell(24, 17, 7, 5, '#4a2866');
+      for (const [x, y, c] of [[8, 22, '#3ae8d0'], [14, 25, '#ff6fae'], [24, 24, '#3ae8d0'], [29, 20, '#ff6fae'], [19, 8, '#3ae8d0']]) { P.r(x, y - 3, 1, 3, '#2a1a3a'); P.ell(x + 0.5, y, 1.6, 1.6, c); L.push({ x, y, color: c, r: 10 }); }
+      break;
+    case 'hull':
+      P.ell(18, 39, 18, 4, '#c49a62'); P.ell(18, 28, 16, 8, '#8a909a'); P.ell(16, 25, 12, 4, '#a8aeb8'); P.ell(27, 26, 4, 3, '#2b3a4a'); P.p(28, 25, '#9fd3ff');
+      for (let x = 6; x < 30; x += 4) P.r(x, 30, 2, 1, '#ffd23f'); P.line(6, 22, 1, 10, '#7a808a'); P.line(7, 22, 3, 12, '#7a808a'); P.r(1, 9, 3, 2, '#5a606a');
+      P.ell(10, 37, 8, 3, '#d0a86e'); P.ell(27, 37, 7, 2.5, '#d0a86e'); P.p(12, 22, '#ff4d6d'); L.push({ x: 12, y: 22, color: '#ff4d6d', r: 12, pulse: true }); break;
+    case 'array':
+      P.line(12, 42, 18, 26, '#8a929c'); P.line(24, 42, 18, 26, '#8a929c'); P.line(18, 42, 18, 26, '#6a707a'); P.r(14, 38, 8, 4, '#5a626e');
+      P.ell(18, 17, 15, 9, '#e8eef4'); P.ell(19, 17, 10, 5.5, '#b8c4d0'); P.ell(20, 17, 4, 2, '#e8eef4'); P.line(18, 17, 26, 6, '#5a626e'); P.r(25, 4, 3, 3, '#3a3e4a'); P.p(26, 5, '#ff4d6d');
+      L.push({ x: 26, y: 5, color: '#ff4d6d', r: 12, pulse: true }); break;
+    case 'billboard':
+      P.r(6, 26, 2, 18, '#3a3e4e'); P.r(28, 26, 2, 18, '#3a3e4e'); P.r(2, 4, 32, 23, '#0e0f18'); P.r(3, 5, 30, 21, '#1a1c2a');
+      for (let x = 4; x < 33; x += 4) P.p(x, 3, '#ffd23f'); P.r(13, 38, 10, 6, '#2a2c3e'); P.r(14, 39, 8, 2, '#ff3ad6');
+      props.push({ kind: 'holo', x: 4, y: 6, w: 28, h: 19 }); L.push({ x: 18, y: 15, color: '#ff3ad6', r: 34, flicker: true }); L.push({ x: 18, y: 40, color: '#ff3ad6', r: 10 }); break;
+    case 'turbine':
+      P.ell(18, 41, 9, 2.5, '#c8c0a8'); P.r(17, 10, 3, 32, '#eef2f0'); P.r(19, 10, 1, 32, '#c8ccc8'); P.r(15, 7, 7, 4, '#e2e6e4'); P.r(15, 7, 7, 1, '#ffffff');
+      for (const x of [11, 23]) { P.r(x, 39, 1, 3, '#3f8a3a'); P.p(x, 38, pick(['#ff6fae', '#ffd23f', '#ffffff'])); }
+      props.push({ kind: 'turbine', x: 18, y: 9, r: 15 }); break;
+    case 'gardentower':
+      P.r(16, 6, 4, 36, '#f2ecd8'); P.r(19, 6, 1, 36, '#d8d0b8');
+      for (const [y, w] of [[36, 15], [27, 12], [18, 9], [10, 6]]) { P.ell(18, y, w, 3, '#3f8a3a'); P.ell(18, y - 1, w - 2, 2, '#58a44c'); P.r(18 - w, y + 2, w * 2, 1, '#e2d8bc'); for (let k = -w + 2; k < w - 1; k += 3) P.p(18 + k, y - 2, pick(['#ff6fae', '#ffd23f', '#ffffff', '#ff8a3a'])); }
+      P.r(17, 2, 2, 5, '#ffd23f'); P.p(17, 1, '#fff6c8'); L.push({ x: 18, y: 3, color: '#ffd23f', r: 16 }); break;
+    case 'forge':
+      P.r(7, 12, 22, 30, '#2a2228'); P.r(7, 12, 22, 1, '#4a3e46'); for (let x = 7; x < 29; x += 4) P.r(x, 9, 2, 3, '#2a2228'); P.r(23, 2, 4, 10, '#3a2e34');
+      for (const [x, y] of [[11, 18], [19, 18], [11, 27], [21, 27], [15, 34]]) { P.r(x, y, 3, 4, '#ff7a2a'); P.p(x + 1, y + 1, '#ffd060'); L.push({ x: x + 1, y: y + 2, color: '#ff7a2a', r: 12, flicker: true }); }
+      P.line(9, 40, 4, 43, '#ff6a1a'); props.push({ kind: 'smoke', x: 25, y: 1 }); break;
+  }
+  postProcess(P.c); return { c: P.c, lights: L, props };
+}
+// ground decor scattered on open tiles
 function decor(P, A, x0, y0, lights) {
-  const x = x0 + ri(2, 13), y = y0 + ri(3, 14), g0 = A.g[0];
+  const x = x0 + ri(2, 13), y = y0 + ri(3, 14), g0 = A.g[0], r = rnd();
   switch (A.deco) {
-    case 'frozen': if (rnd() < 0.6) { P.ell(x + 1, y, ri(2, 3), 1.6, '#cfe4f2'); P.r(x - 1, y, 3, 1, '#e8f4fb'); } else { P.line(x, y, x + 3, y + 1, shade(g0, -0.25)); P.line(x + 3, y + 1, x + 4, y + 3, shade(g0, -0.25)); } break;
-    case 'toxic': if (rnd() < 0.7) { P.p(x, y, '#5aa04a'); P.p(x + 2, y, '#5aa04a'); P.p(x + 1, y + 1, '#3f7a3a'); P.p(x + 1, y, '#6fc05a'); } else { P.p(x, y + 1, '#e8e0d0'); P.r(x - 1, y, 3, 1, '#d070ff'); lights.push({ x: (x + 0.5) * AP, y: (y + 0.5) * AP, color: '#d070ff', r: 8 }); } break;
-    case 'dust': if (rnd() < 0.6) { P.r(x, y, ri(3, 5), 1, shade(g0, 0.14)); P.r(x + 1, y + 1, 3, 1, shade(g0, -0.12)); } else { P.p(x, y, '#9a7a58'); P.p(x + 1, y, '#6a5038'); } break;
-    case 'crater': { const r = ri(2, 3); P.ell(x + 0.5, y + 0.5, r + 0.5, r * 0.7 + 0.5, shade(g0, -0.2)); P.ell(x + 0.5, y + 1, r - 0.5, r * 0.5, shade(g0, -0.08)); P.r(x - r + 1, y + r - 1, r * 2 - 1, 1, shade(g0, 0.16)); break; }
-    case 'urban': if (rnd() < 0.5) P.r(x0 + 1, y0 + 8, 16, 1, shade(g0, -0.12)); else if (rnd() < 0.5) P.ell(x, y, 2.5, 1.5, '#1d2026'); else P.r(x, y, 3, 1, '#c9a22e'); break;
-    case 'lava': if (rnd() < 0.55) break; P.line(x, y, x + 2, y + 1, '#1a0b0a'); P.line(x + 2, y + 1, x + 4, y, '#1a0b0a'); P.p(x + 2, y + 1, '#ff7a2a'); P.p(x + 1, y, '#ff9a3a'); lights.push({ x: (x + 2) * AP, y: (y + 1) * AP, color: '#ff7a2a', r: 9, flicker: true }); break;
+    case 'frozen':
+      if (r < 0.45) { P.ell(x + 1, y, ri(2, 3), 1.6, '#cfe4f2'); P.r(x - 1, y, 3, 1, '#e8f4fb'); }
+      else if (r < 0.7) { P.line(x, y, x + 3, y + 1, shade(g0, -0.25)); P.line(x + 3, y + 1, x + 4, y + 3, shade(g0, -0.25)); }
+      else if (r < 0.88) { P.ell(x + 1, y, 3, 1.5, '#7ab4d8'); P.p(x, y, '#e8f6ff'); }
+      else { P.p(x, y, '#9fc4dc'); P.p(x + 2, y + 1, '#9fc4dc'); P.p(x + 1, y + 2, '#e8f6ff'); }
+      break;
+    case 'toxic':
+      if (r < 0.45) { P.p(x, y, '#5aa04a'); P.p(x + 2, y, '#5aa04a'); P.p(x + 1, y + 1, '#3f7a3a'); P.p(x + 1, y, '#6fc05a'); }
+      else if (r < 0.62) { P.p(x, y + 1, '#e8e0d0'); P.r(x - 1, y, 3, 1, '#d070ff'); lights.push({ x: (x + 0.5) * AP, y: (y + 0.5) * AP, color: '#d070ff', r: 8 }); }
+      else if (r < 0.8) { P.line(x - 2, y, x + 3, y + 2, '#16301a'); P.line(x + 3, y + 2, x + 5, y + 1, '#16301a'); P.p(x + 1, y + 1, '#2f5e2a'); }
+      else if (r < 0.9) { P.p(x, y, '#ff6fae'); P.p(x + 1, y - 1, '#ff9fd0'); P.p(x + 2, y, '#ff6fae'); }
+      else { P.r(x, y, 3, 1, '#d8d0bc'); P.p(x + 3, y - 1, '#d8d0bc'); }
+      break;
+    case 'dust':
+      if (r < 0.5) { P.r(x, y, ri(3, 5), 1, shade(g0, 0.14)); P.r(x + 1, y + 1, 3, 1, shade(g0, -0.12)); }
+      else if (r < 0.72) { P.p(x, y, '#b48a5e'); P.p(x + 1, y, '#6a5038'); }
+      else if (r < 0.9) { P.line(x, y + 2, x + 1, y, '#6a5a38'); P.line(x + 2, y + 2, x + 3, y - 1, '#6a5a38'); P.p(x + 1, y + 2, '#7a6a44'); }
+      else { P.r(x, y, 4, 1, '#efe6cf'); P.p(x + 4, y - 1, '#efe6cf'); P.p(x - 1, y - 1, '#efe6cf'); }
+      break;
+    case 'crater': {
+      if (r < 0.75) { const rr = ri(2, 3); P.ell(x + 0.5, y + 0.5, rr + 0.5, rr * 0.7 + 0.5, shade(g0, -0.2)); P.ell(x + 0.5, y + 1, rr - 0.5, rr * 0.5, shade(g0, -0.08)); P.r(x - rr + 1, y + rr - 1, rr * 2 - 1, 1, shade(g0, 0.16)); }
+      else { P.r(x, y - 1, 1, 2, '#6ff0ff'); P.p(x + 2, y, '#b48aff'); lights.push({ x: (x + 0.5) * AP, y: y * AP, color: '#6ff0ff', r: 7 }); }
+      break;
+    }
+    case 'cyber':
+      if (r < 0.3) { P.line(x - 4, y, x + 6, y + 1, '#0b0c14'); P.line(x + 6, y + 1, x + 9, y + 3, '#0b0c14'); }
+      else if (r < 0.5) { P.ell(x + 1, y, 3.5, 1.5, '#121426'); const c = pick(['#ff3ad6', '#3af0ff']); P.r(x, y, 2, 1, c); lights.push({ x: (x + 1) * AP, y: y * AP, color: c, r: 7 }); }
+      else if (r < 0.57) { P.r(x0 + 4, y0 + 5, 8, 6, '#121320'); for (let k = 0; k < 3; k++) P.r(x0 + 5, y0 + 6 + k * 2, 6, 1, '#2a2c3e'); }
+      else if (r < 0.85) { P.p(x, y, '#e8e8e8'); P.p(x + 2, y + 1, pick(['#ff3ad6', '#ffd23f', '#3af0ff'])); P.p(x - 1, y + 2, '#8a8e9e'); }
+      else { P.r(x - 2, y, 6, 1, '#ffd23f'); P.r(x - 2, y + 2, 6, 1, '#ffd23f'); }
+      break;
+    case 'solar':
+      if (r < 0.45) { const c = pick(['#ff6fae', '#ffd23f', '#ffffff', '#ff8a3a', '#b48aff']); P.p(x, y + 1, '#2e6a2a'); P.p(x, y, c); P.p(x + 2, y + 2, '#2e6a2a'); P.p(x + 2, y + 1, c); }
+      else if (r < 0.7) { P.p(x, y, '#6ab45a'); P.p(x + 1, y - 1, '#7cc86a'); P.p(x + 2, y, '#6ab45a'); P.p(x + 1, y + 1, '#3a7a34'); }
+      else if (r < 0.85) { P.ell(x + 1, y, 2, 1.2, '#b8b4a0'); P.p(x, y - 1, '#d8d4c0'); }
+      else { P.r(x, y - 3, 1, 4, '#e8e4d4'); P.p(x, y - 4, '#fff2a0'); lights.push({ x: x * AP, y: (y - 4) * AP, color: '#fff2a0', r: 8 }); }
+      break;
+    case 'lava':
+      if (r < 0.4) { P.line(x, y, x + 2, y + 1, '#1a0b0a'); P.line(x + 2, y + 1, x + 4, y, '#1a0b0a'); P.p(x + 2, y + 1, '#ff7a2a'); P.p(x + 1, y, '#ff9a3a'); lights.push({ x: (x + 2) * AP, y: (y + 1) * AP, color: '#ff7a2a', r: 9, flicker: true }); }
+      else if (r < 0.7) { P.ell(x + 1, y, 2.5, 1.3, '#4a3a38'); P.p(x, y - 1, '#5a4a48'); }
+      else if (r < 0.85) { P.p(x, y, '#ff9a3a'); lights.push({ x: x * AP, y: y * AP, color: '#ff7a2a', r: 6, flicker: true }); }
+      break;
   }
 }
+// path treatment per world
+function pathDecor(P, A, x0, y0, isP, tx, ty, lights) {
+  const p0 = A.p[0];
+  switch (A.path) {
+    case 'snow': for (let k = 0; k < 3; k++) { const x = x0 + 3 + ri(0, 10), y = y0 + 3 + ri(0, 10); P.p(x, y, shade(p0, -0.18)); P.p(x + 2, y + 1, shade(p0, -0.18)); } break;
+    case 'mud': if (rnd() < 0.4) { const x = x0 + ri(4, 13), y = y0 + ri(5, 12); P.ell(x, y, ri(2, 4), 1.5, '#2a3a1a'); P.p(x - 1, y, '#5a7a3a'); } break;
+    case 'sand': for (let k = 0; k < 2; k++) { const x = x0 + ri(1, 10), y = y0 + ri(3, 14); P.r(x, y, ri(3, 6), 1, shade(p0, 0.12)); } break;
+    case 'regolith': if (rnd() < 0.5) { const x = x0 + ri(3, 12), y = y0 + ri(4, 12); P.r(x, y, 2, 1, shade(p0, -0.2)); P.r(x + 3, y + 3, 2, 1, shade(p0, -0.2)); } break;
+    case 'neon': {
+      // neon kerb strips where the road meets the pavement
+      const col = (tx + ty) % 2 ? '#3af0ff' : '#ff3ad6';
+      if (isP(tx, ty - 1) === false) { P.r(x0, y0 + 2, ATILE, 1, col); if ((tx + ty) % 3 === 0) lights.push({ x: (x0 + 9) * AP, y: (y0 + 2) * AP, color: col, r: 16 }); }
+      if (isP(tx, ty + 1) === false) P.r(x0, y0 + ATILE - 2, ATILE, 1, col);
+      if (isP(tx - 1, ty) === false) P.r(x0 + 1, y0, 1, ATILE, col);
+      if (isP(tx + 1, ty) === false) P.r(x0 + ATILE - 2, y0, 1, ATILE, col);
+      if (rnd() < 0.3) { const x = x0 + ri(4, 12), y = y0 + ri(5, 12); P.ell(x, y, 3, 1.3, '#141630'); P.r(x - 1, y, 2, 1, pick(['#ff3ad6', '#3af0ff'])); }
+      if (rnd() < 0.15) { P.ell(x0 + 9, y0 + 9, 3, 2, '#1a1b26'); P.r(x0 + 7, y0 + 9, 5, 1, '#3a3c4e'); }
+      break;
+    }
+    case 'paver':
+      for (let y = 0; y < ATILE; y += 6) P.r(x0, y0 + y, ATILE, 1, shade(p0, -0.16));
+      for (let y = 0; y < ATILE; y += 6) for (let x = (y / 6) % 2 ? 3 : 0; x < ATILE; x += 6) { P.r(x0 + x, y0 + y, 1, 6, shade(p0, -0.16)); if (rnd() < 0.25) P.p(x0 + x, y0 + y + ri(1, 4), '#5aa04a'); }
+      break;
+    case 'basalt':
+      for (let y = 0; y < ATILE; y += 5) for (let x = (y / 5) % 2 ? 2 : 0; x < ATILE; x += 5) { P.p(x0 + x, y0 + y, '#2e2628'); P.p(x0 + x + 1, y0 + y, '#2e2628'); }
+      if (rnd() < 0.12) { const x = x0 + ri(3, 13), y = y0 + ri(4, 13); P.p(x, y, '#ff7a2a'); P.p(x + 1, y, '#ff7a2a'); lights.push({ x: x * AP, y: y * AP, color: '#ff7a2a', r: 7, flicker: true }); }
+      break;
+  }
+}
+function renderGround(map, biomeKey) {
+  const A = BIOME_ART[biomeKey], W = GW * ATILE, H = GH * ATILE, P = painter(W, H), g = P.g, lights = [], props = [];
+  const isP = (tx, ty) => { if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; const v = map.grid[ty][tx]; return v === 1 || v === 3 || v === 4; };
+  const img = g.createImageData(W, H), d = img.data, n1 = makeNoise(W, H, 8), n2 = makeNoise(W, H, 3);
+  const gp = A.g.map(hex2rgb), pp = A.p.map(hex2rgb);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const pal = isP((x / ATILE) | 0, (y / ATILE) | 0) ? pp : gp;
+    const n = n1(x, y) * 0.6 + n2(x, y) * 0.3 + rnd() * 0.18;
+    const c = n > 0.66 ? pal[1] : n < 0.34 ? pal[2] : pal[0];
+    const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const pEdge = shade(A.p[0], -0.25), covered = new Set();
+  for (const l of map.landmarks || []) for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) covered.add((l.y + dy) * GW + l.x + dx);
+  const addProps = (list, ox, oy) => { for (const p of list) props.push({ ...p, x: ox + p.x, y: oy + p.y }); };
+  for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
+    const x0 = tx * ATILE, y0 = ty * ATILE, v = map.grid[ty][tx];
+    if (isP(tx, ty)) {
+      // the path is sunk below the ground: a dark ledge on top, thin lines elsewhere
+      if (isP(tx, ty - 1) === false) P.r(x0, y0, ATILE, 2, A.edge);
+      if (isP(tx, ty + 1) === false) P.r(x0, y0 + ATILE - 1, ATILE, 1, pEdge);
+      if (isP(tx - 1, ty) === false) P.r(x0, y0, 1, ATILE, pEdge);
+      if (isP(tx + 1, ty) === false) P.r(x0 + ATILE - 1, y0, 1, ATILE, pEdge);
+      pathDecor(P, A, x0, y0, isP, tx, ty, lights);
+    } else {
+      if (isP(tx, ty + 1)) P.r(x0, y0 + ATILE - 1, ATILE, 1, shade(A.g[0], 0.16));
+      P.p(x0, y0, shade(A.g[0], -0.18));
+      if (v === 0 && rnd() < 0.6) decor(P, A, x0, y0, lights);
+      if (v === 0 && rnd() < 0.2) decor(P, A, x0, y0, lights);
+    }
+    if (v === 4) {
+      for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++) if (((x + y) >> 2) % 2 === 0) P.p(x0 + x, y0 + y, (x + y) % 9 ? '#c8384a' : '#e04a5a');
+      P.r(x0 + 6, y0 + 6, 6, 6, '#2a1418'); P.r(x0 + 8, y0 + 8, 2, 2, '#ff4d5e');
+      lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: '#ff4d5e', r: 30, pulse: true });
+    }
+  }
+  // obstacles and landmarks, drawn top to bottom so taller ones overlap correctly
+  for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
+    const x0 = tx * ATILE, y0 = ty * ATILE, k = ty * GW + tx;
+    const lm = (map.landmarks || []).find(l => l.x === tx && l.y === ty);
+    if (lm) {
+      const o = landmarkSprite(pick(A.land)), oy = y0 + ATILE * 2 - 2 - o.c.height;
+      P.ell(x0 + 18, y0 + 33, 16, 3.5, 'rgba(0,0,0,0.3)');
+      g.drawImage(o.c, x0, oy);
+      for (const l of o.lights) lights.push({ ...l, x: (x0 + l.x) * AP, y: (oy + l.y) * AP });
+      addProps(o.props, x0, oy);
+      continue;
+    }
+    if (map.grid[ty][tx] !== 2 || covered.has(k)) continue;
+    const o = obstacleSprite(pick(A.obst)), oy = y0 + 16 - o.c.height;
+    P.ell(x0 + 9, y0 + 15, 7, 2.5, 'rgba(0,0,0,0.3)');
+    g.drawImage(o.c, x0, oy);
+    for (const l of o.lights) lights.push({ ...l, x: (x0 + l.x) * AP, y: (oy + l.y) * AP });
+    addProps(o.props, x0, oy);
+  }
+  return { cv: P.c, lights, props };
+}
+// weather: stateless particles positioned from the clock
+function makeWeather(type) {
+  const n = { snow: 80, rain: 110, embers: 45, spores: 45, pollen: 40, dust: 70, motes: 40 }[type] || 0;
+  return { type, parts: Array.from({ length: n }, (_, i) => ({ x: rnd(), y: rnd(), s: rnd(), ph: rnd() * 7, fly: type === 'pollen' && i < 6 })) };
+}
+function drawWeather(g, t) {
+  const w = M.weather; if (!w) return;
+  const W = GW * ATILE, H = GH * ATILE, wrap = (v, m) => ((v % m) + m) % m;
+  for (const p of w.parts) {
+    let x, y;
+    switch (w.type) {
+      case 'snow': x = wrap(p.x * W + Math.sin(t * (0.6 + p.s) + p.ph) * 4 + t * 6, W); y = wrap(p.y * H + t * (10 + p.s * 10), H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.7 ? '#ffffff' : 'rgba(230,242,255,0.75)'); break;
+      case 'rain': x = wrap(p.x * W - t * 45, W); y = wrap(p.y * H + t * (150 + p.s * 40), H); g.fillStyle = 'rgba(160,190,255,0.45)'; g.fillRect(Math.round(x), Math.round(y), 1, 3); g.fillRect(Math.round(x) - 1, Math.round(y) + 3, 1, 1); break;
+      case 'embers': x = wrap(p.x * W + Math.sin(t * 1.5 + p.ph) * 3, W); y = wrap(p.y * H - t * (8 + p.s * 12), H); px(g, Math.round(x), Math.round(y), 1, 1, (Math.floor(t * 8 + p.ph) % 3) ? '#ff8a3a' : '#ffd060'); break;
+      case 'spores': x = wrap(p.x * W + t * 3 + Math.sin(t * 0.7 + p.ph) * 6, W); y = wrap(p.y * H - t * 2 + Math.cos(t * 0.5 + p.ph) * 4, H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.5 ? 'rgba(255,130,210,0.8)' : 'rgba(160,255,120,0.7)'); break;
+      case 'pollen':
+        x = wrap(p.x * W + t * (p.fly ? 9 : 4) + Math.sin(t * 1.3 + p.ph) * (p.fly ? 10 : 4), W); y = wrap(p.y * H + Math.cos(t * 0.9 + p.ph) * (p.fly ? 8 : 3) - t * 1.5, H);
+        if (p.fly) { const c = p.s > 0.5 ? '#ff8a3a' : '#ffffff', open = Math.floor(t * 10 + p.ph) % 2; px(g, Math.round(x), Math.round(y), 1, 1, '#2a2418'); if (open) { px(g, Math.round(x) - 1, Math.round(y) - 1, 1, 1, c); px(g, Math.round(x) + 1, Math.round(y) - 1, 1, 1, c); } else { px(g, Math.round(x) - 1, Math.round(y), 1, 1, c); px(g, Math.round(x) + 1, Math.round(y), 1, 1, c); } }
+        else px(g, Math.round(x), Math.round(y), 1, 1, 'rgba(255,240,140,0.85)');
+        break;
+      case 'dust': x = wrap(p.x * W + t * (60 + p.s * 50), W); y = wrap(p.y * H + Math.sin(t + p.ph) * 2, H); g.fillStyle = 'rgba(240,210,160,0.4)'; g.fillRect(Math.round(x), Math.round(y), 2 + Math.round(p.s * 2), 1); break;
+      case 'motes': x = wrap(p.x * W + Math.sin(t * 0.4 + p.ph) * 5, W); y = wrap(p.y * H - t * (2 + p.s * 3), H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.6 ? 'rgba(200,180,255,0.9)' : 'rgba(120,240,255,0.6)'); break;
+    }
+  }
+}
+// animated landmark parts: turbine blades and holo billboards
+function drawProps(g, t) {
+  for (const p of M.props) {
+    if (p.kind === 'turbine') {
+      for (let k = 0; k < 3; k++) { const a = t * 1.4 + k * Math.PI * 2 / 3; pxLine(g, p.x, p.y, p.x + Math.cos(a) * p.r, p.y + Math.sin(a) * p.r, '#f6f6ee'); }
+      px(g, p.x - 1, p.y - 1, 3, 3, '#b8bcb8');
+    } else if (p.kind === 'holo') {
+      const ad = Math.floor(t / 3) % 3, glitch = rnd() < 0.04;
+      px(g, p.x, p.y, p.w, p.h, ad === 0 ? '#5a1048' : ad === 1 ? '#0a3a4a' : '#1a0a2a');
+      const cx = p.x + (p.w >> 1), cy = p.y + (p.h >> 1);
+      if (ad === 0) { pxCircle(g, cx, cy, 6, '#ffd23f'); px(g, cx - 3, cy - 2, 2, 2, '#231a00'); px(g, cx + 2, cy - 2, 2, 2, '#231a00'); px(g, cx - 3, cy + 2, 7, 1, '#231a00'); px(g, cx - 4, cy + 1, 1, 1, '#231a00'); px(g, cx + 4, cy + 1, 1, 1, '#231a00'); }
+      else if (ad === 1) { px(g, cx - 7, cy, 15, 1, '#e8e8e8'); for (let k = 0; k < 4; k++) px(g, cx - 6 + k, cy + 1 + k, 13 - k * 2, 1, '#ff8a3a'); px(g, cx - 2, cy - 6, 1, 6, '#e8d8b0'); px(g, cx + 1, cy - 6, 1, 6, '#e8d8b0'); }
+      else { for (let r = 0; r < 4; r++) px(g, p.x + 3, p.y + 3 + r * 4, Math.round((p.w - 6) * (0.4 + ((r * 37) % 6) / 10)), 2, r % 2 ? '#3af0ff' : '#ff3ad6'); }
+      for (let y = p.y; y < p.y + p.h; y += 2) { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(p.x, y, p.w, 1); }
+      if (glitch) px(g, p.x, p.y + ri(0, p.h - 3), p.w, 2, '#3af0ff');
+    }
+  }
+}
+// trope colour schemes for planets on the star map
+const PLANET_STYLES = {
+  frozen:   [{ name: 'Ice Planet', pal: ['#0e1a2e', '#1f3b5c', '#3a6f9e', '#7fb4dc', '#cfe9ff', '#ffffff'], caps: 1, clouds: 1 },
+             { name: 'Glacier World', pal: ['#0a1e24', '#14404a', '#2a7a86', '#6fc4c8', '#c8f2ee', '#ffffff'], caps: 1, clouds: 1 },
+             { name: 'Frost Giant Moon', pal: ['#16142a', '#2e2a54', '#5a5a9a', '#9a9ad0', '#dcdcf8', '#ffffff'], caps: 1, craters: 1 }],
+  toxic:    [{ name: 'Death World Jungle', pal: ['#08180e', '#123d22', '#1d5a31', '#3f8f3a', '#8fdc5a', '#d8ff9a'], clouds: 1 },
+             { name: 'Fungal Planet', pal: ['#160a1e', '#30143e', '#5a2a6e', '#9a4aa8', '#d08ae0', '#ffd0ff'], clouds: 1 },
+             { name: 'Acid Swamp', pal: ['#141a06', '#2e3a0e', '#56661a', '#8fa82a', '#cde05a', '#f4ff9a'], clouds: 1 }],
+  dust:     [{ name: 'Twin-Sun Desert', pal: ['#22130a', '#4a2a14', '#7a4a22', '#b77a40', '#e9b97a', '#ffe0b0'], bands: 1 },
+             { name: 'Red Planet', pal: ['#1e0806', '#40140c', '#6e2414', '#a83a1e', '#d86a3e', '#f8a87a'], craters: 1, caps: 1 },
+             { name: 'Spice Dunes', pal: ['#24180a', '#4a3010', '#8a5a18', '#c88a28', '#f0bc5a', '#ffe6a0'], bands: 1 }],
+  lowgrav:  [{ name: 'Crystal Moon', pal: ['#110d26', '#251d4a', '#4b3d8f', '#7a68c8', '#b4a6ff', '#e8e0ff'], craters: 1, ring: ['#d4c8ff', '#8a7ad0'] },
+             { name: 'Grey Moon', pal: ['#101014', '#24242c', '#44444e', '#70707c', '#a4a4b0', '#dcdce4'], craters: 1 },
+             { name: 'Ringed Shard', pal: ['#061a1e', '#0e3a44', '#1a6a78', '#3aa8b4', '#8ae8ec', '#e0ffff'], craters: 1, ring: ['#bff8ff', '#4ab4c4'] }],
+  cyber:    [{ name: 'Ecumenopolis', pal: ['#06070e', '#0e1220', '#1a2034', '#2a3450', '#40507a', '#6a7ea8'], neon: ['#ff3ad6', '#3af0ff'] },
+             { name: 'Neon Sprawl', pal: ['#0a0610', '#1a0e24', '#2c1640', '#44205e', '#643088', '#8a48b4'], neon: ['#ff8a3a', '#ffd23f'] }],
+  solar:    [{ name: 'Garden World', pal: ['#06201a', '#0e4a3a', '#1a7a54', '#4ab46a', '#a8e08a', '#f0ffd8'], clouds: 1, ring: ['#ffd23f', '#b8862a'], dashed: 1 },
+             { name: 'Terraformed Paradise', pal: ['#04182a', '#0a3a5a', '#1a6a8a', '#3aa8a0', '#9ae0b0', '#fff6d0'], clouds: 1, ring: ['#ffe680', '#c89a3a'], dashed: 1 }],
+  volcanic: [{ name: 'Forge World', pal: ['#120504', '#2a0c08', '#5a1a12', '#8f2a18', '#c8482a', '#f08050'], lava: 1 },
+             { name: 'Hell Moon', pal: ['#080202', '#1a0606', '#360c0a', '#5a1410', '#8a2414', '#c43a1e'], lava: 1, craters: 1 }],
+};
+const planetStyle = o => PLANET_STYLES[o.biomeKey][(o.pstyle || 0) % PLANET_STYLES[o.biomeKey].length];
+const TROPES = {
+  frozen: 'Classic ice planet. Bring a coat. Kindly will not provide one.',
+  toxic: 'Every plant here has teeth, and most of them are hungry.',
+  dust: 'Two suns, no water, plenty of skeletons.',
+  lowgrav: 'Crystals grow sideways out here. So does your lunch.',
+  cyber: 'It never stops raining. The ads are louder than the sirens.',
+  solar: 'A thriving eco-commune with clean energy and free healthcare. Naturally, someone wants to strip-mine it.',
+  volcanic: 'The floor is lava. That is not a game here.',
+};
+const CYBER_NAMES = ['Neon Sprawl 77', 'Undercity Tier 9', 'Chrome Bazaar', 'Night Market Ring', 'Megablock Omega'];
+const SOLAR_NAMES = ['Verdance', 'New Arcadia Commons', 'Sunfield Cooperative', 'Lumen Gardens', 'Hearthbloom', 'Meadowhold'];
 
 // ================================================================
 // AUDIO. Everything is synthesised with Web Audio: one-shot sound effects
@@ -1495,7 +1784,8 @@ function genContract(idx, diff, boss) {
   if (boss) spawns = 2;
   return {
     idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client,
-    planet: biomeKey === 'urban' ? 'Earth · ' + pick(EARTH) : planetName(),
+    planet: biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
+    pstyle: ri(0, PLANET_STYLES[biomeKey].length - 1),
     mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? 'Executive Priority' : D.label, stars: boss ? 4 : D.stars,
     spawns: clamp(spawns, 1, 3),
     T: Math.round((165 + idx * 25) * (BIOMES[biomeKey].mod.T || 1)),
@@ -1581,6 +1871,17 @@ function genMap(nSpawns) {
     for (const k of onAny) grid[(k / GW) | 0][k % GW] = 1;
     for (const s of spawns) grid[s.y][s.x] = 4;
     grid[dep.y][dep.x] = 3;
+    // a few 2x2 landmark sites on open ground, away from the drill
+    const landmarks = [], want = ri(1, 3);
+    for (let tries = 0; tries < 80 && landmarks.length < want; tries++) {
+      const x = ri(0, GW - 2), y = ri(0, GH - 2);
+      if (Math.abs(x - dep.x) < 3 && Math.abs(y - dep.y) < 3) continue;
+      const cells = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
+      if (cells.some(([cx, cy]) => grid[cy][cx] !== 0)) continue;
+      if (landmarks.some(l => Math.abs(l.x - x) < 4 && Math.abs(l.y - y) < 4)) continue;
+      cells.forEach(([cx, cy]) => { grid[cy][cx] = 2; });
+      landmarks.push({ x, y });
+    }
     // rocks, sometimes clustered
     for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
       if (grid[y][x] !== 0) continue;
@@ -1589,57 +1890,15 @@ function genMap(nSpawns) {
       if (DIRS.some(([dx, dy]) => grid[y + dy] && grid[y + dy][x + dx] === 2)) p = 0.22;
       if (rnd() < p) grid[y][x] = 2;
     }
-    return { grid, dep, spawns, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
+    return { grid, dep, spawns, landmarks, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
   }
   throw new Error('map generation failed');
 }
-function renderGround(map, biomeKey) {
-  const A = BIOME_ART[biomeKey], W = GW * ATILE, H = GH * ATILE, P = painter(W, H), g = P.g, lights = [];
-  const isP = (tx, ty) => { if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; const v = map.grid[ty][tx]; return v === 1 || v === 3 || v === 4; };
-  const img = g.createImageData(W, H), d = img.data, n1 = makeNoise(W, H, 8), n2 = makeNoise(W, H, 3);
-  const gp = A.g.map(hex2rgb), pp = A.p.map(hex2rgb);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const pal = isP((x / ATILE) | 0, (y / ATILE) | 0) ? pp : gp;
-    const n = n1(x, y) * 0.6 + n2(x, y) * 0.3 + rnd() * 0.18;
-    const c = n > 0.66 ? pal[1] : n < 0.34 ? pal[2] : pal[0];
-    const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  const pEdge = shade(A.p[0], -0.25);
-  for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
-    const x0 = tx * ATILE, y0 = ty * ATILE, v = map.grid[ty][tx];
-    if (isP(tx, ty)) {
-      // the path is sunk below the ground: a dark ledge on top, thin lines elsewhere
-      if (isP(tx, ty - 1) === false) P.r(x0, y0, ATILE, 2, A.edge);
-      if (isP(tx, ty + 1) === false) P.r(x0, y0 + ATILE - 1, ATILE, 1, pEdge);
-      if (isP(tx - 1, ty) === false) P.r(x0, y0, 1, ATILE, pEdge);
-      if (isP(tx + 1, ty) === false) P.r(x0 + ATILE - 1, y0, 1, ATILE, pEdge);
-      for (let k = 0; k < 4; k++) { const x = x0 + 2 + ri(0, ATILE - 5), y = y0 + 3 + ri(0, ATILE - 6); P.p(x, y, shade(A.p[0], 0.18)); P.p(x, y + 1, shade(A.p[0], -0.2)); }
-    } else {
-      if (isP(tx, ty + 1)) P.r(x0, y0 + ATILE - 1, ATILE, 1, shade(A.g[0], 0.16));
-      P.p(x0, y0, shade(A.g[0], -0.18));
-      if (v === 0 && rnd() < 0.55) decor(P, A, x0, y0, lights);
-    }
-    if (v === 4) {
-      for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++) if (((x + y) >> 2) % 2 === 0) P.p(x0 + x, y0 + y, (x + y) % 9 ? '#c8384a' : '#e04a5a');
-      P.r(x0 + 6, y0 + 6, 6, 6, '#2a1418'); P.r(x0 + 8, y0 + 8, 2, 2, '#ff4d5e');
-      lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: '#ff4d5e', r: 30, pulse: true });
-    }
-    if (v === 2) {
-      const o = obstacleSprite(A.obst);
-      P.ell(x0 + 9, y0 + 15, 7, 2.5, 'rgba(0,0,0,0.3)');
-      g.drawImage(o.c, x0, y0 - 2);
-      for (const l of o.lights) lights.push({ ...l, x: (x0 + l.x) * AP, y: (y0 - 2 + l.y) * AP });
-    }
-  }
-  return { cv: P.c, lights };
-}
-
 // ---------- mission ----------
 function isPortrait() { const r = $('#stage').getBoundingClientRect(); return r.height > r.width * 1.05; }
 function transposeMap(map) {
   const grid = Array.from({ length: GW }, (_, y) => Array.from({ length: GH }, (_, x) => map.grid[x][y]));
-  return { grid, dep: { x: map.dep.y, y: map.dep.x }, spawns: map.spawns.map(s => ({ x: s.y, y: s.x })), paths: map.paths.map(p => p.map(q => ({ x: q.y, y: q.x }))) };
+  return { grid, dep: { x: map.dep.y, y: map.dep.x }, spawns: map.spawns.map(s => ({ x: s.y, y: s.x })), landmarks: (map.landmarks || []).map(l => ({ x: l.y, y: l.x })), paths: map.paths.map(p => p.map(q => ({ x: q.y, y: q.x }))) };
 }
 function startMission(contract) {
   S.screen = 'mission'; setMusic('mission');
@@ -1659,7 +1918,8 @@ function startMission(contract) {
     parts: [], decals: [], shake: 0, pool: {}, lights: [], zones: [],
   };
   const gr = renderGround(map, contract.biomeKey);
-  M.ground = gr.cv; M.lights = gr.lights;
+  M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props;
+  M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade;
   S.selCrew = -1; S.selTower = null;
   RUN.roster.forEach(c => { c.snooze = false; });
   buildMissionHud(); buildRosterBar();
@@ -2127,6 +2387,7 @@ function deathFx(e) {
 function fxText(x, y, txt, color) { M.fx.push({ k: 'text', x, y, txt, color, life: 1.1, max: 1.1 }); }
 function stepFx(dt) {
   const m = M;
+  for (const p of m.props || []) if ((p.kind === 'steam' || p.kind === 'smoke') && rnd() < dt * 2.5) addPart({ x: p.x * AP, y: p.y * AP, vx: (rnd() - 0.5) * 8, vy: -14 - rnd() * 8, r: 0.6, grow: 2.2, life: 1.4, max: 1.4, col: p.kind === 'steam' ? '#e2e6ea' : '#3a3036', layer: 'px', alpha: p.kind === 'steam' ? 0.55 : 0.75 });
   for (const f of m.fx) { if (f.delay > 0) { f.delay -= dt; continue; } f.life -= dt; if (f.e && !f.e.dead) { f.tx = f.e.x; f.ty = ecy(f.e); } }
   m.fx = m.fx.filter(f => f.life > 0);
   for (const p of m.parts) {
@@ -2167,6 +2428,7 @@ function renderMission(now) {
     }
   }
   g.globalAlpha = 1;
+  drawProps(g, t);
   // ground shadows
   g.fillStyle = 'rgba(0,0,0,0.28)';
   for (const e of m.enemies) { const w = e.boss ? 13 : e.fly ? 4 : e.v.kind === 'vehicle' ? 8 : 5, ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 4; g.fillRect(ax - w, ay - 1, w * 2, 2); g.fillRect(ax - w + 1, ay - 2, w * 2 - 2, 1); }
@@ -2220,6 +2482,7 @@ function renderMission(now) {
     if (!tw.down && tw.hp < tw.maxhp) { px(g, ax - 7, ay - 21, 14, 3, '#0c0e14'); px(g, ax - 6, ay - 20, Math.round(12 * tw.hp / tw.maxhp), 1, '#4fd1a1'); }
   }
 
+  drawWeather(g, t);
   // compose: crisp pixels, then light
   beginDraw();
   const sh = RM || !CFG.shake ? 0 : m.shake, ox = (rnd() - 0.5) * sh, oy = (rnd() - 0.5) * sh;
@@ -2292,6 +2555,8 @@ function renderMission(now) {
     for (const p of m.paths) { const x = clamp(p[0].x, 34, LW - 34), y = clamp(p[0].y + (p[0].y < 30 ? 34 : -24), 16, LH - 8); ctx.fillStyle = '#0c0e14'; ctx.fillText('HOSTILES', x + 1, y + 1); ctx.fillStyle = '#ff4d5e'; ctx.fillText('HOSTILES', x, y); }
   }
   ctx.restore();
+  // colour grade per world
+  if (m.grade) { const [c1, c2, a] = m.grade, gg = ctx.createLinearGradient(0, 0, 0, LH); gg.addColorStop(0, c1); gg.addColorStop(1, c2); ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = a * 2.4; ctx.fillStyle = gg; ctx.fillRect(0, 0, LW, LH); ctx.restore(); }
   // vignette
   const vg = ctx.createRadialGradient(LW / 2, LH / 2, Math.min(LW, LH) * 0.35, LW / 2, LH / 2, Math.max(LW, LH) * 0.75);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.4)');
@@ -2531,6 +2796,7 @@ function showContractCard(i) {
     <div class="sub">${o.boss ? 'Executive priority contract' : `Contract ${o.idx + 1} · ${esc(o.diffLabel)}`}</div>
     <h2>${esc(o.planet)}</h2>
     <p style="margin:0">${esc(o.client.n)} needs its ${esc(o.client.asset)} protected because ${esc(o.client.why)}.</p>
+    <p class="colony" style="margin:0">${esc(planetStyle(o).name)}. ${esc(TROPES[o.biomeKey])}</p>
     <dl class="kv">
       <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
       <dt>Ethics review</dt><dd>Waived</dd>
@@ -2763,7 +3029,7 @@ function frame(now) {
 
 // test hook for automated playtesting
 window.__AL = {
-  get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
+  get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS,
 };
 
