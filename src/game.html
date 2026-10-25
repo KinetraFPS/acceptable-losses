@@ -911,13 +911,30 @@ function vehVan(col, skin, f) {
   P.ell(5.5, 11.5, 2, 2, '#1b1d22'); P.ell(16.5, 11.5, 2, 2, '#1b1d22'); P.p(f ? 5 : 6, 11, '#9aa3ad'); P.p(f ? 16 : 17, 11, '#9aa3ad'); P.r(20, 7, 1, 2, '#ffd23f');
   postProcess(P.c); return { c: P.c, ax: 11, ay: 14, lights: [{ x: 20, y: 8, color: '#ffe9a0', r: 12 }] };
 }
+// hunched gunmetal assault walker: reverse-jointed legs, red visor slit, arm cannon, missile pod.
+// The faction colour is only used for accent stripes.
 function vehWalker(col, skin, f) {
-  const P = painter(19, 21), cd = shade(col, -0.3);
-  P.r(4, 3, 10, 7, '#2b2f36'); P.r(5, 4, 8, 5, col); P.r(10, 4, 3, 3, '#9fd3ff'); P.p(11, 5, skin);
-  P.r(13, 6, 4, 2, '#3c414c'); P.p(17, 6, '#22252b'); P.p(6, 2, '#ff5d73'); P.r(6, 0, 1, 2, '#9aa3ad');
-  for (const [x, d] of (f ? [[5, 1], [11, -1]] : [[5, -1], [11, 1]])) { P.r(x, 10, 2, 4, cd); P.r(x + d, 14, 2, 3, cd); P.r(x + d - 1, 17, 4, 1, '#22252b'); }
-  P.r(4, 9, 10, 1, cd);
-  postProcess(P.c); return { c: P.c, ax: 9, ay: 19, lights: [{ x: 6, y: 2, color: '#ff5d73', r: 8 }] };
+  const P = painter(25, 26), dark = '#1e2028', mid = '#343844', lite = '#565c6c', acc = col, glow = '#ff2a3a';
+  const leg = (hx, stride, c) => {
+    const kx = hx - 3, ky = 18, ax = hx + stride, ay = 22;
+    P.line(hx, 14, kx, ky, c); P.line(hx + 1, 14, kx + 1, ky, c);
+    P.line(kx, ky, ax, ay, c); P.line(kx + 1, ky, ax + 1, ay, c);
+    P.r(ax - 2, 23, 5, 2, dark); P.p(ax + 3, 24, lite); P.p(ax - 3, 24, lite);
+  };
+  // far leg first, then the near one over it
+  leg(9, f ? 2 : -1, '#2a2c34'); leg(14, f ? -1 : 2, mid);
+  P.r(8, 13, 10, 3, dark); P.p(12, 14, acc);
+  // missile pod and antenna behind the shoulders
+  P.r(3, 2, 7, 5, mid); P.r(3, 2, 7, 1, lite); for (const x of [4, 6, 8]) P.p(x, 4, glow); P.r(11, 0, 1, 5, lite); P.p(11, 0, acc);
+  // hunched wedge torso, wide at the shoulders
+  P.r(5, 5, 14, 2, lite); P.r(6, 7, 13, 4, mid); P.r(7, 11, 11, 2, mid); P.r(12, 7, 1, 6, dark);
+  P.r(6, 9, 13, 1, acc); P.p(7, 6, '#7a8090'); P.p(17, 6, '#7a8090'); P.r(4, 5, 2, 1, lite);
+  // armoured head pushed forward, with a glowing visor slit
+  P.r(16, 7, 6, 4, dark); P.r(16, 6, 5, 1, mid); P.r(17, 8, 4, 1, glow); P.p(20, 8, '#ffc0c0');
+  // heavy arm cannon
+  P.r(14, 11, 4, 3, dark); P.r(17, 12, 8, 2, '#15161c'); P.p(19, 12, lite); P.p(21, 12, lite); P.p(24, 12, glow);
+  postProcess(P.c);
+  return { c: P.c, ax: 12, ay: 24, lights: [{ x: 19, y: 8, color: glow, r: 10 }, { x: 24, y: 12, color: glow, r: 6 }, { x: 6, y: 4, color: glow, r: 6 }] };
 }
 function enDrone(col, facKey, f) {
   const P = painter(15, 10);
@@ -977,9 +994,9 @@ function bossFrame(facKey, f, look) {
   if (facKey === 'fauna') return crMatriarch(col, f);
   if (facKey === 'union') {
     const c = scale2(vehWalker(col, look.skin, f).c), g = c.getContext('2d');
-    px(g, 4, 0, 1, 18, '#9aa3ad'); px(g, 5, 1, 10, 6, '#d23c3c'); px(g, 8, 2, 3, 3, '#f2efe6'); px(g, 9, 5, 1, 1, '#f2efe6');
-    px(g, 12, 10, 1, 1, '#ffe08a'); px(g, 23, 10, 1, 1, '#ffe08a'); px(g, 12, 16, 1, 1, '#ffe08a'); px(g, 23, 16, 1, 1, '#ffe08a');
-    postProcess(c, { shadeIt: false }); return { c, ax: 18, ay: 38, lights: [{ x: 12, y: 4, color: '#ff5d73', r: 14 }, { x: 22, y: 10, color: '#9fd3ff', r: 12 }] };
+    px(g, 2, 0, 1, 16, '#9aa3ad'); px(g, 3, 0, 11, 7, '#d23c3c'); px(g, 6, 2, 4, 3, '#f2efe6'); px(g, 7, 5, 2, 1, '#f2efe6');
+    for (const [x, y] of [[14, 14], [34, 14], [14, 22], [34, 22]]) px(g, x, y, 1, 1, '#ffe08a');
+    postProcess(c, { shadeIt: false }); return { c, ax: 24, ay: 48, lights: [{ x: 38, y: 16, color: '#ff2a3a', r: 18 }, { x: 8, y: 3, color: '#ff5d73', r: 12 }] };
   }
   if (facKey === 'rival') {
     const c = mkCanvas(32, 30), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
@@ -1068,9 +1085,9 @@ function bossFrameExtra(id, col, f, look) {
     }
     case 'acquisitions': {
       const c = scale2(vehWalker(col, look.skin, f).c), g = c.getContext('2d');
-      px(g, 14, 0, 10, 3, '#e8eef4'); px(g, 18, 3, 2, 4, '#8a929c'); px(g, 18, 0, 2, 1, '#3af0ff');
-      px(g, 30, 16, 7, 5, '#6a4426'); px(g, 32, 15, 3, 1, '#3a2414');
-      postProcess(c, { shadeIt: false }); return { c, ax: 18, ay: 38, lights: [{ x: 19, y: 1, color: '#3af0ff', r: 16, pulse: true }] };
+      px(g, 26, 2, 9, 3, '#c8d0dc'); px(g, 28, 1, 5, 1, '#e8eef4'); px(g, 30, 5, 1, 4, '#5a626e'); px(g, 30, 0, 1, 1, '#3af0ff');
+      px(g, 1, 16, 9, 7, '#4a3020'); px(g, 2, 17, 7, 1, '#6a4426'); px(g, 4, 19, 3, 2, '#c8a46a');
+      postProcess(c, { shadeIt: false }); return { c, ax: 24, ay: 48, lights: [{ x: 38, y: 16, color: '#ff2a3a', r: 18 }, { x: 30, y: 0, color: '#3af0ff', r: 14, pulse: true }] };
     }
     case 'parachute': {
       const P = painter(28, 34);
@@ -2765,7 +2782,11 @@ function renderMission(now) {
     ctx.fillStyle = '#0c0e14'; ctx.fillText(f.txt, f.x + 1, y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, y);
   }
   ctx.globalAlpha = 1;
-  for (const b of m.enemies) if (b.boss && !b.dead) { const y = b.y - (b.mini ? 50 : 64); ctx.fillStyle = '#0c0e14'; ctx.fillText(b.name.toUpperCase(), b.x + 1, y + 1); ctx.fillStyle = b.mini ? '#ffd23f' : '#ff4d5e'; ctx.fillText(b.name.toUpperCase(), b.x, y); }
+  for (const b of m.enemies) if (b.boss && !b.dead) {
+    // keep the name on screen when the boss is near an edge
+    const txt = b.name.toUpperCase(), hw = ctx.measureText(txt).width / 2 + 4, x = clamp(b.x, hw, LW - hw), y = Math.max(14, b.y - (b.mini ? 50 : 64));
+    ctx.fillStyle = '#0c0e14'; ctx.fillText(txt, x + 1, y + 1); ctx.fillStyle = b.mini ? '#ffd23f' : '#ff4d5e'; ctx.fillText(txt, x, y);
+  }
   if (m.phase === 'prep') {
     for (const p of m.paths) { const x = clamp(p[0].x, 34, LW - 34), y = clamp(p[0].y + (p[0].y < 30 ? 34 : -24), 16, LH - 8); ctx.fillStyle = '#0c0e14'; ctx.fillText('HOSTILES', x + 1, y + 1); ctx.fillStyle = '#ff4d5e'; ctx.fillText('HOSTILES', x, y); }
   }
