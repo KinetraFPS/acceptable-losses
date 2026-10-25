@@ -14,7 +14,15 @@ security company. You defend clients' crystal extractions across Earth and the g
 - **Profit margin** is run-wide HP (starts at 100%). Leaked enemies reduce it. At 0% you're abandoned and stranded.
 - **Budget** is spent during a mission to deploy crew (from kills plus a trickle). **Scrip** is spent between missions, only at the store.
 - **Crew** are named towers that carry over between contracts. They gain XP and promotions (a new title, no raise). Saboteurs can injure them for the rest of a contract.
-- **Enemies**: 5 categories (Swarm, Runner, Armoured, Flyer, Saboteur) × 3 tiers (Grunt, Veteran, Elite), skinned by 4 factions.
+- **Enemies**: 10 categories × 3 tiers (Grunt, Veteran, Elite), skinned per faction. The five core types (Swarm, Runner, Armoured, Flyer, Saboteur) are joined from contract 2 by five specials, each introduced with a toast the first time it appears in a run:
+  - **Medic** heals nearby hostiles. **Shield** cuts damage to nearby hostiles by 30%. **Splitter** bursts into smaller hostiles. **Stealth** cloaks on and off; crew only see it up close or once it's marked. **Jammer** makes nearby crew fire 35% slower.
+  - Union: First Aider, Strike Committee, Union Rep. Protesters: Umbrella Bloc, Group Chat Admin, Livestream Crew. VectorCorp: Wellness Officer, Riot Contractor, Cloaked Counsel. Wildlife: Spore Nurse, Brood Sac, Chameleon Stalker.
+- **Bosses**: three per faction, one picked for each sector finale:
+  - Union: Shop Steward Mk.IV (summons picketers), General Strike (bulldozer that periodically rallies every hostile +45% speed), Collective Bargaining Unit (van that slows crew within 2.5 tiles by 50%).
+  - Protesters: The Influencer (summons followers), The Movement (CEO effigy giving 50% damage reduction nearby), #Trending (blimp that goes viral and floods every entrance).
+  - VectorCorp: Regional Manager (flies, drops spies), Acquisitions Division (EMP knocks nearby crew offline for 2.5s), C-Suite Executive (when killed, deploys a Golden Parachute and returns flying at half health).
+  - Wildlife: Brood Matriarch (regenerates, lays gasbags), Sand Leviathan (burrows untouchable, surfaces with a swarm), Mother of Spores (heals everything within 3 tiles).
+- **Mini-bosses**: from contract 3, an "Understudy" version of a faction boss (30% HP) turns up at 65% extraction. It takes its cut once instead of circling back.
 - **Persistence**: factions you've fought return with a grudge (+10% HP). The boss is chosen from your history. Hints about the mind-control twist show up in email P.S. lines.
 - **Meta**: every failed run adds a survivor to the Colony of the Abandoned (+5 starting scrip each, capped at 50).
 
@@ -68,10 +76,10 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Settings** (gear button, bottom-right): master, music and effects volume, mute (also the M key), and a screen shake toggle. Settings are saved in the browser. Opening settings mid-contract pauses the game.
 
 ## Balance tuning knobs (in index.html)
-- `genWave`: wave threat budget `(5.5 + idx*3.3) * (1 + prog*1.7) * diff.mod`
+- `genWave`: wave threat budget `(5.5 + idx*3.0) * (1 + prog*1.7) * diff.mod`
 - `spawnEnemy`: HP scaling `(1 + 0.24*idx)` (raised to match perk power)
 - `startMission`: starting budget `110 + 10*idx`
-- An auto-play bot (greedy placement, no relics, random review picks) won about 75% of simulated runs.
+- An auto-play bot (greedy placement, no relics, random review picks) won about 75% of simulated runs (15/20 after the special enemies landed).
 
 ## Next up
 Sector 2+, more factions and relics, crew permadeath (an option), real art and audio, a narrative event system, deeper colony meta.

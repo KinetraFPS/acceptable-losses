@@ -8,7 +8,7 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 
 ## What's in the vertical slice
 - Seven trope worlds (including a cyberpunk Neon Megacity and a Solarpunk Commune), each with themed obstacles, landmarks, weather and planet colour schemes
-- Procedurally generated maps, 5 crew roles, 4 enemy factions in 5 categories and 3 tiers, and a boss
+- Procedurally generated maps, 5 crew roles, 4 enemy factions in 10 categories (including medics, shields, splitters, stealth and jammers) and 3 tiers, 12 bosses with signature mechanics, and mini-bosses
 - Randomly generated crew with quirks who keep their look through the run and can be injured
 - Roguelike performance reviews: perk cards each rank, a permanent specialisation at rank 4, capstones at rank 5, and executive perks beyond, with rerolls (appeals) and declines
 - A star map, satirical HR emails and payslips, a Company Store that only takes scrip, relics, and a Colony of the Abandoned that gives meta-progression

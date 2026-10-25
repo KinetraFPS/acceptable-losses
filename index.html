@@ -286,7 +286,13 @@ const CATS = {
   armored:  { label: 'Armoured', hp: 62, spd: 0.72, armor: 4, bounty: 6, cost: 4, r: 11, threat: 4 },
   flyer:    { label: 'Flyer',    hp: 30, spd: 1.15, armor: 0, bounty: 4, cost: 2, r: 9,  threat: 3, fly: true },
   saboteur: { label: 'Saboteur', hp: 42, spd: 1.0,  armor: 1, bounty: 5, cost: 3, r: 9,  threat: 3, sab: true, dps: 5 },
+  medic:    { label: 'Medic',    hp: 30, spd: 1.0,  armor: 0, bounty: 5, cost: 3, r: 9,  threat: 4.5, heal: 4, desc: 'Heals nearby hostiles.' },
+  shield:   { label: 'Shield',   hp: 55, spd: 0.85, armor: 2, bounty: 6, cost: 3, r: 10, threat: 5, shield: 0.3, desc: 'Nearby hostiles take 30% less damage.' },
+  splitter: { label: 'Splitter', hp: 45, spd: 0.95, armor: 0, bounty: 4, cost: 3, r: 10, threat: 3.5, split: 2, desc: 'Splits into smaller hostiles when defeated.' },
+  stealth:  { label: 'Stealth',  hp: 34, spd: 1.3,  armor: 0, bounty: 5, cost: 3, r: 8,  threat: 3.5, cloak: true, desc: 'Cloaks on and off. Crew only see it up close, or once it is marked.' },
+  jammer:   { label: 'Jammer',   hp: 40, spd: 0.9,  armor: 1, bounty: 6, cost: 3, r: 9,  threat: 4.5, jam: 0.35, desc: 'Crew nearby fire 35% slower.' },
 };
+const SPECIALS = ['medic', 'shield', 'splitter', 'stealth', 'jammer'];
 const TIERS = [
   { name: 'Grunt',   hp: 1,   armor: 0, bounty: 1, cost: 1, size: 1,    spd: 1,    threat: 1 },
   { name: 'Veteran', hp: 2.4, armor: 3, bounty: 2, cost: 2, size: 1.2,  spd: 1.05, threat: 2.4 },
@@ -296,9 +302,13 @@ const TIERS = [
 const FACTIONS = {
   union: {
     name: "Free Miners' Union Local 404", short: 'Striking Miners', color: '#f0a23a',
-    cats: { swarm: 4, armored: 3, saboteur: 2, fast: 1 },
-    names: { swarm: 'Picketer', fast: 'Organiser', armored: 'Hauler Rig', flyer: 'Survey Drone', saboteur: 'Wildcat Striker' },
-    boss: { name: 'Shop Steward Mk.IV', hp: 2600, spd: 0.38, armor: 7, r: 22, spawn: { cat: 'swarm', n: 4, every: 7 } },
+    cats: { swarm: 4, armored: 3, saboteur: 2, fast: 1, splitter: 1.5, jammer: 1.2, medic: 1 },
+    names: { swarm: 'Picketer', fast: 'Organiser', armored: 'Hauler Rig', flyer: 'Survey Drone', saboteur: 'Wildcat Striker', splitter: 'Strike Committee', jammer: 'Union Rep', medic: 'First Aider' },
+    bosses: [
+      { id: 'steward', name: 'Shop Steward Mk.IV', hp: 2600, spd: 0.38, armor: 7, r: 22, spawn: { cat: 'swarm', n: 4, every: 7 }, desc: 'A walking crane full of workplace grievances. Keeps summoning picketers.' },
+      { id: 'strike', name: 'General Strike', hp: 3200, spd: 0.32, armor: 9, r: 24, rally: { every: 9, dur: 4, mult: 1.45 }, spawn: { cat: 'fast', n: 2, every: 9 }, desc: 'The union president on a bulldozer. Every 9s, rallies every hostile on the map to move 45% faster.' },
+      { id: 'cbu', name: 'Collective Bargaining Unit', hp: 2400, spd: 0.42, armor: 5, r: 22, jamAura: { r: 2.6, amt: 0.5 }, spawn: { cat: 'splitter', n: 1, every: 8 }, desc: 'A van full of negotiators. Crew within 2.5 tiles work 50% slower while talks continue.' },
+    ],
     clients: [
       { n: 'Gorvax Mining Conglomerate', good: false, asset: 'raw Kessilite', why: 'the miners are demanding "oxygen breaks" and "wages"' },
       { n: 'Tenth Dynasty Luxury Resorts', good: false, asset: 'decorative Lumenite', why: 'the staff unionised after the third lava incident' },
@@ -306,9 +316,13 @@ const FACTIONS = {
   },
   fauna: {
     name: 'Indigenous Xenofauna', short: 'Local Wildlife', color: '#7bdc6a',
-    cats: { swarm: 4, fast: 3, flyer: 3 },
-    names: { swarm: 'Skitterling', fast: 'Lopehound', armored: 'Shellback', flyer: 'Gasbag', saboteur: 'Burrower' },
-    boss: { name: 'Brood Matriarch', hp: 2300, spd: 0.45, armor: 2, r: 24, regen: 0.006, spawn: { cat: 'flyer', n: 2, every: 8 } },
+    cats: { swarm: 4, fast: 3, flyer: 3, splitter: 1.5, stealth: 1.5, medic: 1 },
+    names: { swarm: 'Skitterling', fast: 'Lopehound', armored: 'Shellback', flyer: 'Gasbag', saboteur: 'Burrower', splitter: 'Brood Sac', stealth: 'Chameleon Stalker', medic: 'Spore Nurse' },
+    bosses: [
+      { id: 'matriarch', name: 'Brood Matriarch', hp: 2300, spd: 0.45, armor: 2, r: 24, regen: 0.006, spawn: { cat: 'flyer', n: 2, every: 8 }, desc: 'Regenerates constantly and lays gasbags as she goes.' },
+      { id: 'leviathan', name: 'Sand Leviathan', hp: 2400, spd: 0.5, armor: 3, r: 22, burrow: { every: 8, dur: 3, n: 5 }, desc: 'Burrows for 3s at a time, untouchable, then surfaces surrounded by skitterlings.' },
+      { id: 'sporemother', name: 'Mother of Spores', hp: 2200, spd: 0.4, armor: 1, r: 22, healAura: { r: 3, hps: 18 }, spawn: { cat: 'medic', n: 1, every: 10 }, desc: 'Heals every creature within 3 tiles. Kill her first, or kill everything twice.' },
+    ],
     clients: [
       { n: "St. Kessel's Frontier Orphanage", good: true, asset: 'heating crystals', why: 'the local wildlife is hungry and the orphans are, frankly, bite-sized' },
       { n: 'Crestline Golf & Terraforming', good: false, asset: 'terraforming Dreamquartz', why: 'the native species object to becoming a golf course' },
@@ -317,9 +331,13 @@ const FACTIONS = {
   },
   rival: {
     name: 'VectorCorp Asset Recovery', short: 'Rival Contractors', color: '#ff5d73',
-    cats: { fast: 3, armored: 2, flyer: 2, saboteur: 3 },
-    names: { swarm: 'Temp Worker', fast: 'Repo Agent', armored: 'Bailiff Mech', flyer: 'Collections Drone', saboteur: 'Corporate Spy' },
-    boss: { name: 'VectorCorp Regional Manager', hp: 2000, spd: 0.55, armor: 5, r: 20, fly: true, spawn: { cat: 'saboteur', n: 2, every: 9 } },
+    cats: { fast: 3, armored: 2, flyer: 2, saboteur: 3, stealth: 1.5, shield: 1.2, medic: 1 },
+    names: { swarm: 'Temp Worker', fast: 'Repo Agent', armored: 'Bailiff Mech', flyer: 'Collections Drone', saboteur: 'Corporate Spy', stealth: 'Cloaked Counsel', shield: 'Riot Contractor', medic: 'Wellness Officer' },
+    bosses: [
+      { id: 'regional', name: 'VectorCorp Regional Manager', hp: 2000, spd: 0.55, armor: 5, r: 20, fly: true, spawn: { cat: 'saboteur', n: 2, every: 9 }, desc: 'Flies straight for the crystals and drops corporate spies on your crew.' },
+      { id: 'acquisitions', name: 'Acquisitions Division', hp: 2600, spd: 0.4, armor: 8, r: 22, emp: { every: 10, r: 3, dur: 2.5 }, spawn: { cat: 'shield', n: 1, every: 9 }, desc: 'A legal mech. Every 10s an EMP knocks crew within 3 tiles offline for 2.5s.' },
+      { id: 'parachute', name: 'C-Suite Executive', hp: 1700, spd: 0.5, armor: 4, r: 20, phase2: true, spawn: { cat: 'stealth', n: 2, every: 9 }, desc: "When 'removed', deploys a Golden Parachute and comes back flying at half health." },
+    ],
     clients: [
       { n: 'A Genuinely Nice Hospital', good: true, asset: 'medical-grade Lumenite', why: 'VectorCorp was outbid on the contract and wants a refund in crystals' },
       { n: "Senator Pell's Re-election Fund", good: false, asset: 'undeclared Vantablue', why: 'VectorCorp is owed a favour and is collecting it violently' },
@@ -327,9 +345,13 @@ const FACTIONS = {
   },
   activists: {
     name: 'Concerned Citizens Coalition', short: 'Protesters', color: '#5ab8ff',
-    cats: { swarm: 5, fast: 2, saboteur: 3 },
-    names: { swarm: 'Protester', fast: 'Livestreamer', armored: 'Megaphone Van', flyer: 'Camera Drone', saboteur: 'Glue Activist' },
-    boss: { name: 'The Influencer (12M followers)', hp: 2100, spd: 0.5, armor: 3, r: 20, spawn: { cat: 'swarm', n: 6, every: 6 } },
+    cats: { swarm: 5, fast: 2, saboteur: 3, splitter: 1.5, jammer: 1.3, shield: 1.2 },
+    names: { swarm: 'Protester', fast: 'Livestreamer', armored: 'Megaphone Van', flyer: 'Camera Drone', saboteur: 'Glue Activist', splitter: 'Group Chat Admin', jammer: 'Livestream Crew', shield: 'Umbrella Bloc' },
+    bosses: [
+      { id: 'influencer', name: 'The Influencer (12M followers)', hp: 2100, spd: 0.5, armor: 3, r: 20, spawn: { cat: 'swarm', n: 6, every: 6 }, desc: 'Every few seconds, another wave of followers turns up.' },
+      { id: 'effigy', name: 'The Movement', hp: 2700, spd: 0.33, armor: 4, r: 24, shieldAura: { r: 2.6, amt: 0.5 }, spawn: { cat: 'shield', n: 1, every: 9 }, desc: "A giant papier-mache effigy of Kindly's CEO. Everyone marching near it takes 50% less damage." },
+      { id: 'viral', name: '#Trending', hp: 2000, spd: 0.5, armor: 2, r: 20, fly: true, viral: { every: 7, n: 6, cat: 'swarm' }, desc: 'A blimp with a giant screen. Every 7s it goes viral and crowds pour in from every entrance.' },
+    ],
     clients: [
       { n: 'Petrovane Oil & Crystal', good: false, asset: 'Sorrowite', why: 'protesters claim the drilling is "cracking the planet in half"' },
       { n: 'The Last Seed Bank', good: true, asset: 'cryo-crystals', why: 'a viral video convinced the protesters the seeds are "corporate seeds"' },
@@ -798,6 +820,7 @@ function drawHuman(L, of, legs = 'n', yo = 0) {
   if (hat === 'hardhat' || hat === 'miner') { const c = hat === 'miner' ? '#e8b83a' : '#f2f2ec'; U(4, 0, 4, 1, c); U(3, 1, 6, 2, c); U(2, 3, 8, 1, shade(c, -0.2)); UD(5, 1, shade(c, 0.45)); if (hat === 'miner') UD(8, 2, '#fff6b0'); }
   if (hat === 'headset') { U(4, 1, 4, 1, '#2b2f36'); U(3, 2, 1, 2, '#2b2f36'); U(3, 4, 2, 2, '#3a4048'); UD(5, 6, '#2b2f36'); UD(6, 7, '#2b2f36'); UD(7, 7, '#9be564'); }
   if (hat === 'goggles') { U(3, 3, 6, 1, '#22262d'); U(6, 3, 3, 1, '#5fd4ff'); UD(7, 3, '#c8f4ff'); }
+  if (hat === 'helmet') { U(3, 1, 6, 3, '#22252b'); U(4, 0, 4, 1, '#22252b'); U(6, 3, 3, 1, '#3af0ff'); }
   if (hat === 'fedora') { U(4, 0, 4, 2, '#3b3228'); U(4, 1, 4, 1, '#151110'); U(2, 2, 8, 1, '#2a231c'); }
   if (hat === 'beanie') { const c = of.capCol || '#c0392b'; U(4, 0, 4, 1, c); U(3, 1, 6, 2, c); U(3, 3, 6, 1, shade(c, -0.2)); }
   // hand props (enemies)
@@ -809,6 +832,12 @@ function drawHuman(L, of, legs = 'n', yo = 0) {
     case 'glue': U(9, 9, 3, 1, '#f2f2f2'); UD(11, 9, '#ff5d73'); break;
     case 'briefcase': U(8, 11, 4, 3, '#6a4426'); UD(9, 10, '#3a2414'); UD(10, 10, '#3a2414'); break;
     case 'clipboard': U(9, 8, 3, 4, '#c8a46a'); U(9, 9, 3, 2, '#f2f2f2'); break;
+    case 'rulebook': U(9, 8, 3, 4, '#a8323e'); U(10, 9, 1, 2, '#ffd23f'); break;
+    case 'medkit': U(8, 10, 4, 3, '#f2f2f2'); UD(10, 11, '#d23c3c'); UD(9, 11, '#d23c3c'); UD(11, 11, '#d23c3c'); UD(10, 10, '#d23c3c'); UD(10, 12, '#d23c3c'); break;
+    case 'camera': U(7, 5, 5, 3, '#2b2f36'); U(12, 6, 1, 1, '#9fd3ff'); UD(8, 5, '#ff4d6d'); break;
+    case 'umbrella': R(9, 1 + yo, 1, 10, '#5a4a3a'); R(4, 0 + yo, 10, 2, of.umbCol || '#ff6fae'); R(5, -0 + yo, 8, 1, shade(of.umbCol || '#ff6fae', 0.3)); break;
+    case 'riotshield': U(9, 5, 3, 11, 'rgba(180,210,240,0.75)'); U(9, 5, 1, 11, '#c8dcf0'); U(11, 5, 1, 11, '#8aa0b8'); U(10, 7, 1, 1, '#e8f4ff'); break;
+    case 'tablet': U(9, 8, 3, 4, '#1e2026'); U(10, 9, 1, 2, '#3af0ff'); break;
   }
   return postProcess(P.c, { shadeIt: false });
 }
@@ -980,6 +1009,111 @@ function bossFrame(facKey, f, look) {
   postProcess(P.c, { shadeIt: false });
   return { c: P.c, ax: 14, ay: 28, lights: [{ x: 14, y: 8, color: '#fff3c4', r: 26 }, { x: 7, y: 29, color: '#ffd23f', r: 10 }, { x: 20, y: 29, color: '#ffd23f', r: 10 }] };
 }
+// ---------- special enemies: outfits, creatures and extra bosses ----------
+Object.assign(ENEMY_HUMANS.union, {
+  splitter: () => ({ shirt: '#b04a2a', pants: '#3b4a6b', prop: 'clipboard', hat: 'beanie', capCol: '#d23c3c' }),
+  jammer: () => ({ shirt: '#6a4a3a', suit: '#d23c3c', pants: '#3a3a40', prop: 'rulebook' }),
+  medic: () => ({ shirt: '#3a5a3a', vest: '#4fe0a6', stripe: '#f2f2f2', pants: '#3b4a6b', prop: 'medkit', hat: 'miner' }),
+});
+Object.assign(ENEMY_HUMANS.activists, {
+  splitter: () => ({ shirt: pick(PROTEST_COLS), hood: true, pants: '#22252b', prop: 'phone' }),
+  jammer: () => ({ shirt: '#2a2a3a', pants: '#22252b', prop: 'camera', hat: 'cap', capCol: '#ff3ad6' }),
+  shield: () => ({ shirt: pick(PROTEST_COLS), pants: '#3b4a6b', prop: 'umbrella', umbCol: pick(['#ff6fae', '#ffd23f', '#5ab8ff', '#7bdc6a']) }),
+});
+Object.assign(ENEMY_HUMANS.rival, {
+  stealth: () => ({ shirt: '#1e2229', suit: '#3af0ff', pants: '#1e2229', shades: true, prop: 'briefcase' }),
+  shield: () => ({ shirt: '#1e2229', vest: '#3a3e4a', pants: '#1e2229', hat: 'helmet', prop: 'riotshield' }),
+  medic: () => ({ shirt: '#e8eef4', collar: '#3af0ff', pants: '#5a6a7a', prop: 'tablet' }),
+});
+// creatures for the wildlife specials
+function crSac(c, f) {
+  const P = painter(16, 14), d = shade(c, -0.3);
+  for (let i = 0; i < 3; i++) { const x = 4 + i * 4, o = (i + f) % 2; P.p(x, 11, d); P.p(x - 1 + o * 2, 12, d); }
+  P.ell(8, 7, 6, 5, shade(c, 0.1)); P.line(5, 3, 7, 10, d); P.line(11, 4, 9, 11, d);
+  for (const [x, y] of [[6, 6], [10, 7], [8, 9], [9, 4]]) P.p(x, y, '#f4ffd0');
+  P.ell(13, 8, 1.6, 1.6, d); P.p(14, 7, '#ff5ad1');
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 12 };
+}
+function crLizard(c, f) {
+  const P = painter(18, 11), d = shade(c, -0.3);
+  for (const [x, o] of (f ? [[5, -1], [11, 1]] : [[5, 1], [11, -1]])) { P.r(x, 7, 1, 2, d); P.p(x + o, 9, d); P.r(x + 1, 7, 1, 2, d); }
+  P.ell(9, 5.5, 5.5, 2.4, c); P.ell(15, 4.5, 2.4, 2, c); P.p(16, 4, '#ffd23f'); P.p(16, 4, '#ffd23f');
+  P.line(4, 5, 1, 3, c); P.p(1, 2, c); P.p(2, 1, c);
+  for (let x = 6; x <= 12; x += 2) P.p(x, 4, shade(c, 0.35));
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 9 };
+}
+function crNurse(c, f) {
+  const P = painter(14, 14), d = shade(c, -0.3);
+  P.r(5, 7, 4, 5, '#e8e0d0'); P.p(4 + f, 12, '#cfc8b6'); P.p(9 - f, 12, '#cfc8b6');
+  P.ell(7, 5, 6, 3.5, '#d06ae0'); for (const [x, y] of [[4, 4], [9, 3], [7, 6]]) P.p(x, y, '#ffd0ff');
+  P.p(6, 9, '#2a1a30'); P.p(8, 9, '#2a1a30'); P.r(1, 1, 1, 1, '#c8ffa0'); P.r(12, 2, 1, 1, '#c8ffa0');
+  postProcess(P.c); return { c: P.c, ax: 7, ay: 12, lights: [{ x: 7, y: 5, color: '#d06ae0', r: 12 }] };
+}
+// the second and third boss of every faction
+function bossFrameExtra(id, col, f, look) {
+  switch (id) {
+    case 'strike': {
+      const c = scale2(vehTreads(col, look.skin, f).c), g = c.getContext('2d');
+      px(g, 38, 12, 3, 18, '#9aa3ad'); for (let y = 13; y < 30; y += 4) px(g, 38, y, 3, 2, '#ffd23f');
+      px(g, 22, 0, 1, 10, '#9aa3ad'); px(g, 23, 0, 9, 5, '#d23c3c'); px(g, 25, 1, 5, 1, '#f2efe6'); px(g, 25, 3, 5, 1, '#f2efe6');
+      postProcess(c, { shadeIt: false }); return { c, ax: 20, ay: 30, lights: [{ x: 22, y: 2, color: '#ffb020', r: 16, pulse: true }] };
+    }
+    case 'cbu': {
+      const c = scale2(vehVan(col, look.skin, f).c), g = c.getContext('2d');
+      for (const x of [6, 18, 30]) { px(g, x, 0, 6, 3, '#e9e9e9'); px(g, x + 6, 0, 2, 4, '#cfcfcf'); px(g, x + 2, 3, 2, 2, '#5a5e6a'); }
+      postProcess(c, { shadeIt: false }); return { c, ax: 22, ay: 28, lights: [{ x: 22, y: 2, color: '#ff4d6d', r: 22, flicker: true }] };
+    }
+    case 'leviathan': {
+      const P = painter(46, 24), d = shade(col, -0.3);
+      for (let i = 0; i < 7; i++) { const x = 4 + i * 5, y = 13 + Math.round(Math.sin(i * 1.1 + f * Math.PI) * 2); P.ell(x, y, 4.5, 4.5, i % 2 ? d : col); P.p(x, y - 4, shade(col, 0.4)); }
+      P.ell(39, 11, 6.5, 6.5, shade(col, -0.1)); P.ell(41, 11, 3.5, 3.5, '#2a1a30');
+      for (const [x, y] of [[40, 8], [43, 9], [43, 13], [40, 14], [38, 11]]) P.p(x, y, '#f2f2f2');
+      P.p(36, 6, '#ff5ad1'); P.p(37, 5, '#ff5ad1');
+      postProcess(P.c); return { c: P.c, ax: 23, ay: 22, lights: [{ x: 41, y: 11, color: '#ff5ad1', r: 14 }] };
+    }
+    case 'sporemother': {
+      const P = painter(38, 34), d = shade('#b04ac8', -0.35);
+      for (let i = 0; i < 5; i++) { const x = 8 + i * 5, o = (i + f) % 2 ? 2 : -2; P.line(x, 22, x + o, 31, '#cfc8b6'); }
+      P.r(13, 16, 12, 10, '#e8e0d0'); P.ell(19, 12, 17, 9, '#b04ac8'); P.ell(19, 15, 14, 3, d);
+      for (const [x, y] of [[9, 9], [16, 6], [24, 8], [29, 11], [13, 12], [21, 11]]) P.ell(x, y, 1.6, 1.3, '#ffd0ff');
+      P.p(16, 20, '#2a1a30'); P.p(22, 20, '#2a1a30'); for (const [x, y] of [[3, 3], [34, 5], [6, 18], [33, 20]]) P.p(x, y, '#c8ffa0');
+      postProcess(P.c); return { c: P.c, ax: 19, ay: 31, lights: [{ x: 19, y: 10, color: '#d06ae0', r: 30 }, { x: 19, y: 20, color: '#c8ffa0', r: 14 }] };
+    }
+    case 'acquisitions': {
+      const c = scale2(vehWalker(col, look.skin, f).c), g = c.getContext('2d');
+      px(g, 14, 0, 10, 3, '#e8eef4'); px(g, 18, 3, 2, 4, '#8a929c'); px(g, 18, 0, 2, 1, '#3af0ff');
+      px(g, 30, 16, 7, 5, '#6a4426'); px(g, 32, 15, 3, 1, '#3a2414');
+      postProcess(c, { shadeIt: false }); return { c, ax: 18, ay: 38, lights: [{ x: 19, y: 1, color: '#3af0ff', r: 16, pulse: true }] };
+    }
+    case 'parachute': {
+      const P = painter(28, 34);
+      P.r(3, 4, 6, 12, '#ffd23f'); P.r(4, 5, 4, 2, '#fff2a0');
+      P.g.drawImage(drawHuman(look, { shirt: '#1e2229', suit: '#ffd23f', pants: '#1e2229', shades: true, prop: 'briefcase' }, 'n', f), 7, 3);
+      P.r(4, 22, 20, 3, '#c89a3a'); P.r(6, 21, 16, 1, '#ffe680'); P.r(6, 25, 16, 2, '#7a5a1a'); P.r(7, 27, 3, 2, '#3af0ff'); P.r(18, 27, 3, 2, '#3af0ff');
+      postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 14, ay: 28, lights: [{ x: 8, y: 29, color: '#3af0ff', r: 10 }, { x: 19, y: 29, color: '#3af0ff', r: 10 }] };
+    }
+    case 'effigy': {
+      // a giant papier-mache head of the Kindly CEO, carried on poles
+      const P = painter(36, 46), ceo = { ...look, hair: '#e6e3dc', style: 'swoop', glasses: 'none', facial: 'none', extra: 'none' };
+      const head = drawHuman(ceo, { shirt: '#1e2229', suit: '#ffd23f', pants: '#1e2229' }, 'n', 0);
+      P.g.imageSmoothingEnabled = false; P.g.drawImage(head, 1, 0, 12, 11, 6, 0, 24, 22);
+      P.r(9, 20, 1, 12, '#7a5a3a'); P.r(26, 20, 1, 12, '#7a5a3a'); P.r(10, 24, 16, 2, '#d23c3c'); P.r(13, 24, 2, 2, '#f2efe6'); P.r(21, 24, 2, 2, '#f2efe6');
+      const carrier = drawHuman(genLook(), { shirt: pick(PROTEST_COLS), pants: '#3b4a6b' }, f ? 'a' : 'b', 0);
+      P.g.drawImage(carrier, 2, 27); P.g.drawImage(carrier, 20, 27);
+      postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 18, ay: 44, lights: [{ x: 18, y: 12, color: '#ffd23f', r: 22 }] };
+    }
+    case 'viral': {
+      const P = painter(42, 24);
+      P.ell(20, 9, 17, 7, col); P.ell(18, 6, 12, 2.5, shade(col, 0.3)); P.r(1, 4, 4, 2, shade(col, -0.3)); P.r(1, 12, 4, 2, shade(col, -0.3));
+      P.r(13, 16, 12, 4, '#2a2c3e'); P.r(14, 17, 10, 2, '#ffd23f');
+      P.r(14, 6, 12, 7, '#120a20'); P.r(17, 7, 1, 5, '#ff3ad6'); P.r(21, 7, 1, 5, '#ff3ad6'); P.r(15, 8, 9, 1, '#3af0ff'); P.r(15, 10, 9, 1, '#3af0ff');
+      P.r(38, 7 + (f ? 0 : 2), 2, 3, '#9aa3ad');
+      postProcess(P.c); return { c: P.c, ax: 20, ay: 12, lights: [{ x: 20, y: 9, color: '#ff3ad6', r: 26, flicker: true }] };
+    }
+  }
+  return null;
+}
+
 function finishVariant(kind, r, frames) {
   frames = frames || r.map(x => x.c);
   return {
@@ -991,7 +1125,7 @@ function makeVariant(facKey, cat) {
   const col = FACTIONS[facKey].color;
   if (facKey === 'fauna') {
     const c = mixHex(col, pick(['#a8f06a', '#4fdc9a', '#d0e85a', '#6ad0c0']), rnd() * 0.5);
-    const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm }[cat];
+    const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm, splitter: crSac, stealth: crLizard, medic: crNurse }[cat];
     return finishVariant('creature', [0, 1].map(f => gen(c, f)));
   }
   if (cat === 'armored') { const gen = { union: vehTreads, activists: vehVan, rival: vehWalker }[facKey], skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => gen(col, skin, f))); }
@@ -1000,10 +1134,12 @@ function makeVariant(facKey, cat) {
   const lights = [];
   if (of.hat === 'miner') lights.push({ x: 9, y: 3, color: '#fff2a0', r: 10 });
   if (of.prop === 'phone') lights.push({ x: 10, y: 9, color: '#9fd3ff', r: 9 });
+  if (of.prop === 'camera') lights.push({ x: 9, y: 6, color: '#ff4d6d', r: 7 });
+  if (of.prop === 'medkit') lights.push({ x: 10, y: 11, color: '#4fe0a6', r: 8 });
   const frames = [drawHuman(look, of, 'n', 0), drawHuman(look, of, 'a', 1), drawHuman(look, of, 'b', 1)];
   return finishVariant('human', [{ ax: 7, ay: 17, lights }], frames);
 }
-function makeBossVariant(facKey) { const look = genLook(); return finishVariant('boss', [0, 1].map(f => bossFrame(facKey, f, look))); }
+function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', [0, 1].map(f => bossFrameExtra(id, col, f, look) || bossFrame(facKey, f, look))); }
 function getVariant(cat) {
   const human = M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer';
   const pool = M.pool[cat] || (M.pool[cat] = Array.from({ length: human ? 10 : 3 }, () => makeVariant(M.c.facKey, cat)));
@@ -1796,7 +1932,7 @@ function genContract(idx, diff, boss) {
   let spawns = (idx >= 2 ? 2 : 1) + (diff === 2 ? 1 : 0) + (idx === 1 && rnd() < 0.5 ? 1 : 0);
   if (boss) spawns = 2;
   return {
-    idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client,
+    idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? pick(fac.bosses) : null,
     planet: biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
     pstyle: ri(0, PLANET_STYLES[biomeKey].length - 1),
     mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? 'Executive Priority' : D.label, stars: boss ? 4 : D.stars,
@@ -1937,7 +2073,7 @@ function startMission(contract) {
   RUN.roster.forEach(c => { c.snooze = false; });
   buildMissionHud(); buildRosterBar();
   setView(GW * TILE, GH * TILE);
-  toast(contract.boss ? `Executive priority: ${contract.fac.boss.name} expected` : 'Deploy crew, then begin extraction', 2600);
+  toast(contract.boss ? `Executive priority: ${contract.bossDef.name} expected` : 'Deploy crew, then begin extraction', 2600);
 }
 function tileAt(x, y) { const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE); if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; return { tx, ty }; }
 function towerAtTile(tx, ty) { return M.towers.find(t => t.tx === tx && t.ty === ty); }
@@ -2018,14 +2154,23 @@ function dronePos(tw, k) {
 }
 
 function damage(e, dmg, pierce, tw, quiet) {
-  if (e.dead) return;
+  if (e.dead || e.invuln) return;
   if (e.vulnT > 0) dmg *= 1 + e.vulnAmt;
+  if (e.dr) dmg *= 1 - e.dr;
   const eff = pierce ? dmg : Math.max(1, dmg - e.armor);
   e.hp -= eff;
   if (!quiet) { e.hitT = 0.08; if (rnd() < 0.5) sparks(e.x, ecy(e), '#fff2c0', 1); }
+  if (e.hp <= 0 && e.phase2 && !e.phased) {
+    e.phased = true; e.hp = e.maxhp * 0.5; e.fly = true; e.sx = e.x; e.sy = e.y; e.name += ' (Golden Parachute)';
+    toast('Golden Parachute deployed. The executive is coming back.', 2400); sfx('evac'); deathFx(e); return;
+  }
   if (e.hp <= 0) {
     e.dead = true;
     M.kills++; RUN.kills++;
+    if (e.split) for (let k = 0; k < e.split; k++) {
+      const c = spawnEnemy({ cat: 'swarm', tier: Math.max(0, e.tier - 1), sp: e.sp });
+      c.x = e.x + (rnd() - 0.5) * 16; c.y = e.y + (rnd() - 0.5) * 16; c.wi = e.wi; c.dist = e.dist;
+    }
     M.budget += e.bounty + (has('loyalty') ? 1 : 0);
     deathFx(e); sfx(e.boss ? 'bigboom' : M.c.facKey === 'fauna' ? 'splat' : 'pop', e.x);
     if (tw) {
@@ -2070,7 +2215,7 @@ function reassign(tw) {
 
 function genWave() {
   const m = M, c = m.c, idx = c.idx, prog = m.t / m.T;
-  let budget = (5.5 + idx * 3.3) * (1 + prog * 1.7) * c.mod;
+  let budget = (5.5 + idx * 3.0) * (1 + prog * 1.7) * c.mod;
   m.waveNum++;
   const vet = clamp(-0.05 + idx * 0.13 + prog * 0.3, 0, 0.65), eli = clamp(-0.22 + idx * 0.07 + prog * 0.15, 0, 0.3);
   const weights = { ...c.fac.cats };
@@ -2078,6 +2223,7 @@ function genWave() {
   if (m.biome.mod.swarm) weights.swarm = (weights.swarm || 1) * m.biome.mod.swarm;
   // first contract eases you in: no saboteurs, fewer armoured
   if (idx === 0) { delete weights.saboteur; if (weights.armored) weights.armored *= 0.5; }
+  for (const k of SPECIALS) if (weights[k]) { if (idx === 0) delete weights[k]; else weights[k] *= Math.min(1, idx / 3); }
   const list = []; let guard = 0;
   while (budget > 0.5 && guard++ < 40) {
     const cat = wpick(weights);
@@ -2107,21 +2253,34 @@ function spawnEnemy(q) {
     bounty: C.bounty * Tt.bounty, cost: C.cost * Tt.cost, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: rnd() * 6,
     ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: getVariant(q.cat), face: 1,
   };
+  const sc = 1 + 0.15 * c.idx;
+  if (C.heal) e.healAura = { r: 1.6, hps: C.heal * (1 + q.tier) * sc };
+  if (C.shield) e.shieldAura = { r: 1.5, amt: C.shield + 0.05 * q.tier };
+  if (C.jam) e.jamAura = { r: 1.6, amt: C.jam };
+  if (C.split) e.split = C.split + q.tier;
+  if (C.cloak) e.cloakT = rnd() * 5;
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e);
+  // introduce each special the first time it shows up in a run
+  if (C.desc && RUN && !(RUN.seen || (RUN.seen = {}))[q.cat]) { RUN.seen[q.cat] = true; toast(`New hostile: ${e.name}. ${C.desc}`, 3200); }
   return e;
 }
-function spawnBoss() {
-  const B = M.c.fac.boss, path = M.paths[0];
-  const hp = B.hp * M.c.mod * (M.biome.mod.ehp || 1);
+function spawnBoss(B, mini) {
+  const path = M.paths[0], k = mini ? 0.3 : 1;
+  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : 1);
+  const slow = mini ? 1.5 : 1, iv = o => o && { ...o, every: o.every * slow };
   const e = {
-    cat: 'boss', tier: 3, name: B.name, color: M.c.fac.color, boss: true,
-    x: path[0].x, y: path[0].y, path, wi: 1, sp: 0, hp, maxhp: hp, spd: B.spd * (M.biome.mod.espd || 1), armor: B.armor,
-    r: B.r, fly: !!B.fly, sab: false, bounty: 80, cost: 30, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: 0,
-    regen: B.regen || 0, spawn: B.spawn, spawnCd: 4, ox: 0, oy: 0, v: makeBossVariant(M.c.facKey), face: 1,
+    cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
+    x: path[0].x, y: path[0].y, path, wi: 1, sp: 0, hp, maxhp: hp, spd: B.spd * (mini ? 1.2 : 1) * (M.biome.mod.espd || 1), armor: B.armor,
+    r: B.r, fly: !!B.fly, sab: false, bounty: mini ? 40 : 80, cost: mini ? 10 : 30, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: 0,
+    regen: B.regen || 0, spawn: iv(B.spawn), spawnCd: 4, ox: 0, oy: 0, v: makeBossVariant(M.c.facKey, B.id), face: 1,
+    rally: iv(B.rally), burrow: iv(B.burrow), emp: iv(B.emp), viral: iv(B.viral), phase2: !!B.phase2 && !mini,
+    healAura: B.healAura, shieldAura: B.shieldAura, jamAura: B.jamAura,
   };
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
-  M.enemies.push(e); M.boss = e; M.bossSpawned = true; sfx('bossIn'); setMusic('boss');
+  M.enemies.push(e); sfx('bossIn');
+  if (mini) { toast(`Mini-boss: ${e.name}`, 2600); return; }
+  M.boss = e; M.bossSpawned = true; setMusic('boss');
   toast(`${B.name} has entered the area`, 2600);
 }
 
@@ -2159,17 +2318,55 @@ function stepMission(dt) {
     } else {
       m.waveTimer -= dt;
       if (m.waveTimer <= 0) { genWave(); m.waveTimer = m.waveInterval; }
-      if (m.c.boss && !m.bossSpawned && m.t >= m.T * 0.45) spawnBoss();
+      if (m.c.boss && !m.bossSpawned && m.t >= m.T * 0.45) spawnBoss(m.c.bossDef);
+      if (!m.c.boss && m.c.idx >= 2 && !m.miniSpawned && m.t >= m.T * 0.65) { m.miniSpawned = true; spawnBoss(pick(m.c.fac.bosses), true); }
     }
   }
   if (m.queue.length) {
     m.queue.sort((a, b) => a.at - b.at);
     while (m.queue.length && m.queue[0].at <= m.t) spawnEnemy(m.queue.shift());
   }
+  // enemy auras: healing, shields and crew jamming
+  for (const e of m.enemies) e.dr = 0;
+  for (const tw of m.towers) tw.jam = 0;
+  for (const a of m.enemies) {
+    if (a.dead || a.burrowed) continue;
+    if (a.healAura) for (const b of m.enemies) if (!b.dead && b !== a && b.hp < b.maxhp && Math.hypot(a.x - b.x, a.y - b.y) <= a.healAura.r * TILE) { b.hp = Math.min(b.maxhp, b.hp + a.healAura.hps * dt); if (rnd() < dt * 2) addPart({ x: b.x, y: ecy(b), vx: 0, vy: -16, life: 0.6, max: 0.6, col: '#4fe0a6', size: 1, layer: 'px' }); }
+    if (a.shieldAura) for (const b of m.enemies) if (!b.dead && Math.hypot(a.x - b.x, a.y - b.y) <= a.shieldAura.r * TILE) b.dr = Math.max(b.dr, b === a ? a.shieldAura.amt * 0.5 : a.shieldAura.amt);
+    if (a.jamAura) for (const tw of m.towers) if (Math.hypot(a.x - tw.x, a.y - tw.y) <= a.jamAura.r * TILE) tw.jam = Math.max(tw.jam, a.jamAura.amt);
+  }
   // enemies
   for (const e of m.enemies) {
     if (e.dead) continue;
     if (e.hitT > 0) e.hitT -= dt;
+    if (e.cloakT != null) { e.cloakT += dt; e.cloaked = e.cloakT % 5 > 2.5; }
+    if (e.rallyT > 0) e.rallyT -= dt;
+    if (e.rally) {
+      e.rallyCd = (e.rallyCd ?? e.rally.every) - dt;
+      if (e.rallyCd <= 0) { e.rallyCd = e.rally.every; for (const o of m.enemies) { o.rallyT = e.rally.dur; o.rallyMult = e.rally.mult; } fxText(e.x, ecy(e) - 34, 'RALLY!', '#ff4d6d'); m.fx.push({ k: 'ring', x: e.x, y: e.y, r: 4 * TILE, life: 0.6, max: 0.6, color: '#ff4d6d' }); sfx('overcharge', e.x); }
+    }
+    if (e.burrow) {
+      e.burCd = (e.burCd ?? e.burrow.every) - dt;
+      if (!e.burrowed && e.burCd <= 0) { e.burrowed = true; e.invuln = true; e.burT = e.burrow.dur; smoke(e.x, e.y, 6); }
+      if (e.burrowed) {
+        e.burT -= dt;
+        if (e.burT <= 0) {
+          e.burrowed = false; e.invuln = false; e.burCd = e.burrow.every; shake(4); smoke(e.x, e.y, 8); sfx('foam', e.x);
+          for (let i = 0; i < e.burrow.n; i++) { const a = spawnEnemy({ cat: 'swarm', tier: rnd() < 0.3 ? 1 : 0, sp: e.sp }); a.x = e.x + (rnd() - 0.5) * 30; a.y = e.y + (rnd() - 0.5) * 30; a.wi = e.wi; a.dist = e.dist; }
+        }
+      }
+    }
+    if (e.emp) {
+      e.empCd = (e.empCd ?? e.emp.every * 0.6) - dt;
+      if (e.empCd <= 0) {
+        e.empCd = e.emp.every; m.fx.push({ k: 'ring', x: e.x, y: e.y, r: e.emp.r * TILE, life: 0.5, max: 0.5, color: '#3af0ff' }); sfx('thunder', e.x); shake(3);
+        for (const tw of m.towers) if (!tw.down && Math.hypot(tw.x - e.x, tw.y - e.y) <= e.emp.r * TILE) { tw.offline = e.emp.dur; fxText(tw.x, tw.y - 22, 'OFFLINE', '#3af0ff'); }
+      }
+    }
+    if (e.viral) {
+      e.virCd = (e.virCd ?? e.viral.every) - dt;
+      if (e.virCd <= 0) { e.virCd = e.viral.every; for (let i = 0; i < e.viral.n; i++) m.queue.push({ at: m.t + i * 0.25, cat: e.viral.cat, tier: 0, sp: i % m.paths.length }); fxText(e.x, ecy(e) - 30, '#VIRAL', '#ff3ad6'); sfx('review', e.x); }
+    }
     if (e.slowT > 0) e.slowT -= dt;
     const regen = (m.biome.mod.regen || 0) + (e.regen || 0);
     if (regen && e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * regen * dt);
@@ -2186,7 +2383,7 @@ function stepMission(dt) {
     }
     if (e.vulnT > 0) e.vulnT -= dt;
     if (e.stunT > 0) { e.stunT -= dt; e.target = null; continue; }
-    const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1);
+    const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1) * (e.rallyT > 0 ? e.rallyMult : 1) * (e.burrowed ? 1.6 : 1);
     if (e.sab) {
       let tgt = null, bd = 1.4 * TILE;
       for (const tw of m.towers) { if (tw.down) continue; const d = Math.hypot(tw.x - e.x, tw.y - e.y); if (d < bd) { bd = d; tgt = tw; } }
@@ -2229,7 +2426,7 @@ function stepMission(dt) {
   }
   for (const tw of m.towers) {
     const s = tw.st;
-    s.rate *= 1 + tw.bRate; s.dmg *= 1 + tw.bDmg; s.xpMult *= 1 + tw.bXp;
+    s.rate *= (1 + tw.bRate) * (1 - (tw.jam || 0)); s.dmg *= 1 + tw.bDmg; s.xpMult *= 1 + tw.bXp;
     if (Math.abs(tw.maxhp - s.maxhp) > 0.01) { if (!tw.down) tw.hp = tw.hp * s.maxhp / tw.maxhp; tw.maxhp = s.maxhp; }
     if (tw.down) {
       if (tw.medic) {
@@ -2247,6 +2444,7 @@ function stepMission(dt) {
     tw.recoil *= Math.exp(-dt * 14);
     if (tw.muzzle > 0) tw.muzzle -= dt;
     if (tw.down) continue;
+    if (tw.offline > 0) { tw.offline -= dt; continue; }
     const s = tw.st, R2 = s.range * TILE, type = tw.crew.type;
     tw.cd -= dt;
     // timed capstones
@@ -2265,12 +2463,19 @@ function stepMission(dt) {
         for (let i = 0; i < s.barrage; i++) { const e = pick(ground); m.shots.push(makeShell(tw, s, tw.x, tw.y - 10, e.x + (rnd() - 0.5) * 24, e.y + (rnd() - 0.5) * 24, 0.7 + i * 0.12)); }
       }
     }
-    const inRange = [];
-    for (const e of m.enemies) { if (e.dead) continue; if (e.fly && !s.air) continue; if (Math.hypot(e.x - tw.x, e.y - tw.y) <= R2 + e.r * 0.5) inRange.push(e); }
+    const inRange = [], inAll = [];
+    for (const e of m.enemies) {
+      if (e.dead || e.invuln) continue; if (e.fly && !s.air) continue;
+      const d = Math.hypot(e.x - tw.x, e.y - tw.y); if (d > R2 + e.r * 0.5) continue;
+      inAll.push(e);
+      // cloaked hostiles are only visible up close or once marked
+      if (!e.cloaked || e.vulnT > 0 || d < 1.3 * TILE) inRange.push(e);
+    }
     const better = (a, b) => s.strong ? a.hp > b.hp : a.dist > b.dist;
     let tgt = null;
     for (const e of inRange) if (!tgt || better(e, tgt)) tgt = e;
     tw.aim = tgt;
+    if (!tgt && s.aoe && inAll.length) tgt = inAll[0];
     if (tgt) { tw.ang = Math.atan2(ecy(tgt) - tw.y, tgt.x - tw.x); if (Math.abs(tgt.x - tw.x) > 3) tw.face = tgt.x < tw.x ? -1 : 1; }
     const want = type === 'mortar' ? (tw.face > 0 ? -0.85 : Math.PI + 0.85) : tw.ang;
     tw.vis = lerpAngle(tw.vis, want, 1 - Math.exp(-dt * 18));
@@ -2285,8 +2490,8 @@ function stepMission(dt) {
     if (s.aoe) {
       tw.pulses = (tw.pulses || 0) + 1;
       const over = s.overcharge && tw.pulses % s.overcharge === 0, freeze = s.freezeEvery && tw.pulses % s.freezeEvery === 0;
-      let hits = inRange;
-      if (s.arcJump) hits = hits.concat(m.enemies.filter(e => !e.dead && !inRange.includes(e) && Math.hypot(e.x - tw.x, e.y - tw.y) <= R2 + 1.5 * TILE).slice(0, s.arcJump));
+      let hits = inAll;
+      if (s.arcJump) hits = hits.concat(m.enemies.filter(e => !e.dead && !e.invuln && !inAll.includes(e) && Math.hypot(e.x - tw.x, e.y - tw.y) <= R2 + 1.5 * TILE).slice(0, s.arcJump));
       for (const e of hits) {
         hitEnemy(e, s.dmg * (over ? 4 : 1), s, tw);
         if (e.dead) continue;
@@ -2364,7 +2569,8 @@ function stepMission(dt) {
   }
 }
 function leak(e) {
-  if (e.boss) {
+  // only the contract boss circles back for more; understudies take their cut and leave
+  if (e.boss && !e.mini) {
     loseMargin(e.cost, e.x, e.y);
     // the boss grabs what it can and circles back for more
     const p = e.path[0]; e.x = p.x; e.y = p.y; e.wi = 1; e.dist = 0; if (e.fly) { e.sx = p.x; e.sy = p.y; }
@@ -2442,6 +2648,13 @@ function renderMission(now) {
   }
   g.globalAlpha = 1;
   drawProps(g, t);
+  // enemy aura rings
+  for (const e of m.enemies) {
+    const au = e.healAura ? [e.healAura.r, '#4fe0a6'] : e.shieldAura ? [e.shieldAura.r, '#5fd4ff'] : e.jamAura ? [e.jamAura.r, '#ff4d6d'] : null;
+    if (!au || e.burrowed) continue;
+    const r = au[0] * TILE / AP, n = Math.round(r * 2), cx = e.x / AP, cy = e.y / AP + 3;
+    g.globalAlpha = 0.7; for (let k = 0; k < n; k += 3) { const a = k / n * Math.PI * 2 + t * 0.6; px(g, Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75), 1, 1, au[1]); } g.globalAlpha = 1;
+  }
   // ground shadows
   g.fillStyle = 'rgba(0,0,0,0.28)';
   for (const e of m.enemies) { const w = e.boss ? 13 : e.fly ? 4 : e.v.kind === 'vehicle' ? 8 : 5, ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 4; g.fillRect(ax - w, ay - 1, w * 2, 2); g.fillRect(ax - w + 1, ay - 2, w * 2 - 2, 1); }
@@ -2491,6 +2704,8 @@ function renderMission(now) {
     const ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6;
     for (let i = 0; i < tw.crew.level; i++) px(g, ax - 7 + i * 2, ay + 3, 1, 1, tw.down ? '#59616b' : '#ffd23f');
     if (tw.crew.spec) px(g, ax + 6, ay + 2, 2, 2, tw.crew.perks.includes(BRANCH[tw.crew.spec].cap) ? '#ffd23f' : '#b98cff');
+    if (tw.offline > 0) { const k = Math.floor(t * 10) % 3; px(g, ax - 4 + k * 3, ay - 22, 1, 2, '#3af0ff'); px(g, ax - 3 + k * 2, ay - 25, 1, 1, '#eaffff'); }
+    if (tw.jam > 0 && Math.floor(t * 2) % 2) { px(g, ax - 2, ay - 24, 1, 1, '#ff4d6d'); px(g, ax + 2, ay - 24, 1, 1, '#ff4d6d'); px(g, ax - 1, ay - 23, 3, 1, '#ff4d6d'); px(g, ax - 2, ay - 22, 1, 1, '#ff4d6d'); px(g, ax + 2, ay - 22, 1, 1, '#ff4d6d'); }
     if (tw.crew.reviews.length && Math.floor(t * 3) % 2) { px(g, ax - 1, ay - 26, 3, 5, '#0c0e14'); px(g, ax, ay - 25, 1, 2, '#ffd23f'); px(g, ax, ay - 22, 1, 1, '#ffd23f'); }
     if (!tw.down && tw.hp < tw.maxhp) { px(g, ax - 7, ay - 21, 14, 3, '#0c0e14'); px(g, ax - 6, ay - 20, Math.round(12 * tw.hp / tw.maxhp), 1, '#4fd1a1'); }
   }
@@ -2563,7 +2778,7 @@ function renderMission(now) {
     ctx.fillStyle = '#0c0e14'; ctx.fillText(f.txt, f.x + 1, y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, y);
   }
   ctx.globalAlpha = 1;
-  if (m.boss && !m.boss.dead) { const b = m.boss; ctx.fillStyle = '#0c0e14'; ctx.fillText(b.name.toUpperCase(), b.x + 1, b.y - 63); ctx.fillStyle = '#ff4d5e'; ctx.fillText(b.name.toUpperCase(), b.x, b.y - 64); }
+  for (const b of m.enemies) if (b.boss && !b.dead) { const y = b.y - (b.mini ? 50 : 64); ctx.fillStyle = '#0c0e14'; ctx.fillText(b.name.toUpperCase(), b.x + 1, y + 1); ctx.fillStyle = b.mini ? '#ffd23f' : '#ff4d5e'; ctx.fillText(b.name.toUpperCase(), b.x, y); }
   if (m.phase === 'prep') {
     for (const p of m.paths) { const x = clamp(p[0].x, 34, LW - 34), y = clamp(p[0].y + (p[0].y < 30 ? 34 : -24), 16, LH - 8); ctx.fillStyle = '#0c0e14'; ctx.fillText('HOSTILES', x + 1, y + 1); ctx.fillStyle = '#ff4d5e'; ctx.fillText('HOSTILES', x, y); }
   }
@@ -2629,6 +2844,12 @@ function drawTowerPx(g, tw, t) {
   px(g, Math.floor(pvx), Math.floor(pvy), 1, 1, CREW_OUTFITS[type].gloves || tw.crew.look.skin);
 }
 function drawEnemyPx(g, e, t) {
+  if (e.burrowed) {
+    const ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 3;
+    pxCircle(g, ax, ay, 5, '#5a4630'); px(g, ax - 4, ay - 1, 2, 1, '#8a6a46'); px(g, ax + 2, ay - 2, 2, 1, '#8a6a46'); px(g, ax - 1, ay - 3 + Math.round(Math.sin(t * 12)), 2, 1, '#b48a5e');
+    e._sx = null; e._bx = ax; e._by = ay - 8; return;
+  }
+  if (e.cloaked) g.globalAlpha = 0.25 + 0.1 * Math.sin(t * 20);
   const v = e.v, ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + (e.fly ? -6 + Math.round(Math.sin(t * 3 + e.wob) * 1.5) : 4);
   let fi;
   if (e.fly) fi = Math.floor(t * 16 + e.wob) % 2;
@@ -2643,7 +2864,9 @@ function drawEnemyPx(g, e, t) {
   if (e.stunT > 0) for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(g, Math.round(ax + Math.cos(a) * 4), Math.round(sy - 2 + Math.sin(a) * 1.5), 1, 1, '#ffd23f'); }
   if (e.vulnT > 0) { const w = v.frames[0].width, h = v.frames[0].height, x0 = ax - (flip ? w - v.ax : v.ax) - 1, y0 = sy - 1;
     for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x0 + w + 1, y0, -1, 1], [x0, y0 + h + 1, 1, -1], [x0 + w + 1, y0 + h + 1, -1, -1]]) { px(g, dx > 0 ? cx : cx - 1, cy, 2, 1, '#ff3b5c'); px(g, cx, dy > 0 ? cy : cy - 1, 1, 2, '#ff3b5c'); } }
-  e._ax = ax; e._sx = sx; e._sy = sy; e._flip = flip; e._bx = ax; e._by = sy - 2;
+  if (e.phased) { pxCircle(g, ax, sy - 6, 7, '#ffd23f'); g.clearRect(ax - 8, sy - 5, 17, 8); pxLine(g, ax - 6, sy - 5, ax - 2, sy + 4, '#c89a3a'); pxLine(g, ax + 6, sy - 5, ax + 2, sy + 4, '#c89a3a'); }
+  g.globalAlpha = 1;
+  e._ax = ax; e._sx = e.cloaked ? null : sx; e._sy = sy; e._flip = flip; e._bx = ax; e._by = sy - 2;
 }
 
 // ---------- mission UI ----------
@@ -2818,7 +3041,7 @@ function showContractCard(i) {
       <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
       <dt>Pay</dt><dd class="mono">${o.pay.toFixed(2)}× base rate</dd>
     </dl>
-    ${o.boss ? `<div class="intel">Target: ${esc(o.fac.boss.name)}. You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
+    ${o.boss ? `<div class="intel">Target: ${esc(o.bossDef.name)}. ${esc(o.bossDef.desc)} You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
     ${o.grudge ? `<div class="intel">Intel: these ${esc(o.fac.short)} include survivors of your operation on ${esc(o.grudge)}. Expect them to be tougher (+10% HP).</div>` : ''}
     <div class="row"><button class="btn" data-act="accept" data-i="${i}">Accept deployment</button><button class="btn ghost" data-act="mapback">Back</button></div>
   </div>`;
@@ -2930,7 +3153,7 @@ function showVictory() {
   $('#overlay').innerHTML = `<div class="screen"><div class="paper">
     ${titlebar('Unknown_Sender.msg')}
     <div class="mailhead"><span>From</span><b>[SENDER REDACTED]</b><span>To</span><b>Employee #${RUN.empId}</b><span>Subject</span><b>you have done well</b></div>
-    <h2>${esc(c.fac.boss.name)} neutralised</h2>
+    <h2>${esc(c.bossDef.name)} neutralised</h2>
     <div class="mailbody">
       <p>The board thanks you. You may not have met the board. That is for the best.</p>
       <p>Every crystal you guarded, every ${esc(c.fac.short.toLowerCase())} you pacified, every crew member denied a lunch break produced exactly the right amount of suffering. We have eaten well this quarter.</p>
@@ -3042,7 +3265,7 @@ function frame(now) {
 
 // test hook for automated playtesting
 window.__AL = {
-  get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
+  get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS,
 };
 
