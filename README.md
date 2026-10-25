@@ -7,9 +7,11 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 **Play:** https://kinetrafps.github.io/acceptable-losses/ *(once GitHub Pages is enabled)*
 
 ## What's in the vertical slice
-- Two sectors with nine trope worlds (including a cyberpunk Neon Megacity, a Solarpunk Commune, a Cloud City and a Precursor Tomb) and apex bosses in the finale,, each with themed obstacles, landmarks, weather and planet colour schemes
+- Two sectors with nine trope worlds (including a cyberpunk Neon Megacity, a Solarpunk Commune, a Cloud City and a Precursor Tomb) and apex bosses in the finale, each with themed obstacles, landmarks, weather and planet colour schemes
 - Procedurally generated maps with rivers and bridges, lava/acid/water pools, multi-tile buildings that enemies tunnel under and crew can stand on for extra range, and props placed by context
 - 5 crew roles, 4 enemy factions in 15 categories (medics, shields, splitters, stealth, jammers, plus ranged shooters, reinforcement carriers, teleporters, berserkers and burrowers) and 3 tiers, elite traits, 20 bosses with signature mechanics, mini-bosses, and difficulty that keeps climbing through the run
+- Naval and air hostiles: boats sail up rivers, shell the banks and land troops near the drill; gunships fly straight in and strafe crew
+- Faction artifacts dropped by bosses and fielded beside the crew: a freight barge that makes water buildable, a bulldozer that blocks the road, an executive helicopter that airlifts crew, an orbital billing strike, a broadcast van, a livestream blimp, a tamed sky ray platform and a brood nest of allied hunters
 - Randomly generated crew with quirks who keep their look through the run and can be injured
 - Roguelike performance reviews: perk cards each rank, a permanent specialisation at rank 4, capstones at rank 5, and executive perks beyond, with rerolls (appeals) and declines
 - Faction envoys who interrupt deployments with pleas and bribes: accept a deal and your crew must let marked enemies through, betray it, or report it to HR. Each faction has a three-beat arc with unique rewards, and HR's emails, the news ticker, eight endings and even who rescues you when you're abandoned follow your choices

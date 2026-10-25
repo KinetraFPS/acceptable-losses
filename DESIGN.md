@@ -212,6 +212,27 @@ Seven trope worlds, each with its own ground and path palette, path treatment, g
 | **Solarpunk Commune** | Solarpunk | Mossy stone pavers | Solar panels, planters, fruit trees, beehives, fountains | Wind turbine or garden tower | Pollen and butterflies | Garden World, Terraformed Paradise (gold solar rings) |
 | Forge World | Lava hellscape | Basalt tiles with glowing cracks | Obsidian, lava pools, mining drills, basalt columns, steam vents | Ruined forge tower | Rising embers | Forge World, Hell Moon |
 
+## Naval and air hostiles
+- **Naval** (Ore Barge, Repo Patrol Boat, Protest Flotilla, Snapjaw): appear from contract 3 on maps whose water reaches the edge. They sail the river from the map edge to the water nearest the drill (`computeWaterPath`), shell crew on the banks, then land `unload + tier` troops on the nearest road (`navalUnload`).
+- **Gunships** (Survey Copter, Repo Gunship, News Chopper, Sky Ray): fly straight at the drill and strafe crew on the way. Only anti-air crew can hit them.
+- Both have 4-frame sprites per faction: spinning rotors, a flapping manta, and bobbing hulls with a wake.
+
+## Artifacts
+Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parachutes in and holds an artifact from that boss's faction. If you already own both of that faction's artifacts, it upgrades one instead (up to level 3). You keep artifacts for the whole run. Each one gets a card in the roster bar: deploy it once per contract, and use the active ability when it is ready.
+
+| Faction | Artifact | Placement | Effect |
+|---|---|---|---|
+| Union | Union Freight Barge | Water | A deck crew can stand on, with +20% range |
+| Union | Picket Line Bulldozer | Road | Stops enemies dead until it is destroyed (600 HP + 300 per level), then rebuilds after 20s |
+| Rival | Executive Helicopter | Ground (pad) | A door gunner, plus Airlift: pick up a crew member and drop them anywhere buildable (cooldown 15s − 2s per level) |
+| Rival | Orbital Billing Satellite | None | An orbital strike on a target area (cooldown 25s − 3s per level) |
+| Activists | Pirate Broadcast Van | Ground | An aura that slows and marks enemies |
+| Activists | Livestream Blimp | Anywhere | Marks enemies over a wide area so crew deal more damage |
+| Fauna | Tamed Sky Ray | Anywhere | A flying platform for one crew member, with +15% range |
+| Fauna | Brood Nest | Ground | Hatches allied hunters that chase enemies |
+
+The auto-play bot does not use artifacts. It wins about 2–7% of two-sector runs (60 runs).
+
 ## Crew progression: performance reviews
 Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per rank) and a **performance review** in which you pick a card. Reviews can be held mid-contract (click the highlighted crew card, or press R; the game pauses) or between contracts ("Hold performance reviews").
 

@@ -243,6 +243,12 @@ button{font:inherit;color:inherit}
 @keyframes sheen{to{background-position:200% 0}}
 @media (prefers-reduced-motion:reduce){.pop-in,.screen,.screen > .paper,.card,.banner.show,.banner.show b,.meter i::after,.crew.rev{animation:none!important}.banner.show{opacity:1;transform:none}}
 
+.crew.art{box-shadow:inset 0 0 0 var(--b) color-mix(in srgb,var(--ac) 55%,var(--line));background:color-mix(in srgb,var(--ac) 10%,var(--panel))}
+.crew.art .nm{color:var(--ac)}
+.crew.art.ready{animation:artready 1.4s ease-in-out infinite}
+@keyframes artready{50%{box-shadow:inset 0 0 0 var(--b) var(--ac),0 0 14px color-mix(in srgb,var(--ac) 60%,transparent)}}
+.crew.art.sel{box-shadow:inset 0 0 0 var(--b) var(--ac),0 0 0 2px var(--ac)}
+
 /* tower info + toast */
 .tinfo{position:absolute;left:10px;top:10px;width:min(260px,calc(100% - 20px));padding:13px;display:flex;flex-direction:column;gap:9px;font-size:14px}
 .tinfo h4{margin:0;font:400 26px/.95 var(--f-display)}
@@ -1664,6 +1670,7 @@ function finishVariant(kind, r, frames) {
 }
 function makeVariant(facKey, cat) {
   const col = FACTIONS[facKey].color;
+  if (cat === 'naval' || cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => (cat === 'naval' ? navalSprite : gunshipSprite)(facKey, col, f)));
   if (facKey === 'fauna') {
     const c = mixHex(col, pick(['#a8f06a', '#4fdc9a', '#d0e85a', '#6ad0c0']), rnd() * 0.5);
     const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm, splitter: crSac, stealth: crLizard, medic: crNurse, ranged: crSpitter, burrower: crWyrm, berserk: crRavager }[cat];
@@ -2871,7 +2878,7 @@ function startMission(contract) {
     deal: S.pendingDeal ? makeDeal(S.pendingDeal, contract) : null, allies: null,
   };
   S.pendingDeal = null;
-  startAllies(M); initPortals(M);
+  startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade;
@@ -2893,7 +2900,7 @@ function deployRefusal(tx, ty) {
   if (v === 1 || v === 4) return 'Crew cannot stand on the path. Union rules (ours).';
   return 'Cannot deploy there';
 }
-function canBuild(tx, ty) { const v = M.grid[ty][tx]; return (v === 0 || v === 6 || v === 7) && !towerAtTile(tx, ty); }
+function canBuild(tx, ty) { const v = M.grid[ty][tx]; return (v === 0 || v === 6 || v === 7 || !!platformAt(tx, ty)) && !towerAtTile(tx, ty) && !artBlocks(tx, ty); }
 
 function towerStats(crew, tw) {
   const b = TOWERS[crew.type], L = crew.level;
@@ -2911,6 +2918,7 @@ function towerStats(crew, tw) {
   if (has('poster')) s.dmg *= 1.12;
   if (has('scope')) s.range *= 1.12;
   if (tw && tw.roof) s.range *= 1.15;
+  if (tw && tw.plat && M) { const pa = platformAt(tw.tx, tw.ty); s.range *= 1 + (tw.plat === 'boat' ? 0.2 : 0.15) + 0.05 * (((pa && pa.level) || 1) - 1); }
   if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) s.dmg *= 1.2;
   if (has('tasers') && crew.type === 'taser') s.dmg *= 2;
   if (has('intern') && crew.type === 'marksman') s.rate *= 1.25;
@@ -3008,6 +3016,7 @@ function damage(e, dmg, pierce, tw, quiet) {
         buildRosterBar();
       }
     }
+    if (e.boss && !e.child && (!e.mini || rnd() < 0.4)) dropArtifact(e);
     if (e.boss && (e === M.boss || !e.mini)) { M.boss = null; toast(`${e.name} neutralised`, 2400); }
   }
 }
@@ -3021,7 +3030,7 @@ function deploy(crewIdx, tx, ty) {
   M.budget -= fee;
   sfx('deploy', tx * TILE);
   const st = towerStats(crew);
-  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0, roof: M.grid[ty][tx] >= 6 });
+  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0, roof: M.grid[ty][tx] >= 6, plat: platformAt(tx, ty) ? ARTIFACTS[platformAt(tx, ty).id].kind : null });
   M.deployedIds.add(crew.id);
   S.selCrew = -1;
   buildRosterBar();
@@ -3048,7 +3057,8 @@ function genWave() {
   if (idx === 0) { delete weights.saboteur; if (weights.armored) weights.armored *= 0.5; }
   for (const k of SPECIALS) if (weights[k]) { if (idx === 0) delete weights[k]; else weights[k] *= Math.min(1, idx / 2.5); }
   // the nastier behaviours (ranged, carriers, blinkers, berserkers, burrowers) arrive from contract 3
-  for (const k of ['ranged', 'carrier', 'blinker', 'berserk', 'burrower']) if (weights[k]) { if (idx < 2) delete weights[k]; else weights[k] *= Math.min(1, (idx - 1) / 3); }
+  if (weights.naval && (idx < 2 || !m.waterPath)) delete weights.naval;
+  for (const k of ['ranged', 'carrier', 'blinker', 'berserk', 'burrower', 'gunship']) if (weights[k]) { if (idx < 2) delete weights[k]; else weights[k] *= Math.min(1, (idx - 1) / 3); }
   const list = []; let guard = 0;
   while (budget > 0.5 && guard++ < 40) {
     const cat = wpick(weights);
@@ -3068,7 +3078,7 @@ function genWave() {
   }
 }
 function spawnEnemy(q) {
-  const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = M.paths[q.sp];
+  const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = C.naval && M.waterPath ? M.waterPath : M.paths[q.sp];
   const hp = C.hp * Tt.hp * (1 + 0.22 * diffLevel(c.idx) + 0.03 * diffLevel(c.idx) ** 2) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
   const armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3));
   const e = {
@@ -3086,6 +3096,7 @@ function spawnEnemy(q) {
   if (C.jam) e.jamAura = { r: 1.6, amt: C.jam };
   if (C.split) e.split = C.split + q.tier;
   if (C.cloak) e.cloakT = rnd() * 5;
+  if (C.naval) { e.naval = true; e.unload = C.unload; e.sp = -1; }
   if (C.shoot) e.shoot = { ...C.shoot, dmg: C.shoot.dmg * (1 + 0.35 * q.tier) * (1 + 0.1 * c.idx) };
   if (C.carry) { e.spawn = { ...C.carry }; e.spawnCd = C.carry.every * 0.6; }
   if (C.blink) e.blink = { ...C.blink };
@@ -3119,7 +3130,7 @@ function spawnBoss(B, mini, child) {
     healAura: B.healAura, shieldAura: B.shieldAura, jamAura: B.jamAura,
     charge: iv(B.charge), shockwave: iv(B.shockwave), barrage: iv(B.barrage), blink: iv(B.blink), bubble: B.bubble, shed: B.shed, splitDeath: B.splitDeath, secondWind: B.secondWind,
   };
-  if (child) e.name = B.name;
+  if (child) { e.name = B.name; e.child = true; }
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e); if (!child) { sfx('bossIn'); portalSpawn(e); }
   if (mini) { if (!child) toast(`Mini-boss: ${e.name}`, 2600); return e; }
@@ -3170,7 +3181,7 @@ function stepMission(dt) {
       if (!m.c.boss && m.c.idx >= 2 && !m.miniSpawned && m.t >= m.T * 0.65) { m.miniSpawned = true; spawnBoss(pick(m.c.fac.bosses), true); }
     }
   }
-  stepDeal(dt); stepAllies(dt);
+  stepDeal(dt); stepAllies(dt); stepArtifacts(dt);
   if (m.queue.length) {
     m.queue.sort((a, b) => a.at - b.at);
     while (m.queue.length && m.queue[0].at <= m.t) portalSpawn(spawnEnemy(m.queue.shift()));
@@ -3237,6 +3248,7 @@ function stepMission(dt) {
       }
     }
     if (e.vulnT > 0) e.vulnT -= dt;
+    if (e.holdT > 0) { e.holdT -= dt; e.target = null; continue; }
     if (e.stunT > 0) { e.stunT -= dt; e.target = null; continue; }
     const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1) * (e.rallyT > 0 ? e.rallyMult : 1) * (e.burrowed ? 1.6 : 1) * (e.chargeT > 0 ? e.charge.mult : 1) * (e.rage ? 1 + 0.9 * (1 - e.hp / e.maxhp) : 1) * (e.aimSlow || 1);
     if (e.sab && !e.inTunnel) {
@@ -3299,7 +3311,7 @@ function stepMission(dt) {
     if (tw.flash > 0) tw.flash -= dt;
     tw.recoil *= Math.exp(-dt * 14);
     if (tw.muzzle > 0) tw.muzzle -= dt;
-    if (tw.down) continue;
+    if (tw.down || tw.lifted) continue;
     tw.gear = crewVis(tw.crew);
     if (tw.gear.tier >= 3 && rnd() < dt * (tw.gear.tier - 1.5)) addPart({ x: tw.x + (rnd() - 0.5) * 14, y: tw.y + 4, vx: 0, vy: -16, life: 0.9, max: 0.9, col: tw.gear.accent, size: 1, layer: 'px' });
     if (tw.offline > 0) { tw.offline -= dt; continue; }
@@ -3428,6 +3440,7 @@ function stepMission(dt) {
   }
 }
 function leak(e) {
+  if (e.naval) { navalUnload(e); return; }
   // only the contract boss circles back for more; understudies take their cut and leave
   if (e.boss && !e.mini) {
     loseMargin(e.cost, e.x, e.y);
@@ -3523,7 +3536,8 @@ function renderMission(now) {
   for (const e of m.enemies) { const w = e.boss ? 13 : e.fly ? 4 : e.v.kind === 'vehicle' ? 8 : 5, ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 4; g.fillRect(ax - w, ay - 1, w * 2, 2); g.fillRect(ax - w + 1, ay - 2, w * 2 - 2, 1); }
   // y-sorted world
   const list = [];
-  for (const tw of m.towers) list.push([tw.y + 6, () => drawTowerPx(g, tw, t)]);
+  for (const tw of m.towers) if (!tw.lifted) list.push([tw.y + 6, () => drawTowerPx(g, tw, t)]);
+  artDrawList(list, g, t);
   for (const e of m.enemies) if (!e.fly) list.push([e.y, () => { drawEnemyPx(g, e, t); drawDealMark(g, e, t); drawThreatMarks(g, e, t); }]);
   for (const a of m.allies || []) list.push([a.y, () => drawAllyPx(g, a, t)]);
   list.push([m.dep.y, () => drawDepositPx(g, t)]);
@@ -3557,6 +3571,13 @@ function renderMission(now) {
   }
   // fliers above everything on the ground
   for (const e of m.enemies) if (e.fly) { drawEnemyPx(g, e, t); drawDealMark(g, e, t); drawThreatMarks(g, e, t); }
+  drawArtAir(g, t); drawArtPreview(g, t);
+  // artifact crates parachuting down where a boss fell
+  for (const c of m.crates || []) {
+    const k = Math.min(1, c.t / 1.0), cx = Math.round(c.x / AP), cy = Math.round(c.y / AP - 40 * (1 - k)), col = ARTIFACTS[c.id].col;
+    if (k < 1) { pxCircle(g, cx, cy - 12, 6, '#eef2f5'); g.clearRect(cx - 7, cy - 11, 15, 7); pxLine(g, cx - 6, cy - 12, cx - 2, cy - 3, '#9aa3ad'); pxLine(g, cx + 6, cy - 12, cx + 2, cy - 3, '#9aa3ad'); }
+    px(g, cx - 4, cy - 4, 9, 7, '#5a3a22'); px(g, cx - 4, cy - 4, 9, 1, '#8a6a44'); px(g, cx - 1, cy - 3, 3, 5, col); if (Math.floor(c.t * 8) % 2) px(g, cx, cy - 6, 1, 1, '#ffffff');
+  }
   // health bars
   for (const e of m.enemies) {
     if (!(e.hp < e.maxhp || e.boss) || e._bx == null) continue;
@@ -3586,6 +3607,7 @@ function renderMission(now) {
   glow(m.dep.x, m.dep.y - 8, 66, '#b98cff', 0.3 + 0.07 * Math.sin(t * 2));
   if (m.phase === 'drill' && Math.floor(t * 3) % 2) glow(m.dep.x + 1, m.dep.y - 34, 12, '#ffd23f', 0.8);
   for (const l of m.lights) glow(l.x, l.y, l.r, l.color, (l.flicker ? 0.3 + 0.2 * Math.sin(t * 7 + l.x) : 0.4) * (l.pulse ? 0.45 + 0.4 * Math.sin(t * 4) : 1));
+  for (const a of m.arts || []) if (a.deployed) { const A = ARTIFACTS[a.id], lx = A.kind === 'heli' ? a.hx : a.x, ly = A.kind === 'heli' ? a.hy : A.kind === 'blimp' ? a.y - 32 : a.y; glow(lx, ly, A.kind === 'van' || A.kind === 'blimp' ? 22 : 14, A.col, 0.3 + 0.1 * Math.sin(t * 3)); if (A.kind === 'van' || A.kind === 'blimp') glow(a.x, a.y, ((A.kind === 'van' ? 2.5 : 3.2) + 0.3 * (a.level - 1)) * TILE, A.col, 0.06); }
   for (const p of m.portals || []) { const cx = p.tx * TILE + TILE / 2, cy = p.ty * TILE + TILE / 2; glow(cx, cy, 26 + 40 * p.open, '#3af0ff', 0.12 + 0.45 * p.open + (p.beam > 0 ? 0.3 : 0)); }
   glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);
   for (const tw of m.towers) {
@@ -3604,6 +3626,8 @@ function renderMission(now) {
   for (const f of m.fx) {
     if (f.delay > 0) continue;
     const k = clamp(f.life / f.max, 0, 1);
+    if (f.k === 'orbital') { ctx.fillStyle = rgba('#3af0ff', 0.55 * k); ctx.fillRect(f.x - 10 * k, 0, 20 * k, f.y); ctx.fillStyle = rgba('#ffffff', 0.9 * k); ctx.fillRect(f.x - 3 * k, 0, 6 * k, f.y); ctx.strokeStyle = rgba('#bff8ff', k); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.2 - k * 0.2), 0, Math.PI * 2); ctx.stroke(); continue; }
+    if (f.k === 'target') { ctx.strokeStyle = rgba('#3af0ff', 0.4 + 0.5 * Math.abs(Math.sin(f.life * 20))); ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.6 + 0.4 * k), 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); continue; }
     if (f.k === 'drop') { ctx.fillStyle = rgba('#3af0ff', 0.45 * k); ctx.fillRect(f.x - 7, f.y - 240, 14, 240); ctx.fillStyle = rgba('#ffffff', 0.75 * k); ctx.fillRect(f.x - 2, f.y - 240, 4, 240); continue; }
     if (f.k === 'tracer') {
       ctx.lineCap = 'round';
@@ -3921,7 +3945,7 @@ function updateHud() {
   const bs = document.getElementById('bStart'); if (bs) bs.hidden = m.phase !== 'prep';
   set('bPause', 't', m.paused ? 'Resume' : 'Pause');
   document.querySelectorAll('[data-act="speed"]').forEach(b => b.classList.toggle('on', +b.dataset.v === m.speed));
-  updateDealHud();
+  updateDealHud(); updateArtCards();
   if (has('schedule')) set('hWave', 't', m.waveTxt || 'Awaiting first wave');
   // keep roster affordability fresh
   if (hudCache.budgetSeen !== m.budget) { hudCache.budgetSeen = m.budget; refreshRosterAfford(); }
@@ -3941,7 +3965,7 @@ function buildRosterBar() {
     $('#bar').innerHTML = `<div class="roster" role="toolbar" aria-label="Crew roster"></div><div class="ticker" aria-hidden="true"><span>${RUN.story.news.slice(-4).reverse().concat(TICKER).map(s => '<b>KINDLY NEWS</b> ' + esc(s)).join(' &nbsp;·&nbsp; ')}</span></div>`;
     roster = $('#bar .roster');
   }
-  roster.innerHTML = html;
+  roster.innerHTML = html + artCardsHtml();
   refreshRosterAfford();
 }
 function refreshRosterAfford() {
@@ -5187,6 +5211,357 @@ resolveReview = (f => function (id) { const r = f(id); if (id) { confetti(null, 
 showReview = (f => function (cr) { const r = f(cr); stagger($('#modal'), '.perk', 90); return r; })(showReview);
 startMission = (f => function (o) { const r = f(o); revealWipe(); return r; })(startMission);
 
+// ---------- naval and air hostiles ----------
+// Gunships fly straight for the drill, shooting crew on the way. Naval craft sail up the
+// map's river or canal, shell crew on the banks, then unload troops onto the nearest road.
+Object.assign(CATS, {
+  gunship: { label: 'Gunship', hp: 70, spd: 0.9, armor: 2, bounty: 8, cost: 4, r: 11, threat: 6, fly: true, shoot: { range: 2.8, dmg: 9, every: 1.4 }, desc: 'Flies straight for the drill and strafes crew on the way. Only anti-air crew can hit it.' },
+  naval:   { label: 'Naval', hp: 95, spd: 0.85, armor: 3, bounty: 8, cost: 3, r: 12, threat: 6, naval: true, shoot: { range: 2.4, dmg: 6, every: 2 }, unload: 4, desc: 'Sails up the water, shells crew on the banks and unloads troops near the drill.' },
+});
+Object.assign(FACTIONS.union.cats, { naval: 1.2, gunship: 0.9 }); Object.assign(FACTIONS.union.names, { naval: 'Ore Barge', gunship: 'Survey Copter' });
+Object.assign(FACTIONS.rival.cats, { naval: 1.2, gunship: 1.3 }); Object.assign(FACTIONS.rival.names, { naval: 'Repo Patrol Boat', gunship: 'Repo Gunship' });
+Object.assign(FACTIONS.activists.cats, { naval: 1.3, gunship: 1 }); Object.assign(FACTIONS.activists.names, { naval: 'Protest Flotilla', gunship: 'News Chopper' });
+Object.assign(FACTIONS.fauna.cats, { naval: 1.2, gunship: 1.1 }); Object.assign(FACTIONS.fauna.names, { naval: 'Snapjaw', gunship: 'Sky Ray' });
+// a helicopter body with a spinning rotor (4 frames)
+function heliSprite(body, stripe, glass, f, extra) {
+  const P = painter(26, 14), d = shade(body, -0.3);
+  P.r(2, 6, 9, 2, body); P.r(0, 4, 3, 4, d); P.p(1, 3, stripe);
+  P.ell(15, 8, 7, 4, body); P.r(9, 8, 12, 1, stripe); P.ell(19, 7, 3, 2.4, glass); P.p(20, 6, '#ffffff');
+  P.r(10, 12, 12, 1, '#2b2f36'); P.p(12, 11, '#2b2f36'); P.p(19, 11, '#2b2f36');
+  P.r(15, 3, 1, 2, '#2b2f36');
+  const L = [[4, 22], [10, 16], [6, 20], [12, 14]][f % 4]; P.r(15 - (L[1] >> 1), 2, L[1], 1, f % 2 ? '#9aa3ad' : '#d6dde5');
+  P.p(1, 4 + (f % 2), '#d6dde5');
+  if (extra) extra(P);
+  postProcess(P.c); return { c: P.c, ax: 13, ay: 10 };
+}
+function gunshipSprite(facKey, col, f) {
+  if (facKey === 'union') return heliSprite('#e8b830', '#d23c3c', '#9fd3ff', f, P => { P.r(13, 10, 4, 2, '#5a4a2a'); });
+  if (facKey === 'rival') { const s = heliSprite('#1e2229', '#e0455c', '#ff8a9a', f, P => { P.r(18, 10, 6, 1, '#4a4e5a'); P.r(23, 10, 2, 1, '#ff4d6d'); P.r(8, 9, 4, 2, '#4a4e5a'); }); s.lights = [{ x: 24, y: 10, color: '#ff4d6d', r: 8 }]; return s; }
+  if (facKey === 'activists') { const s = heliSprite('#eef2f5', '#ff3ad6', '#9fd3ff', f, P => { P.r(10, 6, 5, 2, '#d23c3c'); P.p(11, 6, '#ffffff'); P.r(19, 10, 3, 2, '#2b2f36'); P.p(21, 10, '#ff4d6d'); }); s.lights = [{ x: 21, y: 10, color: '#ff4d6d', r: 7, pulse: true }]; return s; }
+  // fauna: a manta that flaps instead of rotors
+  const P = painter(24, 14), d = shade(col, -0.3), w = [0, -2, 0, 2][f % 4];
+  P.line(3, 7 + w, 12, 6, d); P.line(21, 7 + w, 12, 6, d);
+  for (let x = 4; x <= 20; x++) { const h = Math.round(3.2 - Math.abs(x - 12) / 3.5), yo = Math.round(w * Math.abs(x - 12) / 9); if (h > 0) P.r(x, 6 + yo - (h >> 1), 1, h, Math.abs(x - 12) < 3 ? col : d); }
+  P.p(14, 5, '#ff5ad1'); P.p(10, 5, '#ff5ad1'); P.line(12, 8, 12, 12, d); P.p(12, 13, '#c8ffa0');
+  postProcess(P.c); return { c: P.c, ax: 12, ay: 8, lights: [{ x: 12, y: 6, color: '#9be564', r: 10 }] };
+}
+// boats float on the water with a little bob; the snapjaw swims half-submerged
+function navalSprite(facKey, col, f) {
+  const P = painter(24, 14), bob = f % 2;
+  if (facKey === 'fauna') {
+    const d = shade(col, -0.35);
+    P.ell(12, 9 + bob, 9, 2.4, d); for (let x = 5; x < 19; x += 3) P.p(x, 7 + bob, '#d8d0b0');
+    P.ell(20, 8 + bob, 3.2, 2, col); P.r(21, 9 + bob, 3, 1, '#f2efe6'); P.p(20, 7 + bob, '#ffd23f');
+    P.line(3, 9 + bob, 0, 9 + ((f >> 1) ? 1 : -1), d);
+    for (let x = 2; x < 22; x += 2) P.p(x, 11, 'rgba(255,255,255,0.6)');
+    postProcess(P.c); return { c: P.c, ax: 12, ay: 11 };
+  }
+  const hull = { union: '#b8582a', rival: '#4a4e5a', activists: '#ff7a1a' }[facKey], d = shade(hull, -0.3);
+  P.r(2, 8 + bob, 20, 3, hull); P.r(4, 11 + bob, 17, 1, d); P.r(20, 8 + bob, 3, 2, hull); P.r(2, 8 + bob, 20, 1, shade(hull, 0.25));
+  if (facKey === 'union') { P.r(4, 6 + bob, 12, 2, '#8a6a44'); for (let x = 5; x < 15; x += 3) { P.r(x, 3 + bob, 2, 3, '#e8b83a'); P.p(x, 3 + bob, '#fff2a0'); } P.r(16, 4 + bob, 4, 4, '#5a3a22'); P.r(17, 5 + bob, 2, 1, '#ffd890'); P.r(18, 0 + bob, 1, 4, '#9aa3ad'); P.r(19, 0 + bob, 3, 2, '#d23c3c'); }
+  else if (facKey === 'rival') { P.r(8, 5 + bob, 9, 3, '#2a2e38'); P.r(10, 5 + bob, 5, 1, '#ff8a9a'); P.r(16, 6 + bob, 7, 1, '#1e2229'); P.r(3, 7 + bob, 4, 1, '#e0455c'); P.r(12, 2 + bob, 1, 3, '#9aa3ad'); P.p(12, 2 + bob, '#ff4d6d'); }
+  else { P.ell(12, 8 + bob, 10, 2.4, '#ff7a1a'); for (const [x, c] of [[6, '#2c8a4a'], [12, '#d23c3c'], [17, '#3d6bff']]) { P.r(x, 1 + bob, 1, 7, '#7a5a3a'); P.r(x - 2, 1 + bob, 5, 3, '#f2efe6'); P.r(x - 1, 2 + bob, 3, 1, c); } }
+  for (let x = 0; x < 24; x += 2) if ((x + f) % 4 < 2) P.p(x, 13, 'rgba(255,255,255,0.7)');
+  postProcess(P.c); return { c: P.c, ax: 12, ay: 11, lights: facKey === 'rival' ? [{ x: 12, y: 2, color: '#ff4d6d', r: 8, pulse: true }] : [] };
+}
+// the route boats take: along connected water from a map edge to the water closest to the drill
+function computeWaterPath(m) {
+  const isW = (x, y) => x >= 0 && y >= 0 && x < GW && y < GH && (m.grid[y][x] === 5 || (m.map.bridges || []).some(b => b.x === x && b.y === y));
+  const prev = new Map(), q = [];
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if ((x === 0 || y === 0 || x === GW - 1 || y === GH - 1) && isW(x, y)) { prev.set(y * GW + x, -1); q.push([x, y]); }
+  for (let i = 0; i < q.length; i++) { const [x, y] = q[i]; for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy, k = ny * GW + nx; if (isW(nx, ny) && !prev.has(k)) { prev.set(k, y * GW + x); q.push([nx, ny]); } } }
+  if (!q.length) return null;
+  const dx0 = m.dep.x / TILE - 0.5, dy0 = m.dep.y / TILE - 0.5;
+  const [tx, ty] = q.reduce((a, b) => Math.hypot(b[0] - dx0, b[1] - dy0) < Math.hypot(a[0] - dx0, a[1] - dy0) ? b : a);
+  const out = []; let k = ty * GW + tx;
+  while (k !== -1 && k != null) { out.push({ x: (k % GW) * TILE + TILE / 2, y: Math.floor(k / GW) * TILE + TILE / 2 }); k = prev.get(k); }
+  out.reverse();
+  return out.length >= 5 ? out : null;
+}
+// a boat at the end of its route lands its troops on the nearest stretch of road
+function navalUnload(e) {
+  let best = null, bd = Infinity;
+  M.paths.forEach((p, pi) => p.forEach((pt, wi) => { const d = Math.hypot(pt.x - e.x, pt.y - e.y); if (d < bd) { bd = d; best = { pi, wi }; } }));
+  if (best) {
+    const n = e.unload + e.tier, cat = M.c.facKey === 'fauna' ? 'swarm' : (CATS.fast && M.c.fac.cats.fast ? 'fast' : 'swarm');
+    for (let i = 0; i < n; i++) { const a = spawnEnemy({ cat: i % 2 ? cat : 'swarm', tier: Math.max(0, e.tier - 1), sp: best.pi }); const pt = M.paths[best.pi][best.wi]; a.x = pt.x + (rnd() - 0.5) * 16; a.y = pt.y + (rnd() - 0.5) * 16; a.wi = Math.min(best.wi + 1, M.paths[best.pi].length - 1); a.dist = best.wi * TILE; }
+    fxText(e.x, e.y - 18, 'TROOPS LANDING', '#ff9f43');
+  }
+  for (let k = 0; k < 8; k++) addPart({ x: e.x + (rnd() - 0.5) * 20, y: e.y, vx: (rnd() - 0.5) * 40, vy: -30 - rnd() * 30, g: 200, floor: e.y + 6, life: 0.6, max: 0.6, col: '#e8f6ff', size: 1, layer: 'px' });
+  e.gone = true;
+}
+
+// ================================================================
+// ARTIFACTS. Bosses drop faction kit that fights alongside the crew for the rest of the
+// run: platforms that let crew stand on water or anywhere, a helicopter that airlifts crew,
+// a bulldozer that holds the road, an orbital strike, auras and an allied nest.
+// Duplicate drops upgrade the artifact.
+// ================================================================
+const ARTIFACTS = {
+  barge:   { fac: 'union', name: 'Union Freight Barge', kind: 'boat', place: 'liquid', col: '#b8582a', desc: 'Moor it on any water tile. Crew can stand on deck and get +20% range (+5% per level).' },
+  dozer:   { fac: 'union', name: 'Picket Line Bulldozer', kind: 'dozer', place: 'path', col: '#e8b830', desc: 'Park it across a road. Hostiles stop to batter it (600 HP, +300 per level); it rebuilds 20s after being wrecked.' },
+  heli:    { fac: 'rival', name: 'Executive Helicopter', kind: 'heli', place: 'ground', col: '#e0455c', desc: 'Lands on a pad. Its door gunner fires at anything nearby, and it airlifts a crew member to any free tile (cooldown 15s, -2s per level).' },
+  orbital: { fac: 'rival', name: 'Orbital Billing Satellite', kind: 'orbital', place: 'none', col: '#3af0ff', desc: 'Click to call a laser down on any point: heavy damage in a wide circle (cooldown 25s, -3s and +50% damage per level).' },
+  van:     { fac: 'activists', name: 'Pirate Broadcast Van', kind: 'van', place: 'ground', col: '#ff3ad6', desc: 'Jams the area: hostiles within 2.5 tiles are slowed 35%, take 15% more damage and lose their cloaks. Bigger and stronger per level.' },
+  blimp:   { fac: 'activists', name: 'Livestream Blimp', kind: 'blimp', place: 'any', col: '#ff6fae', desc: 'Floats over any tile. Everything within 3.2 tiles is on camera: +25% damage taken, no cloaking. Wider per level.' },
+  ray:     { fac: 'fauna', name: 'Tamed Sky Ray', kind: 'ray', place: 'free', col: '#4fdc9a', desc: 'Hovers over any tile that is not road, even water or rubble. A crew member can ride it for +15% range (+5% per level).' },
+  nest:    { fac: 'fauna', name: 'Brood Nest', kind: 'nest', place: 'ground', col: '#7bdc6a', desc: 'Hatches four allied skitterlings every 10s (+2 per level) that hunt the nearest hostiles.' },
+};
+const ARTIFACT_IDS = Object.keys(ARTIFACTS);
+// ---------- drops ----------
+function dropArtifact(e) {
+  const fac = M.c.facKey, pool = ARTIFACT_IDS.filter(id => ARTIFACTS[id].fac === fac);
+  if (!pool.length) return;
+  RUN.artifacts = RUN.artifacts || [];
+  const owned = RUN.artifacts.map(a => a.id), fresh = pool.filter(id => !owned.includes(id));
+  const id = fresh.length ? pick(fresh) : pick(pool);
+  M.crates = M.crates || [];
+  M.crates.push({ id, x: e.x, y: e.y, t: 0 });
+}
+function stepCrates(dt) {
+  for (const c of M.crates || []) {
+    c.t += dt;
+    if (c.t > 1.4 && !c.got) {
+      c.got = true;
+      const a = RUN.artifacts.find(x => x.id === c.id), A = ARTIFACTS[c.id];
+      if (a) a.level++; else RUN.artifacts.push({ id: c.id, level: 1 });
+      const lvl = (a ? a.level : 1);
+      // usable straight away in this contract
+      const ma = M.arts.find(x => x.id === c.id); if (ma) ma.level = lvl; else M.arts.push(newMissionArt({ id: c.id, level: 1 }));
+      banner(a ? 'Artifact upgraded' : 'Artifact recovered', `${A.name}${a ? ' · level ' + lvl : ''}`, A.col);
+      const sp = stagePos(c.x, c.y); confetti(sp.x, sp.y, 40, [A.col, '#ffd23f', '#ffffff']); sfx('promote', c.x);
+      buildRosterBar();
+    }
+  }
+  if (M.crates) M.crates = M.crates.filter(c => c.t < 1.8);
+}
+// ---------- in the mission ----------
+const newMissionArt = a => ({ id: a.id, level: a.level, deployed: false, cd: 0, hp: 0, down: 0, t: 0 });
+function startArtifacts(m) {
+  m.arts = (RUN.artifacts || []).map(newMissionArt);
+  m.strikes = []; m.crates = [];
+}
+const artAt = (tx, ty) => M.arts && M.arts.find(a => a.deployed && a.tx === tx && a.ty === ty && ARTIFACTS[a.id].place !== 'none');
+// platforms (barge, sky ray) make their tile buildable; pads, vans, nests and dozers block it
+function platformAt(tx, ty) { const a = artAt(tx, ty); return a && (ARTIFACTS[a.id].kind === 'boat' || ARTIFACTS[a.id].kind === 'ray') ? a : null; }
+function artBlocks(tx, ty) { const a = artAt(tx, ty); return !!a && !platformAt(tx, ty) && ARTIFACTS[a.id].kind !== 'blimp'; }
+function canPlaceArt(a, tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return false;
+  const v = M.grid[ty][tx], A = ARTIFACTS[a.id], dep = M.map.dep;
+  if (artAt(tx, ty) || (tx === dep.x && ty === dep.y)) return false;
+  switch (A.place) {
+    case 'liquid': return v === 5;
+    case 'path': return v === 1 && !(M.map.bridges || []).some(b => b.x === tx && b.y === ty);
+    case 'ground': return (v === 0 || v === 6) && !towerAtTile(tx, ty);
+    case 'any': return v !== 4;
+    case 'free': return (v === 0 || v === 2 || v === 5 || v === 6) && !towerAtTile(tx, ty);
+  }
+  return false;
+}
+function deployArt(a, tx, ty) {
+  if (!canPlaceArt(a, tx, ty)) { toast('The artifact cannot go there.', 1400); sfx('deny'); return false; }
+  Object.assign(a, { deployed: true, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, hp: artMaxHp(a), down: 0 });
+  if (ARTIFACTS[a.id].kind === 'heli') { a.hx = a.x; a.hy = a.y - 30; }
+  S.selArt = null; sfx('deploy', a.x); fxText(a.x, a.y - 20, ARTIFACTS[a.id].name.toUpperCase(), ARTIFACTS[a.id].col);
+  buildRosterBar(); return true;
+}
+const artMaxHp = a => ARTIFACTS[a.id].kind === 'dozer' ? 600 + 300 * (a.level - 1) : 1;
+const artCooldown = a => ARTIFACTS[a.id].kind === 'heli' ? Math.max(6, 15 - 2 * (a.level - 1)) : ARTIFACTS[a.id].kind === 'orbital' ? Math.max(10, 25 - 3 * (a.level - 1)) : 0;
+function stepArtifacts(dt) {
+  const m = M; if (!m.arts) return;
+  stepCrates(dt);
+  for (const a of m.arts) {
+    a.t += dt; if (a.cd > 0) a.cd -= dt;
+    const A = ARTIFACTS[a.id];
+    if (!a.deployed) continue;
+    if (A.kind === 'dozer') {
+      if (a.down > 0) { if ((a.down -= dt) <= 0) { a.hp = artMaxHp(a); fxText(a.x, a.y - 18, 'REBUILT', '#e8b830'); } continue; }
+      for (const e of m.enemies) {
+        if (e.dead || e.fly || e.naval || e.invuln || Math.hypot(e.x - a.x, e.y - a.y) > 16) continue;
+        e.holdT = 0.12; a.hp -= (e.boss ? 45 : 5 + 4 * e.tier) * dt;
+        if (rnd() < dt * 4) sparks(a.x + (rnd() - 0.5) * 10, a.y - 6, '#ffd23f', 1);
+      }
+      if (a.hp <= 0) { a.down = 20; smoke(a.x, a.y, 10); shake(3); sfx('bigboom', a.x); fxText(a.x, a.y - 18, 'WRECKED', '#ff4d5e'); }
+    } else if (A.kind === 'van' || A.kind === 'blimp') {
+      const r = (A.kind === 'van' ? 2.5 : 3.2) + 0.3 * (a.level - 1);
+      for (const e of m.enemies) {
+        if (e.dead || Math.hypot(e.x - a.x, e.y - a.y) > r * TILE) continue;
+        markE(e, (A.kind === 'van' ? 0.15 : 0.25) + 0.05 * (a.level - 1), 0.3);
+        if (A.kind === 'van') applySlow(e, 0.35 + 0.05 * (a.level - 1), 0.3);
+      }
+    } else if (A.kind === 'nest') {
+      a.spawnT = (a.spawnT ?? 3) - dt;
+      if (a.spawnT <= 0 && (m.phase === 'drill' || m.phase === 'evac')) {
+        a.spawnT = 10;
+        const v = m.pool.hunter || (m.pool.hunter = makeVariant('fauna', 'swarm'));
+        for (let k = 0; k < 4 + 2 * (a.level - 1); k++) { const h = newAlly('hunter', v, m.paths[0], 40); h.x = a.x + (rnd() - 0.5) * 16; h.y = a.y + (rnd() - 0.5) * 16; h.delay = k * 0.12; m.allies.push(h); }
+        smoke(a.x, a.y, 4);
+      }
+    } else if (A.kind === 'heli') stepHeli(a, dt);
+  }
+  // orbital strikes land after a short targeting delay
+  for (const s of m.strikes) {
+    s.t -= dt;
+    if (s.t <= 0 && !s.hit) {
+      s.hit = true; shake(6); sfx('thunder', s.x);
+      m.fx.push({ k: 'orbital', x: s.x, y: s.y, r: s.r, life: 0.6, max: 0.6 });
+      for (const e of m.enemies) if (!e.dead && !e.deal && Math.hypot(e.x - s.x, e.y - s.y) <= s.r) damage(e, s.dmg * (e.boss ? 0.6 : 1), true, null);
+      sparks(s.x, s.y, '#bff8ff', 14);
+    }
+  }
+  m.strikes = m.strikes.filter(s => !s.hit);
+}
+// the helicopter hovers over its pad shooting, or flies an airlift: pad -> crew -> destination -> pad
+function stepHeli(a, dt) {
+  const m = M, fl = a.lift;
+  if (fl) {
+    const tgt = fl.stage === 0 ? fl.tw : fl.stage === 1 ? fl.dest : { x: a.x, y: a.y - 30 };
+    const tx = tgt.x, ty = tgt.y - (fl.stage === 2 ? 0 : 26), dx = tx - a.hx, dy = ty - a.hy, d = Math.hypot(dx, dy), sp = 260 * dt;
+    if (d <= sp) {
+      a.hx = tx; a.hy = ty;
+      if (fl.stage === 0) { fl.tw.lifted = true; fl.stage = 1; sfx('beam', a.hx); }
+      else if (fl.stage === 1) {
+        const tw = fl.tw; tw.tx = fl.dest.tx; tw.ty = fl.dest.ty; tw.x = fl.dest.x; tw.y = fl.dest.y; tw.lifted = false;
+        tw.roof = M.grid[tw.ty][tw.tx] >= 6; tw.plat = platformAt(tw.tx, tw.ty) ? ARTIFACTS[platformAt(tw.tx, tw.ty).id].kind : null;
+        fxText(tw.x, tw.y - 22, 'DEPLOYED', '#3af0ff'); smoke(tw.x, tw.y + 6, 5); fl.stage = 2;
+        if (S.selTower === tw) renderTowerInfo();
+      } else a.lift = null;
+    } else { a.hx += dx / d * sp; a.hy += dy / d * sp; }
+    return;
+  }
+  a.hx = a.x + Math.sin(a.t * 1.3) * 4; a.hy = a.y - 30 + Math.sin(a.t * 2.1) * 2;
+  // door gunner
+  a.gunCd = (a.gunCd || 0) - dt;
+  if (a.gunCd <= 0) {
+    let best = null, bd = 3 * TILE;
+    for (const e of m.enemies) { if (e.dead || e.invuln || e.deal) continue; const d = Math.hypot(e.x - a.hx, e.y - a.hy); if (d < bd) { bd = d; best = e; } }
+    if (best) {
+      a.gunCd = 0.35;
+      m.fx.push({ k: 'tracer', x1: a.hx, y1: a.hy + 6, x2: best.x, y2: ecy(best), life: 0.06, max: 0.06, color: '#ff8a9a', w: 1 });
+      damage(best, 5 * (1 + 0.5 * (a.level - 1)), false, null); sfx('gun', a.hx);
+    }
+  }
+}
+// ---------- input: placing, airlifts and strikes ----------
+function artPointer(tl, p) {
+  const a = S.selArt && M.arts.find(x => x.id === S.selArt);
+  if (a && !a.deployed) { deployArt(a, tl.tx, tl.ty); return true; }
+  const mode = S.artMode; if (!mode) return false;
+  const art = M.arts.find(x => x.id === mode.id);
+  if (ARTIFACTS[art.id].kind === 'orbital') {
+    M.strikes.push({ x: p.x, y: p.y, r: 1.3 * TILE, t: 0.8, dmg: 320 * (1 + 0.5 * (art.level - 1)) * (1 + 0.15 * diffLevel(M.c.idx)) });
+    M.fx.push({ k: 'target', x: p.x, y: p.y, r: 1.3 * TILE, life: 0.8, max: 0.8 });
+    art.cd = artCooldown(art); S.artMode = null; toast('Orbital billing in progress.', 1200); sfx('overcharge', p.x); buildRosterBar(); return true;
+  }
+  if (!mode.tw) {
+    const tw = towerAtTile(tl.tx, tl.ty);
+    if (!tw || tw.down) { toast('Pick a crew member to airlift.', 1400); return true; }
+    mode.tw = tw; toast(`Now pick where to drop ${tw.crew.name}.`, 1600); return true;
+  }
+  if (!canBuild(tl.tx, tl.ty)) { toast(deployRefusal(tl.tx, tl.ty), 1400); return true; }
+  art.lift = { tw: mode.tw, dest: { tx: tl.tx, ty: tl.ty, x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2 }, stage: 0 };
+  art.cd = artCooldown(art); S.artMode = null; sfx('start', art.hx); buildRosterBar(); return true;
+}
+function artCardClick(id) {
+  const a = M.arts.find(x => x.id === id), A = ARTIFACTS[id]; if (!a) return;
+  S.selCrew = -1; S.selTower = null; renderTowerInfo();
+  if (A.place !== 'none' && !a.deployed) { S.selArt = S.selArt === id ? null : id; S.artMode = null; toast(S.selArt ? `Place the ${A.name}.` : 'Cancelled.', 1300); }
+  else if (A.kind === 'heli' || A.kind === 'orbital') {
+    if (a.cd > 0) { toast(`${A.name} is recharging: ${Math.ceil(a.cd)}s.`, 1200); sfx('deny'); return; }
+    if (A.kind === 'heli' && a.lift) return;
+    S.artMode = S.artMode && S.artMode.id === id ? null : { id }; S.selArt = null;
+    toast(S.artMode ? (A.kind === 'heli' ? 'Pick a crew member to airlift.' : 'Click where the laser should land.') : 'Cancelled.', 1500);
+  } else toast(`${A.name} is deployed.`, 1000);
+  buildRosterBar();
+}
+function artCardsHtml() {
+  return (M.arts || []).map(a => {
+    const A = ARTIFACTS[a.id], active = A.kind === 'heli' || A.kind === 'orbital';
+    const status = A.place !== 'none' && !a.deployed ? 'Deploy · free' : active ? (a.cd > 0 ? `${Math.ceil(a.cd)}s` : A.kind === 'heli' ? 'Airlift ready' : 'Strike ready') : a.down > 0 ? 'Rebuilding' : 'Deployed';
+    const sel = S.selArt === a.id || (S.artMode && S.artMode.id === a.id);
+    return `<button class="crew art${sel ? ' sel' : ''}${active && a.cd <= 0 && (a.deployed || A.place === 'none') ? ' ready' : ''}" data-act="art" data-id="${a.id}" style="--ac:${A.col}" title="${esc(A.name)}: ${esc(A.desc)}">
+      <img class="pt" src="${artIconUrl(a.id)}" alt="" style="--rc:${A.col}"><span class="nm">${esc(A.name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span><span class="meta" data-artmeta="${a.id}">${status}</span></button>`;
+  }).join('');
+}
+function updateArtCards() {
+  for (const a of (M && M.arts) || []) {
+    const el = document.querySelector(`[data-artmeta="${a.id}"]`); if (!el) continue;
+    const A = ARTIFACTS[a.id], active = A.kind === 'heli' || A.kind === 'orbital';
+    if (active && (a.deployed || A.place === 'none')) { const txt = a.cd > 0 ? `${Math.ceil(a.cd)}s` : A.kind === 'heli' ? 'Airlift ready' : 'Strike ready'; if (el.textContent !== txt) { el.textContent = txt; el.parentElement.classList.toggle('ready', a.cd <= 0); } }
+    else if (A.kind === 'dozer' && a.deployed) { const txt = a.down > 0 ? `Rebuilding ${Math.ceil(a.down)}s` : `${Math.max(0, Math.round(a.hp))} HP`; if (el.textContent !== txt) el.textContent = txt; }
+  }
+}
+// ---------- sprites ----------
+const ART_CACHE = {};
+function artSprite(id, f = 0) {
+  const key = id + f; if (ART_CACHE[key]) return ART_CACHE[key];
+  let P;
+  switch (id) {
+    case 'barge': P = painter(22, 16); P.r(1, 8, 20, 5, '#b8582a'); P.r(1, 8, 20, 1, '#d8784a'); P.r(3, 13, 17, 1, '#7a3a1a'); P.r(2, 6, 18, 2, '#8a6a44'); for (let x = 3; x < 19; x += 3) P.r(x, 6, 1, 2, '#6a4a2a'); P.r(16, 2, 4, 4, '#5a3a22'); P.r(17, 3, 2, 1, '#ffd890'); P.r(4, 0, 1, 6, '#9aa3ad'); P.r(5, 0, 4, 3, '#d23c3c'); P.r(1, 10, 20, 1, '#d23c3c'); break;
+    case 'dozer': P = painter(22, 16); P.r(2, 11, 16, 4, '#2b2f36'); for (let k = 0; k < 6; k++) P.p(3 + k * 3 + (f % 2), 12, '#59606b'); P.r(4, 5, 12, 6, '#e8b830'); P.r(9, 1, 6, 5, '#c89a20'); P.r(10, 2, 4, 2, '#9fd3ff'); P.r(17, 4, 3, 11, '#9aa3ad'); P.r(19, 4, 2, 11, '#6a707a'); P.r(5, 7, 4, 1, '#d23c3c'); P.r(3, 0, 1, 6, '#9aa3ad'); P.r(4, 0, 3, 2, '#d23c3c'); break;
+    case 'heli': return (ART_CACHE[key] = heliSprite('#1e2229', '#e0455c', '#9fd3ff', f, P2 => { P2.r(9, 9, 3, 1, '#ffd23f'); }));
+    case 'orbital': P = painter(18, 18); P.r(7, 6, 4, 6, '#c8ccd4'); P.r(7, 6, 4, 1, '#ffffff'); P.r(1, 8, 6, 2, '#2a5aa8'); P.r(11, 8, 6, 2, '#2a5aa8'); P.r(1, 8, 6, 1, '#8ac4ff'); P.r(11, 8, 6, 1, '#8ac4ff'); P.ell(9, 14, 2, 1.5, '#3af0ff'); P.r(8, 2, 2, 4, '#9aa3ad'); P.p(9, 1, '#ff4d6d'); break;
+    case 'van': P = painter(22, 16); P.r(1, 5, 20, 8, '#ff3ad6'); P.r(2, 4, 13, 1, '#ff3ad6'); P.r(15, 6, 5, 3, '#9fd3ff'); P.r(3, 7, 4, 3, '#ffd23f'); P.r(8, 7, 3, 3, '#3af0ff'); P.r(12, 8, 2, 2, '#7bdc6a'); P.ell(5, 13.5, 2, 2, '#1b1d22'); P.ell(17, 13.5, 2, 2, '#1b1d22'); P.ell(8, 1.5, 3, 1.5, '#e8eef4'); P.r(8, 2, 1, 3, '#9aa3ad'); P.r(13, 1, 4, 2, '#2b2f36'); P.r(17, 0, 2, 3, '#2b2f36'); break;
+    case 'blimp': P = painter(28, 18); P.ell(13, 7, 12, 6, '#eef2f5'); P.ell(11, 5, 7, 2.5, '#ffffff'); P.r(1, 3, 3, 8, '#c8ccd4'); P.r(0, 6, 5, 2, '#c8ccd4'); P.r(8, 5, 10, 5, '#1a1c26'); P.r(9, 6, 3, 3, '#d23c3c'); P.r(13, 6, 4, 1, '#ff6fae'); P.r(13, 8, 3, 1, '#ff6fae'); P.r(10, 13, 6, 3, '#4a4e5a'); P.r(11, 14, 4, 1, '#9fd3ff'); break;
+    case 'ray': { P = painter(24, 14); const w = [0, -2, 0, 2][f % 4]; for (let x = 2; x <= 22; x++) { const h = Math.round(3.6 - Math.abs(x - 12) / 3.2), yo = Math.round(w * Math.abs(x - 12) / 10); if (h > 0) P.r(x, 7 + yo - (h >> 1), 1, h, Math.abs(x - 12) < 4 ? '#4fdc9a' : '#2a8a6a'); } for (const x of [8, 12, 16]) P.p(x, 6, '#c8ffe8'); P.line(12, 9, 12, 13, '#2a8a6a'); P.p(12, 5, '#ffd23f'); break; }
+    case 'nest': P = painter(20, 16); P.ell(10, 11, 9, 5, '#5a3a4a'); P.ell(10, 10, 7, 3.5, '#7a4a6a'); for (const [x, y] of [[6, 9], [10, 8], [14, 9], [8, 11], [12, 11]]) { P.ell(x, y, 1.8, 1.6, '#e8f0c8'); P.p(x, y - 1, '#ffffff'); } P.p(10, 4, '#7bdc6a'); P.line(4, 9, 2, 4, '#5a3a4a'); P.line(16, 9, 18, 4, '#5a3a4a'); break;
+  }
+  postProcess(P.c);
+  return (ART_CACHE[key] = { c: P.c, ax: P.c.width >> 1, ay: P.c.height - 2 });
+}
+const ART_ICONS = {};
+function artIconUrl(id) {
+  if (ART_ICONS[id]) return ART_ICONS[id];
+  const s = artSprite(id), c = mkCanvas(30, 30), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const k = Math.min(30 / s.c.width, 30 / s.c.height); g.drawImage(s.c, (30 - s.c.width * k) / 2, (30 - s.c.height * k) / 2, s.c.width * k, s.c.height * k);
+  return (ART_ICONS[id] = c.toDataURL());
+}
+// ground-level artifacts go into the depth-sorted draw list; the blimp and helicopter fly over everything
+function artDrawList(list, g, t) {
+  for (const a of M.arts || []) {
+    if (!a.deployed) continue;
+    const A = ARTIFACTS[a.id], ax = Math.round(a.x / AP), ay = Math.round(a.y / AP);
+    if (A.kind === 'boat' || A.kind === 'ray') list.push([a.y - 2, () => {
+      const f = Math.floor(t * 6) % 4, s = artSprite(a.id, A.kind === 'ray' ? f : 0), bob = A.kind === 'ray' ? Math.round(Math.sin(t * 2) * 1) - 4 : Math.round(Math.sin(t * 2.4));
+      if (A.kind === 'ray') { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(ax - 8, ay + 6, 16, 2); }
+      g.drawImage(s.c, ax - s.ax, ay + 7 - s.ay + bob);
+    }]);
+    else if (A.kind === 'heli') list.push([a.y - 4, () => { px(g, ax - 7, ay - 3, 14, 10, '#3a3e4a'); px(g, ax - 6, ay - 2, 12, 8, '#2a2e38'); px(g, ax - 3, ay - 1, 1, 6, '#ffd23f'); px(g, ax + 2, ay - 1, 1, 6, '#ffd23f'); px(g, ax - 2, ay + 1, 4, 1, '#ffd23f'); }]);
+    else if (A.kind !== 'blimp') list.push([a.y, () => { const s = artSprite(a.id, Math.floor(t * 6) % 2); if (A.kind === 'dozer' && a.down > 0) { g.globalAlpha = 0.45; } g.drawImage(s.c, ax - s.ax, ay + 7 - s.ay); g.globalAlpha = 1; if (A.kind === 'dozer' && a.down <= 0 && a.hp < artMaxHp(a)) { px(g, ax - 7, ay - 12, 14, 1, '#1a1a22'); px(g, ax - 7, ay - 12, Math.round(14 * a.hp / artMaxHp(a)), 1, '#ffd23f'); } }]);
+  }
+}
+function drawArtAir(g, t) {
+  for (const a of M.arts || []) {
+    if (!a.deployed) continue;
+    const A = ARTIFACTS[a.id];
+    if (A.kind === 'blimp') { const s = artSprite('blimp'), ax = Math.round(a.x / AP + Math.sin(t * 0.6) * 3), ay = Math.round(a.y / AP - 16 + Math.sin(t * 1.1)); g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(ax - 9, Math.round(a.y / AP) + 6, 18, 2); g.drawImage(s.c, ax - s.ax, ay - s.ay); if (Math.floor(t * 2) % 2) px(g, ax - 4, ay - 10, 2, 2, '#ff2a3a'); }
+    if (A.kind === 'heli') {
+      const s = artSprite('heli', Math.floor(t * 20) % 4), hx = Math.round(a.hx / AP), hy = Math.round(a.hy / AP);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(hx - 8, hy + 18, 16, 2);
+      const fl = a.lift, flip = fl && fl.stage < 2 && (fl.stage === 0 ? fl.tw.x : fl.dest.x) < a.hx;
+      if (flip) { g.save(); g.translate(2 * hx, 0); g.scale(-1, 1); g.drawImage(s.c, hx - s.ax, hy - s.ay); g.restore(); } else g.drawImage(s.c, hx - s.ax, hy - s.ay);
+      if (fl && fl.stage === 1) { const sp = crewSprites(fl.tw.crew).f[0]; px(g, hx, hy + 4, 1, 4, '#9aa3ad'); g.drawImage(sp, hx - 7, hy + 6); }
+    }
+  }
+}
+// placement and targeting previews
+function drawArtPreview(g, t) {
+  if (!S.hover || S.screen !== 'mission') return;
+  const tl = tileAt(S.hover.x, S.hover.y); if (!tl) return;
+  const a = S.selArt && M.arts.find(x => x.id === S.selArt);
+  if (a && !a.deployed) {
+    const ok = canPlaceArt(a, tl.tx, tl.ty), x0 = tl.tx * ATILE, y0 = tl.ty * ATILE, c = ok ? ARTIFACTS[a.id].col : '#ff4d5e';
+    for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [17, 0, -1, 1], [0, 17, 1, -1], [17, 17, -1, -1]]) { px(g, x0 + cx + (sx < 0 ? -3 : 0), y0 + cy, 4, 1, c); px(g, x0 + cx, y0 + cy + (sy < 0 ? -3 : 0), 1, 4, c); }
+    if (ok) { const s = artSprite(a.id); g.globalAlpha = 0.65; g.drawImage(s.c, x0 + 9 - s.ax, y0 + 16 - s.ay); g.globalAlpha = 1; }
+  }
+  const mode = S.artMode;
+  if (mode) {
+    const A = ARTIFACTS[mode.id];
+    if (A.kind === 'orbital') { const r = 1.3 * TILE / AP, cx = S.hover.x / AP, cy = S.hover.y / AP, N = 48; for (let k = 0; k < N; k++) if ((k + Math.floor(t * 20)) % 3) px(g, Math.round(cx + Math.cos(k / N * 6.283) * r), Math.round(cy + Math.sin(k / N * 6.283) * r), 1, 1, '#3af0ff'); px(g, Math.round(cx) - 3, Math.round(cy), 7, 1, '#3af0ff'); px(g, Math.round(cx), Math.round(cy) - 3, 1, 7, '#3af0ff'); }
+    else { const x0 = tl.tx * ATILE, y0 = tl.ty * ATILE, ok = mode.tw ? canBuild(tl.tx, tl.ty) : !!towerAtTile(tl.tx, tl.ty), c = ok ? '#e0455c' : '#ff4d5e'; g.globalAlpha = 0.35 + 0.2 * Math.sin(t * 8); px(g, x0, y0, ATILE, ATILE, c); g.globalAlpha = 1; }
+  }
+}
+
 // ---------- finishing a mission ----------
 function finishMission(success) {
   const m = M, c = m.c;
@@ -5371,6 +5746,7 @@ function showStore() {
       ${titlebar('Personnel.db')}
       <h3>Roster ${RUN.roster.length}/8</h3><div class="rlist">${rosterHtml}</div>
       <h3>Relics</h3><div class="relics">${relicHtml}</div>
+      <h3>Artifacts</h3><div class="relics">${(RUN.artifacts || []).length ? RUN.artifacts.map(a => `<span class="relic" style="color:${ARTIFACTS[a.id].col}" title="${esc(ARTIFACTS[a.id].desc)}">${esc(ARTIFACTS[a.id].name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span>`).join('') : '<span class="colony">Kill a boss to recover one.</span>'}</div>
     </div>
   </div></div>`;
 }
@@ -5456,7 +5832,9 @@ document.addEventListener('click', ev => {
   else if (act === 'start') { if (M && M.phase === 'prep') { M.phase = 'drill'; sfx('start'); toast('Extraction started. No breaks.', 1600); } }
   else if (act === 'pause') { if (M) M.paused = !M.paused; }
   else if (act === 'speed') { if (M) { M.speed = +b.dataset.v; M.paused = false; } }
+  else if (act === 'art') artCardClick(b.dataset.id);
   else if (act === 'crew') {
+    S.selArt = null; S.artMode = null;
     const cr = RUN.roster[i];
     if (cr.dead && !M.deployedIds.has(cr.id)) { replaceCrew(cr); return; }
     if (cr.reviews.length && !cr.snooze && !cr.dead) { showReview(cr); return; }
@@ -5498,6 +5876,7 @@ cv.addEventListener('pointerdown', ev => {
   if (S.screen !== 'mission' || !M) return;
   S.hover = p;
   const tl = tileAt(p.x, p.y); if (!tl) return;
+  if (artPointer(tl, p)) return;
   const tw = towerAtTile(tl.tx, tl.ty);
   if (tw) { S.selTower = tw; S.selCrew = -1; renderTowerInfo(); buildRosterBar(); return; }
   if (S.selCrew >= 0) {
@@ -5524,7 +5903,7 @@ document.addEventListener('keydown', ev => {
   if (modal || S.screen !== 'mission' || !M) return;
   if (ev.key === ' ') { ev.preventDefault(); if (M.phase === 'prep') { M.phase = 'drill'; sfx('start'); } else M.paused = !M.paused; }
   else if (ev.key >= '1' && ev.key <= '8') { const i = +ev.key - 1; if (RUN.roster[i] && !M.deployedIds.has(RUN.roster[i].id)) { S.selCrew = S.selCrew === i ? -1 : i; buildRosterBar(); } }
-  else if (ev.key === 'Escape') { S.selCrew = -1; S.selTower = null; renderTowerInfo(); buildRosterBar(); }
+  else if (ev.key === 'Escape') { S.selArt = null; S.artMode = null; S.selCrew = -1; S.selTower = null; renderTowerInfo(); buildRosterBar(); }
 });
 
 // ---------- main loop ----------
@@ -5542,7 +5921,7 @@ function frame(now) {
 // test hook for automated playtesting
 window.__AL = {
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
-  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
+  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
 
 resize(); showTitle(); requestAnimationFrame(frame);
