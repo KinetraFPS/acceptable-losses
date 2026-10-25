@@ -998,48 +998,123 @@ function enDrone(col, facKey, f) {
   else { P.p(8, 4, '#fff2a0'); P.r(7, 6, 1, 2, '#9aa3ad'); }
   postProcess(P.c); return { c: P.c, ax: 7, ay: 5, lights: [{ x: 8, y: 5, color: facKey === 'rival' ? '#ff5d73' : '#fff2a0', r: 8 }] };
 }
+// ---------- walk cycles ----------
+// Creatures have 4 frames. f = 0..3 is the phase of the stride: a foot is planted forward at 0,
+// slides back under the body at 1, is furthest back at 2, then lifts and swings forward at 3.
+const gaitPh = f => f * Math.PI / 2;
+function legStep(P, x, y, len, ph, col, stride = 1.5) {
+  const sw = Math.round(Math.cos(ph) * stride), lift = Math.sin(ph) < -0.5 ? 1 : 0;
+  const kx = x + Math.round(sw / 2) + (lift ? 1 : 0), ky = y + Math.ceil(len / 2) - lift;
+  P.line(x, y, kx, ky, col); P.line(kx, ky, x + sw, y + len - lift, col);
+}
+// insects: a tripod gait, alternate legs on each side in step
 function crBug(c, f) {
-  const P = painter(13, 10), d = shade(c, -0.3);
-  for (let i = 0; i < 3; i++) { const x = 4 + i * 2, o = (i + f) % 2; P.p(x, 7, d); P.p(x - 1 + o * 2, 8, d); }
-  P.ell(6, 5, 4, 2.6, c); P.ell(10, 5, 2.2, 2.2, d); P.p(11, 4, '#ff5ad1'); P.p(12, 6, d); P.p(4, 4, shade(c, 0.3)); P.p(6, 3, shade(c, 0.3));
+  const P = painter(13, 10), d = shade(c, -0.3), dd = shade(c, -0.5), ph = gaitPh(f), bob = f % 2 ? 0 : 0;
+  for (let i = 0; i < 3; i++) legStep(P, 4 + i * 2, 6, 2, ph + (i + 1) * Math.PI, dd, 1);
+  P.ell(6, 5 + bob, 4, 2.6, c); P.ell(10, 5 + (f % 2), 2.2, 2.2, d); P.p(11, 4 + (f % 2), '#ff5ad1'); P.p(12, 6, d); P.p(4, 4, shade(c, 0.3)); P.p(6, 3, shade(c, 0.3));
+  for (let i = 0; i < 3; i++) legStep(P, 4 + i * 2, 7, 2, ph + i * Math.PI, d, 1);
   postProcess(P.c); return { c: P.c, ax: 6, ay: 9 };
 }
-function crHound(c, f) {
-  const P = painter(17, 12), d = shade(c, -0.3);
-  for (const [x, o] of (f ? [[4, -1], [5, 1], [10, -1], [11, 1]] : [[4, 1], [5, -1], [10, 1], [11, -1]])) { P.r(x, 7, 1, 2, d); P.p(x + o, 9, d); }
-  P.ell(7.5, 5.5, 5.5, 2.6, c); P.ell(13, 4.5, 2.6, 2.2, c); P.r(14, 5, 2, 1, d); P.p(13, 3, '#ff5ad1');
-  for (let x = 4; x <= 10; x += 2) P.p(x, 2, shade(c, 0.45));
-  P.r(1, 4, 2, 1, d); P.p(0, 3, d);
-  postProcess(P.c); return { c: P.c, ax: 8, ay: 10 };
-}
 function crBeetle(c, f) {
-  const P = painter(18, 14), d = shade(c, -0.35);
-  for (let i = 0; i < 3; i++) { const x = 5 + i * 3, o = (i + f) % 2; P.r(x, 10, 1, 2, d); P.p(x + (o ? 1 : -1), 12, d); }
-  P.ell(8.5, 7, 7, 4.6, c); P.r(8, 3, 1, 8, d); P.ell(15, 8, 2.2, 2.2, d); P.p(16, 7, '#ff5ad1');
-  P.p(5, 5, shade(c, 0.4)); P.p(11, 5, shade(c, 0.4)); P.p(6, 8, d); P.p(12, 9, d);
+  const P = painter(18, 14), d = shade(c, -0.35), dd = shade(c, -0.5), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 3; i++) legStep(P, 5 + i * 3, 9, 3, ph + (i + 1) * Math.PI, dd);
+  P.ell(8.5, 7 + bob, 7, 4.6, c); P.r(8, 3 + bob, 1, 8, d); P.ell(15, 8 + bob, 2.2, 2.2, d); P.p(16, 7 + bob, '#ff5ad1');
+  P.p(5, 5 + bob, shade(c, 0.4)); P.p(11, 5 + bob, shade(c, 0.4)); P.p(6, 8 + bob, d); P.p(12, 9 + bob, d);
+  for (let i = 0; i < 3; i++) legStep(P, 5 + i * 3, 10, 3, ph + i * Math.PI, d);
   postProcess(P.c); return { c: P.c, ax: 9, ay: 13 };
 }
+// four legs: diagonal pairs move together; far legs are darker and drawn behind the body
+function crHound(c, f) {
+  const P = painter(17, 12), d = shade(c, -0.3), dd = shade(c, -0.5), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  legStep(P, 5, 7, 3, ph + Math.PI, dd); legStep(P, 11, 7, 3, ph, dd);
+  P.ell(7.5, 5.5 + bob, 5.5, 2.6, c); P.ell(13, 4.5 + bob + (f === 1 ? 1 : 0), 2.6, 2.2, c); P.r(14, 5 + bob + (f === 1 ? 1 : 0), 2, 1, d); P.p(13, 3 + bob, '#ff5ad1');
+  for (let x = 4; x <= 10; x += 2) P.p(x, 2 + bob, shade(c, 0.45));
+  const tw = [0, -1, 0, 1][f]; P.r(1, 4 + bob + tw, 2, 1, d); P.p(0, 3 + bob + tw, d);
+  legStep(P, 4, 7, 3, ph, d); legStep(P, 10, 7, 3, ph + Math.PI, d);
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 10 };
+}
+function crRavager(c, f) {
+  const P = painter(19, 14), d = shade(c, -0.35), dd = shade(c, -0.55), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  legStep(P, 6, 9, 4, ph + Math.PI, dd, 2); legStep(P, 13, 9, 4, ph, dd, 2);
+  P.ell(9, 7 + bob, 6.5, 3.4, c);
+  for (let x = 4; x <= 13; x += 2) { P.p(x, 3 + bob, '#f2efe6'); P.p(x, 4 + bob, shade(c, 0.3)); }
+  const hy = bob + (f === 3 ? 1 : 0);
+  P.ell(16, 6 + hy, 3, 2.6, c); P.r(16, 7 + hy, 3, 1, '#2a1a20'); P.p(18, 6 + hy, '#f2efe6'); P.p(17, 5 + hy, '#ff3a3a');
+  P.line(3, 6 + bob, 0, 4 + bob + [0, 1, 0, -1][f], c);
+  legStep(P, 4, 9, 4, ph, d, 2); legStep(P, 12, 9, 4, ph + Math.PI, d, 2);
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 12, lights: [{ x: 17, y: 5, color: '#ff3a3a', r: 6 }] };
+}
+// a lizard sprawls: the spine snakes side to side as the legs step
+function crLizard(c, f) {
+  const P = painter(18, 12), d = shade(c, -0.3), dd = shade(c, -0.5), ph = gaitPh(f), w = x => Math.round(Math.sin(x * 0.45 - ph) * 0.7);
+  legStep(P, 7, 6, 3, ph + Math.PI, dd, 2); legStep(P, 13, 6, 3, ph, dd, 2);
+  // one smooth body whose spine snakes as it walks
+  for (let x = 3; x <= 14; x++) { const half = x < 5 ? 1 : x > 12 ? 1.5 : 2; P.r(x, Math.round(5.5 + w(x) - half), 1, Math.round(half * 2), c); }
+  P.ell(15, 4.5 + w(15), 2.4, 2, c); P.p(16, 4 + w(15), '#ffd23f');
+  P.line(3, 5 + w(3), 0, 3 + w(0) * 2, c); P.p(0, 2 + w(0) * 2, c);
+  for (let x = 6; x <= 12; x += 2) P.p(x, 4 + w(x), shade(c, 0.35));
+  legStep(P, 5, 7, 3, ph, d, 2); legStep(P, 11, 7, 3, ph + Math.PI, d, 2);
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 10 };
+}
+// long bodies: a wave runs back down the body as it pulls itself forward
+function crWorm(c, f) {
+  const P = painter(16, 11), d = shade(c, -0.25), ph = gaitPh(f);
+  for (let i = 0; i < 5; i++) P.ell(2 + i * 2.4 + Math.cos(i * 1.3 - ph) * 0.4, 6 + Math.sin(i * 1.3 - ph) * 1.2, 2, 2, i % 2 ? d : c);
+  const hy = Math.round(Math.sin(5 * 1.3 - ph) * 0.6);
+  P.ell(13, 5.5 + hy, 2.6, 2.6, shade(c, -0.1)); P.r(14, 5 + hy, 2, 2, '#2a1a30'); P.p(15, 5 + hy, '#f2f2f2'); P.p(12, 4 + hy, '#ff5ad1');
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 9 };
+}
+function crWyrm(c, f) {
+  const P = painter(18, 14), d = shade(c, -0.3), ph = gaitPh(f);
+  P.ell(9, 12, 7, 2, '#5a4630'); P.p(3 + f * 3, 13, '#7a5e40'); P.p(14 - f * 2, 12, '#7a5e40');
+  for (let i = 0; i < 4; i++) P.ell(4 + i * 2.5 + Math.sin(i * 1.4 - ph) * 0.9, 11 - i * 2, 3.2 - i * 0.3, 2.6, i % 2 ? d : c);
+  const hx = Math.round(Math.sin(4 * 1.4 - ph) * 0.9), jaw = f % 2;
+  P.ell(13 + hx, 4, 3, 2.6, shade(c, 0.1)); P.p(15 + hx, 2 - jaw, '#e8e0d0'); P.p(16 + hx, 3 - jaw, '#e8e0d0'); P.p(15 + hx, 6 + jaw, '#e8e0d0'); P.p(16 + hx, 5 + jaw, '#e8e0d0'); P.p(13 + hx, 3, '#ff5ad1');
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 13 };
+}
+// a slug: ripples travel back along its foot
+function crSpitter(c, f) {
+  const P = painter(17, 13), d = shade(c, -0.3), dk = shade(c, -0.5);
+  P.ell(8, 10, 7, 2.6, d); P.ell(8 + (f % 2 ? 0.4 : 0), 9, 6.5, 2.4, c);
+  for (let x = 2; x <= 14; x++) if (((x + f * 2) % 4) === 0) P.p(x, 11, dk);
+  P.ell(7, 5 - (f % 2), 4, 3.6 + (f === 1 ? 0.4 : 0), '#b8f06a'); P.ell(6, 4 - (f % 2), 1.6, 1.2, '#efffc8'); P.p(9, 6 - (f % 2), '#7ac83a');
+  const hx = f === 0 ? 1 : f === 2 ? -0 : 0;
+  P.ell(14 + hx * 0.5, 8, 2.4, 2.2, c); P.r(15, 8, 2, 1, '#2a1a20'); P.p(16, 9 + (f % 2), '#b8f06a'); P.p(13, 7, '#ff5ad1');
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 12, lights: [{ x: 7, y: 5, color: '#9be564', r: 10 }] };
+}
+function crSac(c, f) {
+  const P = painter(16, 14), d = shade(c, -0.3), dd = shade(c, -0.5), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 3; i++) legStep(P, 5 + i * 4, 10, 2, ph + (i + 1) * Math.PI, dd, 1);
+  P.ell(8, 7 + bob, 6, 5 - (f % 2) * 0.3, shade(c, 0.1)); P.line(5, 3 + bob, 7, 10 + bob, d); P.line(11, 4 + bob, 9, 11 + bob, d);
+  for (const [x, y] of [[6, 6], [10, 7], [8, 9], [9, 4]]) P.p(x, y + bob, '#f4ffd0');
+  P.ell(13, 8 + bob, 1.6, 1.6, d); P.p(14, 7 + bob, '#ff5ad1');
+  for (let i = 0; i < 3; i++) legStep(P, 4 + i * 4, 11, 2, ph + i * Math.PI, d, 1);
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 12 };
+}
+function crNurse(c, f) {
+  const P = painter(14, 14), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  const foot = (x, p) => { const sw = Math.round(Math.cos(p)), lift = Math.sin(p) < -0.5 ? 1 : 0; P.r(x + sw, 11 - lift, 1, 1 + lift, '#cfc8b6'); P.p(x + sw, 12 - lift, '#cfc8b6'); };
+  foot(5, ph + Math.PI); P.r(5, 7 + bob, 4, 5, '#e8e0d0'); foot(8, ph);
+  P.ell(7, 5 + bob, 6, 3.5, '#d06ae0'); for (const [x, y] of [[4, 4], [9, 3], [7, 6]]) P.p(x, y + bob, '#ffd0ff');
+  P.p(6, 9 + bob, '#2a1a30'); P.p(8, 9 + bob, '#2a1a30'); P.r(1, 1 + (f % 2), 1, 1, '#c8ffa0'); P.r(12, 2 - (f % 2), 1, 1, '#c8ffa0');
+  postProcess(P.c); return { c: P.c, ax: 7, ay: 12, lights: [{ x: 7, y: 5, color: '#d06ae0', r: 12 }] };
+}
 function crJelly(c, f) {
-  const P = painter(14, 16), d = shade(c, -0.25);
-  P.ell(7, 6, 5.5, 5, c); P.g.clearRect(0, 8, 14, 8); P.r(2, 7, 10, 1, d);
-  for (let i = 0; i < 4; i++) { const x = 3 + Math.floor(i * 2.5); for (let y = 8; y < 14; y++) P.p(x + Math.round(Math.sin(y * 0.9 + f * 3 + i) * 0.8), y, i % 2 ? d : c); }
+  const P = painter(14, 16), d = shade(c, -0.25), ph = gaitPh(f), pulse = f % 2 ? 0.4 : 0;
+  P.ell(7, 6, 5.5 + pulse, 5 - pulse, c); P.g.clearRect(0, 8, 14, 8); P.r(2, 7, 10, 1, d);
+  for (let i = 0; i < 4; i++) { const x = 3 + Math.floor(i * 2.5); for (let y = 8; y < 14 - (f % 2); y++) P.p(x + Math.round(Math.sin(y * 0.9 - ph + i) * 0.9), y, i % 2 ? d : c); }
   P.p(5, 4, '#2a1a30'); P.p(9, 4, '#2a1a30'); P.p(4, 2, '#e8ffd8'); P.p(7, 3, '#e8ffd8');
   postProcess(P.c); return { c: P.c, ax: 7, ay: 8, lights: [{ x: 7, y: 5, color: c, r: 12 }] };
 }
-function crWorm(c, f) {
-  const P = painter(16, 11), d = shade(c, -0.25);
-  for (let i = 0; i < 5; i++) P.ell(2 + i * 2.4, 6 + Math.sin(i * 1.3 + f * Math.PI), 2, 2, i % 2 ? d : c);
-  P.ell(13, 5.5, 2.6, 2.6, shade(c, -0.1)); P.r(14, 5, 2, 2, '#2a1a30'); P.p(15, 5, '#f2f2f2'); P.p(12, 4, '#ff5ad1');
-  postProcess(P.c); return { c: P.c, ax: 8, ay: 9 };
-}
 function crMatriarch(c, f) {
-  const P = painter(38, 30), d = shade(c, -0.35);
-  for (let i = 0; i < 4; i++) { const x = 13 + i * 4, o = (i + f) % 2 ? 2 : -2; P.line(x, 17, x + o, 23, d); P.line(x + o, 23, x + o - 1, 26, d); }
-  P.ell(11, 15, 9.5, 7, c); for (let k = 0; k < 3; k++) P.r(5 + k * 5, 10, 2, 11, shade(c, -0.15));
-  P.ell(22, 13, 6, 5.5, shade(c, -0.08)); P.ell(30, 12, 4.5, 4, d);
-  P.p(32, 10, '#ff5ad1'); P.p(33, 12, '#ff5ad1'); P.p(31, 13, '#ff5ad1'); P.r(34, 14, 3, 1, '#f2e6c8'); P.r(34, 11, 2, 1, '#f2e6c8');
-  for (const [x, h] of [[27, 3], [29, 4], [31, 3]]) P.r(x, 8 - h, 1, h, '#ff5ad1');
-  for (const [x, y] of [[7, 13], [11, 17], [15, 12], [9, 19]]) P.p(x, y, '#e8ffd8');
+  const P = painter(38, 30), d = shade(c, -0.35), dd = shade(c, -0.55), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 4; i++) legStep(P, 14 + i * 4, 16, 9, ph + (i + 1) * Math.PI, dd, 2.5);
+  P.ell(11, 15 + bob, 9.5, 7, c); for (let k = 0; k < 3; k++) P.r(5 + k * 5, 10 + bob, 2, 11, shade(c, -0.15));
+  P.ell(22, 13 + bob, 6, 5.5, shade(c, -0.08)); P.ell(30, 12 + bob, 4.5, 4, d);
+  P.p(32, 10 + bob, '#ff5ad1'); P.p(33, 12 + bob, '#ff5ad1'); P.p(31, 13 + bob, '#ff5ad1'); P.r(34, 14 + bob + (f % 2), 3, 1, '#f2e6c8'); P.r(34, 11 + bob, 2, 1, '#f2e6c8');
+  for (const [x, h] of [[27, 3], [29, 4], [31, 3]]) P.r(x, 8 - h + bob, 1, h, '#ff5ad1');
+  for (const [x, y] of [[7, 13], [11, 17], [15, 12], [9, 19]]) P.p(x, y + bob, '#e8ffd8');
+  for (let i = 0; i < 4; i++) legStep(P, 13 + i * 4, 17, 9, ph + i * Math.PI, d, 2.5);
   postProcess(P.c); return { c: P.c, ax: 19, ay: 27, lights: [{ x: 11, y: 15, color: '#c8ffa0', r: 26 }, { x: 32, y: 11, color: '#ff5ad1', r: 10 }] };
 }
 function bossFrame(facKey, f, look) {
@@ -1083,29 +1158,6 @@ Object.assign(ENEMY_HUMANS.rival, {
   medic: () => ({ shirt: '#e8eef4', collar: '#3af0ff', pants: '#5a6a7a', prop: 'tablet' }),
 });
 // creatures for the wildlife specials
-function crSac(c, f) {
-  const P = painter(16, 14), d = shade(c, -0.3);
-  for (let i = 0; i < 3; i++) { const x = 4 + i * 4, o = (i + f) % 2; P.p(x, 11, d); P.p(x - 1 + o * 2, 12, d); }
-  P.ell(8, 7, 6, 5, shade(c, 0.1)); P.line(5, 3, 7, 10, d); P.line(11, 4, 9, 11, d);
-  for (const [x, y] of [[6, 6], [10, 7], [8, 9], [9, 4]]) P.p(x, y, '#f4ffd0');
-  P.ell(13, 8, 1.6, 1.6, d); P.p(14, 7, '#ff5ad1');
-  postProcess(P.c); return { c: P.c, ax: 8, ay: 12 };
-}
-function crLizard(c, f) {
-  const P = painter(18, 11), d = shade(c, -0.3);
-  for (const [x, o] of (f ? [[5, -1], [11, 1]] : [[5, 1], [11, -1]])) { P.r(x, 7, 1, 2, d); P.p(x + o, 9, d); P.r(x + 1, 7, 1, 2, d); }
-  P.ell(9, 5.5, 5.5, 2.4, c); P.ell(15, 4.5, 2.4, 2, c); P.p(16, 4, '#ffd23f'); P.p(16, 4, '#ffd23f');
-  P.line(4, 5, 1, 3, c); P.p(1, 2, c); P.p(2, 1, c);
-  for (let x = 6; x <= 12; x += 2) P.p(x, 4, shade(c, 0.35));
-  postProcess(P.c); return { c: P.c, ax: 9, ay: 9 };
-}
-function crNurse(c, f) {
-  const P = painter(14, 14), d = shade(c, -0.3);
-  P.r(5, 7, 4, 5, '#e8e0d0'); P.p(4 + f, 12, '#cfc8b6'); P.p(9 - f, 12, '#cfc8b6');
-  P.ell(7, 5, 6, 3.5, '#d06ae0'); for (const [x, y] of [[4, 4], [9, 3], [7, 6]]) P.p(x, y, '#ffd0ff');
-  P.p(6, 9, '#2a1a30'); P.p(8, 9, '#2a1a30'); P.r(1, 1, 1, 1, '#c8ffa0'); P.r(12, 2, 1, 1, '#c8ffa0');
-  postProcess(P.c); return { c: P.c, ax: 7, ay: 12, lights: [{ x: 7, y: 5, color: '#d06ae0', r: 12 }] };
-}
 // the second and third boss of every faction
 function bossFrameExtra(id, col, f, look) {
   switch (id) {
@@ -1122,7 +1174,7 @@ function bossFrameExtra(id, col, f, look) {
     }
     case 'leviathan': {
       const P = painter(46, 24), d = shade(col, -0.3);
-      for (let i = 0; i < 7; i++) { const x = 4 + i * 5, y = 13 + Math.round(Math.sin(i * 1.1 + f * Math.PI) * 2); P.ell(x, y, 4.5, 4.5, i % 2 ? d : col); P.p(x, y - 4, shade(col, 0.4)); }
+      for (let i = 0; i < 7; i++) { const x = 4 + i * 5, y = 13 + Math.round(Math.sin(i * 1.1 - gaitPh(f)) * 2); P.ell(x, y, 4.5, 4.5, i % 2 ? d : col); P.p(x, y - 4, shade(col, 0.4)); }
       P.ell(39, 11, 6.5, 6.5, shade(col, -0.1)); P.ell(41, 11, 3.5, 3.5, '#2a1a30');
       for (const [x, y] of [[40, 8], [43, 9], [43, 13], [40, 14], [38, 11]]) P.p(x, y, '#f2f2f2');
       P.p(36, 6, '#ff5ad1'); P.p(37, 5, '#ff5ad1');
@@ -1130,7 +1182,7 @@ function bossFrameExtra(id, col, f, look) {
     }
     case 'sporemother': {
       const P = painter(38, 34), d = shade('#b04ac8', -0.35);
-      for (let i = 0; i < 5; i++) { const x = 8 + i * 5, o = (i + f) % 2 ? 2 : -2; P.line(x, 22, x + o, 31, '#cfc8b6'); }
+      for (let i = 0; i < 5; i++) legStep(P, 8 + i * 5, 22, 9, gaitPh(f) + i * Math.PI, i % 2 ? '#b8b0a0' : '#cfc8b6', 2.5);
       P.r(13, 16, 12, 10, '#e8e0d0'); P.ell(19, 12, 17, 9, '#b04ac8'); P.ell(19, 15, 14, 3, d);
       for (const [x, y] of [[9, 9], [16, 6], [24, 8], [29, 11], [13, 12], [21, 11]]) P.ell(x, y, 1.6, 1.3, '#ffd0ff');
       P.p(16, 20, '#2a1a30'); P.p(22, 20, '#2a1a30'); for (const [x, y] of [[3, 3], [34, 5], [6, 18], [33, 20]]) P.p(x, y, '#c8ffa0');
@@ -1205,29 +1257,6 @@ Object.assign(ENEMY_HUMANS.activists, {
   blinker: () => ({ shirt: pick(PROTEST_COLS), hood: true, pants: '#22252b', mask: '#22252b', prop: 'phone' }),
 });
 // wildlife for the new behaviours
-function crSpitter(c, f) {
-  const P = painter(17, 13), d = shade(c, -0.3);
-  P.ell(8, 10, 7, 2.6, d); P.ell(8, 9, 6.5, 2.4, c);
-  P.ell(7, 5, 4, 3.6 + f * 0.4, '#b8f06a'); P.ell(6, 4, 1.6, 1.2, '#efffc8'); P.p(9, 6, '#7ac83a');
-  P.ell(14, 8, 2.4, 2.2, c); P.r(15, 8, 2, 1, '#2a1a20'); P.p(16, 9 + f, '#b8f06a'); P.p(13, 7, '#ff5ad1');
-  postProcess(P.c); return { c: P.c, ax: 8, ay: 12, lights: [{ x: 7, y: 5, color: '#9be564', r: 10 }] };
-}
-function crWyrm(c, f) {
-  const P = painter(18, 14), d = shade(c, -0.3), o = f ? 1 : -1;
-  P.ell(9, 12, 7, 2, '#5a4630');
-  for (let i = 0; i < 4; i++) P.ell(4 + i * 2.5 + (i % 2 ? o * 0.5 : 0), 11 - i * 2, 3.2 - i * 0.3, 2.6, i % 2 ? d : c);
-  P.ell(13 + o * 0.5, 4, 3, 2.6, shade(c, 0.1)); P.p(15, 2, '#e8e0d0'); P.p(16, 3, '#e8e0d0'); P.p(15, 6, '#e8e0d0'); P.p(16, 5, '#e8e0d0'); P.p(13, 3, '#ff5ad1');
-  postProcess(P.c); return { c: P.c, ax: 9, ay: 13 };
-}
-function crRavager(c, f) {
-  const P = painter(19, 14), d = shade(c, -0.35);
-  for (const [x, o] of (f ? [[4, -1], [12, 1]] : [[4, 1], [12, -1]])) { P.r(x, 9, 2, 3, d); P.p(x + o, 12, d); P.r(x + 2, 9, 2, 3, d); }
-  P.ell(9, 7, 6.5, 3.4, c);
-  for (let x = 4; x <= 13; x += 2) { P.p(x, 3, '#f2efe6'); P.p(x, 4, shade(c, 0.3)); }
-  P.ell(16, 6, 3, 2.6, c); P.r(16, 7, 3, 1, '#2a1a20'); P.p(18, 6, '#f2efe6'); P.p(17, 5, '#ff3a3a');
-  P.line(3, 6, 0, 4, c);
-  postProcess(P.c); return { c: P.c, ax: 9, ay: 12, lights: [{ x: 17, y: 5, color: '#ff3a3a', r: 6 }] };
-}
 
 // ---------- new bosses ----------
 FACTIONS.union.bosses.push(
@@ -1274,7 +1303,7 @@ function bossFrameMore(id, col, f, look) {
     }
     case 'hivemind': {
       const P = painter(42, 40);
-      for (let k = 0; k < 6; k++) { const x = 8 + k * 5, sw = Math.round(Math.sin(k + o * 2) * 2); P.line(x, 24, x + sw, 37, '#b04ac8'); P.p(x + sw, 38, '#ff9ff0'); }
+      for (let k = 0; k < 6; k++) { const x = 8 + k * 5, sw = Math.round(Math.sin(k * 0.9 - gaitPh(f)) * 2); P.line(x, 24, x + sw, 37, '#b04ac8'); P.p(x + sw, 38, '#ff9ff0'); }
       P.ell(21, 15, 17, 13, '#e88ac8'); P.ell(21, 12, 14, 9, '#f2a8dc');
       for (const [a, b, c2, d2] of [[10, 10, 18, 14], [26, 8, 33, 13], [15, 18, 25, 20], [9, 16, 14, 21]]) P.line(a, b, c2, d2, '#c050a0');
       P.line(21, 3, 21, 25, '#c050a0');
@@ -1283,7 +1312,7 @@ function bossFrameMore(id, col, f, look) {
     }
     case 'colossus': {
       const P = painter(50, 34), c2 = '#2f5e2a', d2 = '#1f3a1e';
-      for (let i = 0; i < 3; i++) { const x = 10 + i * 12, s = (i + o) % 2; P.line(x, 24, x - 3 + s * 2, 32, d2); P.line(x + 4, 24, x + 6 - s * 2, 32, d2); }
+      for (let i = 0; i < 3; i++) { const x = 10 + i * 12; legStep(P, x + 4, 23, 9, gaitPh(f) + (i + 1) * Math.PI, '#16301a', 3); legStep(P, x, 24, 8, gaitPh(f) + i * Math.PI, d2, 3); }
       P.ell(24, 18, 21, 11, c2); P.ell(24, 15, 18, 8, '#3f7a3a');
       for (let x = 8; x <= 40; x += 4) { P.line(x, 9, x - 1, 3, '#d8d0b0'); P.p(x - 1, 2, '#ffffff'); }
       P.line(24, 7, 24, 26, d2);
@@ -1470,7 +1499,7 @@ function makeVariant(facKey, cat) {
   if (facKey === 'fauna') {
     const c = mixHex(col, pick(['#a8f06a', '#4fdc9a', '#d0e85a', '#6ad0c0']), rnd() * 0.5);
     const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm, splitter: crSac, stealth: crLizard, medic: crNurse, ranged: crSpitter, burrower: crWyrm, berserk: crRavager }[cat];
-    return finishVariant('creature', [0, 1].map(f => gen(c, f)));
+    return finishVariant('creature', [0, 1, 2, 3].map(f => gen(c, f)));
   }
   if (cat === 'armored') { const gen = { union: vehTreads, activists: vehVan, rival: vehWalker }[facKey], skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => gen(col, skin, f))); }
   if (cat === 'flyer') return finishVariant('drone', [0, 1].map(f => enDrone(col, facKey, f)));
@@ -1484,7 +1513,7 @@ function makeVariant(facKey, cat) {
   const frames = [drawHuman(look, of, 'n', 0), drawHuman(look, of, 'a', 1), drawHuman(look, of, 'b', 1)];
   return finishVariant('human', [{ ax: 7, ay: 17, lights }], frames);
 }
-function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', [0, 1].map(f => bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
+function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', (facKey === 'fauna' ? [0, 1, 2, 3] : [0, 1]).map(f => bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
 function getVariant(cat) {
   const human = M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer';
   const pool = M.pool[cat] || (M.pool[cat] = Array.from({ length: human ? 10 : 3 }, () => makeVariant(M.c.facKey, cat)));
@@ -3648,10 +3677,11 @@ function drawEnemyPx(g, e, t) {
   if (e.cloaked) g.globalAlpha = 0.25 + 0.1 * Math.sin(t * 20);
   const v = e.v, ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + (e.fly ? -6 + Math.round(Math.sin(t * 3 + e.wob) * 1.5) : 4);
   let fi;
-  if (e.fly) fi = Math.floor(t * 16 + e.wob) % 2;
-  else if (e.target) fi = Math.floor(t * 8) % 2;
+  const nf = v.frames.length;
+  if (e.fly) fi = Math.floor(t * (nf > 2 ? 10 : 16) + e.wob) % nf;
+  else if (e.target) fi = Math.floor(t * 8) % nf;
   else if (v.kind === 'human') fi = [0, 1, 0, 2][Math.floor(e.dist / 7) % 4];
-  else fi = Math.floor(e.dist / 6) % 2;
+  else fi = Math.floor(e.dist / (nf > 2 ? 4 : 6)) % nf;
   const img = e.hitT > 0 ? v.white[fi] : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
   if (e.beamT > 0) { drawBeamIn(g, e, t, v, fi % v.slow.length, ax, sx, sy, flip); return; }
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
@@ -4551,7 +4581,7 @@ function stepAllies(dt) {
 function drawAllyPx(g, a, t) {
   if (a.delay > 0 || a.down > 0) return;
   const v = a.v, ax = Math.round(a.x / AP), ay = Math.round(a.y / AP) + 4;
-  const fi = v.kind === 'human' ? [0, 1, 0, 2][Math.floor(a.dist / 7) % 4] % v.frames.length : Math.floor(a.dist / 6) % v.frames.length, flip = a.face < 0;
+  const fi = v.kind === 'human' ? [0, 1, 0, 2][Math.floor(a.dist / 7) % 4] % v.frames.length : Math.floor(a.dist / (v.frames.length > 2 ? 2 : 3)) % v.frames.length, flip = a.face < 0;
   const sx = ax - v.ax, sy = ay - v.ay, out = v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6')));
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
   for (const [dx, dy] of OFF4) blit(out[fi], dx, dy);
