@@ -70,7 +70,7 @@ Before some deployments a faction's envoy gets onto your channel. This is what s
 - Not on the first contract.
 - Chance on a faction's planet is 20%, plus 12% for every earlier contract against that faction, plus 35% if you're already in that faction's arc. The first sector guarantees one by contract 3.
 - Planets with an envoy waiting show *ENCRYPTED CHATTER* on the star map and in the contract card. While an arc is under way, that faction usually has a planet on offer.
-- Pleas come from factions fighting evil clients. Bribes come from evil actors.
+- Pleas come from the Union, Wildlife and Activists. Bribes come from VectorCorp, and from evil clients committing insurance fraud (18% chance when no faction envoy appears).
 
 **The envoy screen**
 - An animated pixel video call: the envoy's bust over a faction backdrop. The envoy steps further out of the shadow at each beat.
@@ -92,14 +92,45 @@ Before some deployments a faction's envoy gets onto your channel. This is what s
 **The paper trail**
 - HR-BOT's debrief email reacts to every honoured, broken, refused or reported deal, plus your Heat level.
 - Honoured deals add headlines to the news ticker.
-- The victory screen changes with completed arcs (full endings come in pass 2).
+- The victory screen and game over screen change with your choices (see *Endings*).
+
+**Deal types**
+- **Couriers**: marked units reach the drill and leave with crystals (margin).
+- **Skim**: marked drones siphon the drill (margin).
+- **Escort**: brood sacs nest at the drill. No crystals, but each one extends the extraction.
+- **Uplink**: hackers stand at the drill uploading. The drill pauses while they work.
 
 | Faction | Envoy | Type | Beat 1: Contact | Beat 2: Trust | Beat 3: Reckoning (before the final contract) |
 |---|---|---|---|---|---|
-| Miners' Union | **Old Dot**, union recording secretary, in a lantern-lit mine shaft | Plea · couriers | *Strike Fund*: 4 couriers × 3%. Reward: **Picket Line** relic (crew next to crew +10% fire rate) | *The Walkout*: 5 × 3%. Reward: **Rafa Okonkwo** joins (rank 3 mortar, *Unionised*: +20% dmg) | *General Strike*: 6 × 2%. Reward: every 22s three allied miners march out from the drill, stunning and hitting hostiles |
-| VectorCorp | **Mr. Sable**, SVP of Opportunities, in a neon penthouse | Bribe · skim drones | *Quiet Acquisition*: 3 drones × 4%. +60 scrip up front | *Due Diligence*: 4 × 4%. +40 scrip and a **Black Market** in the store (Black Card, Document Shredder, Poison Pill) | *Hostile Takeover*: 5 × 4%. The final boss arrives with −30% HP and permanently marked |
+| Miners' Union | **Old Dot**, union recording secretary, in a lantern-lit mine shaft | Plea · couriers | *Strike Fund*: 4 × 3%. **Picket Line** relic (crew next to crew +10% fire rate) | *The Walkout*: 5 × 3%. **Rafa Okonkwo** joins (rank 3 mortar, *Unionised*: +20% dmg) | *General Strike*: 6 × 2%. Every 22s three allied miners march out from the drill, stunning and hitting hostiles |
+| VectorCorp | **Mr. Sable**, SVP of Opportunities, in a neon penthouse | Bribe · skim | *Quiet Acquisition*: 3 × 4%. +60 scrip up front | *Due Diligence*: 4 × 4%. +40 scrip and a **Black Market** in the store (Black Card, Document Shredder, Poison Pill) | *Hostile Takeover*: 5 × 4%. The final boss arrives with −30% HP and permanently marked |
+| Wildlife | **WREN-7**, an abandoned survey drone adopted by the hive, in glowing hive tunnels | Plea · escort | *Migration*: 3 sacs × 8s. **Pheromone Tag** relic (wildlife 25% slower) | *The Nursery*: 4 × 8s. **Biscuit**, a pet Lopehound that patrols a path biting hostiles and gets back up 15s after being knocked out | *The Swarm Hunts*: 5 × 6s. Every 15s six allied skitterlings burst from the drill and hunt the boss |
+| Activists | **Glitch**, masked streamer and hacker, in a graffiti alley | Plea · uplink | *The Leak*: 1 hacker × 10s. **Leaked Schedule** relic (cloaked hostiles always visible, plus a readout of each wave) | *Doxxed*: 2 × 10s. **Doxxed** relic (elites and bosses take +15% damage) | *Livestream*: 3 × 8s. The final boss is "cancelled" for 25s: abilities off, +25% damage taken |
+| Evil clients | **Brent from Claims**, in a boardroom | Bribe · couriers (the contract's own hostiles) | *Act of God*, one-off, up to twice a run: 4 × 4%. +50 scrip now, half the margin refunded when the "claim" pays. Heat +30 | | |
 
-Wildlife, Activists, insurance fraud from evil clients, full branching endings and abandonment rescues are planned for pass 2.
+The reckoning envoy appears before the final contract, whichever faction the final target belongs to.
+
+## Endings
+The victory email changes with the run. Endings are checked in this order:
+
+| Ending | Condition | Sender |
+|---|---|---|
+| Broken Promises | Broke 2+ deals, by betrayal or accident | Q., delighted |
+| Hostile Work Environment | Completed 2+ faction arcs | Everyone you helped |
+| Solidarity | Completed the Union arc | Dot |
+| The New Board | Completed the VectorCorp arc | VectorCorp Board |
+| Apex Predator | Completed the Wildlife arc | WREN-7 (translated) |
+| Going Viral | Completed the Activists arc | Glitch, live |
+| Employee of the Quarter | Loyalty 2+ (refused or reported) and honoured no deals | Q. |
+| Acceptable Losses | Anything else | Q. |
+
+The final screen also shows the ending number and a **Your Story** recap of every envoy choice. Endings found are saved in the browser and shown on the title screen as "Endings found: n/8".
+
+**Rescues:** if you're abandoned with an arc at beat 2 or later (not betrayed or reported), that faction comes for you:
+- Union: Dot's ore hauler.
+- Wildlife: the hive carries you underground.
+- Activists: Glitch crowdfunds a sponsored shuttle.
+- VectorCorp: Mr. Sable "acquires your debt".
 
 ## Worlds
 Seven trope worlds, each with its own ground and path palette, path treatment, ground decor, props sorted by context, a liquid, its own building style, a 2x2 landmark (0–1 per map), animated props, weather, a colour grade, and 2–3 planet colour schemes on the star map.

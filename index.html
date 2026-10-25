@@ -147,6 +147,7 @@ button{font:inherit;color:inherit}
 .pill{display:inline-block;font:400 9px/1 var(--f-label);letter-spacing:.03em;text-transform:uppercase;padding:5px 7px;margin-top:3px;box-shadow:inset 0 0 0 2px currentColor;background:color-mix(in srgb,currentColor 14%,transparent)}
 .pill.good{color:var(--ok)}.pill.bad{color:var(--danger)}.pill.neutral{color:var(--muted)}
 .intel{font:400 18px/1.15 var(--f-mono);color:var(--brand);background:rgba(255,210,63,.08);padding:8px 12px 9px 14px;box-shadow:inset var(--b) 0 0 0 var(--brand)}
+.wavehint{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:2px;max-width:min(420px,60%);font:400 18px/1.15 var(--f-mono);color:#ff9ff0;background:rgba(5,7,10,.78);padding:6px 10px 7px;box-shadow:inset 3px 0 0 #ff3ad6;pointer-events:none}
 .maphint{position:absolute;left:12px;bottom:12px;font:400 19px/1.2 var(--f-mono);color:var(--muted);pointer-events:none;max-width:60%;text-shadow:2px 2px 0 var(--ink)}
 
 /* email + payslip */
@@ -416,6 +417,9 @@ const RELICS = {
   // VectorCorp black market
   blackcard: { name: 'VectorCorp Black Card',            desc: 'Company Store prices 25% lower. The card is made of a rarer metal than your crew.', special: true, black: true },
   shredder:  { name: 'Document Shredder',                desc: 'Deals raise Heat by half as much. HR finds only confetti.', special: true, black: true },
+  pheromone: { name: 'Pheromone Tag',                    desc: 'Wildlife hostiles move 25% slower. They recognise your smell.', special: true },
+  schedule:  { name: 'Leaked Schedule',                  desc: 'Cloaked hostiles are always visible, and the HUD lists every incoming wave.', special: true },
+  doxx:      { name: 'Doxxed',                           desc: 'Elite hostiles and bosses take 15% more damage from the moment they arrive.', special: true },
   pill:      { name: 'Poison Pill',                      desc: 'Once per contract, when margin drops below 30%, every hostile on the map is stunned for 3s.', special: true, black: true },
 };
 
@@ -1951,7 +1955,7 @@ function genOptions() {
   // 4-6 planets with random difficulty; a faction whose arc is under way usually has a planet on offer
   const n = ri(4, 6), opts = [];
   for (let k = 0; k < n; k++) opts.push(genContract(RUN.idx, wpick({ 0: 0.36, 1: 0.4, 2: 0.24 }) | 0, false));
-  for (const f of Object.keys(ARCS)) if (RUN.story.arcs[f] && RUN.story.arcs[f].state === 'active' && !opts.some(o => o.facKey === f) && rnd() < 0.8) opts[ri(0, n - 1)] = genContract(RUN.idx, ri(0, 2), false, f);
+  for (const f of Object.keys(ARCS)) if (!ARCS[f].oneOff && RUN.story.arcs[f] && RUN.story.arcs[f].state === 'active' && !opts.some(o => o.facKey === f) && rnd() < 0.8) opts[ri(0, n - 1)] = genContract(RUN.idx, ri(0, 2), false, f);
   if (!opts.some(o => o.diff === 0)) opts[ri(0, n - 1)] = genContract(RUN.idx, 0, false);
   return opts;
 }
@@ -2362,9 +2366,10 @@ function startMission(contract) {
     lost: 0, insured: has('insurance') ? 6 : 0, kills: 0, promos: [], downed: [], bossSpawned: false, boss: null,
     incomeAcc: 0, speed: 1, paused: false, endTimer: 0, deployedIds: new Set(),
     parts: [], decals: [], shake: 0, pool: {}, lights: [], zones: [],
-    deal: S.pendingDeal ? makeDeal(S.pendingDeal) : null, allies: RUN.story.flags.strike && contract.boss ? [] : null, strikeT: 6,
+    deal: S.pendingDeal ? makeDeal(S.pendingDeal, contract) : null, allies: null,
   };
   S.pendingDeal = null;
+  startAllies(M);
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade;
@@ -2372,7 +2377,8 @@ function startMission(contract) {
   RUN.roster.forEach(c => { c.snooze = false; });
   buildMissionHud(); buildRosterBar();
   setView(GW * TILE, GH * TILE);
-  if (M.deal) setTimeout(() => toast(`Deal with ${M.deal.A.envoy}: let ${M.deal.ask.n} marked units through. Hold fire.`, 3000), 2700);
+  const deal = M.deal;
+  if (deal) setTimeout(() => { if (M && M.deal === deal) toast(`Deal with ${deal.A.envoy}: let ${deal.ask.n} marked units through. Hold fire.`, 3000); }, 2700);
   toast(contract.boss ? `Executive priority: ${contract.bossDef.name} expected` : 'Deploy crew, then begin extraction', 2600);
 }
 function tileAt(x, y) { const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE); if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; return { tx, ty }; }
@@ -2544,6 +2550,7 @@ function genWave() {
     if (cost > budget * 1.4) { if (tier > 0) continue; if (list.length) break; }
     budget -= cost; list.push({ cat, tier, n });
   }
+  if (has('schedule')) { const cnt = {}; for (const g of list) { const nm = c.fac.names[g.cat] || CATS[g.cat].label; cnt[nm] = (cnt[nm] || 0) + g.n; } m.waveTxt = Object.entries(cnt).map(([k, v]) => `${k} ×${v}`).join(', '); }
   let t = m.t + 0.4;
   for (const g of list) {
     const sp = ri(0, m.paths.length - 1);
@@ -2561,15 +2568,23 @@ function spawnEnemy(q) {
     hp, maxhp: hp, spd: C.spd * Tt.spd * (M.biome.mod.espd || 1), armor,
     r: C.r * Tt.size, fly: !!C.fly, sab: !!C.sab, dps: (C.dps || 0) * (1 + 0.15 * q.tier),
     bounty: C.bounty * Tt.bounty, cost: C.cost * Tt.cost, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: rnd() * 6,
-    ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: q.deal ? (M.pool['deal' + q.cat] || (M.pool['deal' + q.cat] = makeVariant(q.deal.fac, q.cat))) : getVariant(q.cat), face: 1,
+    ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: q.deal ? (M.pool['deal' + q.cat] || (M.pool['deal' + q.cat] = makeVariant(q.deal.unitFac, q.cat))) : getVariant(q.cat), face: 1,
   };
-  if (q.deal) { e.deal = q.deal; e.cost = q.deal.ask.each; e.bounty = 0; e.sab = false; e.name = q.deal.ask.kind === 'skim' ? 'Collections Drone (marked)' : 'Strike Courier (marked)'; e.color = FACTIONS[q.deal.fac].color; }
+
   const sc = 1 + 0.15 * c.idx;
   if (C.heal) e.healAura = { r: 1.6, hps: C.heal * (1 + q.tier) * sc };
   if (C.shield) e.shieldAura = { r: 1.5, amt: C.shield + 0.05 * q.tier };
   if (C.jam) e.jamAura = { r: 1.6, amt: C.jam };
   if (C.split) e.split = C.split + q.tier;
   if (C.cloak) e.cloakT = rnd() * 5;
+  if (q.deal) {
+    // marked units carry no auras or tricks: they just want to get to the drill
+    Object.assign(e, { deal: q.deal, cost: q.deal.ask.each, bounty: 0, sab: false, healAura: null, shieldAura: null, jamAura: null, split: 0, cloakT: undefined, color: FACTIONS[q.deal.unitFac].color });
+    e.name = (q.deal.A.oneOff ? c.fac.names[q.cat] || CATS[q.cat].label : UNIT_NAMES[q.deal.ask.kind]) + ' (marked)';
+  } else {
+    if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
+    if (has('doxx') && q.tier === 2) { e.vulnT = 1e9; e.vulnAmt = 0.15; }
+  }
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e);
   // introduce each special the first time it shows up in a run
@@ -2592,6 +2607,8 @@ function spawnBoss(B, mini) {
   M.enemies.push(e); sfx('bossIn');
   if (mini) { toast(`Mini-boss: ${e.name}`, 2600); return; }
   if (RUN.story.flags.takeover) { e.hp *= 0.7; e.maxhp = e.hp; e.vulnT = 1e9; e.vulnAmt = 0.2; toast('VectorCorp restructured the target: -30% HP, permanently marked', 2600); }
+  if (has('doxx')) { e.vulnT = 1e9; e.vulnAmt = Math.max(e.vulnAmt || 0, 0.15); }
+  if (RUN.story.flags.stream) cancelBoss(e);
   M.boss = e; M.bossSpawned = true; setMusic('boss');
   toast(`${B.name} has entered the area`, 2600);
 }
@@ -2653,6 +2670,8 @@ function stepMission(dt) {
   for (const e of m.enemies) {
     if (e.dead) continue;
     if (e.hitT > 0) e.hitT -= dt;
+    stepCancel(e, dt);
+    if (e.uploading != null) { stepUpload(e, dt); continue; }
     if (e.cloakT != null) { e.cloakT += dt; e.cloaked = e.cloakT % 5 > 2.5; }
     if (e.rallyT > 0) e.rallyT -= dt;
     if (e.rally) {
@@ -2762,7 +2781,7 @@ function stepMission(dt) {
     if (tw.muzzle > 0) tw.muzzle -= dt;
     if (tw.down) continue;
     if (tw.offline > 0) { tw.offline -= dt; continue; }
-    const s = tw.st, R2 = s.range * TILE, type = tw.crew.type;
+    const s = tw.st, R2 = s.range * TILE, type = tw.crew.type, leaked = has('schedule');
     tw.cd -= dt;
     // timed capstones
     if (s.thunder) {
@@ -2786,7 +2805,7 @@ function stepMission(dt) {
       const d = Math.hypot(e.x - tw.x, e.y - tw.y); if (d > R2 + e.r * 0.5) continue;
       inAll.push(e);
       // cloaked hostiles are only visible up close or once marked
-      if (!e.cloaked || e.vulnT > 0 || d < 1.3 * TILE) inRange.push(e);
+      if (!e.cloaked || e.vulnT > 0 || d < 1.3 * TILE || leaked) inRange.push(e);
     }
     const better = (a, b) => s.strong ? a.hp > b.hp : a.dist > b.dist;
     let tgt = null;
@@ -2894,8 +2913,8 @@ function leak(e) {
     toast(`${e.name} looted the deposit and is coming back`, 2200);
     return;
   }
+  if (e.deal && dealArrive(e)) return;
   e.gone = true;
-  if (e.deal) dealThrough(e);
   loseMargin(e.cost, e.x, e.y);
 }
 
@@ -3211,6 +3230,7 @@ function buildMissionHud() {
       <button class="btn sm ghost" data-act="speed" data-v="2">2×</button>
       <button class="btn sm ghost" data-act="speed" data-v="3">3×</button>
     </div>${dealHudHtml()}`;
+  if (has('schedule')) { const w = document.createElement('div'); w.className = 'wavehint'; w.innerHTML = '<span class="lbl">Leaked schedule · latest wave</span><span id="hWave"></span>'; $('#overlay').appendChild(w); }
 }
 let hudCache = {};
 function updateHud() {
@@ -3227,6 +3247,7 @@ function updateHud() {
   set('bPause', 't', m.paused ? 'Resume' : 'Pause');
   document.querySelectorAll('[data-act="speed"]').forEach(b => b.classList.toggle('on', +b.dataset.v === m.speed));
   updateDealHud();
+  if (has('schedule')) set('hWave', 't', m.waveTxt || 'Awaiting first wave');
   // keep roster affordability fresh
   if (hudCache.budgetSeen !== m.budget) { hudCache.budgetSeen = m.budget; refreshRosterAfford(); }
 }
@@ -3396,13 +3417,150 @@ const ARCS = {
     },
     news: [x => `VectorCorp shares up on "unexplained crystal windfall"`, x => `VectorCorp catalogue leaked; ethics boards "unavailable for comment"`, x => `VectorCorp completes acquisition of Kindly Security Solutions`],
   },
+  fauna: {
+    envoy: 'WREN-7', title: 'Field interpreter, formerly of the Xenobiology Survey (decommissioned, adopted)', kind: 'plea', scene: 'hive', col: '#7bdc6a', reportPay: 25,
+    beats: [
+      {
+        name: 'Migration', ask: { kind: 'escort', cat: 'splitter', n: 3, each: 0, secs: 8 }, heat: 12,
+        lines: x => [
+          `[SIGNAL ACQUIRED] Hello. I am WREN-7. I used to catalogue these creatures for a survey company. Then the company stopped paying for my batteries. The creatures did not.`,
+          `[TRANSLATING THE MOTHER] Small-shiny-killers. You stand on our road on ${x.planet}. Our children must cross it.`,
+          `Three brood sacs will roll to your drill. They are not attacking. They want the warmth of the crystal seam to hatch. Your extraction will run long. [THE MOTHER APOLOGISES. THIS IS UNUSUAL.]`,
+          `If they burst, the Mother will consider that a declaration. She has many declarations.`,
+        ],
+        reward: 'Relic: Pheromone Tag. Wildlife hostiles move 25% slower. They recognise your smell.',
+        accept: `[TRANSLATING] The Mother says your smell is now "tolerable". This is her highest honour. [I AM VERY PROUD OF YOU.]`,
+        refuse: `[TRANSLATING] ...I will not translate that. It was very rude. And very sad.`,
+        report: `[CONNECTION TERMINATED BY HR] [WREN-7 BATTERY LEVEL: CRITICAL]`,
+      },
+      {
+        name: 'The Nursery', ask: { kind: 'escort', cat: 'splitter', n: 4, each: 0, secs: 8 }, heat: 12,
+        lines: x => [
+          `[SIGNAL ACQUIRED] The children from ${x.prevPlanet} hatched. ${x.prevThrough} broods. The Mother has named one after you. The name is a smell. It is a good smell.`,
+          `[TRANSLATING] A new nest must be made on ${x.planet}. Four sacs this time. The warm place under your machine is the best warm place.`,
+          `Also: one hatchling has imprinted on you. It follows your scent across star systems. We tried to stop it. It bites.`,
+        ],
+        reward: 'Biscuit, a hatchling Lopehound, joins every contract: it patrols the path biting hostiles, and gets back up if knocked out.',
+        accept: `[TRANSLATING] The Mother says: "Feed it twice a day. It eats Kindly employees, so perhaps three times." [THAT WAS A JOKE. I THINK.]`,
+        refuse: `[TRANSLATING] The Mother says she will remember your smell. [THAT IS NOT A COMPLIMENT THIS TIME.]`,
+        report: `[RECYCLING ORDER RECEIVED] [IT WAS NICE TO BE USEFUL TO SOMEONE]`,
+      },
+      {
+        name: 'The Swarm Hunts', ask: { kind: 'escort', cat: 'splitter', n: 5, each: 0, secs: 6 }, heat: 15,
+        lines: x => [
+          `[SIGNAL ACQUIRED] The Mother has smelled something beneath your company. Something old that eats fear. It smells like a predator. [I HAVE NEVER HEARD HER AFRAID.]`,
+          `[TRANSLATING] Let five broods nest at your drill. When the great enemy comes, the swarm will come with it. Not for you. For it.`,
+          `The Mother says predators are only frightening until you are hungrier than them.`,
+        ],
+        reward: 'The Swarm Hunts: every 15s, a wave of allied skitterlings bursts from the drill and swarms the nearest hostile, preferring the biggest.',
+        accept: `[TRANSLATING] The Mother says: "Hunt well, small-shiny-friend." [SHE HAS NEVER SAID FRIEND BEFORE.]`,
+        refuse: `[TRANSLATING] Then the swarm will hunt alone. And afterwards it will still be hungry.`,
+        report: `[TRANSLATING] The Mother says she knows what you smell like now. All of you.`,
+      },
+    ],
+    hr: {
+      honoured: [
+        x => `The extraction on ${x.planet} ran ${x.extra} seconds over schedule because several brood sacs "nested" on company equipment. The overtime has been deducted from you.`,
+        x => `HR has been informed that an animal named Biscuit is travelling on your dropship. Pets are not permitted. Biscuit has eaten the memo.`,
+        x => `A swarm of local wildlife has been seen moving towards Kindly headquarters. Security reports the building "smells delicious". HR-BOT is relocating to the backup server.`,
+      ],
+      betrayed: x => `You opened fire on brood sacs under an agreement with local wildlife. HR did not know you could make agreements with wildlife. Your file now says "unclear".`,
+      collateral: x => `A brood sac burst in your crossfire on ${x.planet}. The local wildlife have begun sending you smells. HR has filtered them as spam.`,
+      reported: x => `Thank you for reporting an unlicensed translation drone. WREN-7 has been recalled for recycling. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      refused: x => `HR notes you hung up on a drone claiming to speak for "the Mother". HR applauds your scepticism. HR's mother is a mainframe.`,
+    },
+    news: [x => `Wildlife on ${x.planet} hatch record brood under Kindly drill`, x => `"Biscuit" spotted on Kindly dropship; share price falls 0.3%`, x => `Swarm migration reaches Kindly HQ; executives "taste fine"`],
+  },
+  activists: {
+    envoy: 'Glitch', title: 'Streamer, hacker, uninsured', kind: 'plea', scene: 'alley', col: '#ff3ad6', reportPay: 25,
+    beats: [
+      {
+        name: 'The Leak', ask: { kind: 'uplink', cat: 'jammer', n: 1, each: 0, secs: 10 }, heat: 18,
+        lines: x => [
+          `[YOU'RE LIVE] lol hi. Don't panic, the stream's on a ten-second delay. Your face is blurred. Mostly.`,
+          `I'm Glitch. I've got 40 gigs of Kindly's internal memos and nowhere to plug them in. Except your drill on ${x.planet}. Your drill is on the corporate network. Lol. Lmao.`,
+          `One of us walks up to the drill and stands there uploading for ten seconds. The drill pauses while we're in. That's it. That's the whole heist.`,
+          `You get a copy of the leak, including the wave schedules Kindly sells to your enemies. Yes. They sell those.`,
+        ],
+        reward: 'Relic: Leaked Schedule. Cloaked hostiles are always visible to your crew, and the HUD shows what is in every incoming wave.',
+        accept: `Legend. Smash that accept button. Oh, you did. Ok bye.`,
+        refuse: `Ok boomer. Ok corporate boomer.`,
+        report: `Lol. You know HR watches my stream, right? They're gonna clip this.`,
+      },
+      {
+        name: 'Doxxed', ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10 }, heat: 18,
+        lines: x => [
+          `[YOU'RE LIVE] chat is OBSESSED with you. The leak from ${x.prevPlanet} got nine million views. Nobody did anything about it, but they watched it SO hard.`,
+          `Round two. Two of us at your drill on ${x.planet}. We're pulling the personnel files of every enemy commander in the sector.`,
+          `Home addresses. Pets' names. Search history. When their elites show up, everyone will know exactly where to hit.`,
+        ],
+        reward: 'Relic: Doxxed. Elite hostiles and bosses take 15% more damage from the moment they arrive.',
+        accept: `W. Absolute W. Chat is spamming your employee number. That's probably fine.`,
+        refuse: `Mid. Genuinely mid. Chat is booing you. I muted them. Mostly.`,
+        report: `You snitched on a STREAM? It's recorded, genius. You're the villain now. Congrats.`,
+      },
+      {
+        name: 'Livestream', ask: { kind: 'uplink', cat: 'jammer', n: 3, each: 0, secs: 8 }, heat: 22,
+        lines: x => [
+          `[YOU'RE LIVE · 2.3M WATCHING] Ok so. The leak had a folder called SUB-BASEMENT 9. It's just feeding schedules. Measured in "units of suffering". Chat is losing it.`,
+          `Three of us at the drill on the last job. We stream the final fight to everyone. Everyone. Even the board.`,
+          `When the big one shows up, it gets cancelled. Live. Nothing survives being ratioed by 2.3 million people.`,
+        ],
+        reward: 'Livestream: when the final target arrives it is cancelled for 25s, all its abilities switched off, and it takes 25% more damage while chat watches.',
+        accept: `Let's GOOO. Hydrate. Seriously, you look awful.`,
+        refuse: `Then we stream you losing instead. Content is content.`,
+        report: `You reported the biggest stream in the sector to a company that eats people. Bold. Clipped. Posted.`,
+      },
+    ],
+    hr: {
+      honoured: [
+        x => `An unauthorised upload from the drill on ${x.planet} has leaked several internal memos, including this one. Please stop reading.`,
+        x => `The personnel files of several hostile commanders appeared online. HR condemns doxxing and has added the files to your training material.`,
+        x => `The final contract was livestreamed to 2.3 million viewers. HR-BOT's approval rating is now measurable. It is negative.`,
+      ],
+      betrayed: x => `You opened fire on a live-streaming hacker. The clip has 40 million views. Kindly's brand sentiment rose 3%. HR has no follow-up questions.`,
+      collateral: x => `A hacker was "accidentally" caught in your crossfire on ${x.planet}, live on stream. #KindlyKills is trending. HR is drafting a thoughts-and-prayers template.`,
+      reported: x => `Thank you for reporting the streamer known as Glitch. Their account has been suspended. They have opened another. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      refused: x => `HR notes you declined to take part in a livestream. Kindly's social media policy thanks you. Kindly's social media team does not exist.`,
+    },
+    news: [x => `Kindly memo leak trends for four minutes`, x => `Hostile commanders doxxed; one "just wants to be left alone"`, x => `Kindly final contract livestream breaks viewing records`],
+  },
+  // evil clients sometimes want their own crystals stolen, for the insurance
+  fraud: {
+    envoy: 'Brent from Claims', title: 'Loss adjustment, on behalf of your client', kind: 'bribe', scene: 'boardroom', col: '#ffd23f', reportPay: 35, oneOff: true,
+    beats: [
+      {
+        name: 'Act of God', ask: { kind: 'couriers', cat: 'fast', n: 4, each: 4 }, heat: 30, pay: 50,
+        lines: x => [
+          `Hi, hello, is this on? Brent. Brent from Claims. I represent ${x.client}, who are, technically, your client.`,
+          `Here's the thing. Our ${x.asset} on ${x.planet} is insured for four times what it's worth. If some of it went missing, say a lot of it, we'd be thrilled.`,
+          `Some of the hostiles will be marked. Let them take what they want. We claim, the insurer pays, you get a cut. Everyone wins except the insurer, and they're a different subsidiary of us.`,
+          `Fifty scrip now. Half your lost margin back when the claim clears. Don't tell HR. HR is also us.`,
+        ],
+        reward: '+50 scrip now, and half the margin you let them take is refunded when the claim pays.',
+        accept: `Pleasure! I'll put you down as "act of God". Which, in a sense, you are.`,
+        refuse: `Wow. Okay. Integrity. Bold. I'll note that on your file, under "concerns".`,
+        report: `Report me to who? I wrote the reporting policy.`,
+      },
+    ],
+    hr: {
+      honoured: [x => `The ${x.asset} lost on ${x.planet} has been claimed on insurance. The claim paid 400%. You have been credited ${x.refund}% margin and warned not to do it again. Please do it again.`],
+      betrayed: x => `You shot hostiles the client had paid to lose to. The client is suing the insurer, the insurer is suing the client, and they are the same company. Everyone is suing you.`,
+      collateral: x => `A hostile the client was "expecting" died in your crossfire on ${x.planet}. The insurance claim has been rejected. The client blames you, correctly.`,
+      reported: x => `Thank you for reporting insurance fraud. The case has been referred to Kindly Legal, who are also the insurer. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      refused: x => `A client representative reports that you refused "an opportunity". HR has logged this as a negative attitude.`,
+    },
+    news: [x => `Insurer pays 400% on "mysteriously missing" crystals from ${x.planet}`],
+  },
 };
+const UNIT_NAMES = { couriers: 'Strike Courier', skim: 'Collections Drone', escort: 'Brood Sac', uplink: 'Hacker' };
 const newStory = () => ({ heat: 0, loyalty: 0, met: 0, arcs: {}, log: [], news: [], flags: {}, grudge: {} });
 function arcOf(fac) { const st = RUN.story; return st.arcs[fac] || (st.arcs[fac] = { beat: 0, state: 'open', refusals: 0, through: 0, planet: null }); }
 // can this faction's envoy approach you, and with which beat?
 function envoyBeat(fac, boss) {
   if (!ARCS[fac]) return -1;
   const a = arcOf(fac);
+  if (ARCS[fac].oneOff) return !boss && a.state !== 'reported' && a.refusals < 2 && (RUN.story.fraud || 0) < 2 ? 0 : -1;
   if (a.state !== 'open' && a.state !== 'active') return -1;
   if (a.refusals >= 2 || a.beat > 2) return -1;
   if (boss) return a.beat === 2 ? 2 : -1;
@@ -3412,15 +3570,20 @@ function rollEnvoy(o) {
   if (!RUN.story) return null;
   if (o.boss) {
     // the reckoning comes before the final contract, whoever the final target is
-    const ready = Object.keys(ARCS).filter(f => envoyBeat(f, true) === 2);
+    const ready = Object.keys(ARCS).filter(f => !ARCS[f].oneOff && envoyBeat(f, true) === 2);
     return ready.length ? { fac: pick(ready), beat: 2 } : null;
   }
   if (o.idx < 1) return null;
-  const beat = envoyBeat(o.facKey, false); if (beat < 0) return null;
-  const a = arcOf(o.facKey), st = RUN.story;
-  let p = 0.2 + 0.12 * (RUN.factionCount[o.facKey] || 0) + (a.state === 'active' ? 0.35 : 0);
-  if (o.idx >= 2 && !st.met) p = 1;
-  return rnd() < p ? { fac: o.facKey, beat } : null;
+  const beat = envoyBeat(o.facKey, false), st = RUN.story;
+  if (beat >= 0) {
+    const a = arcOf(o.facKey);
+    let p = 0.2 + 0.12 * (RUN.factionCount[o.facKey] || 0) + (a.state === 'active' ? 0.35 : 0);
+    if (o.idx >= 2 && !st.met) p = 1;
+    if (rnd() < p) return { fac: o.facKey, beat };
+  }
+  // no faction envoy: an evil client might want its own crystals stolen
+  if (!o.client.good && envoyBeat('fraud', false) === 0 && rnd() < 0.18) return { fac: 'fraud', beat: 0 };
+  return null;
 }
 function envoyCtx(o, fac) {
   const a = arcOf(fac), hurt = RUN.history.length ? RUN.lastDowned : null;
@@ -3433,15 +3596,19 @@ function showMessenger(i) {
   S.screen = 'envoy'; S.envoy = { i, fac, beat, t0: performance.now(), done: false };
   clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
   const ask = B.ask, total = ask.n * ask.each;
-  const askTxt = ask.kind === 'couriers'
-    ? `Let ${ask.n} marked ${ask.n > 1 ? 'couriers' : 'courier'} walk to the drill and leave with crystals: ${ask.each}% margin each, ${total}% in total. Your crew will hold fire on them, but splash, fire and foam can still kill them.`
-    : `Let ${ask.n} marked drones skim the drill: ${ask.each}% margin each, ${total}% in total. Your crew will hold fire on them.`;
+  const splash = 'Your crew will hold fire on them, but splash, fire and foam can still kill them.';
+  const askTxt = {
+    couriers: `Let ${ask.n} marked ${A.oneOff ? 'hostiles' : 'couriers'} walk to the drill and leave with crystals: ${ask.each}% margin each, ${total}% in total. ${splash}`,
+    skim: `Let ${ask.n} marked drones skim the drill: ${ask.each}% margin each, ${total}% in total. Your crew will hold fire on them.`,
+    escort: `Let ${ask.n} marked brood sacs roll to the drill and nest. They take no crystals, but each one adds ${ask.secs}s to the extraction. ${splash}`,
+    uplink: `Let ${ask.n} marked ${ask.n > 1 ? 'hackers' : 'hacker'} reach the drill and upload for ${ask.secs}s each. The drill pauses while they work. ${splash}`,
+  }[ask.kind];
   const heat = has('shredder') ? Math.ceil(B.heat / 2) : B.heat;
   $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
     ${titlebar(`Encrypted_Channel · ${A.kind === 'bribe' ? 'origin: offshore' : 'origin: untraced'}`)}
     <div class="envoy-scene"><canvas id="envcv" width="200" height="112" aria-label="${esc(A.envoy)} on a video call"></canvas>
       <div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div>
-      <div class="envoy-beat">${A.kind === 'bribe' ? 'Bribe' : 'Plea'} · ${BEAT_NAMES[beat]} ${beat + 1}/3</div></div>
+      <div class="envoy-beat">${A.kind === 'bribe' ? 'Bribe' : 'Plea'} · ${A.oneOff ? 'One-off' : `${BEAT_NAMES[beat]} ${beat + 1}/3`}</div></div>
     <div class="envoy-grid">
       <div class="envoy-talk"><h3>${esc(B.name)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
       <div class="envoy-offer">
@@ -3477,7 +3644,7 @@ function envoyChoice(v) {
   E.done = true;
   const o = RUN.options[E.i], A = ARCS[E.fac], B = A.beats[E.beat], a = arcOf(E.fac), st = RUN.story;
   st.met++;
-  const log = { fac: E.fac, beat: E.beat, planet: o.planet, choice: v };
+  const log = { fac: E.fac, beat: E.beat, planet: o.planet, choice: v, idx: o.idx };
   if (v === 'accept') {
     a.state = 'active';
     S.pendingDeal = { fac: E.fac, beat: E.beat };
@@ -3503,7 +3670,7 @@ function drawEnvoyFrame(now) {
   const g = cvs.getContext('2d'), t = (now - S.envoy.t0) / 1000;
   g.imageSmoothingEnabled = false;
   const A = ARCS[S.envoy.fac];
-  if (A.scene === 'mine') sceneMine(g, t); else scenePenthouse(g, t);
+  ({ mine: sceneMine, penthouse: scenePenthouse, hive: sceneHive, alley: sceneAlley, boardroom: sceneBoardroom })[A.scene](g, t);
   const bust = envoyBust(S.envoy.fac, S.envoy.beat);
   g.drawImage(bust.c, 112, 112 - bust.c.height);
   // headlamp / shades glint through the shadow
@@ -3579,6 +3746,78 @@ function scenePenthouse(g, t) {
   const gr = g.createRadialGradient(37, 86, 1, 37, 86, 30); gr.addColorStop(0, 'rgba(255,200,60,0.35)'); gr.addColorStop(1, 'rgba(255,200,60,0)');
   g.fillStyle = gr; g.fillRect(0, 56, 80, 56);
 }
+function sceneHive(g, t) {
+  const bg = ENVOY_CACHE.hive || (ENVOY_CACHE.hive = (() => {
+    const P = painter(200, 112), n = makeNoise(200, 112, 6);
+    for (let y = 0; y < 112; y++) for (let x = 0; x < 200; x++) { const v = n(x, y) + rnd() * 0.12; P.p(x, y, v > 0.6 ? '#2a1a34' : v < 0.4 ? '#140c1c' : '#1e1428'); }
+    // ribbed organic tunnel
+    for (let r = 50; r > 0; r -= 2) P.ell(70, 52, r * 1.25, r, `rgba(4,2,8,${0.08 + (50 - r) * 0.012})`);
+    for (let k = 0; k < 4; k++) { const w = 120 - k * 26, h = 104 - k * 22; for (let a = 0; a < 40; a++) { const ang = Math.PI + a / 39 * Math.PI; P.p(Math.round(70 + Math.cos(ang) * w / 2), Math.round(60 + Math.sin(ang) * h / 2), k ? '#3a2a4a' : '#4a3460'); } }
+    // egg clusters on the floor
+    for (const [x, y] of [[14, 98], [22, 102], [8, 104], [30, 106], [176, 104], [186, 100]]) { P.ell(x, y, 5, 4, '#c8b8a0'); P.ell(x - 1, y - 1, 2, 1.5, '#f2e8d8'); }
+    // dripping strands
+    for (let k = 0; k < 10; k++) { const x = ri(4, 196), l = ri(6, 24); P.r(x, 0, 1, l, '#4a3a5a'); P.p(x, l, '#8a6aaa'); }
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  // bioluminescent pods, breathing
+  for (const [x, y, c, ph] of [[20, 30, '#7bdc6a', 0], [104, 22, '#3ae8d0', 1.7], [48, 76, '#d070ff', 3.1], [96, 84, '#7bdc6a', 4.4], [10, 64, '#3ae8d0', 2.2]]) {
+    const k = 0.6 + 0.4 * Math.sin(t * 2 + ph), gr = g.createRadialGradient(x, y, 1, x, y, 22);
+    gr.addColorStop(0, rgba(c, 0.45 * k)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(x - 22, y - 22, 44, 44);
+    px(g, x - 2, y - 3, 5, 6, c); px(g, x - 1, y - 2, 2, 2, '#ffffff');
+  }
+  // spores drifting up
+  for (let k = 0; k < 16; k++) { const x = (k * 41 + Math.sin(t + k) * 4) % 200, y = (112 - ((t * (4 + k % 4) + k * 19) % 112)); px(g, Math.round(x), Math.round(y), 1, 1, k % 2 ? 'rgba(160,255,120,0.7)' : 'rgba(255,130,210,0.6)'); }
+}
+function sceneAlley(g, t) {
+  const bg = ENVOY_CACHE.alley || (ENVOY_CACHE.alley = (() => {
+    const P = painter(200, 112);
+    for (let y = 0; y < 112; y++) for (let x = 0; x < 200; x++) P.p(x, y, ((x >> 3) + (y >> 2)) % 2 ? '#1c1a2a' : '#211e32');
+    for (let y = 0; y < 112; y += 4) P.r(0, y, 200, 1, '#15131f');
+    // graffiti: the Kindly smiley crossed out, a slogan, tags
+    P.ell(54, 40, 18, 18, '#ffd23f'); P.r(46, 34, 3, 4, '#15131f'); P.r(59, 34, 3, 4, '#15131f'); for (let x = 46; x < 63; x++) P.p(x, 46 + Math.round(Math.sin((x - 46) / 5) * 1.5), '#15131f');
+    P.line(36, 22, 72, 58, '#ff3ad6'); P.line(37, 22, 73, 58, '#ff3ad6'); P.line(72, 22, 36, 58, '#ff3ad6'); P.line(73, 22, 37, 58, '#ff3ad6');
+    for (const [x, c] of [[12, '#3af0ff'], [80, '#7bdc6a']]) { P.r(x, 66, 24, 3, c); P.r(x + 2, 70, 16, 2, c); }
+    P.r(4, 8, 3, 18, '#ff6fae'); P.r(4, 8, 10, 3, '#ff6fae');
+    // dumpster and wet ground
+    P.r(0, 92, 200, 20, '#0e0d16'); P.r(6, 76, 40, 18, '#2a5a4a'); P.r(6, 76, 40, 3, '#3a7a6a'); P.r(10, 82, 32, 1, '#1a3a30');
+    for (let k = 0; k < 14; k++) P.r(ri(0, 196), ri(94, 110), ri(4, 12), 1, pick(['#ff3ad6', '#3af0ff', '#2a2840']));
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  // flickering neon sign and a camera drone
+  const on = Math.sin(t * 23) > -0.85;
+  px(g, 128, 8, 40, 12, '#0e0d16'); if (on) { px(g, 130, 10, 36, 1, '#3af0ff'); px(g, 130, 17, 36, 1, '#3af0ff'); for (let k = 0; k < 6; k++) px(g, 132 + k * 6, 12, 3, 4, '#ff3ad6'); }
+  if (on) { const gr = g.createRadialGradient(148, 14, 1, 148, 14, 40); gr.addColorStop(0, 'rgba(255,58,214,0.25)'); gr.addColorStop(1, 'rgba(255,58,214,0)'); g.fillStyle = gr; g.fillRect(108, 0, 80, 60); }
+  const dx = 96 + Math.sin(t * 0.9) * 8, dy = 28 + Math.sin(t * 2.3) * 2;
+  px(g, Math.round(dx) - 4, Math.round(dy), 9, 3, '#3a3e4a'); px(g, Math.round(dx) - 6, Math.round(dy) - 1, 13, 1, '#9aa3ad'); if (Math.floor(t * 2) % 2) px(g, Math.round(dx), Math.round(dy) + 1, 1, 1, '#ff4d5e');
+  g.fillStyle = 'rgba(160,190,255,0.35)';
+  for (let k = 0; k < 50; k++) { const x = (k * 37 + t * 20) % 200, y = (k * 23 + t * (110 + (k % 4) * 20)) % 112; g.fillRect(Math.round(x), Math.round(y), 1, 2); }
+}
+function sceneBoardroom(g, t) {
+  const bg = ENVOY_CACHE.board || (ENVOY_CACHE.board = (() => {
+    const P = painter(200, 112);
+    P.r(0, 0, 200, 112, '#2a2430'); for (let x = 0; x < 200; x += 16) P.r(x, 0, 1, 80, '#221d28');
+    // window onto an industrial planet
+    P.r(10, 8, 90, 56, '#0a0c1e'); for (let k = 0; k < 40; k++) P.p(ri(12, 98), ri(10, 40), '#e8ecf8');
+    // an industrial planet's horizon filling the bottom of the window
+    for (let y = 40; y < 64; y++) for (let x = 10; x < 100; x++) { const dx = (x - 55) / 70, dy = (y - 92) / 50; if (dx * dx + dy * dy <= 1) P.p(x, y, dy < -0.88 ? '#e89a5a' : (x * 3 + y * 7) % 11 < 3 ? '#8a4a22' : '#a85a2a'); }
+    for (let k = 0; k < 8; k++) P.p(ri(14, 96), ri(50, 62), '#ffd060');
+    P.r(10, 8, 90, 2, '#4a4252'); P.r(10, 62, 90, 2, '#4a4252'); P.r(54, 8, 2, 56, '#4a4252');
+    // INTEGRITY poster
+    P.r(112, 10, 30, 22, '#0e1a2e'); P.r(114, 12, 26, 12, '#3a6a9a'); P.ell(127, 18, 5, 3, '#ffd23f'); P.r(116, 26, 22, 2, '#e8ecf8');
+    // long table
+    P.r(0, 86, 200, 26, '#4a2e1e'); P.r(0, 86, 200, 2, '#6a4430'); for (let x = 0; x < 200; x += 9) P.r(x, 92, 6, 1, '#3e2618');
+    P.r(20, 80, 8, 7, '#e8eef4'); P.r(28, 82, 2, 3, '#e8eef4'); P.r(21, 81, 6, 2, '#5a3a20');
+    P.r(70, 82, 26, 5, '#f2efe6'); P.r(72, 83, 20, 1, '#9aa3ad');
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  // a ceiling fan's shadow and a slowly spinning pie chart on the wall screen
+  const a = t * 1.2; g.fillStyle = 'rgba(0,0,0,0.12)';
+  for (let k = 0; k < 3; k++) { const ang = a + k * 2.09; g.fillRect(Math.round(150 + Math.cos(ang) * 14) - 2, Math.round(52 + Math.sin(ang) * 4), 5, 2); }
+  px(g, 160, 12, 30, 22, '#0a0c14'); for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) { const dx = x - 9, dy = y - 9; if (dx * dx + dy * dy < 72) { const an = (Math.atan2(dy, dx) + Math.PI * 2 + t) % (Math.PI * 2); px(g, 166 + x, 14 + y, 1, 1, an < 1.2 ? '#ffd23f' : an < 3.5 ? '#ff4d6d' : '#3af0ff'); } }
+}
 // head-and-shoulders portraits, 76 wide; the envoy steps out of the shadow a little more each beat
 function envoyBust(fac, beat) {
   const key = fac + beat; if (ENVOY_CACHE[key]) return ENVOY_CACHE[key];
@@ -3609,7 +3848,7 @@ function envoyBust(fac, beat) {
     P.r(22, 72, 32, 12, '#7a8a9a'); P.r(22, 72, 32, 2, '#9aaaba'); P.r(34, 68, 8, 4, '#5a6a7a'); P.r(26, 76, 16, 5, '#ffd23f'); P.r(27, 77, 14, 1, '#2a2418'); P.r(27, 79, 9, 1, '#2a2418');
     glints.push({ x: 36, y: 24, w: 5, h: 2, col: '#fff6c8' });
     if (beat < 2) glints.push({ x: 32, y: 39, col: '#f2efe6' }, { x: 44, y: 39, col: '#f2efe6' });
-  } else {
+  } else if (fac === 'rival') {
     const skin = '#e8c4a0', sk2 = '#c89c7a';
     // suit, lapels, shirt and tie
     P.ell(38, 94, 37, 28, '#15161e');
@@ -3624,9 +3863,48 @@ function envoyBust(fac, beat) {
     // a thin smile and an earpiece
     P.r(33, 46, 10, 1, '#8a4a3a'); P.p(43, 45, '#8a4a3a'); P.r(51, 38, 2, 4, '#3a3e4a'); P.p(52, 37, '#3af0ff');
     glints.push({ x: 26, y: 34, w: 25, h: 1, col: '#3af0ff' }, { x: 52, y: 37, col: '#3af0ff' }, { x: 36, y: 62, w: 4, h: 1, col: '#9ff8ff' });
+  } else if (fac === 'fauna') {
+    // a battered survey drone the hive adopted: one big lens, fungus in the cracks, a hatchling riding on top
+    P.ell(38, 46, 26, 22, '#8a929c'); P.ell(38, 42, 24, 17, '#a8b0ba'); P.r(14, 46, 48, 3, '#5a626e');
+    P.line(22, 30, 30, 40, '#3a3e46'); P.line(30, 40, 27, 47, '#3a3e46'); P.line(52, 52, 58, 58, '#3a3e46');
+    P.ell(38, 46, 13, 13, '#1a1e26'); P.ell(38, 46, 10, 10, '#2a5a6a'); P.ell(38, 46, 6, 6, '#6ff0ff'); P.ell(36, 44, 2, 2, '#e8ffff');
+    for (const [x, y] of [[18, 54], [21, 58], [56, 36], [59, 40], [24, 34]]) { P.ell(x, y, 2.5, 2, '#5aa04a'); P.p(x, y - 1, '#a8f06a'); }
+    P.p(17, 52, '#ff9ff0'); P.p(58, 34, '#ff9ff0');
+    P.r(37, 12, 2, 12, '#5a626e'); P.ell(38, 11, 2, 2, '#ff4d6d');
+    P.r(10, 64, 8, 3, '#5a626e'); P.r(58, 64, 8, 3, '#5a626e'); P.r(8, 66, 4, 6, '#3a3e46'); P.r(64, 66, 4, 6, '#3a3e46');
+    // the hatchling
+    P.ell(52, 24, 6, 4, '#7bdc6a'); P.ell(56, 22, 3, 3, '#7bdc6a'); P.p(57, 21, '#ffd23f'); P.p(48, 27, '#4f9a3a'); P.p(52, 28, '#4f9a3a'); P.p(55, 27, '#4f9a3a');
+    P.r(18, 78, 40, 6, '#3a2a44'); for (let x = 20; x < 56; x += 6) P.ell(x, 78, 3, 2, '#7a4a9a');
+    glints.push({ x: 33, y: 41, w: 10, h: 10, col: 'rgba(111,240,255,0.55)' }, { x: 37, y: 10, w: 2, h: 2, col: '#ff4d6d' });
+  } else if (fac === 'activists') {
+    // hoodie up, LED mask, headphones and a sticker-covered phone
+    P.ell(38, 94, 36, 28, '#5a2a8a'); P.ell(38, 40, 22, 26, '#6a3a9a'); P.ell(38, 42, 17, 21, '#2a1a3a');
+    P.r(30, 66, 3, 14, '#e8e0f0'); P.r(44, 66, 3, 14, '#e8e0f0');
+    P.ell(38, 44, 13, 15, '#1a1622');
+    P.ell(16, 42, 5, 7, '#22222c'); P.ell(60, 42, 5, 7, '#22222c'); P.r(18, 18, 40, 3, '#22222c');
+    // LED mask: pixel eyes and a grin
+    P.r(29, 38, 4, 3, '#ff3ad6'); P.r(43, 38, 4, 3, '#ff3ad6'); for (let x = 30; x < 47; x += 2) P.p(x, 49 + (x > 33 && x < 43 ? 1 : 0), '#3af0ff');
+    // phone held up to film you
+    P.r(46, 60, 16, 24, '#1a1a22'); P.r(48, 62, 12, 18, '#3af0ff'); P.r(50, 64, 4, 4, '#ff3ad6'); P.r(54, 70, 4, 3, '#ffd23f'); P.r(49, 76, 6, 2, '#7bdc6a');
+    P.r(44, 70, 4, 10, '#c89c7a');
+    glints.push({ x: 29, y: 38, w: 4, h: 3, col: '#ff3ad6' }, { x: 43, y: 38, w: 4, h: 3, col: '#ff3ad6' }, { x: 48, y: 62, w: 12, h: 1, col: '#bff8ff' });
+  } else {
+    // Brent from Claims: comb-over, sweat, loud tie, a claim form
+    const skin = '#f0c8a8', sk2 = '#d8a888';
+    P.ell(38, 96, 37, 28, '#e8eef4'); P.r(14, 74, 10, 10, '#d8dee4'); P.r(52, 74, 10, 10, '#d8dee4');
+    P.r(35, 60, 6, 24, '#ffd23f'); for (let y = 62; y < 84; y += 4) P.r(35, y, 6, 1, '#d23c3c');
+    P.r(32, 50, 12, 11, sk2); P.ell(38, 37, 16, 17, skin); P.ell(23, 39, 2, 3.5, sk2); P.ell(53, 39, 2, 3.5, sk2);
+    P.r(24, 24, 28, 2, '#6a5a4a'); for (let x = 26; x < 50; x += 4) P.line(x, 26, x + 6, 22, '#6a5a4a');
+    P.r(29, 34, 6, 4, '#ffffff'); P.r(41, 34, 6, 4, '#ffffff'); P.r(29, 34, 6, 1, '#3a3a40'); P.r(41, 34, 6, 1, '#3a3a40'); P.r(35, 35, 6, 1, '#3a3a40');
+    P.p(31, 36, '#2a2a30'); P.p(43, 36, '#2a2a30');
+    P.r(32, 46, 12, 2, '#a85a4a'); P.r(33, 47, 10, 1, '#ffffff');
+    P.p(52, 30, '#9fd0f0'); P.p(52, 31, '#9fd0f0'); P.p(23, 32, '#9fd0f0');
+    P.r(48, 66, 22, 18, '#c8a878'); P.r(50, 69, 18, 13, '#f2efe6'); P.r(52, 71, 12, 1, '#3a3a40'); P.r(52, 74, 9, 1, '#3a3a40'); P.r(52, 77, 11, 1, '#d23c3c'); P.r(56, 64, 6, 3, '#9aa3ad');
+    glints.push({ x: 52, y: 30, w: 1, h: 2, col: '#cfeaff' });
   }
   postProcess(P.c, { shadeIt: false });
   // beat 1: a silhouette with eyes; beat 2: half lit; beat 3: in full light
+  if (ARCS[fac].oneOff) beat = 2;
   const dark = [0.82, 0.45, 0.06][beat];
   const g = P.g; g.globalCompositeOperation = 'source-atop';
   if (beat === 1) { const gr = g.createLinearGradient(0, 0, 76, 0); gr.addColorStop(0, 'rgba(6,4,10,0.1)'); gr.addColorStop(1, 'rgba(6,4,10,0.85)'); g.fillStyle = gr; }
@@ -3636,64 +3914,84 @@ function envoyBust(fac, beat) {
 }
 
 // ---------- the deal in the field ----------
-function makeDeal(pd) {
+function makeDeal(pd, c) {
   const A = ARCS[pd.fac], B = A.beats[pd.beat];
-  return { fac: pd.fac, beat: pd.beat, ask: B.ask, A, B, spawned: 0, through: 0, broken: null, done: false, at: Array.from({ length: B.ask.n }, (_, k) => 0.12 + 0.68 * k / Math.max(1, B.ask.n - 1)) };
+  // insurance fraud marks the contract's own hostiles; every other deal brings the envoy's people
+  return { fac: pd.fac, unitFac: A.oneOff ? c.facKey : pd.fac, beat: pd.beat, ask: B.ask, A, B, spawned: 0, through: 0, broken: null, done: false, extra: 0, at: Array.from({ length: B.ask.n }, (_, k) => 0.12 + 0.62 * k / Math.max(1, B.ask.n - 1)) };
 }
 const dealHolds = () => M && M.deal && !M.deal.broken;
 function stepDeal(dt) {
   const d = M.deal; if (!d || d.broken || M.phase !== 'drill') return;
   while (d.spawned < d.ask.n && M.t >= d.at[d.spawned] * M.T) {
     d.spawned++;
-    const e = spawnEnemy({ cat: d.ask.cat, tier: 0, sp: ri(0, M.paths.length - 1), deal: d });
-    if (d.spawned === 1) toast(`${d.A.envoy}'s ${d.ask.kind === 'skim' ? 'drones are' : 'people are'} here. Marked units: hold fire.`, 2600);
+    spawnEnemy({ cat: d.ask.cat, tier: 0, sp: ri(0, M.paths.length - 1), deal: d });
+    if (d.spawned === 1) toast(`${d.A.envoy}'s ${{ skim: 'drones are', escort: 'broods are', uplink: 'hacker is' }[d.ask.kind] || 'people are'} here. Marked units: hold fire.`, 2600);
   }
 }
-function dealCasualty(e, tw) {
-  const d = M.deal; if (!d || d.broken) return;
-  breakDeal(tw ? 'collateral' : 'collateral');
-}
+function dealCasualty(e, tw) { if (dealHolds()) breakDeal('collateral'); }
 function breakDeal(how) {
   const d = M.deal; if (!d || d.broken) return;
   d.broken = how;
-  for (const e of M.enemies) if (e.deal) { e.deal = null; e.bounty = 2; }
+  for (const e of M.enemies) if (e.deal) { e.deal = null; e.bounty = 2; e.uploading = null; }
   const a = arcOf(d.fac), st = RUN.story;
-  a.state = 'hostile'; st.grudge[d.fac] = 1.2; st.flags.betrayed = (st.flags.betrayed || 0) + 1;
+  a.state = 'hostile'; if (!d.A.oneOff) st.grudge[d.fac] = 1.2; st.flags.betrayed = (st.flags.betrayed || 0) + 1;
   if (d.B.pay) RUN.scrip = Math.max(0, RUN.scrip - d.B.pay);
-  st.log.push({ fac: d.fac, beat: d.beat, planet: M.c.planet, choice: how });
+  st.log.push({ fac: d.fac, beat: d.beat, planet: M.c.planet, choice: how, idx: M.c.idx });
   sfx('fail'); shake(3);
   fxText(M.dep.x, M.dep.y - 40, how === 'betrayed' ? 'DEAL BETRAYED' : 'DEAL BROKEN', '#ff4d5e');
   toast(how === 'betrayed' ? `You opened fire. ${d.A.envoy} will not forget this.` : `A marked unit died in your crossfire. ${d.A.envoy} calls it murder. HR calls it "synergy".`, 3200);
   updateDealHud(true);
 }
+// a marked unit reached the drill; returns true if it stays there (uplinks)
+function dealArrive(e) {
+  const d = e.deal;
+  if (d.ask.kind === 'uplink') {
+    if (e.uploading == null) { e.uploading = d.ask.secs; fxText(e.x, e.y - 22, 'UPLOADING', '#ff3ad6'); sfx('review', e.x); }
+    return true;
+  }
+  if (d.ask.kind === 'escort') { M.T += d.ask.secs; d.extra += d.ask.secs; fxText(M.dep.x, M.dep.y - 30, `nested +${d.ask.secs}s`, '#7bdc6a'); }
+  dealThrough(e);
+  return false;
+}
+function stepUpload(e, dt) {
+  e.uploading -= dt; M.T += dt; M.deal.extra += dt;
+  if (rnd() < dt * 8) sparks(e.x, ecy(e) - 6, '#ff3ad6', 1);
+  if (e.uploading <= 0) { e.uploading = null; e.gone = true; fxText(e.x, e.y - 22, 'UPLOADED', '#3af0ff'); dealThrough(e); }
+}
 function dealThrough(e) {
   const d = M.deal; if (!d) return;
   d.through++;
-  fxText(e.x, e.y - 18, d.ask.kind === 'skim' ? 'skimmed' : 'strike fund', '#4fe0a6');
-  if (d.through >= d.ask.n && !d.broken) { d.done = true; toast(`${d.A.envoy}'s deal honoured. ${d.ask.n * d.ask.each}% margin, as agreed.`, 2400); }
+  fxText(e.x, e.y - 18, { skim: 'skimmed', escort: 'safe', uplink: 'leaked' }[d.ask.kind] || (d.A.oneOff ? 'claimed' : 'strike fund'), '#4fe0a6');
+  if (d.through >= d.ask.n && !d.broken) { d.done = true; toast(`${d.A.envoy}'s deal honoured.`, 2400); }
 }
 // after the contract: rewards, fallout and the paper trail
 function resolveDeal(m) {
   const d = m.deal, st = RUN.story, ev = [];
   if (S.pendingEcho) { ev.push(S.pendingEcho); S.pendingEcho = null; }
   if (d) {
-    const a = arcOf(d.fac), x = { planet: m.c.planet, asset: m.c.client.asset, lost: d.through * d.ask.each, pay: d.B.pay, sector: RUN.sectorName };
+    const a = arcOf(d.fac), x = { planet: m.c.planet, asset: m.c.client.asset, lost: d.through * d.ask.each, pay: d.B.pay, sector: RUN.sectorName, extra: Math.round(d.extra) };
     if (d.broken) ev.push({ fac: d.fac, kind: d.broken, x });
-    else {
+    else if (d.A.oneOff) {
+      st.fraud = (st.fraud || 0) + 1;
+      x.refund = Math.round(x.lost / 2); RUN.margin = Math.min(100, RUN.margin + x.refund);
+      st.log.push({ fac: d.fac, beat: 0, planet: m.c.planet, choice: 'honoured', idx: m.c.idx });
+      ev.push({ fac: d.fac, kind: 'honoured', beat: 0, x });
+      st.news.push(d.A.news[0](x));
+    } else {
       a.beat = d.beat + 1; a.through = d.through; a.planet = m.c.planet;
-      if (a.beat >= 3) a.state = 'done';
+      if (a.beat >= 3) { a.state = 'done'; st.lastDone = d.fac; }
       grantReward(d.fac, d.beat);
-      st.log.push({ fac: d.fac, beat: d.beat, planet: m.c.planet, choice: 'honoured' });
+      st.log.push({ fac: d.fac, beat: d.beat, planet: m.c.planet, choice: 'honoured', idx: m.c.idx });
       ev.push({ fac: d.fac, kind: 'honoured', beat: d.beat, x });
-      st.news.push(ARCS[d.fac].news[d.beat](x));
+      st.news.push(d.A.news[d.beat](x));
     }
   }
   return ev;
 }
 function grantReward(fac, beat) {
-  const st = RUN.story;
+  const st = RUN.story, relic = id => { if (!RUN.relics.includes(id)) RUN.relics.push(id); };
   if (fac === 'union') {
-    if (beat === 0 && !RUN.relics.includes('picket')) RUN.relics.push('picket');
+    if (beat === 0) relic('picket');
     if (beat === 1 && RUN.roster.length < 8) {
       const cr = mkCrew('mortar', 'Rafa Okonkwo', genLook(), 'unionised'); cr.level = 3; cr.xp = XP_TH[2]; RUN.roster.push(cr); RUN.usedNames.add(cr.name);
     }
@@ -3701,6 +3999,14 @@ function grantReward(fac, beat) {
   } else if (fac === 'rival') {
     if (beat === 1) st.flags.blackMarket = true;
     if (beat === 2) st.flags.takeover = true;
+  } else if (fac === 'fauna') {
+    if (beat === 0) relic('pheromone');
+    if (beat === 1) st.flags.pet = true;
+    if (beat === 2) st.flags.swarm = true;
+  } else if (fac === 'activists') {
+    if (beat === 0) relic('schedule');
+    if (beat === 1) relic('doxx');
+    if (beat === 2) st.flags.stream = true;
   }
 }
 function storyEcho(events) {
@@ -3715,45 +4021,189 @@ function storyEcho(events) {
   if (out.length || h >= 30) out.push(h >= 75 ? 'An internal audit has been opened into your conduct. You will not see the auditor. The auditor has already seen you.' : h >= 50 ? 'Your Loyalty Score is under review. Please continue behaving normally. HR will be the judge of normal.' : h >= 30 ? 'HR-BOT has flagged irregularities in your crystal totals. This is probably nothing. HR-BOT will keep watching the nothing.' : '');
   return out.filter(Boolean);
 }
-// a picket line of miners walking out from the drill (General Strike)
+
+// ---------- allies earned from envoys ----------
+// picket: union miners marching out from the drill (General Strike)
+// pet: Biscuit, patrolling a path and biting (The Nursery)
+// hunter: allied skitterlings chasing the biggest hostile (The Swarm Hunts)
+function startAllies(m) {
+  const st = RUN.story; m.allies = [];
+  m.strikeT = st.flags.strike && m.c.boss ? 6 : null;
+  m.huntT = st.flags.swarm && m.c.boss ? 5 : null;
+  if (st.flags.pet) { const v = st.petV || (st.petV = makeVariant('fauna', 'fast')); m.allies.push(newAlly('pet', v, m.paths[0], 160)); }
+}
+function newAlly(kind, v, path, hp) {
+  const rev = path.slice().reverse();
+  return { kind, v, path: rev, wi: 1, x: rev[0].x, y: rev[0].y, hp, maxhp: hp, cd: 0, delay: 0, dist: 0, face: 1, dir: 1, life: kind === 'hunter' ? 12 : 1e9 };
+}
 function stepAllies(dt) {
   const m = M; if (!m.allies) return;
-  if (m.phase === 'drill' || m.phase === 'evac') {
-    m.strikeT -= dt;
-    if (m.strikeT <= 0) {
-      m.strikeT = 22;
-      const p = m.paths[ri(0, m.paths.length - 1)], rev = p.slice().reverse();
-      for (let k = 0; k < 3; k++) m.allies.push({ x: rev[0].x, y: rev[0].y - k * 10, path: rev, wi: 1, hp: 140, cd: 0, delay: k * 0.7, v: m.pool.ally || (m.pool.ally = makeVariant('union', 'swarm')), dist: 0, face: 1 });
-      fxText(m.dep.x, m.dep.y - 36, 'SOLIDARITY', '#f0a23a'); sfx('promote', m.dep.x);
-    }
+  const live = m.phase === 'drill' || m.phase === 'evac';
+  if (live && m.strikeT != null && (m.strikeT -= dt) <= 0) {
+    m.strikeT = 22;
+    const p = m.paths[ri(0, m.paths.length - 1)], v = m.pool.ally || (m.pool.ally = makeVariant('union', 'swarm'));
+    for (let k = 0; k < 3; k++) { const a = newAlly('picket', v, p, 140); a.delay = k * 0.7; m.allies.push(a); }
+    fxText(m.dep.x, m.dep.y - 36, 'SOLIDARITY', '#f0a23a'); sfx('promote', m.dep.x);
+  }
+  if (live && m.huntT != null && (m.huntT -= dt) <= 0) {
+    m.huntT = 15;
+    const v = m.pool.hunter || (m.pool.hunter = makeVariant('fauna', 'swarm'));
+    for (let k = 0; k < 6; k++) { const a = newAlly('hunter', v, m.paths[0], 40); a.x += (rnd() - 0.5) * 20; a.y += (rnd() - 0.5) * 20; a.delay = k * 0.15; m.allies.push(a); }
+    fxText(m.dep.x, m.dep.y - 36, 'THE SWARM HUNTS', '#7bdc6a'); sfx('splat', m.dep.x);
   }
   for (const a of m.allies) {
+    if (a.down > 0) { if ((a.down -= dt) <= 0) { a.down = 0; a.hp = a.maxhp; a.x = a.path[0].x; a.y = a.path[0].y; a.wi = 1; a.dir = 1; fxText(a.x, a.y - 18, 'BISCUIT IS BACK', '#7bdc6a'); } continue; }
     if (a.delay > 0) { a.delay -= dt; continue; }
+    if ((a.life -= dt) <= 0) { a.gone = true; continue; }
     a.cd -= dt;
-    let hold = false;
-    for (const e of m.enemies) {
-      if (e.dead || e.fly || e.invuln || e.deal || Math.hypot(e.x - a.x, e.y - a.y) > 16) continue;
-      hold = true;
-      if (a.cd <= 0) { a.cd = 0.8; damage(e, 35, true, null); if (!e.dead) stunE(e, 1.2); a.hp -= e.boss ? 45 : 16; sparks(e.x, ecy(e), '#f0a23a', 3); sfx('hit', a.x); }
-      break;
+    const reach = a.kind === 'hunter' ? 12 : a.kind === 'pet' ? 14 : 16;
+    let foe = null;
+    for (const e of m.enemies) if (!e.dead && !e.fly && !e.invuln && !e.deal && Math.hypot(e.x - a.x, e.y - a.y) <= reach) { foe = e; break; }
+    if (foe) {
+      if (a.cd <= 0) {
+        const lv = 1 + 0.12 * m.c.idx;
+        if (a.kind === 'picket') { a.cd = 0.8; damage(foe, 35, true, null); if (!foe.dead) stunE(foe, 1.2); a.hp -= foe.boss ? 45 : 16; }
+        else if (a.kind === 'pet') { a.cd = 0.6; damage(foe, 22 * lv, true, null); if (!foe.dead) applySlow(foe, 0.4, 1); a.hp -= foe.boss ? 30 : 9; }
+        else { a.cd = 0.45; damage(foe, foe.boss ? 30 : 16 * lv, true, null); a.hp -= foe.boss ? 6 : 4; }
+        sparks(foe.x, ecy(foe), a.kind === 'picket' ? '#f0a23a' : '#7bdc6a', 2); sfx('hit', a.x);
+      }
+      if (Math.abs(foe.x - a.x) > 1) a.face = foe.x < a.x ? -1 : 1;
+      continue;
     }
-    if (hold) continue;
-    const tgt = a.path[a.wi]; if (!tgt) { a.gone = true; continue; }
-    const dx = tgt.x - a.x, dy = tgt.y - a.y, dd = Math.hypot(dx, dy), sp = 0.6 * TILE * dt;
+    let tx, ty;
+    if (a.kind === 'hunter') {
+      // chase the boss if it's here, otherwise the nearest ground hostile
+      let best = null, bd = Infinity;
+      for (const e of m.enemies) { if (e.dead || e.fly || e.invuln || e.deal) continue; const d = e.boss ? -1 : Math.hypot(e.x - a.x, e.y - a.y); if (d < bd) { bd = d; best = e; } }
+      if (!best) { a.life = Math.min(a.life, 1); continue; }
+      tx = best.x; ty = best.y;
+    } else {
+      const tgt = a.path[a.wi];
+      if (!tgt) { if (a.kind === 'pet') { a.path.reverse(); a.wi = 1; continue; } a.gone = true; continue; }
+      tx = tgt.x; ty = tgt.y;
+    }
+    const dx = tx - a.x, dy = ty - a.y, dd = Math.hypot(dx, dy), sp = (a.kind === 'hunter' ? 1.5 : a.kind === 'pet' ? 0.9 : 0.6) * TILE * dt;
     if (Math.abs(dx) > 0.5) a.face = dx < 0 ? -1 : 1;
-    if (dd <= sp) { a.x = tgt.x; a.y = tgt.y; a.wi++; } else { a.x += dx / dd * sp; a.y += dy / dd * sp; }
+    if (dd <= sp) { a.x = tx; a.y = ty; if (a.kind !== 'hunter') a.wi++; } else { a.x += dx / dd * sp; a.y += dy / dd * sp; }
     a.dist += sp / AP;
   }
-  m.allies = m.allies.filter(a => { if (a.hp <= 0) { smoke(a.x, a.y, 5); return false; } return !a.gone; });
+  m.allies = m.allies.filter(a => {
+    if (a.hp <= 0 && !a.down) {
+      smoke(a.x, a.y, 5);
+      if (a.kind === 'pet') { a.down = 15; fxText(a.x, a.y - 18, 'BISCUIT IS DOWN', '#ff4d5e'); return true; }
+      return false;
+    }
+    return !a.gone;
+  });
 }
 function drawAllyPx(g, a, t) {
-  if (a.delay > 0) return;
-  const v = a.v, ax = Math.round(a.x / AP), ay = Math.round(a.y / AP) + 4, fi = [0, 1, 0, 2][Math.floor(a.dist / 7) % 4] % v.frames.length, flip = a.face < 0;
+  if (a.delay > 0 || a.down > 0) return;
+  const v = a.v, ax = Math.round(a.x / AP), ay = Math.round(a.y / AP) + 4;
+  const fi = v.kind === 'human' ? [0, 1, 0, 2][Math.floor(a.dist / 7) % 4] % v.frames.length : Math.floor(a.dist / 6) % v.frames.length, flip = a.face < 0;
   const sx = ax - v.ax, sy = ay - v.ay, out = v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6')));
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
   for (const [dx, dy] of OFF4) blit(out[fi], dx, dy);
   blit(v.frames[fi], 0, 0);
+  if (a.kind === 'pet') { px(g, ax - 1, sy - 3, 3, 1, '#ff6fae'); if (a.hp < a.maxhp) { px(g, ax - 5, sy - 5, 10, 1, '#1a1a22'); px(g, ax - 5, sy - 5, Math.round(10 * a.hp / a.maxhp), 1, '#7bdc6a'); } }
 }
+// the final target gets cancelled live on stream
+function cancelBoss(e) {
+  const keys = ['spawn', 'rally', 'burrow', 'emp', 'viral', 'healAura', 'shieldAura', 'jamAura'];
+  e.cancelled = {}; for (const k of keys) { e.cancelled[k] = e[k]; e[k] = null; }
+  e.cancelT = 25; e.streamVuln = true;
+  e.vulnT = Math.max(e.vulnT || 0, 25); e.vulnAmt = Math.max(e.vulnAmt || 0, 0.25);
+  fxText(e.x, e.y - 40, 'CANCELLED', '#ff3ad6'); toast(`${e.name} is being cancelled live by 2.3M viewers. Abilities off for 25s.`, 3000);
+}
+function stepCancel(e, dt) {
+  if (!(e.cancelT > 0)) return;
+  e.cancelT -= dt;
+  if (e.cancelT <= 0) { Object.assign(e, e.cancelled); e.cancelled = null; if (!RUN.story.flags.takeover) { e.vulnT = 0; } else e.vulnAmt = 0.2; fxText(e.x, e.y - 40, 'UN-CANCELLED', '#8a93bd'); }
+}
+
+// ---------- endings ----------
+const ENDINGS = {
+  doubledealer: { name: 'Broken Promises', from: '[SENDER REDACTED]', subj: 'you have done SO well',
+    paras: x => [
+      `You promised ${x.betrayedWho} something, and gave them all nothing. Do you know how much suffering one broken promise makes? It ripens. It keeps.`,
+      `We have never eaten so well. Not in the Hundred Year Strike. Not in the Spreadsheet Wars. You are a delicacy, Employee #${x.emp}.`,
+      `There is a seat on the board for you. It has teeth. Do not worry about the teeth.`,
+    ], sign: '— Q.' },
+  coalition: { name: 'Hostile Work Environment', from: 'Everyone you helped', subj: 'we came',
+    paras: x => [
+      `On the last day of the quarter, everyone you ever kept a promise to showed up at Kindly headquarters at once: ${x.allies}.`,
+      `Nobody coordinated it. Nobody had to. They all followed the same smell of crystals, lunchboxes and leaked memos down to sub-basement 9.`,
+      `What they found down there was the board. One board. A single thing the size of a conference room, made of mouths, that had been feeding on every miserable quarter since the company was founded. It was not ready for this many people who were not afraid of it.`,
+      `It's gone. Kindly Security Solutions is now a workers' co-operative, a wildlife sanctuary, a streaming channel and, somehow, still a VectorCorp subsidiary. Meetings are chaos. Nobody misses lunch.`,
+    ], sign: '— Dot, WREN-7, Glitch, and a note from Mr. Sable reading "I can explain"' },
+  union: { name: 'Solidarity', from: 'Dot <dot@local404.coop>', subj: 'we did it, kid',
+    paras: x => [
+      `Every mine in the ${x.sector} downed tools the day you finished. Every single one. Turns out a strike spreads faster than a quota.`,
+      `The suffering stopped. And something under Kindly HQ started screaming. We went down to sub-basement 9 with lanterns and found the board: one great hungry thing, starving, because nobody was miserable enough to feed it.`,
+      `It tried to eat hope instead. It choked.`,
+      `There's a union card with your name on it. Rafa wants you on the safety committee. You'll hate it. Welcome home.`,
+    ], sign: '— Dot, Local 404' },
+  rival: { name: 'The New Board', from: 'VectorCorp Board of Directors', subj: 'congratulations on your promotion',
+    paras: x => [
+      `VectorCorp completed its acquisition of Kindly Security Solutions at 09:00. You have been promoted to Regional Manager, effective immediately, and Chief Executive by lunch.`,
+      `Mr. Sable will not be joining us. He was restructured in the transition. Something in sub-basement 9 has asked for you by name. It says you smell of opportunity.`,
+      `Your office has a window. The window does not open. Behind it, something enormous is smiling at you, and you notice, without much surprise, that you are smiling back.`,
+      `The humming is louder up here. It is nourishing.`,
+    ], sign: '— The Board (all of it)' },
+  fauna: { name: 'Apex Predator', from: 'WREN-7 <translated>', subj: '[TRANSLATING] the Mother is full',
+    paras: x => [
+      `[TRANSLATING] The swarm followed the smell of fear all the way to Kindly headquarters, down past the car park, down past the server farm, down to sub-basement 9.`,
+      `Something old was living there. It ate misery. It had never been eaten itself. [THE MOTHER SAYS IT WAS CHEWY.]`,
+      `The drill site on ${x.lastPlanet} is a nursery now. Biscuit refuses to leave your quarters. The Mother says you may visit. She says you smell like family.`,
+      `[I HAVE BEEN GIVEN NEW BATTERIES. THEY ARE MADE OF SOMETHING ORGANIC. I AM CHOOSING NOT TO ASK.]`,
+    ], sign: '— WREN-7, on behalf of the Mother' },
+  activists: { name: 'Going Viral', from: 'Glitch (LIVE · 2.3M watching)', subj: 'chat we did it??',
+    paras: x => [
+      `We streamed it all. The fight, the board, sub-basement 9. 2.3 million people watched a thing made of mouths try to explain "units of suffering" in a press release.`,
+      `It turns out it needed secrecy more than it needed food. Once everyone could see it, it couldn't feed on anything except the comments. It fled to a smaller planet. It hosts a podcast now. Nobody listens.`,
+      `Kindly's share price went up 4% on the publicity. Some things can't be cancelled.`,
+      `You're famous for about three days. Enjoy it. Hydrate.`,
+    ], sign: '— Glitch (please like and subscribe)' },
+  loyalist: { name: 'Employee of the Quarter', from: '[SENDER REDACTED]', subj: 'loyalty is delicious',
+    paras: x => [
+      `They came to you ${x.offers} times with an offer. A way out. A conscience. A cut. You said no, every time, and reported what you could.`,
+      `Do you know how rare that is? Most employees resent us at least a little. Resentment is spicy. You are mild, and pure, and entirely ours.`,
+      `You have been named Employee of the Quarter and promoted to Food (Senior). Report to sub-basement 9. Bring nothing. Think of nothing.`,
+    ], sign: '— Q.' },
+  default: { name: 'Acceptable Losses', from: '[SENDER REDACTED]', subj: 'you have done well',
+    paras: x => [
+      `The board thanks you. You may not have met the board. That is for the best.`,
+      `Every crystal you guarded, every ${x.fac} you pacified, every crew member denied a lunch break produced exactly the right amount of suffering. We have eaten well this quarter.`,
+      `Your margin of ${x.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 2. Do not look directly at the CEO.`,
+    ], sign: '— Q.' },
+};
+const ENDING_ORDER = ['default', 'loyalist', 'union', 'rival', 'fauna', 'activists', 'coalition', 'doubledealer'];
+function pickEnding() {
+  const st = RUN.story, done = Object.keys(st.arcs).filter(f => !ARCS[f].oneOff && st.arcs[f].state === 'done');
+  const honoured = st.log.filter(l => l.choice === 'honoured').length;
+  if ((st.flags.betrayed || 0) >= 2) return 'doubledealer';
+  if (done.length >= 2) return 'coalition';
+  if (done.length === 1) return done[0];
+  if (st.loyalty >= 2 && !honoured) return 'loyalist';
+  return 'default';
+}
+function storyRecap() {
+  const st = RUN.story;
+  if (!st.log.length) return 'No envoys reached you. Or you never picked up.';
+  const verb = { accept: 'accepted', refuse: 'refused', report: 'reported to HR', honoured: 'honoured', betrayed: 'BETRAYED', collateral: 'broke by accident' };
+  return st.log.filter(l => l.choice !== 'accept').map(l => `${l.planet} · ${ARCS[l.fac].envoy} · ${ARCS[l.fac].beats[l.beat].name} · ${verb[l.choice]}`).join('\n');
+}
+// some factions come back for you when Kindly doesn't
+function rescuer() {
+  const st = RUN.story;
+  const order = Object.keys(ARCS).filter(f => !ARCS[f].oneOff && st.arcs[f] && st.arcs[f].beat >= 2 && (st.arcs[f].state === 'active' || st.arcs[f].state === 'done'));
+  return order.length ? order[order.length - 1] : null;
+}
+const RESCUES = {
+  union: 'Three days later an ore hauler with LOCAL 404 painted on the side drops out of the sky. Dot leans out of the hatch. "Get in, kid. We look after our own." You are not stranded. You are organised.',
+  rival: 'A VectorCorp shuttle collects you within the hour. Mr. Sable has "acquired your debt". You are not stranded. You are an asset. The paperwork suggests this is worse.',
+  fauna: 'On the second night something enormous tunnels up beneath your camp. The Mother carries you and your crew to a warm place under the crust. Biscuit sleeps on your feet. WREN-7 says you smell like family.',
+  activists: 'Glitch crowdfunds your rescue in eleven minutes. The shuttle is covered in sponsor logos and you have to unbox an energy drink on stream before boarding. It is the worst and best day of your life.',
+};
 // a white pennant over marked units so you know who not to shoot
 function drawDealMark(g, e, t) {
   if (!e.deal || e._bx == null) return;
@@ -3822,7 +4272,8 @@ Breaks are not scheduled. Good luck.                                    — HR-B
       <li><b>Review your crew</b>Promotions offer perk cards, a specialisation at rank 4 and a capstone at rank 5.</li>
     </ul>
     <div class="row"><button class="btn" data-act="newrun">Clock in</button>
-    ${colony ? `<span class="colony">Colony of the Abandoned: ${colony} survivor${colony === 1 ? '' : 's'} · new hires start with +${Math.min(50, colony * 5)} scrip</span>` : ''}</div>
+    ${colony ? `<span class="colony">Colony of the Abandoned: ${colony} survivor${colony === 1 ? '' : 's'} · new hires start with +${Math.min(50, colony * 5)} scrip</span>` : ''}
+    ${store.get('al_endings', []).length ? `<span class="colony">Endings found: ${store.get('al_endings', []).length}/${ENDING_ORDER.length}</span>` : ''}</div>
   </div></div>`;
 }
 function showMap() {
@@ -3971,11 +4422,11 @@ function showGameOver() {
   S.screen = 'over'; clearMissionUi(); backdropView(); setMusic(null);
   const colony = store.get('al_colony', 0) + 1; store.set('al_colony', colony);
   const where = planetName();
-  const c = M ? M.c : null; M = null;
+  const c = M ? M.c : null; M = null; const saved = rescuer();
   $('#overlay').innerHTML = `<div class="screen"><div class="paper">
     ${titlebar('Termination_Notice.txt')}
     <div class="lbl" style="color:var(--danger)">Notice of contract termination</div>
-    <h2>Stranded on ${esc(where)}</h2>
+    <h2>${saved ? 'Rescued from' : 'Stranded on'} ${esc(where)}</h2>
     <div class="memo">Dear Employee #${RUN.empId},
 
 Your performance on ${esc(c ? c.planet : 'assignment')} has pushed company profit margin below the profitability threshold.
@@ -3985,28 +4436,38 @@ You have been relocated to ${esc(where)}: atmosphere unbreathable, temperature u
 Your crew (${RUN.roster.map(r => esc(r.name)).join(', ')}) ${RUN.roster.length > 1 ? 'have' : 'has'} been included free of charge.
 
 Thank you for choosing Kindly™.                                         — HR-BOT</div>
-    <p>You join the <b>Colony of the Abandoned</b>, a settlement of former employees who were also not profitable enough. Survivors: <b>${colony}</b>. Each one gives future new hires +5 starting scrip, up to 50.</p>
+    ${saved ? `<div class="intel" style="--brand:${ARCS[saved].col};color:${ARCS[saved].col}">${esc(RESCUES[saved])}</div><p>Word of your rescue reaches the <b>Colony of the Abandoned</b>, who are thrilled for you and only a little bitter. Survivors: <b>${colony}</b>. Each one gives future new hires +5 starting scrip, up to 50.</p>` : `<p>You join the <b>Colony of the Abandoned</b>, a settlement of former employees who were also not profitable enough. Survivors: <b>${colony}</b>. Each one gives future new hires +5 starting scrip, up to 50.</p>`}
+    ${RUN.story.log.length ? `<div class="memo">YOUR STORY
+${esc(storyRecap())}</div>` : ''}
     <div class="mono" style="color:var(--muted);font-size:19px">Contracts completed: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Margin lost: ${RUN.lostTotal}%</div>
     <div class="row"><button class="btn" data-act="newrun">Clock in again</button><button class="btn ghost" data-act="title">Main menu</button></div>
   </div></div>`;
 }
+const andList = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '';
 function showVictory() {
   S.screen = 'win'; const c = M.c; M = null; clearMissionUi(); backdropView(); sfx('victory'); setMusic('menu');
+  const st = RUN.story, key = pickEnding(), E = ENDINGS[key];
+  const found = store.get('al_endings', []); if (!found.includes(key)) { found.push(key); store.set('al_endings', found); }
+  const doneArcs = Object.keys(st.arcs).filter(f => !ARCS[f].oneOff && st.arcs[f].state === 'done');
+  const betrayedWho = [...new Set(st.log.filter(l => l.choice === 'betrayed' || l.choice === 'collateral').map(l => ARCS[l.fac].envoy))];
+  const x = {
+    emp: RUN.empId, sector: RUN.sectorName, margin: RUN.margin, fac: c.fac.short.toLowerCase(), lastPlanet: c.planet,
+    allies: andList(doneArcs.map(f => ({ union: "Local 404's picket lines", rival: "VectorCorp's lawyers", fauna: "the Mother's swarm", activists: "Glitch's 2.3 million viewers" })[f])),
+    betrayedWho: andList(betrayedWho) || 'everyone',
+    offers: st.met,
+  };
   $('#overlay').innerHTML = `<div class="screen"><div class="paper">
-    ${titlebar('Unknown_Sender.msg')}
-    <div class="mailhead"><span>From</span><b>[SENDER REDACTED]</b><span>To</span><b>Employee #${RUN.empId}</b><span>Subject</span><b>you have done well</b></div>
-    <h2>${esc(c.bossDef.name)} neutralised</h2>
-    <div class="mailbody">
-      <p>The board thanks you. You may not have met the board. That is for the best.</p>
-      <p>Every crystal you guarded, every ${esc(c.fac.short.toLowerCase())} you pacified, every crew member denied a lunch break produced exactly the right amount of suffering. We have eaten well this quarter.</p>
-      <p>Your margin of ${RUN.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 2. Do not look directly at the CEO.</p>
-      ${RUN.story.flags.strike ? `<p>And yet. Every mine in the ${esc(RUN.sectorName)} stopped work the day you finished. Suffering output fell 40%. Something in sub-basement 9 is hungry. Someone called Dot sends her regards.</p>` : ''}
-      ${RUN.story.flags.takeover ? `<p>VectorCorp completed its acquisition of Kindly at 09:00. You have been promoted to Regional Manager. Your office has a window. Something behind the window is smiling at you.</p>` : ''}
-      ${!RUN.story.flags.strike && !RUN.story.flags.takeover && RUN.story.loyalty >= 2 ? `<p>HR notes you turned down ${Math.floor(RUN.story.loyalty)} offers to betray us. Loyalty like yours is rare, and delicious.</p>` : ''}
-      <p style="color:var(--muted);font-size:14px">— Q.</p>
-    </div>
-    <div class="memo">END OF VERTICAL SLICE
-Contracts completed: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Final margin: ${RUN.margin}%
+    ${titlebar('Final_Transmission.msg')}
+    <div class="mailhead"><span>From</span><b>${esc(E.from)}</b><span>To</span><b>Employee #${RUN.empId}</b><span>Subject</span><b>${esc(E.subj)}</b></div>
+    <div class="lbl" style="color:var(--brand)">${esc(c.bossDef.name)} neutralised</div>
+    <h2>${esc(E.name)}</h2>
+    <div class="mailbody">${E.paras(x).map(p => `<p>${esc(p)}</p>`).join('')}<p style="color:var(--muted);font-size:14px">${esc(E.sign)}</p></div>
+    <div class="memo">ENDING ${ENDING_ORDER.indexOf(key) + 1}/${ENDING_ORDER.length}: ${esc(E.name.toUpperCase())} · ENDINGS FOUND ${found.length}/${ENDING_ORDER.length}
+Contracts completed: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Final margin: ${RUN.margin}% · Heat: ${st.heat}
+
+YOUR STORY
+${esc(storyRecap())}
+
 Crew: ${RUN.roster.map(r => `${esc(r.name)} (Lv${r.level})`).join(', ')}</div>
     <div class="row"><button class="btn" data-act="newrun">Clock in again</button><button class="btn ghost" data-act="title">Main menu</button></div>
   </div></div>`;
@@ -4114,7 +4575,7 @@ function frame(now) {
 // test hook for automated playtesting
 window.__AL = {
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
-  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief,
+  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
 
 resize(); showTitle(); requestAnimationFrame(frame);
