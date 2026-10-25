@@ -205,6 +205,57 @@ button{font:inherit;color:inherit}
 .offer.black{background:#0e0f18;box-shadow:inset 0 0 0 var(--b) #ff5d73,inset 0 calc(var(--b) * -2) 0 0 rgba(0,0,0,.25)}
 .offer.black .k{color:#ff5d73}
 
+/* juice: entrances, wipes, counters, confetti, banners */
+@keyframes rise{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes popin{0%{opacity:0;transform:translateY(12px) scale(.94)}70%{opacity:1;transform:translateY(-2px) scale(1.01)}100%{opacity:1;transform:none}}
+.screen{animation:fadein .25s ease-out both}
+.screen > .paper,.store > .paper,.card,.title-wrap{animation:rise .38s cubic-bezier(.2,.9,.3,1.15) both}
+.pop-in{animation:popin .42s cubic-bezier(.2,.9,.3,1.2) both;animation-delay:var(--d,0ms)}
+.wipe{position:absolute;inset:0;pointer-events:none;z-index:40;display:flex;flex-direction:column}
+.wipe i{flex:1;background:var(--ink);transform:scaleX(0);transform-origin:right}
+.wipe.go i{animation:wipeaway .36s cubic-bezier(.7,0,.3,1) both;animation-delay:calc(var(--k) * 22ms)}
+@keyframes wipeaway{0%{transform:scaleX(1);transform-origin:right}100%{transform:scaleX(0);transform-origin:right}}
+.cf{position:absolute;width:6px;height:6px;pointer-events:none;z-index:45;margin:-3px 0 0 -3px}
+.banner{position:absolute;left:0;right:0;top:34%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 16px 12px;pointer-events:none;z-index:42;background:linear-gradient(90deg,transparent,rgba(5,7,10,.88) 18%,rgba(5,7,10,.88) 82%,transparent);border-block:3px solid var(--bc);opacity:0;transform:scaleY(0)}
+.banner b{font:400 clamp(30px,6vw,52px)/.9 var(--f-display);color:var(--bc);text-shadow:3px 3px 0 var(--ink);text-transform:uppercase;letter-spacing:.02em}
+.banner span{font:400 11px/1.2 var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--fg)}
+.banner.show{animation:bannerin 1.9s cubic-bezier(.2,.9,.3,1.1) both}
+.banner.danger{background:repeating-linear-gradient(-45deg,rgba(90,10,20,.9) 0 14px,rgba(20,4,8,.9) 14px 28px)}
+@keyframes bannerin{0%{opacity:0;transform:scaleY(0)}10%{opacity:1;transform:scaleY(1.15)}16%{transform:scaleY(1)}85%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(0)}}
+.banner.show b{animation:bannertxt 1.9s cubic-bezier(.2,.9,.3,1.1) both}
+@keyframes bannertxt{0%{transform:translateX(-60px);letter-spacing:.3em}16%{transform:none;letter-spacing:.02em}85%{transform:none}100%{transform:translateX(60px)}}
+.bump{animation:bump .35s cubic-bezier(.3,1.6,.5,1)}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.25);color:var(--ok)}100%{transform:scale(1)}}
+.hurt{animation:hurt .35s steps(2)}
+@keyframes hurt{0%,100%{transform:none}25%{transform:translateX(-4px);box-shadow:inset 0 0 0 2px var(--danger)}75%{transform:translateX(4px);box-shadow:inset 0 0 0 2px var(--danger)}}
+.btn{position:relative;overflow:hidden;transition:filter .15s,transform .12s}
+.btn::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%);transform:translateX(-120%);pointer-events:none}
+.btn:hover:not(:disabled)::after{transform:translateX(120%);transition:transform .55s ease}
+.btn:hover:not(:disabled){transform:translateY(-1px)}
+.offer{transition:transform .18s cubic-bezier(.3,1.5,.5,1),box-shadow .18s}
+.offer:hover:not(:disabled){transform:translateY(-4px) rotate(-.6deg)}
+.offer.sold-pop{animation:soldpop .5s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes soldpop{0%{transform:scale(1)}35%{transform:scale(1.08) rotate(1deg)}100%{transform:scale(1)}}
+.offer.sold{position:relative}
+.offer.sold::before{content:'SOLD';position:absolute;right:10px;top:10px;font:700 13px/1 var(--f-label);color:var(--danger);border:2px solid var(--danger);padding:4px 6px;transform:rotate(12deg);opacity:.9}
+.crew{transition:transform .15s cubic-bezier(.3,1.5,.5,1),box-shadow .15s}
+.crew:hover{transform:translateY(-3px)}
+.crew.sel{transform:translateY(-4px)}
+.crew.rev{animation:revglow 1.2s ease-in-out infinite}
+@keyframes revglow{50%{box-shadow:inset 0 0 0 var(--b) var(--brand),0 0 14px rgba(255,210,63,.45)}}
+.meter i{position:relative;overflow:hidden;transition:width .35s cubic-bezier(.2,.8,.3,1)}
+.meter i::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-100%);animation:glint 2.6s ease-in-out infinite}
+@keyframes glint{60%,100%{transform:translateX(200%)}}
+.toast:not(.hide){animation:toastin .35s cubic-bezier(.3,1.6,.5,1)}
+@keyframes toastin{from{transform:translate(-50%,-14px) scale(.9);opacity:0}to{transform:translate(-50%,0) scale(1);opacity:1}}
+.slip{position:relative}
+.slip.stamped::after{content:'PAID*';position:absolute;right:6%;bottom:-6px;font:700 26px/1 var(--f-label);color:var(--danger);border:3px solid var(--danger);padding:4px 10px;transform:rotate(-10deg);animation:stampin .3s cubic-bezier(.3,1.8,.5,1) both;pointer-events:none}
+@keyframes stampin{from{transform:rotate(-10deg) scale(2.4);opacity:0}to{transform:rotate(-10deg) scale(1);opacity:.85}}
+.sector-paper h2{background:linear-gradient(90deg,var(--brand),#ff9f43,var(--brand));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;background-size:200% 100%;animation:sheen 3s linear infinite}
+@keyframes sheen{to{background-position:200% 0}}
+@media (prefers-reduced-motion:reduce){.pop-in,.screen,.screen > .paper,.card,.banner.show,.banner.show b,.meter i::after,.crew.rev{animation:none!important}.banner.show{opacity:1;transform:none}}
+
 /* tower info + toast */
 .tinfo{position:absolute;left:10px;top:10px;width:min(260px,calc(100% - 20px));padding:13px;display:flex;flex-direction:column;gap:9px;font-size:14px}
 .tinfo h4{margin:0;font:400 26px/.95 var(--f-display)}
@@ -627,18 +678,20 @@ function renderMap(now) {
     }
   });
   // sector progress
+  const spos = sectorPos(RUN.idx);
   for (let i = 0; i <= CONTRACTS_PER_SECTOR; i++) {
     const x = 10 + i * 11, y = 18, boss = i === CONTRACTS_PER_SECTOR;
-    if (i > 0) px(g, x - 7, y + 2, 5, 1, i <= RUN.idx ? '#ffd23f' : '#323b66');
-    if (boss) { const c = RUN.idx >= CONTRACTS_PER_SECTOR ? '#ff4d6d' : '#5a2a3a'; px(g, x - 1, y - 1, 7, 5, c); px(g, x, y + 4, 5, 2, c); px(g, x, y + 1, 2, 2, '#05070a'); px(g, x + 3, y + 1, 2, 2, '#05070a'); }
+    if (i > 0) px(g, x - 7, y + 2, 5, 1, i <= spos ? '#ffd23f' : '#323b66');
+    if (boss) { const c = spos >= CONTRACTS_PER_SECTOR ? '#ff4d6d' : '#5a2a3a'; px(g, x - 1, y - 1, 7, 5, c); px(g, x, y + 4, 5, 2, c); px(g, x, y + 1, 2, 2, '#05070a'); px(g, x + 3, y + 1, 2, 2, '#05070a'); }
     else {
-      const done = i < RUN.idx, cur = i === RUN.idx;
+      const done = i < spos, cur = i === spos;
       px(g, x - 1, y - 1, 7, 7, '#05070a');
       px(g, x, y, 5, 5, done ? '#ffd23f' : cur ? (Math.floor(t * 3) % 2 ? '#e8ecf8' : '#8a93bd') : '#323b66');
     }
   }
   // ship
-  g.drawImage(shipSprites()[Math.floor(t * 14) % 3], sx - 17, sy - 9);
+  const fs = flightState(now);
+  if (!fs) g.drawImage(shipSprites()[Math.floor(t * 14) % 3], sx - 17, sy - 9);
   // planets
   RUN.options.forEach((o, i) => {
     const { cx, cy } = pos[i], hov = S.mapHover === i, sel = S.mapSel === i, R = Math.round(o.pr / A) + (hov || sel ? 1 : 0);
@@ -649,21 +702,31 @@ function renderMap(now) {
     drawPlanetPx(g, o, cx, cy, R, t);
     if (pst.ring) planetRing(g, cx, cy, R, true, pst);
     if (sel || hov) brackets(g, cx, cy, R + 8 + (sel ? Math.round(Math.sin(t * 5)) : 0), sel ? '#ffd23f' : '#a8b0d8');
+    if (hov || sel) { const sr = R + 4 + ((t * 14) % 12), M2 = Math.round(Math.PI * 2 * sr / 3); g.globalAlpha = 1 - ((t * 14) % 12) / 12; for (let k = 0; k < M2; k++) if (k % 2) px(g, Math.round(cx + Math.cos(k / M2 * 6.283) * sr), Math.round(cy + Math.sin(k / M2 * 6.283) * sr), 1, 1, o.fac.color); g.globalAlpha = 1; }
     const pips = Math.max(3, o.stars), py = cy + R + 15;
     for (let s = 0; s < pips; s++) { const x = cx - Math.floor((pips * 4 - 1) / 2) + s * 4; px(g, x - 1, py - 1, 5, 5, '#05070a'); px(g, x, py, 3, 3, s < o.stars ? (o.boss ? '#ff4d6d' : '#ffd23f') : '#323b66'); }
   });
+  // the ship mid-flight to the chosen planet, drawn over the planets, with a warp trail
+  if (fs) {
+    const j = RUN.options.indexOf(fs.o), { cx, cy } = pos[j], x0 = sx + 12, mx = (x0 + cx) / 2, my = (sy + cy) / 2 - 20, at = u => ({ x: (1 - u) * (1 - u) * x0 + 2 * (1 - u) * u * mx + u * u * cx, y: (1 - u) * (1 - u) * sy + 2 * (1 - u) * u * my + u * u * cy });
+    for (let k = 0; k < 24; k++) { const u = Math.max(0, fs.e - k * 0.02), p2 = at(u); px(g, Math.round(p2.x), Math.round(p2.y), 1, 1, k < 6 ? '#fff2c0' : k < 14 ? '#ff9f43' : '#7a3a1a'); }
+    const p1 = at(fs.e), sc = 1 - fs.e * 0.6;
+    g.save(); g.translate(Math.round(p1.x), Math.round(p1.y)); g.scale(sc, sc); g.drawImage(shipSprites()[Math.floor(t * 30) % 3], -17, -9); g.restore();
+  }
   presentSpace(sp);
+  if (fs && fs.k > 0.7) { ctx.fillStyle = `rgba(255,250,235,${Math.min(0.9, (fs.k - 0.7) * 3.5)})`; ctx.fillRect(0, 0, VIEW.w, VIEW.h); }
   // light and labels at full resolution
   ctx.globalCompositeOperation = 'lighter';
   glow((sx - 14) * A, sy * A, 26, '#ff9f43', 0.45 + 0.15 * Math.sin(t * 30));
   RUN.options.forEach((o, i) => glow(pos[i].cx * A, pos[i].cy * A, o.pr * 1.7, o.fac.color, S.mapSel === i ? 0.22 : 0.12));
   ctx.globalCompositeOperation = 'source-over';
-  pxText('SECTOR PROGRESS', 27, 38, '#8a93bd', 10, 'left');
+  pxText(`SECTOR ${sectorOf(RUN.idx)} PROGRESS`, 27, 38, '#8a93bd', 10, 'left');
   pxText('KSS INDENTURE', sx * A, (sy + 15) * A, '#8a93bd', 10);
   RUN.options.forEach((o, i) => {
     const R = Math.round(o.pr / A), x = pos[i].cx * A, y = (pos[i].cy + R) * A;
     pxText(o.planet.toUpperCase(), x, y + 22, S.mapSel === i ? '#ffd23f' : '#e8ecf8', 14);
     pxText(o.diffLabel.toUpperCase(), x, y + 38, o.boss ? '#ff4d6d' : '#8a93bd', 10);
+    if (S.mapHover === i || S.mapSel === i) pxText(`${o.fac.short.toUpperCase()} · ${o.biome.name.toUpperCase()}`, x, y + 52, o.fac.color, 9);
     if (o.envoy && Math.floor(performance.now() / 500) % 4) pxText('ENCRYPTED CHATTER', x, y + 64, ARCS[o.envoy.fac].col, 10);
   });
 }
@@ -1632,7 +1695,7 @@ function makeVariant(facKey, cat) {
   return finishVariant('human', [{ ax: 7, ay: 17, lights }], frames);
 }
 const WALKER_BOSSES = ['acquisitions', 'formeremp', 'severance'];
-function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', (facKey === 'fauna' || WALKER_BOSSES.includes(id) || (facKey === 'union' && id === 'steward') ? [0, 1, 2, 3] : [0, 1]).map(f => bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
+function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', (facKey === 'fauna' || WALKER_BOSSES.includes(id) || (facKey === 'union' && id === 'steward') ? [0, 1, 2, 3] : [0, 1]).map(f => bossFrameApex(id, col, f, look) || bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
 function getVariant(cat) {
   const human = M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer';
   const pool = M.pool[cat] || (M.pool[cat] = Array.from({ length: human ? 10 : 3 }, () => makeVariant(M.c.facKey, cat)));
@@ -1662,8 +1725,9 @@ const BIOME_ART = {
 };
 // obstacles are 18 wide, up to 24 tall, bottom-aligned on their tile
 function obstacleSprite(kind) {
-  let H = 18; if (['vaporator', 'beacon', 'spire', 'vending', 'neonpost', 'fruittree', 'holokiosk', 'sign', 'neonsign', 'woodsign'].includes(kind)) H = 24;
+  let H = 18; if (['vaporator', 'beacon', 'spire', 'vending', 'neonpost', 'fruittree', 'holokiosk', 'sign', 'neonsign', 'woodsign', 'mast', 'balloon', 'monolith', 'statue', 'glyph'].includes(kind)) H = 24;
   const P = painter(18, H), L = [], props = [], o = H - 18;
+  if (obstacleSector2(P, kind, o, L, props)) { postProcess(P.c); return { c: P.c, lights: L, props }; }
   switch (kind) {
     // ice world
     case 'ice': for (const [x, h] of shuffle([[3, 8], [6, 12], [9, 9], [12, 6]]).slice(0, ri(2, 4)).map(([x, h]) => [x, h + ri(-2, 2)])) { P.r(x, 16 - h, 3, h, '#8fc6e4'); P.r(x, 16 - h, 1, h, '#cfeaf8'); P.p(x + 1, 15 - h, '#e8f6ff'); } break;
@@ -1722,6 +1786,7 @@ function obstacleSprite(kind) {
 // 2x2 landmarks: 36 wide, up to 44 tall, bottom-aligned on the block
 function landmarkSprite(kind) {
   const P = painter(36, 44), L = [], props = [];
+  if (landmarkSector2(P, kind, L, props)) { postProcess(P.c); return { c: P.c, lights: L, props }; }
   switch (kind) {
     case 'dome':
       P.ell(18, 40, 17, 3.5, '#e8f2fa'); P.ell(18, 30, 15, 13, '#e2ecf4'); P.g.clearRect(0, 31, 36, 13); P.r(3, 30, 30, 6, '#8a929c'); P.r(3, 30, 30, 1, '#b8c0ca');
@@ -1800,6 +1865,7 @@ function decor(P, A, x0, y0, lights) {
       else if (r < 0.85) { P.ell(x + 1, y, 2, 1.2, '#b8b4a0'); P.p(x, y - 1, '#d8d4c0'); }
       else { P.r(x, y - 3, 1, 4, '#e8e4d4'); P.p(x, y - 4, '#fff2a0'); lights.push({ x: x * AP, y: (y - 4) * AP, color: '#fff2a0', r: 8 }); }
       break;
+    case 'cloud': case 'tomb': decorSector2(P, A, x0, y0, lights); break;
     case 'lava':
       if (r < 0.4) { P.line(x, y, x + 2, y + 1, '#1a0b0a'); P.line(x + 2, y + 1, x + 4, y, '#1a0b0a'); P.p(x + 2, y + 1, '#ff7a2a'); P.p(x + 1, y, '#ff9a3a'); lights.push({ x: (x + 2) * AP, y: (y + 1) * AP, color: '#ff7a2a', r: 9, flicker: true }); }
       else if (r < 0.7) { P.ell(x + 1, y, 2.5, 1.3, '#4a3a38'); P.p(x, y - 1, '#5a4a48'); }
@@ -1811,6 +1877,7 @@ function decor(P, A, x0, y0, lights) {
 function pathDecor(P, A, x0, y0, isP, tx, ty, lights) {
   const p0 = A.p[0];
   switch (A.path) {
+    case 'grate': case 'glyph': pathDecorSector2(P, A, x0, y0, isP, tx, ty, lights); break;
     case 'snow': for (let k = 0; k < 3; k++) { const x = x0 + 3 + ri(0, 10), y = y0 + 3 + ri(0, 10); P.p(x, y, shade(p0, -0.18)); P.p(x + 2, y + 1, shade(p0, -0.18)); } break;
     case 'mud': if (rnd() < 0.4) { const x = x0 + ri(4, 13), y = y0 + ri(5, 12); P.ell(x, y, ri(2, 4), 1.5, '#2a3a1a'); P.p(x - 1, y, '#5a7a3a'); } break;
     case 'sand': for (let k = 0; k < 2; k++) { const x = x0 + ri(1, 10), y = y0 + ri(3, 14); P.r(x, y, ri(3, 6), 1, shade(p0, 0.12)); } break;
@@ -1838,7 +1905,7 @@ function pathDecor(P, A, x0, y0, isP, tx, ty, lights) {
 }
 // weather: stateless particles positioned from the clock
 function makeWeather(type) {
-  const n = { snow: 80, rain: 110, embers: 45, spores: 45, pollen: 40, dust: 70, motes: 40 }[type] || 0;
+  const n = { snow: 80, rain: 110, embers: 45, spores: 45, pollen: 40, dust: 70, motes: 40, clouds: 26, whispers: 50 }[type] || 0;
   return { type, parts: Array.from({ length: n }, (_, i) => ({ x: rnd(), y: rnd(), s: rnd(), ph: rnd() * 7, fly: type === 'pollen' && i < 6 })) };
 }
 function drawWeather(g, t) {
@@ -1846,6 +1913,7 @@ function drawWeather(g, t) {
   const W = GW * ATILE, H = GH * ATILE, wrap = (v, m) => ((v % m) + m) % m;
   for (const p of w.parts) {
     let x, y;
+    if (weatherSector2(g, p, t, W, H, wrap, w.type)) continue;
     switch (w.type) {
       case 'snow': x = wrap(p.x * W + Math.sin(t * (0.6 + p.s) + p.ph) * 4 + t * 6, W); y = wrap(p.y * H + t * (10 + p.s * 10), H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.7 ? '#ffffff' : 'rgba(230,242,255,0.75)'); break;
       case 'rain': x = wrap(p.x * W - t * 45, W); y = wrap(p.y * H + t * (150 + p.s * 40), H); g.fillStyle = 'rgba(160,190,255,0.45)'; g.fillRect(Math.round(x), Math.round(y), 1, 3); g.fillRect(Math.round(x) - 1, Math.round(y) + 3, 1, 1); break;
@@ -2367,7 +2435,7 @@ function freshName() { let n, g = 0; do { n = pick(CREW_NAMES); } while (RUN.use
 function planetName() { return pick(SYL_A) + pick(SYL_B) + pick(SYL_C); }
 
 function genContract(idx, diff, boss, forceFac) {
-  const biomeKey = pick(Object.keys(BIOMES));
+  const biomeKey = pick(SECTOR_BIOMES[sectorOf(idx)] || SECTOR_BIOMES[1]), sector = sectorOf(idx);
   let facKey;
   if (forceFac) facKey = forceFac;
   else if (boss) {
@@ -2382,12 +2450,12 @@ function genContract(idx, diff, boss, forceFac) {
   let spawns = (idx >= 2 ? 2 : 1) + (diff === 2 ? 1 : 0) + (idx === 1 && rnd() < 0.5 ? 1 : 0);
   if (boss) spawns = 2;
   const o = {
-    idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? pick(fac.bosses) : null,
-    planet: biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
+    idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? (sector >= MAX_SECTOR ? fac.apex : pick(fac.bosses)) : null,
+    planet: biomeKey === 'cloud' ? pick(CLOUD_NAMES) : biomeKey === 'tomb' ? pick(TOMB_NAMES) : biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
     pstyle: ri(0, PLANET_STYLES[biomeKey].length - 1),
-    mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? 'Executive Priority' : D.label, stars: boss ? 4 : D.stars,
+    mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? (sector >= MAX_SECTOR ? 'Board Priority' : 'Executive Priority') : D.label, stars: boss ? 4 : D.stars,
     spawns: clamp(spawns, 1, 3),
-    T: Math.round((165 + idx * 25) * (BIOMES[biomeKey].mod.T || 1)),
+    T: Math.round((165 + Math.min(idx, 4) * 25 + Math.max(0, idx - 4) * 12) * (BIOMES[biomeKey].mod.T || 1)),
     grudge: prev ? prev.planet : null,
     seed: Math.random(),
   };
@@ -2395,12 +2463,14 @@ function genContract(idx, diff, boss, forceFac) {
   return o;
 }
 function genOptions() {
-  if (RUN.idx >= CONTRACTS_PER_SECTOR) return [genContract(RUN.idx, 1, true)];
+  if (sectorPos(RUN.idx) === CONTRACTS_PER_SECTOR) return [genContract(RUN.idx, 1, true)];
   // 4-6 planets with random difficulty; a faction whose arc is under way usually has a planet on offer
   const n = ri(4, 6), opts = [];
   for (let k = 0; k < n; k++) opts.push(genContract(RUN.idx, wpick({ 0: 0.36, 1: 0.4, 2: 0.24 }) | 0, false));
   for (const f of Object.keys(ARCS)) if (!ARCS[f].oneOff && RUN.story.arcs[f] && RUN.story.arcs[f].state === 'active' && !opts.some(o => o.facKey === f) && rnd() < 0.8) opts[ri(0, n - 1)] = genContract(RUN.idx, ri(0, 2), false, f);
   if (!opts.some(o => o.diff === 0)) opts[ri(0, n - 1)] = genContract(RUN.idx, 0, false);
+  // a new sector should show off its new worlds
+  if (sectorOf(RUN.idx) >= 2) for (let g = 0; g < 20 && opts.filter(o => o.biomeKey === 'cloud' || o.biomeKey === 'tomb').length < 2; g++) { const k = ri(0, n - 1); if (opts[k].envoy) continue; const c = genContract(RUN.idx, opts[k].diff, false); if (c.biomeKey === 'cloud' || c.biomeKey === 'tomb') opts[k] = c; }
   return opts;
 }
 
@@ -2632,6 +2702,7 @@ function drawLiquidTile(P, L, x0, y0, isLiq, lights, props) {
     case 'sparkle': P.p(fx, fy, L.hi); break;
     case 'neon': P.r(fx - 3, fy, 5, 1, rnd() < 0.5 ? '#ff3ad6' : '#3af0ff'); break;
     case 'lily': if (rnd() < 0.55) { P.ell(fx, fy, 2.4, 1.6, '#4a9a3a'); P.p(fx + 1, fy - 1, '#3a2a14'); if (rnd() < 0.5) P.p(fx - 1, fy, '#ff8fc8'); } break;
+    case 'cloud': if (rnd() < 0.6) { P.ell(fx, fy, ri(3, 5), 1.8, '#ffffff'); P.ell(fx + 2, fy - 1, 2, 1.4, '#f2f6ff'); P.r(fx - 3, fy + 1, 6, 1, '#d8e4f8'); } break;
     case 'crust': if (rnd() < 0.6) { P.ell(fx, fy, ri(2, 3), 1.6, '#3a1a12'); P.p(fx + 1, fy, '#5a2a18'); } break;
   }
   if (L.glow) props.push({ kind: 'bubble', x: x0 + ri(4, 14), y: y0 + ri(4, 14), col: L.hi });
@@ -2727,7 +2798,7 @@ function renderGround(map, biomeKey) {
   for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
     const x0 = tx * ATILE, y0 = ty * ATILE, v = map.grid[ty][tx];
     if (v === 5 || bridgeSet.has(ty * GW + tx)) { drawLiquidTile(P, Lq, x0, y0, isLiq, lights, props); liquidTiles.push({ x: x0, y: y0, s: rnd() }); }
-    if (bridgeSet.has(ty * GW + tx)) { drawBridgeTile(P, ['cyber', 'lowgrav', 'volcanic'].includes(biomeKey), x0, y0, !!(isP(tx - 1, ty) || isP(tx + 1, ty))); continue; }
+    if (bridgeSet.has(ty * GW + tx)) { drawBridgeTile(P, ['cyber', 'lowgrav', 'volcanic', 'cloud'].includes(biomeKey), x0, y0, !!(isP(tx - 1, ty) || isP(tx + 1, ty))); continue; }
     if (v === 5) continue;
     if (isP(tx, ty)) {
       if (isP(tx, ty - 1) === false && !isLiq(tx, ty - 1)) P.r(x0, y0, ATILE, 2, A.edge);
@@ -2934,6 +3005,7 @@ function damage(e, dmg, pierce, tw, quiet) {
       c.x = e.x + (rnd() - 0.5) * 16; c.y = e.y + (rnd() - 0.5) * 16; c.wi = e.wi; c.dist = e.dist;
     }
     M.budget += e.bounty + (has('loyalty') ? 1 : 0);
+    if (e.tier >= 2 || e.boss) fxText(e.x, ecy(e) - 16, '+$' + e.bounty, '#ffd23f');
     deathFx(e); sfx(e.boss ? 'bigboom' : M.c.facKey === 'fauna' ? 'splat' : 'pop', e.x);
     if (tw) {
       const s = tw.st || towerStats(tw.crew, tw), cr = tw.crew;
@@ -2944,6 +3016,7 @@ function damage(e, dmg, pierce, tw, quiet) {
         cr.level++; cr.reviews.push(cr.level);
         M.promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); sfx('promote', tw.x);
         fxText(tw.x, tw.y - 22, 'REVIEW DUE', '#ffd23f');
+        if (S.screen === 'mission') { banner('Promoted', `${cr.name} · ${RANKS[cr.level - 1]}`, '#ffd23f'); const sp = stagePos(tw.x, tw.y); confetti(sp.x, sp.y, 22); }
         if (!M.reviewHint) { M.reviewHint = true; toast(`${cr.name} is up for a performance review. Click their card.`, 2800); }
         buildRosterBar();
       }
@@ -2977,7 +3050,7 @@ function reassign(tw) {
 }
 
 function genWave() {
-  const m = M, c = m.c, idx = c.idx, prog = m.t / m.T;
+  const m = M, c = m.c, idx = diffLevel(c.idx), prog = m.t / m.T;
   let budget = (5.5 + idx * 3.0 + idx * idx * 0.3) * (1 + prog * 1.8) * c.mod;
   m.waveNum++;
   const vet = clamp(-0.04 + idx * 0.14 + prog * 0.3, 0, 0.68), eli = clamp(-0.2 + idx * 0.08 + prog * 0.16, 0, 0.34);
@@ -3009,7 +3082,7 @@ function genWave() {
 }
 function spawnEnemy(q) {
   const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = M.paths[q.sp];
-  const hp = C.hp * Tt.hp * (1 + 0.22 * c.idx + 0.03 * c.idx * c.idx) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
+  const hp = C.hp * Tt.hp * (1 + 0.22 * diffLevel(c.idx) + 0.03 * diffLevel(c.idx) ** 2) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
   const armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3));
   const e = {
     cat: q.cat, tier: q.tier, name: c.fac.names[q.cat], color: c.fac.color,
@@ -3067,7 +3140,7 @@ function spawnBoss(B, mini, child) {
   if (has('doxx')) { e.vulnT = 1e9; e.vulnAmt = Math.max(e.vulnAmt || 0, 0.15); }
   if (RUN.story.flags.stream) cancelBoss(e);
   M.boss = e; M.bossSpawned = true; setMusic('boss');
-  toast(`${B.name} has entered the area`, 2600);
+  toast(`${B.name} has entered the area`, 2600); banner('Warning', B.name, '#ff4d6d', true);
   return e;
 }
 
@@ -3105,7 +3178,7 @@ function stepMission(dt) {
       toast(m.boss ? 'Drill complete. Neutralise the target for pickup.' : 'Drill complete. Clear the area for pickup.', 2600);
     } else {
       m.waveTimer -= dt;
-      if (m.waveTimer <= 0) { genWave(); m.waveTimer = Math.max(8.5, m.waveInterval - 0.9 * Math.max(0, m.c.idx - 2) - 2.4 * clamp(m.t / m.T, 0, 1) * Math.min(1, Math.max(0, m.c.idx - 1) / 2)); }
+      if (m.waveTimer <= 0) { genWave(); m.waveTimer = Math.max(8.5, m.waveInterval - 0.9 * Math.max(0, diffLevel(m.c.idx) - 2) - 2.4 * clamp(m.t / m.T, 0, 1) * Math.min(1, Math.max(0, m.c.idx - 1) / 2)); }
       if (m.c.boss && !m.bossSpawned && m.t >= m.T * 0.45) spawnBoss(m.c.bossDef);
       if (!m.c.boss && m.c.idx >= 2 && !m.miniSpawned && m.t >= m.T * 0.65) { m.miniSpawned = true; spawnBoss(pick(m.c.fac.bosses), true); }
     }
@@ -3364,7 +3437,7 @@ function stepMission(dt) {
   m.zones = m.zones.filter(z => z.life > 0);
   m.enemies = m.enemies.filter(e => !e.dead && !e.gone);
   if (m.phase === 'evac' && !m.enemies.length && !m.queue.length) {
-    m.phase = 'done'; m.endTimer = 2; sfx('evac'); toast('Area secure. Dropship inbound.', 2000);
+    m.phase = 'done'; m.endTimer = 2; sfx('evac'); toast('Area secure. Dropship inbound.', 2000); banner('Extraction complete', 'Dropship inbound', '#4fe0a6'); confetti(null, null, 60);
   }
 }
 function leak(e) {
@@ -3831,7 +3904,7 @@ function drawEnemyPx(g, e, t) {
 function buildMissionHud() {
   const c = M.c;
   $('#hud').innerHTML = `
-    <div class="hud-block"><div class="lbl">${c.boss ? 'Executive contract' : `Contract ${c.idx + 1} of ${CONTRACTS_PER_SECTOR}`} · ${esc(c.biome.name)}</div><div class="val" title="${esc(c.planet)}">${esc(c.planet)}</div></div>
+    <div class="hud-block"><div class="lbl">${c.boss ? (sectorOf(c.idx) >= MAX_SECTOR ? 'Board contract' : 'Executive contract') : `Sector ${sectorOf(c.idx)} · Contract ${sectorPos(c.idx) + 1} of ${CONTRACTS_PER_SECTOR}`} · ${esc(c.biome.name)}</div><div class="val" title="${esc(c.planet)}">${esc(c.planet)}</div></div>
     <div class="hud-meter"><div class="lbl">Extraction <span id="hDrillTxt" class="mono"></span></div><div class="meter"><i id="hDrill"></i></div></div>
     <div class="hud-meter"><div class="lbl">Profit margin <span id="hMarginTxt" class="mono"></span></div><div class="meter m-margin" id="hMarginBox"><i id="hMargin"></i></div></div>
     <div class="hud-block"><div class="lbl">Budget</div><div class="val mono" id="hBudget"></div></div>
@@ -3855,6 +3928,9 @@ function updateHud() {
   set('hMarginTxt', 't', RUN.margin + '%');
   set('hMarginBox', 'cls', 'meter m-margin' + (RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''));
   set('hBudget', 't', '$' + m.budget);
+  if (hudCache.lastB != null && m.budget > hudCache.lastB) bump(document.getElementById('hBudget'));
+  if (hudCache.lastM != null && RUN.margin < hudCache.lastM) bump(document.getElementById('hMarginBox'), 'hurt');
+  hudCache.lastB = m.budget; hudCache.lastM = RUN.margin;
   const bs = document.getElementById('bStart'); if (bs) bs.hidden = m.phase !== 'prep';
   set('bPause', 't', m.paused ? 'Resume' : 'Pause');
   document.querySelectorAll('[data-act="speed"]').forEach(b => b.classList.toggle('on', +b.dataset.v === m.speed));
@@ -4181,6 +4257,7 @@ function envoyBeat(fac, boss) {
 function rollEnvoy(o) {
   if (!RUN.story) return null;
   if (o.boss) {
+    if (sectorOf(o.idx) < MAX_SECTOR) return null;
     // the reckoning comes before the final contract, whoever the final target is
     const ready = Object.keys(ARCS).filter(f => !ARCS[f].oneOff && envoyBeat(f, true) === 2);
     return ready.length ? { fac: pick(ready), beat: 2 } : null;
@@ -4574,7 +4651,7 @@ function dealThrough(e) {
   const d = M.deal; if (!d) return;
   d.through++;
   fxText(e.x, e.y - 18, { skim: 'skimmed', escort: 'safe', uplink: 'leaked' }[d.ask.kind] || (d.A.oneOff ? 'claimed' : 'strike fund'), '#4fe0a6');
-  if (d.through >= d.ask.n && !d.broken) { d.done = true; toast(`${d.A.envoy}'s deal honoured.`, 2400); }
+  if (d.through >= d.ask.n && !d.broken) { d.done = true; toast(`${d.A.envoy}'s deal honoured.`, 2400); banner('Deal honoured', d.A.envoy, d.A.col); }
 }
 // after the contract: rewards, fallout and the paper trail
 function resolveDeal(m) {
@@ -4785,7 +4862,7 @@ const ENDINGS = {
     paras: x => [
       `The board thanks you. You may not have met the board. That is for the best.`,
       `Every crystal you guarded, every ${x.fac} you pacified, every crew member denied a lunch break produced exactly the right amount of suffering. We have eaten well this quarter.`,
-      `Your margin of ${x.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 2. Do not look directly at the CEO.`,
+      `Your margin of ${x.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 3. There is no Sector 3. Report anyway. Do not look directly at the CEO.`,
     ], sign: '— Q.' },
 };
 const ENDING_ORDER = ['default', 'loyalist', 'union', 'rival', 'fauna', 'activists', 'coalition', 'doubledealer'];
@@ -4835,6 +4912,294 @@ function updateDealHud(force) {
   if (b) b.hidden = !!d.broken || d.done;
 }
 
+// ================================================================
+// JUICE. Screen wipes, staggered entrances, counters that tick up, confetti,
+// banners for big moments, and the ship flying out to the chosen planet.
+// ================================================================
+const JUICE_COLS = ['#ffd23f', '#ff6fae', '#5ab8ff', '#4fe0a6', '#b98cff', '#ff8a3a'];
+function stageEl(cls) { let el = $('#stage > .' + cls); if (!el) { el = document.createElement('div'); el.className = cls; $('#stage').appendChild(el); } return el; }
+// pixel shutters that slide away to reveal the new screen
+function revealWipe() {
+  if (RM) return;
+  const w = stageEl('wipe');
+  if (!w.childElementCount) for (let k = 0; k < 8; k++) { const i = document.createElement('i'); i.style.setProperty('--k', k); w.appendChild(i); }
+  w.classList.remove('go'); void w.offsetWidth; w.classList.add('go');
+}
+// children rise in one after another
+function stagger(root, sel, step = 55) {
+  if (!root) return;
+  root.querySelectorAll(sel).forEach((el, i) => { el.style.setProperty('--d', (i * step) + 'ms'); el.classList.add('pop-in'); });
+}
+function juiceScreen() {
+  revealWipe();
+  const ov = $('#overlay');
+  stagger(ov, '.mailbody > p, .slip tr, .memo, .paper > .row, .paper > h2, .paper > .lbl');
+  stagger(ov, '.offers > .offer, .rlist > .ritem', 45);
+  stagger(ov, '.title-wrap > *, .steps > li', 70);
+  stagger(ov, '.envoy-offer > .deal, .envoy-offer > .row', 90);
+}
+function countUp(el, from, to, ms = 700, fmt = v => String(v)) {
+  if (!el) return;
+  if (RM || from === to) { el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  const tick = now => { const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1 && document.body.contains(el)) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
+function bump(el, cls = 'bump') { if (!el || RM) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+// confetti bursts from a point on the stage (centre of the stage by default)
+function confetti(x, y, n = 40, cols = JUICE_COLS) {
+  if (RM) return;
+  const st = $('#stage'), r = st.getBoundingClientRect();
+  if (x == null) { x = r.width / 2; y = r.height * 0.35; }
+  for (let i = 0; i < Math.min(n, 120); i++) {
+    const s = document.createElement('i'); s.className = 'cf'; s.style.background = cols[i % cols.length];
+    s.style.left = x + 'px'; s.style.top = y + 'px'; if (i % 3 === 0) s.style.width = '4px';
+    st.appendChild(s);
+    const a = rnd() * Math.PI * 2, v = 80 + rnd() * 220, dx = Math.cos(a) * v, dy = Math.sin(a) * v - 120, rot = (rnd() - 0.5) * 900, dur = 900 + rnd() * 700;
+    s.animate([{ transform: 'translate(0,0) rotate(0deg)', opacity: 1 }, { transform: `translate(${dx * 0.6}px,${dy * 0.6}px) rotate(${rot * 0.5}deg)`, opacity: 1, offset: 0.4 }, { transform: `translate(${dx}px,${dy + 260}px) rotate(${rot}deg)`, opacity: 0 }], { duration: dur, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => s.remove();
+  }
+}
+// mission coordinates to stage pixels, for confetti at a crew member
+function stagePos(x, y) {
+  const cv = $('#cv').getBoundingClientRect(), st = $('#stage').getBoundingClientRect();
+  return { x: cv.left - st.left + x / VIEW.w * cv.width, y: cv.top - st.top + y / VIEW.h * cv.height };
+}
+let bannerTimer = 0;
+function banner(title, sub, col = '#ffd23f', danger = false) {
+  const b = stageEl('banner');
+  b.innerHTML = `<b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}`;
+  b.style.setProperty('--bc', col); b.classList.toggle('danger', danger);
+  b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.remove('show'), 1900);
+}
+
+// ---------- the ship flies out to the chosen planet before the mission ----------
+function beginFlight(i) {
+  if (RM || !RUN.options[i] || RUN.options[i].px == null) { startMission(RUN.options[i]); return; }
+  S.flight = { i, t0: performance.now() }; $('#overlay').innerHTML = ''; sfx('start');
+}
+const FLIGHT_T = 0.9;
+function flightState(now) {
+  const f = S.flight; if (!f) return null;
+  const k = Math.min(1, (now - f.t0) / 1000 / FLIGHT_T);
+  if (k >= 1 && !f.done) { f.done = true; const o = RUN.options[f.i]; S.flight = null; startMission(o); return null; }
+  return { k, e: k * k * (3 - 2 * k), o: RUN.options[f.i] };
+}
+
+// ================================================================
+// SECTOR 2. Contracts 6-10 continue the difficulty curve on two new worlds,
+// and each faction fields an apex boss for the finale.
+// ================================================================
+const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 2;
+const sectorOf = idx => Math.floor(idx / SECTOR_LEN) + 1;
+const sectorPos = idx => idx % SECTOR_LEN;
+// how hard a contract is: full steps through sector 1, then gentler ones so sector 2 stays beatable
+const diffLevel = idx => idx <= 4 ? idx : 4 + (idx - 4) * 0.55;
+const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
+Object.assign(BIOMES, {
+  cloud: { name: 'Cloud City', mod: { flyers: 1.8, range: 1.1, espd: 1.05 }, hazard: 'High-altitude winds: far more flyers, enemies 5% faster, crew range +10%.' },
+  tomb:  { name: 'Precursor Tomb', mod: { ehp: 1.1, regen: 0.008, rate: 0.95 }, hazard: 'Something below is whispering: enemies +10% HP and regenerate, crew fire 5% slower.' },
+});
+Object.assign(BIOME_ART, {
+  cloud: { g: ['#5e6488', '#666c92', '#565c80'], p: ['#c8a46a', '#d4b078', '#bc985e'], edge: '#2e3250', path: 'grate', deco: 'cloud',
+           obst: { road: ['mast', 'sign', 'crate'], building: ['fan', 'crate'], shore: ['balloon', 'mast'], grove: ['crate', 'fan'], open: ['balloon'] }, liquid: { kind: 'sky', river: 0.75, pools: [1, 2] },
+           land: ['airship'], weather: 'clouds', grade: ['#d8e0ff', '#5a4aa0', 0.16] },
+  tomb:  { g: ['#1c2a2c', '#223234', '#18242a'], p: ['#4a4458', '#544e62', '#403a4e'], edge: '#0e1416', path: 'glyph', deco: 'tomb',
+           obst: { road: ['glyph', 'brazier', 'sign'], building: ['statue', 'brazier'], shore: ['monolith', 'skull'], grove: ['monolith', 'glyph'], open: ['statue', 'skull'] }, liquid: { kind: 'psi', river: 0.55, pools: [1, 2] },
+           land: ['eye'], weather: 'whispers', grade: ['#ff5ad1', '#103a3a', 0.2] },
+});
+Object.assign(LIQUIDS, {
+  sky: { name: 'the open sky', a: '#8ab8f0', b: '#9ac4f8', shore: '#2e3250', hi: '#ffffff', feat: 'cloud' },
+  psi: { name: 'the psychic pool', a: '#5a1a6a', b: '#7a2a8a', shore: '#0e1416', hi: '#ff9ff0', feat: 'sparkle', glow: '#ff5ad1' },
+});
+Object.assign(BUILD_STYLE, {
+  cloud: { roof: '#e8e4f4', roof2: '#dcd8ea', edge: '#ffffff', wall: '#7a76a0', win: ['#9fd3ff', '#ffd890', '#2e3250'], details: ['dish', 'antenna', 'vent', 'solar'] },
+  tomb:  { roof: '#3a3448', roof2: '#342e42', edge: '#5a5070', wall: '#221e2c', win: ['#ff5ad1', '#3ae8d0', '#120e18'], details: ['vent', 'moss', 'antenna'] },
+});
+Object.assign(PLANET_STYLES, {
+  cloud: [{ name: 'Gas Giant Cloud City', pal: ['#1a0e2a', '#3a1e4a', '#7a3a6a', '#c86a5a', '#f0a86a', '#ffe0b0'], bands: 1, ring: ['#ffe0b0', '#c87a5a'] },
+          { name: 'Storm Giant', pal: ['#0a1430', '#142a5a', '#2a4a8a', '#4a7ac0', '#8ab8f0', '#e0f0ff'], bands: 1, clouds: 1 }],
+  tomb:  [{ name: 'Precursor Tomb World', pal: ['#060a0c', '#0e1c20', '#1c3a3a', '#2a6a64', '#ff5ad1', '#ffd0f0'], craters: 1 },
+          { name: 'Dead Eye World', pal: ['#0a0a10', '#1a1424', '#3a2448', '#6a3a7a', '#c85ab8', '#ffd0ff'], craters: 1, ring: ['#ff9ff0', '#7a2a8a'] }],
+});
+Object.assign(TROPES, {
+  cloud: 'A city on stilts above a gas giant. Do not look down. Do not drop anything. Do not fall.',
+  tomb: 'Older than humanity, and somehow on Kindly\'s books. The carvings look a lot like the board.',
+});
+const CLOUD_NAMES = ['Stratoplex', 'Cumulon IX', 'Nimbus Ring', 'Zephyr Spire', 'Cirrus Heights'];
+const TOMB_NAMES = ['The Quiet Ossuary', 'Necropolis Q', 'The Long Stair', 'Vault of the First Board', 'Sub-Basement Zero'];
+const SECTOR_NAMES = { 2: ['Upper Management Belt', 'Board Space', 'The Shareholder Reach', 'Quarterly Abyss'] };
+
+// ---------- apex bosses for the Sector 2 finale ----------
+FACTIONS.union.apex = { id: 'unionhall', name: 'The Union Hall', hp: 5800, spd: 0.26, armor: 12, r: 26, bubble: { at: [0.7, 0.4], cat: 'armored', n: 4 }, rally: { every: 11, dur: 4, mult: 1.4 }, shockwave: { every: 9, r: 2.4, dmg: 35, stun: 2 }, spawn: { cat: 'swarm', n: 5, every: 8 }, desc: 'All of Local 404\'s hall, walking on four legs. Seals itself twice behind Hauler Rig guards, rallies every hostile and stamps the ground to stun crew.' };
+FACTIONS.fauna.apex = { id: 'serpent', name: 'The World Serpent', hp: 5600, spd: 0.4, armor: 6, r: 26, burrow: { every: 9, dur: 3, n: 6 }, barrage: { every: 6, n: 3, dmg: 30, range: 4.2 }, splitDeath: { n: 3, name: 'Serpentling' }, regen: 0.004, desc: 'Burrows out of reach and surfaces in a swarm, spits acid at three crew, regenerates, and splits into three serpentlings when killed.' };
+FACTIONS.rival.apex = { id: 'goldsuit', name: 'The Chairman (Gold Exosuit)', hp: 5000, spd: 0.45, armor: 9, r: 24, phase2: true, blink: { every: 7, tiles: 2.6 }, barrage: { every: 5, n: 3, dmg: 26, range: 4.4 }, emp: { every: 12, r: 3, dur: 2.5 }, desc: 'VectorCorp\'s chairman in a solid gold exosuit. Blinks forward, fires on three crew, EMPs everything nearby, and comes back flying when "removed".' };
+FACTIONS.activists.apex = { id: 'revolution', name: 'The Revolution', hp: 6000, spd: 0.3, armor: 4, r: 28, shed: { step: 0.1, cat: 'swarm', n: 7 }, rally: { every: 10, dur: 5, mult: 1.45 }, secondWind: { at: 0.2, to: 0.5 }, healAura: { r: 3, hps: 18 }, desc: 'A towering mecha built from thousands of protesters. Sheds seven every 10% of health, rallies the map, heals its own, and refuses to stay down.' };
+WALKER_BOSSES.push('unionhall', 'goldsuit', 'revolution');
+function bossFrameApex(id, col, f, look) {
+  const ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  switch (id) {
+    case 'unionhall': {
+      const P = painter(54, 56);
+      // thick piston legs with feet
+      const thick = (x, y, p, c) => { for (let k = 0; k < 3; k++) legStep(P, x + k, y, 15, p, c, 3); const sw = Math.round(Math.cos(p) * 3), lift = Math.sin(p) < -0.5 ? 1 : 0; P.r(x - 2 + sw, y + 15 - lift, 8, 2, '#1e2028'); };
+      for (let i = 0; i < 2; i++) thick(14 + i * 22, 36, ph + (i + 1) * Math.PI, '#2a2c34');
+      P.r(6, 10 + bob, 42, 28, '#8a3a2a');
+      for (let y = 12; y < 38; y += 3) { P.r(6, y + bob, 42, 1, '#6a2a1e'); for (let x = 6 + (y % 6 ? 0 : 3); x < 48; x += 6) P.p(x, y + 1 + bob, '#6a2a1e'); }
+      P.r(4, 6 + bob, 46, 5, '#4a2418'); P.r(2, 5 + bob, 50, 2, '#5a3020');
+      P.r(14, 13 + bob, 26, 6, '#f2efe6'); P.r(16, 15 + bob, 4, 2, '#d23c3c'); P.r(22, 15 + bob, 4, 2, '#d23c3c'); P.r(28, 15 + bob, 4, 2, '#d23c3c'); P.r(34, 15 + bob, 4, 2, '#d23c3c');
+      for (const x of [10, 22, 34]) { P.r(x, 23 + bob, 6, 6, '#ffd890'); P.r(x + 2, 23 + bob, 1, 6, '#6a2a1e'); }
+      P.r(23, 30 + bob, 8, 8, '#3a2418'); P.r(24, 31 + bob, 6, 1, '#ffd23f');
+      P.r(42, 0 + bob, 4, 7, '#4a2418');
+      P.r(9, 0 + bob, 1, 7, '#9aa3ad'); P.r(10, 0 + bob, 8, 5, '#d23c3c'); P.r(12, 2 + bob, 4, 1, '#f2efe6');
+      for (let i = 0; i < 2; i++) thick(9 + i * 24, 37, ph + i * Math.PI, '#4a4e5a');
+      postProcess(P.c); return { c: P.c, ax: 27, ay: 54, lights: [{ x: 13, y: 26, color: '#ffd890', r: 16 }, { x: 37, y: 26, color: '#ffd890', r: 16 }] };
+    }
+    case 'serpent': {
+      const P = painter(64, 34), d = shade(col, -0.35);
+      for (let i = 0; i < 10; i++) {
+        const x = 4 + i * 5, y = 20 + Math.round(Math.sin(i * 0.9 - ph) * 3), r = 4 + Math.min(i, 9 - i) * 0.35;
+        P.ell(x, y, r, r, i % 2 ? d : col); P.line(x, y - r, x - 1, y - r - 3, '#d8d0b0');
+      }
+      const hy = 18 + Math.round(Math.sin(10 * 0.9 - ph) * 2);
+      P.ell(56, hy, 7, 6, shade(col, -0.1)); P.ell(58, hy + 2, 4, 2.5, '#2a1a20');
+      P.line(54, hy - 5, 50, hy - 12, '#d8d0b0'); P.line(58, hy - 5, 60, hy - 12, '#d8d0b0');
+      P.p(57, hy - 2, '#ff3a3a'); P.p(60, hy - 1, '#ff3a3a'); for (let k = 0; k < 4; k++) P.p(56 + k * 2, hy + 4, '#f2efe6');
+      postProcess(P.c); return { c: P.c, ax: 32, ay: 30, lights: [{ x: 58, y: hy - 1, color: '#ff3a3a', r: 12 }] };
+    }
+    case 'goldsuit': {
+      const P = painter(42, 50);
+      for (const [x, p] of [[14, ph + Math.PI], [24, ph]]) { const sw = Math.round(Math.cos(p) * 2), s = Math.sin(p) < -0.5 ? 2 : 0; P.r(x + sw, 32, 5, 14 - s, p === ph ? '#c89a2a' : '#a07a1a'); P.r(x - 1 + sw, 46 - s, 7, 3, '#5a4a1a'); }
+      P.r(10, 14 + bob, 22, 19, '#e8b830'); P.r(10, 14 + bob, 22, 2, '#fff0a0'); P.r(12, 22 + bob, 18, 2, '#c89a2a'); P.r(20, 16 + bob, 2, 15, '#c89a2a');
+      P.ell(21, 26 + bob, 3, 3, '#3af0ff'); P.p(21, 26 + bob, '#ffffff');
+      P.ell(21, 8 + bob, 8, 7, 'rgba(180,230,255,0.55)');
+      P.g.drawImage(drawHuman(look, { shirt: '#1e2229', suit: '#e8b830', pants: '#1e2229', shades: true }, 'n', 0), 0, 0, 14, 10, 14, 1 + bob, 14, 10);
+      P.r(2, 14 + bob, 8, 6, '#c89a2a'); P.r(0, 15 + bob, 3, 4, '#5a4a1a'); P.r(32, 14 + bob, 8, 6, '#c89a2a'); P.r(39, 15 + bob, 3, 4, '#5a4a1a');
+      P.r(4, 12 + bob, 4, 2, '#ff4d6d'); P.r(34, 12 + bob, 4, 2, '#ff4d6d');
+      postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 21, ay: 48, lights: [{ x: 21, y: 26, color: '#3af0ff', r: 14 }, { x: 21, y: 14, color: '#ffd23f', r: 26 }] };
+    }
+    case 'revolution': {
+      const P = painter(50, 54), cols = ['#ff6fae', '#ffd23f', '#5ab8ff', '#7bdc6a', '#ff8a3a', '#b98cff', '#f2efe6'];
+      // the silhouette is made of tiny protesters
+      const skins = ['#f1c9a5', '#c68a5f', '#8d5a3b', '#5c3a26', '#e0ac7e'];
+      // rows of tiny people: a head over a shirt in every 2x3 cell
+      const fill = (x, y, w, h) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const cx = Math.floor((xx + (Math.floor(yy / 3) % 2)) / 2), cy = Math.floor(yy / 3), r = yy % 3; P.p(xx, yy, r === 0 ? skins[(cx * 7 + cy * 3) % skins.length] : r === 1 ? cols[(cx * 5 + cy * 11) % cols.length] : shade(cols[(cx * 5 + cy * 11) % cols.length], -0.35)); } };
+      for (const [x, p] of [[16, ph + Math.PI], [28, ph]]) { const sw = Math.round(Math.cos(p) * 2), s = Math.sin(p) < -0.5 ? 2 : 0; fill(x + sw, 38, 6, 12 - s); P.r(x - 1 + sw, 50 - s, 8, 3, '#2a2c3a'); }
+      fill(13, 16 + bob, 24, 23); fill(18, 4 + bob, 14, 12);
+      fill(5, 18 + bob, 8, 6); fill(1, 8 + bob, 6, 10); fill(0, 4 + bob, 8, 5);
+      fill(37, 18 + bob, 8, 14);
+      P.r(42, 6 + bob, 2, 28, '#7a5a3a'); P.r(44, 6 + bob, 6, 4, '#d23c3c');
+      P.r(22, 8 + bob, 2, 2, '#ffffff'); P.r(27, 8 + bob, 2, 2, '#ffffff');
+      postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 25, ay: 52, lights: [{ x: 4, y: 6, color: '#ffd23f', r: 16 }] };
+    }
+  }
+  return null;
+}
+
+// ---------- new world art ----------
+function decorSector2(P, A, x0, y0, lights) {
+  const x = x0 + ri(2, 13), y = y0 + ri(3, 14), g0 = A.g[0], r = rnd();
+  if (A.deco === 'cloud') {
+    if (r < 0.35) { P.p(x, y, shade(g0, 0.25)); P.p(x + 4, y, shade(g0, 0.25)); }
+    else if (r < 0.55) { P.r(x0 + 2, y, 14, 1, shade(g0, -0.18)); }
+    else if (r < 0.7) { P.r(x, y, 4, 1, '#ffd23f'); P.r(x + 1, y + 1, 4, 1, '#1e2028'); }
+    else if (r < 0.85) { P.ell(x + 1, y, 2.5, 1.5, shade(g0, -0.25)); P.r(x - 1, y, 5, 1, shade(g0, -0.35)); }
+    else { P.p(x, y, '#9fd3ff'); lights.push({ x: x * AP, y: y * AP, color: '#9fd3ff', r: 7 }); }
+  } else {
+    if (r < 0.35) { P.line(x, y, x + 3, y + 1, '#0a1214'); P.line(x + 3, y + 1, x + 4, y + 3, '#0a1214'); }
+    else if (r < 0.55) { const c = pick(['#ff5ad1', '#3ae8d0']); P.p(x, y, c); P.p(x + 1, y - 1, c); P.p(x + 2, y, c); lights.push({ x: (x + 1) * AP, y: y * AP, color: c, r: 7 }); }
+    else if (r < 0.75) { P.r(x, y, 3, 1, '#c8c0a8'); P.p(x + 3, y - 1, '#c8c0a8'); }
+    else { P.p(x, y, shade(g0, 0.2)); P.p(x + 2, y + 1, shade(g0, 0.15)); }
+  }
+}
+function pathDecorSector2(P, A, x0, y0, isP, tx, ty, lights) {
+  const p0 = A.p[0];
+  if (A.path === 'grate') {
+    for (let y = 1; y < ATILE; y += 3) P.r(x0 + 1, y0 + y, ATILE - 2, 1, shade(p0, -0.22));
+    P.r(x0, y0, 1, ATILE, shade(p0, -0.35)); if (rnd() < 0.15) { P.p(x0 + 9, y0 + 9, '#ffd890'); lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: '#ffd890', r: 9 }); }
+  } else {
+    for (let y = 0; y < ATILE; y += 6) P.r(x0, y0 + y, ATILE, 1, shade(p0, -0.2));
+    if (rnd() < 0.3) { const c = (tx + ty) % 2 ? '#ff5ad1' : '#3ae8d0', x = x0 + ri(3, 11), y = y0 + ri(3, 12); P.r(x, y, 4, 1, c); P.p(x + 1, y - 1, c); P.p(x + 3, y + 1, c); lights.push({ x: (x + 2) * AP, y: y * AP, color: c, r: 9, pulse: true }); }
+  }
+}
+function obstacleSector2(P, kind, o, L, props) {
+  switch (kind) {
+    case 'fan': P.ell(9, 11, 7, 5, '#3a3e58'); P.ell(9, 11, 5, 3.5, '#1e2028'); P.line(5, 9, 13, 13, '#8a8eaa'); P.line(5, 13, 13, 9, '#8a8eaa'); P.p(9, 11, '#c8ccd4'); return true;
+    case 'mast': P.r(8, 3 + o, 2, 14, '#8a8eaa'); P.r(5, 16 + o, 8, 2, '#3a3e58'); P.line(9, 5 + o, 4, 16 + o, '#5a5e7a'); P.line(9, 5 + o, 14, 16 + o, '#5a5e7a'); P.p(9, 2 + o, '#ff4d6d'); L.push({ x: 9, y: 2 + o, color: '#ff4d6d', r: 12, pulse: true }); return true;
+    case 'balloon': P.r(9, 12 + o, 1, 6, '#5a5e7a'); P.ell(9, 6 + o, 7, 6, '#f2a86a'); P.ell(7, 4 + o, 3, 2, '#ffe0b0'); P.r(3, 6 + o, 13, 1, '#c86a5a'); P.r(7, 12 + o, 4, 2, '#7a5a3a'); return true;
+    case 'crate': P.r(2, 8, 9, 8, '#a87a3a'); P.r(2, 8, 9, 1, '#c89a5a'); P.line(2, 8, 10, 15, '#7a5a2a'); P.r(9, 4, 7, 6, '#5a7a9a'); P.r(9, 4, 7, 1, '#7a9aba'); P.p(12, 7, '#ffd23f'); return true;
+    case 'monolith': P.r(6, 1 + o - 6, 7, 22, '#141c1e'); P.r(6, 1 + o - 6, 1, 22, '#2a3a3c'); for (let y = 2; y < 16; y += 4) P.r(8, y + o - 6, 3, 1, '#3ae8d0'); L.push({ x: 9, y: 6 + o - 6, color: '#3ae8d0', r: 10 }); return true;
+    case 'statue': P.r(5, 14 + o, 9, 4, '#3a3a44'); P.r(7, 5 + o, 5, 9, '#5a5a64'); P.ell(9, 3 + o, 3, 3, '#5a5a64'); P.p(8, 3 + o, '#ff5ad1'); P.p(10, 3 + o, '#ff5ad1'); P.r(12, 7 + o, 3, 2, '#5a5a64'); P.line(4, 8 + o, 7, 10 + o, '#4a4a54'); L.push({ x: 9, y: 3 + o, color: '#ff5ad1', r: 8 }); return true;
+    case 'glyph': P.r(6, 2 + o, 6, 16, '#2a2238'); P.r(6, 2 + o, 6, 1, '#4a3a5a'); for (const [x, y] of [[7, 5], [9, 8], [8, 11], [10, 14]]) { P.r(x, y + o, 2, 1, '#ff5ad1'); } L.push({ x: 9, y: 10 + o, color: '#ff5ad1', r: 12, pulse: true }); return true;
+    case 'brazier': P.r(6, 12, 7, 5, '#3a3a44'); P.r(5, 11, 9, 2, '#5a5a64'); P.ell(9, 9, 3.5, 3, '#ff5ad1'); P.ell(9, 8, 2, 2, '#ffd0f0'); L.push({ x: 9, y: 8, color: '#ff5ad1', r: 14, flicker: true }); props.push({ kind: 'steam', x: 9, y: 6 }); return true;
+  }
+  return false;
+}
+function landmarkSector2(P, kind, L, props) {
+  if (kind === 'airship') {
+    P.ell(18, 12, 17, 9, '#f2a86a'); P.ell(14, 9, 9, 4, '#ffe0b0'); for (const x of [8, 14, 20, 26]) P.r(x, 4, 1, 16, '#c86a5a');
+    P.r(32, 6, 3, 12, '#c86a5a'); P.r(12, 21, 12, 6, '#5a5e7a'); P.r(13, 22, 10, 2, '#9fd3ff'); P.r(17, 27, 2, 12, '#8a8eaa'); P.r(10, 39, 16, 3, '#3a3e58');
+    L.push({ x: 18, y: 23, color: '#9fd3ff', r: 14 }); L.push({ x: 33, y: 7, color: '#ff4d6d', r: 10, pulse: true }); return true;
+  }
+  if (kind === 'eye') {
+    P.r(10, 6, 16, 36, '#141c1e'); P.r(10, 6, 2, 36, '#2a3a3c'); P.r(8, 38, 20, 4, '#0e1416');
+    P.ell(18, 16, 6, 4, '#f2efe6'); P.ell(18, 16, 3, 3, '#ff5ad1'); P.ell(18, 16, 1.4, 2.4, '#1a0a1e');
+    for (let y = 24; y < 36; y += 3) P.r(13, y, 10, 1, '#3ae8d0');
+    L.push({ x: 18, y: 16, color: '#ff5ad1', r: 30, pulse: true }); return true;
+  }
+  return false;
+}
+function weatherSector2(g, p, t, W, H, wrap, type) {
+  if (type === 'clouds') { const x = wrap(p.x * W + t * (6 + p.s * 6), W), y = wrap(p.y * H, H); g.fillStyle = `rgba(255,255,255,${0.06 + p.s * 0.08})`; g.fillRect(Math.round(x), Math.round(y), 10 + Math.round(p.s * 16), 2); g.fillRect(Math.round(x) + 3, Math.round(y) - 1, 6, 1); return true; }
+  if (type === 'whispers') { const a = t * (0.3 + p.s * 0.4) + p.ph, x = wrap(p.x * W + Math.cos(a) * 8, W), y = wrap(p.y * H + Math.sin(a) * 8 - t * 1.5, H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.5 ? 'rgba(255,90,209,0.85)' : 'rgba(58,232,208,0.7)'); return true; }
+  return false;
+}
+
+// ---------- the sector break ----------
+function showSectorComplete(c, net) {
+  S.screen = 'sector'; M = null; clearMissionUi(); backdropView(); sfx('victory'); setMusic('menu');
+  const sector = sectorOf(RUN.idx), loan = Math.min(20, 100 - RUN.margin);
+  RUN.margin += loan;
+  RUN.sectorName = pick(SECTOR_NAMES[sector] || ['The Outer Dark']);
+  RUN.offers = genOffers();
+  $('#overlay').innerHTML = `<div class="screen"><div class="paper sector-paper">
+    ${titlebar('Promotion_Notice.msg')}
+    <div class="lbl" style="color:var(--brand)">${esc(c.bossDef.name)} neutralised</div>
+    <h2>Sector ${sector - 1} cleared</h2>
+    <div class="mailbody">
+      <p>Congratulations, Employee #${RUN.empId}. Your reward for clearing a sector is another sector.</p>
+      <p>You have been reassigned to <b>Sector ${sector} · ${esc(RUN.sectorName)}</b>: Cloud Cities, Precursor Tombs, larger clients, larger hostiles, and the faction leaders you have been annoying all quarter.</p>
+      <p>The board has advanced <b>${loan}%</b> margin against your future earnings. Interest is "a surprise". Your crew, relics and debts transfer with you.</p>
+    </div>
+    <div class="memo">SECTOR ${sector - 1} REVIEW
+Contracts: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Margin: ${RUN.margin}% · Bonus: +${net} scrip
+Crew: ${RUN.roster.map(r => `${esc(r.name)} (Lv${r.level})`).join(', ')}</div>
+    <div class="row"><button class="btn" data-act="tostore">Proceed to Sector ${sector}</button></div>
+  </div></div>`;
+  juiceScreen(); confetti(null, null, 90); banner(`Sector ${sector - 1} cleared`, `Next: Sector ${sector} · ${RUN.sectorName}`, '#ffd23f');
+}
+
+
+// every screen arrives with a wipe and staggered content
+const juiced = (f, after) => function (...a) { const r = f.apply(this, a); try { if (!S.noJuice) juiceScreen(); if (after) after(...a); } catch (e) { } return r; };
+showTitle = juiced(showTitle);
+showMap = juiced(showMap, () => { const n = sectorOf(RUN.idx); if (S.sectorSeen !== n) { S.sectorSeen = n; banner(`Sector ${n}`, RUN.sectorName, '#ffd23f'); } });
+showGameOver = juiced(showGameOver);
+showMessenger = juiced(showMessenger);
+showVictory = juiced(showVictory, () => { confetti(null, null, 120); setTimeout(() => confetti(null, null, 80), 500); });
+showDebrief = juiced(showDebrief, d => {
+  const tot = $('.slip tr.tot td:last-child'); if (tot) countUp(tot, 0, d.net, 900);
+  const slip = $('.slip'); if (slip && !RM) setTimeout(() => { slip.classList.add('stamped'); sfx('stamp'); }, 1000);
+});
+showStore = juiced(showStore, () => { const el = $('.scrip.mono'); if (el && S.lastScrip != null && S.lastScrip !== RUN.scrip) countUp(el, S.lastScrip, RUN.scrip, 600); S.lastScrip = RUN.scrip; });
+buy = (f => function (i) {
+  const before = RUN.scrip; S.noJuice = true; S.lastScrip = before; f(i); S.noJuice = false;
+  if (RUN.scrip !== before) { const el = document.querySelector(`.offer[data-i="${i}"]`); if (el) { el.classList.add('sold-pop'); const r = el.getBoundingClientRect(), st = $('#stage').getBoundingClientRect(); confetti(r.left - st.left + r.width / 2, r.top - st.top + r.height / 2, 36); } }
+})(buy);
+resolveReview = (f => function (id) { const r = f(id); if (id) { confetti(null, null, 50, ['#ffd23f', '#fff2a0', '#ff9f43', '#ffffff']); } return r; })(resolveReview);
+showReview = (f => function (cr) { const r = f(cr); stagger($('#modal'), '.perk', 90); return r; })(showReview);
+startMission = (f => function (o) { const r = f(o); revealWipe(); return r; })(startMission);
+
 // ---------- finishing a mission ----------
 function finishMission(success) {
   const m = M, c = m.c;
@@ -4857,14 +5222,14 @@ function finishMission(success) {
   if (st.heat >= 75) { const fee = Math.min(25, net); all.push(['Internal audit (suspicion surcharge)', -fee]); net -= fee; st.heat -= 30; story.push({ audit: true }); }
   st.heat = Math.max(0, st.heat - 5);
   RUN.scrip += net;
-  if (c.boss) { showVictory(); return; }
+  if (c.boss) { if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; showSectorComplete(c, net); } else showVictory(); return; }
   RUN.idx++;
   showDebrief({ c, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
 }
 
 // ---------- screens ----------
 const titlebar = (title, close) => `<div class="titlebar"><span>${title}</span><i></i>${close ? `<button class="xbtn" data-act="${close}" aria-label="Close">x</button>` : ''}</div>`;
-function clearMissionUi() { $('#hud').innerHTML = ''; $('#bar').innerHTML = ''; hudCache = {}; const t = $('#stage .toast'); if (t) t.classList.add('hide'); }
+function clearMissionUi() { $('#hud').innerHTML = ''; $('#bar').innerHTML = ''; hudCache = {}; const bn = $('#stage > .banner'); if (bn) bn.classList.remove('show'); const t = $('#stage .toast'); if (t) t.classList.add('hide'); }
 function showTitle() {
   S.screen = 'title'; M = null; clearMissionUi(); backdropView(); setMusic('menu');
   const colony = store.get('al_colony', 0);
@@ -4892,8 +5257,8 @@ Breaks are not scheduled. Good luck.                                    — HR-B
 function showMap() {
   S.screen = 'map'; S.mapSel = -1; S.mapHover = -1; M = null; clearMissionUi(); setMusic('map');
   mapView();
-  $('#overlay').innerHTML = `<div class="maphint">${RUN.idx >= CONTRACTS_PER_SECTOR ? 'Executive priority. One contract available.' : 'Select a planet to review the contract.'}</div>`;
-  $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">Sector 1 · ${esc(RUN.sectorName)}</div><div class="val">Choose your next deployment</div></div>
+  $('#overlay').innerHTML = `<div class="maphint">${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? (sectorOf(RUN.idx) >= MAX_SECTOR ? 'Board priority. The final contract.' : 'Executive priority. One contract available.') : 'Select a planet to review the contract.'}</div>`;
+  $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">Sector ${sectorOf(RUN.idx)} · ${esc(RUN.sectorName)}</div><div class="val">Choose your next deployment</div></div>
     <div class="hud-meter"><div class="lbl">Profit margin <span class="mono">${RUN.margin}%</span></div><div class="meter m-margin${RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''}"><i style="width:${RUN.margin}%"></i></div></div>
     <div class="hud-meter" title="HR suspicion. Deals raise it; it cools by 5 each contract."><div class="lbl">Heat <span class="mono">${RUN.story.heat}</span></div><div class="meter m-heat"><i style="width:${RUN.story.heat}%"></i></div></div>
     <div class="hud-block"><div class="lbl">Scrip</div><div class="val mono">${RUN.scrip}</div></div>
@@ -4929,7 +5294,7 @@ function showContractCard(i) {
   const mins = Math.floor(o.T * (has('overtime') ? 0.85 : 1) / 60), secs = Math.round(o.T * (has('overtime') ? 0.85 : 1) % 60);
   $('#overlay').innerHTML = `<div class="card" role="dialog" aria-label="Contract details">
     ${titlebar(`Contract_${String(o.idx + 1).padStart(2, '0')}.doc`, 'mapback')}
-    <div class="sub">${o.boss ? 'Executive priority contract' : `Contract ${o.idx + 1} · ${esc(o.diffLabel)}`}</div>
+    <div class="sub">${o.boss ? (sectorOf(o.idx) >= MAX_SECTOR ? 'Board priority contract' : 'Executive priority contract') : `Contract ${o.idx + 1} · ${esc(o.diffLabel)}`}</div>
     <h2>${esc(o.planet)}</h2>
     <p style="margin:0">${esc(o.client.n)} needs its ${esc(o.client.asset)} protected because ${esc(o.client.why)}.</p>
     <p class="colony" style="margin:0">${esc(planetStyle(o).name)}. ${esc(TROPES[o.biomeKey])}</p>
@@ -5013,7 +5378,7 @@ function showStore() {
       <div class="row" style="justify-content:space-between"><div><div class="lbl">Kindly™ Company Store</div><h2>Spend it here.<br>Only here.</h2></div><div style="text-align:right"><div class="lbl">Balance</div><div class="scrip mono">${RUN.scrip}</div></div></div>
       ${S.promotePick ? '<div class="intel">Choose a crew member to promote in the roster.</div>' : ''}
       <div class="offers">${offerHtml}</div>
-      <div class="row"><button class="btn" data-act="tomap" ${S.promotePick ? 'disabled' : ''}>Accept next deployment</button><span class="colony">Margin ${RUN.margin}% · Contract ${RUN.idx + 1} next${RUN.idx >= CONTRACTS_PER_SECTOR ? ' (boss)' : ''}</span></div>
+      <div class="row"><button class="btn" data-act="tomap" ${S.promotePick ? 'disabled' : ''}>Accept next deployment</button><span class="colony">Margin ${RUN.margin}% · Sector ${sectorOf(RUN.idx)} · Contract ${sectorPos(RUN.idx) + 1} next${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? ' (boss)' : ''}</span></div>
     </div>
     <div class="paper" style="width:100%">
       ${titlebar('Personnel.db')}
@@ -5093,7 +5458,7 @@ document.addEventListener('click', ev => {
   if (act !== 'pickperk' && act !== 'envoy') sfx(act === 'buy' ? 'buy' : act === 'accept' || act === 'newrun' || act === 'tomap' ? 'confirm' : 'click');
   if (act === 'newrun') { newRun(); showMap(); }
   else if (act === 'title') showTitle();
-  else if (act === 'accept') { const o = RUN.options[i]; if (o.envoy && envoyBeat(o.envoy.fac, o.boss) === o.envoy.beat) showMessenger(i); else startMission(o); }
+  else if (act === 'accept') { const o = RUN.options[i]; if (o.envoy && envoyBeat(o.envoy.fac, o.boss) === o.envoy.beat) showMessenger(i); else beginFlight(i); }
   else if (act === 'envoy') envoyChoice(b.dataset.v);
   else if (act === 'envoydeploy') { clearInterval(typeTimer); S.envoy = null; startMission(RUN.options[S.mapSel]); }
   else if (act === 'betray') { if (dealHolds()) breakDeal('betrayed'); }
@@ -5190,7 +5555,7 @@ function frame(now) {
 // test hook for automated playtesting
 window.__AL = {
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
-  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
+  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
 
 resize(); showTitle(); requestAnimationFrame(frame);

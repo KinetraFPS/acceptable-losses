@@ -7,7 +7,7 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 **Play:** https://kinetrafps.github.io/acceptable-losses/ *(once GitHub Pages is enabled)*
 
 ## What's in the vertical slice
-- Seven trope worlds (including a cyberpunk Neon Megacity and a Solarpunk Commune), each with themed obstacles, landmarks, weather and planet colour schemes
+- Two sectors with nine trope worlds (including a cyberpunk Neon Megacity, a Solarpunk Commune, a Cloud City and a Precursor Tomb) and apex bosses in the finale,, each with themed obstacles, landmarks, weather and planet colour schemes
 - Procedurally generated maps with rivers and bridges, lava/acid/water pools, multi-tile buildings that enemies tunnel under and crew can stand on for extra range, and props placed by context
 - 5 crew roles, 4 enemy factions in 15 categories (medics, shields, splitters, stealth, jammers, plus ranged shooters, reinforcement carriers, teleporters, berserkers and burrowers) and 3 tiers, elite traits, 20 bosses with signature mechanics, mini-bosses, and difficulty that keeps climbing through the run
 - Randomly generated crew with quirks who keep their look through the run and can be injured

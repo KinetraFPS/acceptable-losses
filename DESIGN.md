@@ -101,6 +101,35 @@ Liquids can't be built on, and each world has its own:
 
 Liquids shimmer, and acid, methane and lava bubble. Buildings are styled per world: neon apartment blocks, terracotta eco-houses with solar roofs and gardens, snow-dusted station modules, whitewashed desert domes, moon habitats, moss-covered bunkers, and hazard-striped foundries with smoking chimneys.
 
+## Sectors
+A run is two sectors of four contracts plus a boss.
+- **Sector 1** uses the original seven worlds and ends with a faction boss. Beating it shows a *Sector cleared* promotion notice:
+  - The board advances up to 20% margin "against future earnings".
+  - Crew, relics and story carry over.
+- **Sector 2** (contracts 6–10) adds two new worlds, and at least two of them appear on every Sector 2 map:
+  - **Cloud City**: steel deck plating and brass walkways over a gas giant. Rivers and pools of open sky, sky villas, fans, masts, tethered balloons and cargo, a docked airship, drifting clouds. More flyers, faster enemies, +10% crew range.
+  - **Precursor Tomb**: dark stone with glowing pink and teal glyphs, psychic pools, ziggurat temples, monoliths, statues, rune pillars and braziers, a giant eye obelisk, whispering motes. Enemies +10% HP and regenerate, crew fire 5% slower.
+- Difficulty keeps rising in Sector 2, but each contract counts as about 0.55 of a Sector 1 step, and extraction time grows more slowly.
+- The finale is the faction's **apex boss**:
+  - **The Union Hall**: the walking union hall seals itself twice behind four Hauler Rigs, rallies and stuns.
+  - **The World Serpent**: burrows, spits acid at three crew, regenerates, and splits into three serpentlings.
+  - **The Chairman (Gold Exosuit)**: blinks, fires on three crew, EMPs, and comes back flying when "removed".
+  - **The Revolution**: a mecha made of thousands of protesters that sheds seven every 10% of health, rallies, heals and gets a second wind.
+- Envoys' reckoning beats and the endings now happen at the end of Sector 2.
+
+## UI feel
+- **Transitions:** every screen arrives behind pixel shutters that slide away, and its content rises in one item after another (email paragraphs, payslip rows, store offers, roster, review cards, envoy offer panels). Before each mission the ship flies out to the chosen planet with a warp trail and a flash.
+- **Rewards:**
+  - Payslip net counts up, then gets a PAID* stamp.
+  - Purchases pop with confetti and a SOLD stamp, and the scrip balance ticks.
+  - Picking a perk bursts gold confetti.
+  - Promotions show a banner and confetti at the crew member.
+  - Banners for *Extraction complete* (with confetti), *Deal honoured*, *Sector cleared*, and a hazard-striped *Warning* for boss arrivals.
+  - Elite and boss kills float their bounty. The budget readout bumps when it grows, and the margin meter shakes when hit.
+- **Polish:** button shine on hover, springy hover on cards and the crew roster, a glowing pulse on crew with reviews due, glints running along meters, bouncing toasts.
+- **Star map:** a scan ring and faction · biome line on the hovered planet, a sector banner when you enter a new sector, sector-numbered progress.
+- Reduced-motion settings switch the animations off.
+
 ## Envoys and deals
 Before some deployments a faction's envoy gets onto your channel. This is what sets the game apart: some deals mean certain enemies must get **through**, and you spend your own margin to keep a promise.
 
