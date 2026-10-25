@@ -4,7 +4,8 @@ Satirical roguelite tower defence. You work for Kindly Security Solutions™, an
 security company. You defend clients' crystal extractions across Earth and the galaxy.
 
 ## Core loop (vertical slice)
-1. **Star map**: pick one of 3 contracts (planet bubbles). Each shows the client, whether they're good or bad people, the hostile faction, biome hazard, difficulty and pay.
+1. **Star map**: pick one of 4–6 contracts (planet bubbles) with random difficulty and faction. Each shows the client, whether they're good or bad people, the hostile faction, biome hazard, difficulty and pay. Planets flagged **ENCRYPTED CHATTER** have an envoy waiting.
+1. **Envoy call** (sometimes): a faction's envoy makes a plea or offers a bribe before you land. See *Envoys and deals*.
 2. **Mission** (about 2.5–4.5 min): procedurally generated map. Deploy crew next to the path and hold until the drill reaches 100%, then clear the area to evacuate.
 3. **Debrief**: a satirical HR email plus a payslip in Company Scrip, with itemised deductions.
 4. **Company Store**: hire crew, buy relics, promote crew, or use creative accounting to restore margin.
@@ -61,6 +62,44 @@ Liquids can't be built on, and each world has its own:
 | Forge World | Lava with crust and glow |
 
 Liquids shimmer, and acid, methane and lava bubble. Buildings are styled per world: neon apartment blocks, terracotta eco-houses with solar roofs and gardens, snow-dusted station modules, whitewashed desert domes, moon habitats, moss-covered bunkers, and hazard-striped foundries with smoking chimneys.
+
+## Envoys and deals
+Before some deployments a faction's envoy gets onto your channel. This is what sets the game apart: some deals mean certain enemies must get **through**, and you spend your own margin to keep a promise.
+
+**When envoys appear**
+- Not on the first contract.
+- Chance on a faction's planet is 20%, plus 12% for every earlier contract against that faction, plus 35% if you're already in that faction's arc. The first sector guarantees one by contract 3.
+- Planets with an envoy waiting show *ENCRYPTED CHATTER* on the star map and in the contract card. While an arc is under way, that faction usually has a planet on offer.
+- Pleas come from factions fighting evil clients. Bribes come from evil actors.
+
+**The envoy screen**
+- An animated pixel video call: the envoy's bust over a faction backdrop. The envoy steps further out of the shadow at each beat.
+- The envoy's message types out using details from your run: the planet, the client, last time's results, injured crew.
+- An offer panel lists the ask, the reward and the risk.
+- Choices: **Accept**, **Refuse**, or **Report to HR**. Reporting pays scrip and loyalty, but that faction holds a grudge (+15% HP) and never calls again. Two refusals and the envoy stops asking.
+
+**Deals in the field**
+- Accepting spawns **marked units** during the drill. They have a green outline and a white pennant.
+- Crew automatically hold fire on marked units, including chains, arcs, thunder and barrages. Mortar splash, napalm and foam can still kill them.
+- A dead marked unit **breaks the deal**. The HUD has a **Betray** button to break it on purpose.
+- Breaking a deal: the faction turns hostile (+20% HP), you lose the reward, and bribes are clawed back.
+- Marked units that reach the drill cost the agreed margin.
+
+**Heat**
+- Each accepted deal raises Heat (HR suspicion), shown on the star map.
+- Heat cools by 5 per contract. At 75, an internal audit takes 25 scrip and cuts Heat by 30.
+
+**The paper trail**
+- HR-BOT's debrief email reacts to every honoured, broken, refused or reported deal, plus your Heat level.
+- Honoured deals add headlines to the news ticker.
+- The victory screen changes with completed arcs (full endings come in pass 2).
+
+| Faction | Envoy | Type | Beat 1: Contact | Beat 2: Trust | Beat 3: Reckoning (before the final contract) |
+|---|---|---|---|---|---|
+| Miners' Union | **Old Dot**, union recording secretary, in a lantern-lit mine shaft | Plea · couriers | *Strike Fund*: 4 couriers × 3%. Reward: **Picket Line** relic (crew next to crew +10% fire rate) | *The Walkout*: 5 × 3%. Reward: **Rafa Okonkwo** joins (rank 3 mortar, *Unionised*: +20% dmg) | *General Strike*: 6 × 2%. Reward: every 22s three allied miners march out from the drill, stunning and hitting hostiles |
+| VectorCorp | **Mr. Sable**, SVP of Opportunities, in a neon penthouse | Bribe · skim drones | *Quiet Acquisition*: 3 drones × 4%. +60 scrip up front | *Due Diligence*: 4 × 4%. +40 scrip and a **Black Market** in the store (Black Card, Document Shredder, Poison Pill) | *Hostile Takeover*: 5 × 4%. The final boss arrives with −30% HP and permanently marked |
+
+Wildlife, Activists, insurance fraud from evil clients, full branching endings and abandonment rescues are planned for pass 2.
 
 ## Worlds
 Seven trope worlds, each with its own ground and path palette, path treatment, ground decor, props sorted by context, a liquid, its own building style, a 2x2 landmark (0–1 per map), animated props, weather, a colour grade, and 2–3 planet colour schemes on the star map.
