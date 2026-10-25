@@ -33,8 +33,37 @@ security company. You defend clients' crystal extractions across Earth and the g
 - **Enemies**: humans for the miner, protester and VectorCorp factions use the same random people generator with faction outfits and props. Each faction has its own vehicle (treads, van, walker) and drone. Wildlife are hand-built creature sprites. Veterans get a white outline and Elites a gold one.
 - **Terrain**: per-biome noise ground, a path sunk below the ground, biome decorations, and obstacle sprites with their own light sources.
 
+## Map generation
+Maps are built in this order, so the big structures shape the roads rather than being sprinkled on afterwards:
+1. **Drill site and spawns**: the drill sits on the right; spawns are on the left, top or bottom edges, well apart.
+2. **River** (most worlds, about 50–70% of maps): a one-tile river runs edge to edge. Roads cross it on **bridges** (wooden, or metal on industrial worlds).
+3. **Buildings**: 2–4 multi-tile buildings (2×2 up to 4×2 / 2×4), clear of the drill and each other. Crew can stand on the roof and get **+15% range** (high ground).
+4. **Roads**: Dijkstra over tile *and heading*, so every turn costs extra and roads come out as long straight runs instead of staircases. Roads are drawn towards buildings, so most maps send at least one road **through a building as a tunnel**. Enemies inside a tunnel are hidden and can't be targeted or damaged until they come out. Crew can still stand on the roof above.
+5. **Validation**: a map is rejected and rebuilt if it has a 2×2 block of road, a road brushing against itself, or two roads running side by side for more than two tiles. This stops the clustered, stair-stepping roads.
+6. **Pools**: blobs of the world's liquid on open ground.
+7. **Props by context**: each world sorts its props into rules, and every prop only goes where its rule allows:
+   - road: signs, kiosks, drills
+   - building: vents, dumpsters, vaporators
+   - shore: reeds, ice, obsidian
+   - grove: small clusters of trees, crystals or mushrooms away from the road
+   - open: a few lone rocks
+
+Liquids can't be built on, and each world has its own:
+
+| World | Liquid |
+|---|---|
+| Ice World | Freezing water with ice floes |
+| Death World Jungle | Bubbling acid |
+| Desert Planet | Oasis with reeds (pools only) |
+| Crystal Moon | Liquid methane (pools only) |
+| Neon Megacity | Canal with neon reflections |
+| Solarpunk Commune | Pond with lily pads |
+| Forge World | Lava with crust and glow |
+
+Liquids shimmer, and acid, methane and lava bubble. Buildings are styled per world: neon apartment blocks, terracotta eco-houses with solar roofs and gardens, snow-dusted station modules, whitewashed desert domes, moon habitats, moss-covered bunkers, and hazard-striped foundries with smoking chimneys.
+
 ## Worlds
-Seven trope worlds, each with its own ground and path palette, path treatment, ground decor, 5 obstacle types, 2x2 landmarks (1–3 per map), animated props, weather, a colour grade, and 2–3 planet colour schemes on the star map.
+Seven trope worlds, each with its own ground and path palette, path treatment, ground decor, props sorted by context, a liquid, its own building style, a 2x2 landmark (0–1 per map), animated props, weather, a colour grade, and 2–3 planet colour schemes on the star map.
 
 | World | Trope | Path | Obstacles | Landmarks | Weather | Planet schemes |
 |---|---|---|---|---|---|---|

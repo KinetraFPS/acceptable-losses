@@ -1153,26 +1153,27 @@ function getVariant(cat) {
 // ---------- terrain ----------
 // ---------- terrain: seven trope worlds ----------
 // Each world sets ground and path palettes, a path treatment, ground decor,
-// five obstacle types, 2x2 landmarks, weather and a colour grade.
+// props sorted by where they belong (road, building, shore, grove, open ground),
+// a liquid for rivers and pools, 2x2 landmarks, weather and a colour grade.
 const BIOME_ART = {
   frozen:   { g: ['#2f4a63', '#385672', '#284057'], p: ['#9fb8cc', '#aec5d6', '#8faabf'], edge: '#1a2c3e', path: 'snow', deco: 'frozen',
-              obst: ['ice', 'snowrock', 'beacon', 'bones', 'drift'], land: ['dome'], weather: 'snow', grade: ['#bfe6ff', '#2a5a9a', 0.16] },
+              obst: { road: ['beacon', 'sign'], building: ['drift', 'beacon'], shore: ['ice'], grove: ['ice', 'snowrock'], open: ['snowrock', 'bones'] }, liquid: { kind: 'icewater', river: 0.6, pools: [0, 1] }, land: ['dome'], weather: 'snow', grade: ['#bfe6ff', '#2a5a9a', 0.16] },
   toxic:    { g: ['#1f3d26', '#26482d', '#19331f'], p: ['#5e4c2c', '#6a583a', '#524226'], edge: '#10200f', path: 'mud', deco: 'toxic',
-              obst: ['plant', 'pitcher', 'shrooms', 'skull', 'thorns'], land: ['tree'], weather: 'spores', grade: ['#8aff6a', '#3a0a5a', 0.16] },
+              obst: { road: ['thorns', 'skull', 'sign'], building: ['plant', 'shrooms'], shore: ['pitcher', 'skull'], grove: ['plant', 'shrooms'], open: ['thorns'] }, liquid: { kind: 'acid', river: 0.55, pools: [1, 2] }, land: ['tree'], weather: 'spores', grade: ['#8aff6a', '#3a0a5a', 0.16] },
   dust:     { g: ['#8a6a44', '#97764e', '#7c5e3c'], p: ['#c49a62', '#d0a86e', '#b88e58'], edge: '#5a4228', path: 'sand', deco: 'dust',
-              obst: ['boulder', 'vaporator', 'ribs', 'pod', 'succulent'], land: ['hull'], weather: 'dust', grade: ['#ffd090', '#a04a1a', 0.18] },
+              obst: { road: ['pod', 'sign'], building: ['vaporator'], shore: ['succulent'], grove: ['boulder'], open: ['boulder', 'ribs'] }, liquid: { kind: 'oasis', river: 0, pools: [1, 1] }, land: ['hull'], weather: 'dust', grade: ['#ffd090', '#a04a1a', 0.18] },
   lowgrav:  { g: ['#2d2846', '#352f51', '#26223c'], p: ['#625a86', '#6c6492', '#58507a'], edge: '#1a172e', path: 'regolith', deco: 'crater',
-              obst: ['mineral', 'spire', 'floatrock', 'dish', 'rim'], land: ['array'], weather: 'motes', grade: ['#d0b8ff', '#1a2a6a', 0.16] },
+              obst: { road: ['dish', 'sign'], building: ['dish'], shore: ['mineral'], grove: ['mineral', 'spire'], open: ['floatrock', 'rim'] }, liquid: { kind: 'methane', river: 0, pools: [1, 2] }, land: ['array'], weather: 'motes', grade: ['#d0b8ff', '#1a2a6a', 0.16] },
   cyber:    { g: ['#1c1e2c', '#22253a', '#171928'], p: ['#2b2d3e', '#31344a', '#26283a'], edge: '#0b0c14', path: 'neon', deco: 'cyber',
-              obst: ['vending', 'neonpost', 'dumpster', 'acunit', 'holokiosk', 'barrier'], land: ['billboard'], weather: 'rain', grade: ['#ff3ad6', '#2a6aff', 0.2] },
+              obst: { road: ['vending', 'neonpost', 'holokiosk', 'barrier', 'neonsign'], building: ['dumpster', 'acunit'], shore: ['barrier'] }, liquid: { kind: 'canal', river: 0.7, pools: [0, 0] }, land: ['billboard'], weather: 'rain', grade: ['#ff3ad6', '#2a6aff', 0.2] },
   solar:    { g: ['#4c8a42', '#58984c', '#427a3a'], p: ['#d2c9ac', '#ded6bc', '#c2b99c'], edge: '#2e5a28', path: 'paver', deco: 'solar',
-              obst: ['panel', 'planter', 'fruittree', 'beehive', 'fountain'], land: ['turbine', 'gardentower'], weather: 'pollen', grade: ['#fff0b0', '#ffb04a', 0.16] },
+              obst: { road: ['woodsign', 'planter', 'woodsign', 'fountain'], building: ['panel', 'planter'], shore: ['planter'], grove: ['fruittree', 'beehive'], open: ['fruittree'] }, liquid: { kind: 'water', river: 0.5, pools: [1, 2] }, land: ['turbine', 'gardentower'], weather: 'pollen', grade: ['#fff0b0', '#ffb04a', 0.16] },
   volcanic: { g: ['#361c1a', '#3e211e', '#2d1715'], p: ['#4e4648', '#58504f', '#443c3e'], edge: '#1c0e0d', path: 'basalt', deco: 'lava',
-              obst: ['obsidian', 'lavapool', 'drill', 'basalt', 'vent'], land: ['forge'], weather: 'embers', grade: ['#ff8a3a', '#5a0a0a', 0.18] },
+              obst: { road: ['drill', 'sign'], building: ['drill', 'vent'], shore: ['obsidian'], grove: ['basalt', 'obsidian'], open: ['vent', 'basalt'] }, liquid: { kind: 'lava', river: 0.6, pools: [1, 2] }, land: ['forge'], weather: 'embers', grade: ['#ff8a3a', '#5a0a0a', 0.18] },
 };
 // obstacles are 18 wide, up to 24 tall, bottom-aligned on their tile
 function obstacleSprite(kind) {
-  let H = 18; if (['vaporator', 'beacon', 'spire', 'vending', 'neonpost', 'fruittree', 'holokiosk'].includes(kind)) H = 24;
+  let H = 18; if (['vaporator', 'beacon', 'spire', 'vending', 'neonpost', 'fruittree', 'holokiosk', 'sign', 'neonsign', 'woodsign'].includes(kind)) H = 24;
   const P = painter(18, H), L = [], props = [], o = H - 18;
   switch (kind) {
     // ice world
@@ -1220,6 +1221,11 @@ function obstacleSprite(kind) {
     case 'lavapool': P.ell(9, 12, 8, 4, '#2a1412'); P.ell(9, 12, 6, 2.6, '#ff6a1a'); P.ell(8, 12, 3, 1.2, '#ffc060'); P.p(12, 11, '#3a1a14'); P.p(6, 13, '#3a1a14'); L.push({ x: 9, y: 12, color: '#ff6a1a', r: 18, flicker: true }); break;
     case 'drill': P.r(3, 12, 12, 4, '#5a3a2a'); P.line(5, 12, 9, 2, '#8a5a3a'); P.line(13, 12, 9, 2, '#8a5a3a'); P.r(8, 4, 2, 10, '#6a707a'); P.r(7, 2, 4, 2, '#ffd23f'); P.p(4, 13, '#ff7a2a'); break;
     case 'basalt': for (const [x, h] of [[3, 8], [7, 11], [11, 7], [14, 5]]) { P.r(x, 16 - h, 4, h, '#3a3236'); P.r(x, 16 - h, 4, 1, '#5a5058'); P.r(x, 16 - h, 1, h, '#4a4046'); } break;
+    // roadside signage
+    case 'sign': { P.r(8, 9 + o, 2, 9, '#6a707a'); P.r(3, 1 + o, 12, 9, '#1e2229'); P.r(4, 2 + o, 10, 7, '#ffd23f'); for (let x = 4; x < 14; x += 3) P.r(x, 8 + o, 2, 1, '#1e2229');
+      const t = pick(['!', 'K', 'arrow']); if (t === '!') { P.r(8, 3 + o, 2, 3, '#1e2229'); P.r(8, 7 + o, 2, 1, '#1e2229'); } else if (t === 'K') { P.r(6, 3 + o, 1, 5, '#1e2229'); P.line(7, 5 + o, 10, 3 + o, '#1e2229'); P.line(7, 5 + o, 10, 7 + o, '#1e2229'); } else { P.r(5, 5 + o, 6, 1, '#1e2229'); P.line(11, 5 + o, 9, 3 + o, '#1e2229'); P.line(11, 5 + o, 9, 7 + o, '#1e2229'); } break; }
+    case 'neonsign': { const c = pick(['#ff3ad6', '#3af0ff', '#ffd23f']); P.r(8, 10 + o, 2, 8, '#3a3e4a'); P.r(2, 1 + o, 14, 9, '#0e0f18'); P.r(3, 2 + o, 12, 1, c); P.r(3, 8 + o, 12, 1, c); P.r(3, 2 + o, 1, 7, c); P.r(14, 2 + o, 1, 7, c); for (let x = 5; x < 13; x += 2) P.r(x, 4 + o, 1, ri(2, 3), shade(c, 0.3)); L.push({ x: 9, y: 5 + o, color: c, r: 16, flicker: true }); break; }
+    case 'woodsign': P.r(8, 8 + o, 2, 10, '#7a5a3a'); P.r(2, 2 + o, 14, 7, '#b08a5a'); P.r(2, 2 + o, 14, 1, '#d0aa78'); P.r(2, 8 + o, 14, 1, '#7a5a3a'); P.r(4, 4 + o, 7, 1, '#4a3420'); P.r(4, 6 + o, 5, 1, '#4a3420'); P.ell(13, 5 + o, 1.6, 1.6, '#4f9a3a'); P.r(8, 0 + o, 3, 2, '#5aa04a'); break;
     case 'vent': P.ell(9, 13, 7, 3.5, '#3a2a26'); P.ell(9, 12, 3, 1.5, '#120808'); P.p(9, 12, '#ff7a2a'); props.push({ kind: 'steam', x: 9, y: 11 }); break;
   }
   postProcess(P.c); return { c: P.c, lights: L, props };
@@ -1340,63 +1346,6 @@ function pathDecor(P, A, x0, y0, isP, tx, ty, lights) {
       if (rnd() < 0.12) { const x = x0 + ri(3, 13), y = y0 + ri(4, 13); P.p(x, y, '#ff7a2a'); P.p(x + 1, y, '#ff7a2a'); lights.push({ x: x * AP, y: y * AP, color: '#ff7a2a', r: 7, flicker: true }); }
       break;
   }
-}
-function renderGround(map, biomeKey) {
-  const A = BIOME_ART[biomeKey], W = GW * ATILE, H = GH * ATILE, P = painter(W, H), g = P.g, lights = [], props = [];
-  const isP = (tx, ty) => { if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; const v = map.grid[ty][tx]; return v === 1 || v === 3 || v === 4; };
-  const img = g.createImageData(W, H), d = img.data, n1 = makeNoise(W, H, 8), n2 = makeNoise(W, H, 3);
-  const gp = A.g.map(hex2rgb), pp = A.p.map(hex2rgb);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const pal = isP((x / ATILE) | 0, (y / ATILE) | 0) ? pp : gp;
-    const n = n1(x, y) * 0.6 + n2(x, y) * 0.3 + rnd() * 0.18;
-    const c = n > 0.66 ? pal[1] : n < 0.34 ? pal[2] : pal[0];
-    const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  const pEdge = shade(A.p[0], -0.25), covered = new Set();
-  for (const l of map.landmarks || []) for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) covered.add((l.y + dy) * GW + l.x + dx);
-  const addProps = (list, ox, oy) => { for (const p of list) props.push({ ...p, x: ox + p.x, y: oy + p.y }); };
-  for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
-    const x0 = tx * ATILE, y0 = ty * ATILE, v = map.grid[ty][tx];
-    if (isP(tx, ty)) {
-      // the path is sunk below the ground: a dark ledge on top, thin lines elsewhere
-      if (isP(tx, ty - 1) === false) P.r(x0, y0, ATILE, 2, A.edge);
-      if (isP(tx, ty + 1) === false) P.r(x0, y0 + ATILE - 1, ATILE, 1, pEdge);
-      if (isP(tx - 1, ty) === false) P.r(x0, y0, 1, ATILE, pEdge);
-      if (isP(tx + 1, ty) === false) P.r(x0 + ATILE - 1, y0, 1, ATILE, pEdge);
-      pathDecor(P, A, x0, y0, isP, tx, ty, lights);
-    } else {
-      if (isP(tx, ty + 1)) P.r(x0, y0 + ATILE - 1, ATILE, 1, shade(A.g[0], 0.16));
-      P.p(x0, y0, shade(A.g[0], -0.18));
-      if (v === 0 && rnd() < 0.6) decor(P, A, x0, y0, lights);
-      if (v === 0 && rnd() < 0.2) decor(P, A, x0, y0, lights);
-    }
-    if (v === 4) {
-      for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++) if (((x + y) >> 2) % 2 === 0) P.p(x0 + x, y0 + y, (x + y) % 9 ? '#c8384a' : '#e04a5a');
-      P.r(x0 + 6, y0 + 6, 6, 6, '#2a1418'); P.r(x0 + 8, y0 + 8, 2, 2, '#ff4d5e');
-      lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: '#ff4d5e', r: 30, pulse: true });
-    }
-  }
-  // obstacles and landmarks, drawn top to bottom so taller ones overlap correctly
-  for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
-    const x0 = tx * ATILE, y0 = ty * ATILE, k = ty * GW + tx;
-    const lm = (map.landmarks || []).find(l => l.x === tx && l.y === ty);
-    if (lm) {
-      const o = landmarkSprite(pick(A.land)), oy = y0 + ATILE * 2 - 2 - o.c.height;
-      P.ell(x0 + 18, y0 + 33, 16, 3.5, 'rgba(0,0,0,0.3)');
-      g.drawImage(o.c, x0, oy);
-      for (const l of o.lights) lights.push({ ...l, x: (x0 + l.x) * AP, y: (oy + l.y) * AP });
-      addProps(o.props, x0, oy);
-      continue;
-    }
-    if (map.grid[ty][tx] !== 2 || covered.has(k)) continue;
-    const o = obstacleSprite(pick(A.obst)), oy = y0 + 16 - o.c.height;
-    P.ell(x0 + 9, y0 + 15, 7, 2.5, 'rgba(0,0,0,0.3)');
-    g.drawImage(o.c, x0, oy);
-    for (const l of o.lights) lights.push({ ...l, x: (x0 + l.x) * AP, y: (oy + l.y) * AP });
-    addProps(o.props, x0, oy);
-  }
-  return { cv: P.c, lights, props };
 }
 // weather: stateless particles positioned from the clock
 function makeWeather(type) {
@@ -1954,38 +1903,101 @@ function genOptions() {
 
 // ---------- map generation ----------
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-function dijkstra(sx, sy, tx, ty, cost) {
-  const N = GW * GH, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N);
-  const s = sy * GW + sx, goal = ty * GW + tx;
-  dist[s] = 0;
+// ---------- map generation ----------
+// Grid codes: 0 open ground, 1 path, 2 obstacle, 3 drill, 4 spawn, 5 liquid,
+// 6 building roof (crew can stand on it), 7 tunnel (path under a roof; crew can stand on top).
+const isPathCode = v => v === 1 || v === 3 || v === 4 || v === 7;
+const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+// Dijkstra over (tile, heading) so every turn costs extra: routes come out as straight runs, not staircases
+function dijkstraTurns(sx, sy, tx, ty, cost, turn) {
+  const S = GW * GH * 4, dist = new Float64Array(S).fill(Infinity), prev = new Int32Array(S).fill(-1), done = new Uint8Array(S);
+  const s0 = sy * GW + sx, goal = ty * GW + tx;
+  for (let d = 0; d < 4; d++) dist[s0 * 4 + d] = 0;
+  let end = -1;
   for (;;) {
     let u = -1, best = Infinity;
-    for (let i = 0; i < N; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
-    if (u < 0 || u === goal) break;
+    for (let i = 0; i < S; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u < 0) break;
+    const tile = u >> 2, d = u & 3;
+    if (tile === goal) { end = u; break; }
     done[u] = 1;
-    const ux = u % GW, uy = (u / GW) | 0;
-    for (const [dx, dy] of DIRS) {
-      const vx = ux + dx, vy = uy + dy;
+    const ux = tile % GW, uy = (tile / GW) | 0;
+    for (let nd = 0; nd < 4; nd++) {
+      const vx = ux + DIRS[nd][0], vy = uy + DIRS[nd][1];
       if (vx < 0 || vy < 0 || vx >= GW || vy >= GH) continue;
-      const v = vy * GW + vx; if (done[v]) continue;
       const c = cost(vx, vy); if (c === Infinity) continue;
-      if (best + c < dist[v]) { dist[v] = best + c; prev[v] = u; }
+      const v = (vy * GW + vx) * 4 + nd; if (done[v]) continue;
+      const nc = best + c + (tile !== s0 && nd !== d ? turn : 0);
+      if (nc < dist[v]) { dist[v] = nc; prev[v] = u; }
     }
   }
-  if (dist[goal] === Infinity) return null;
-  const out = []; let c = goal;
-  while (c >= 0) { out.push({ x: c % GW, y: (c / GW) | 0 }); if (c === s) break; c = prev[c]; }
+  if (end < 0) return null;
+  const out = []; let c = end;
+  while (c >= 0) { const tile = c >> 2; out.push({ x: tile % GW, y: (tile / GW) | 0 }); if (tile === s0) break; c = prev[c]; }
   return out.reverse();
 }
-function genMap(nSpawns) {
-  for (let attempt = 0; attempt < 80; attempt++) {
+// reject routes that bunch up: 2x2 blocks of path, a route brushing against itself, or two routes running side by side
+function pathsOk(paths) {
+  const all = new Set(), owners = new Map();
+  paths.forEach((p, pi) => p.forEach(t => { const k = t.y * GW + t.x; all.add(k); if (!owners.has(k)) owners.set(k, new Set()); owners.get(k).add(pi); }));
+  for (let y = 0; y < GH - 1; y++) for (let x = 0; x < GW - 1; x++) {
+    const k = y * GW + x;
+    if (all.has(k) && all.has(k + 1) && all.has(k + GW) && all.has(k + GW + 1)) return false;
+  }
+  for (const p of paths) {
+    const idx = new Map(p.map((t, i) => [t.y * GW + t.x, i]));
+    for (let i = 0; i < p.length; i++) for (const [dx, dy] of DIRS) {
+      const j = idx.get((p[i].y + dy) * GW + p[i].x + dx);
+      if (j !== undefined && Math.abs(j - i) > 1) return false;
+    }
+  }
+  for (let a = 0; a < paths.length; a++) for (let b = a + 1; b < paths.length; b++) {
+    let side = 0;
+    for (const t of paths[a]) {
+      const k = t.y * GW + t.x; if (owners.get(k).has(b)) continue;
+      for (const [dx, dy] of DIRS) { const o = owners.get((t.y + dy) * GW + t.x + dx); if (o && o.has(b) && !o.has(a)) side++; }
+    }
+    if (side > 2) return false;
+  }
+  return true;
+}
+function carveRiver(grid, dep, spawns) {
+  const vertical = rnd() < 0.5, cells = [];
+  let x = vertical ? ri(3, GW - 4) : 0, y = vertical ? 0 : ri(2, GH - 3);
+  for (let guard = 0; guard < 200; guard++) {
+    cells.push([x, y]);
+    if (vertical ? y >= GH - 1 : x >= GW - 1) break;
+    if (rnd() < 0.8 || cells.length < 2 || (vertical ? cells[cells.length - 2][0] !== x : cells[cells.length - 2][1] !== y)) { if (vertical) y++; else x++; }
+    else if (vertical) x = clamp(x + (rnd() < 0.5 ? -1 : 1), 1, GW - 2); else y = clamp(y + (rnd() < 0.5 ? -1 : 1), 1, GH - 2);
+  }
+  if (cells.some(([cx, cy]) => (Math.abs(cx - dep.x) <= 2 && Math.abs(cy - dep.y) <= 2) || spawns.some(s => Math.abs(s.x - cx) <= 1 && Math.abs(s.y - cy) <= 1))) return false;
+  for (const [cx, cy] of cells) grid[cy][cx] = 5;
+  return true;
+}
+function placeBuildings(grid, dep, spawns) {
+  const out = [], want = ri(2, 4), sizes = [[2, 2], [3, 2], [2, 3], [3, 3], [4, 2], [2, 4]];
+  for (let tries = 0; tries < 160 && out.length < want; tries++) {
+    const [w, h] = pick(sizes), x = ri(1, GW - w - 1), y = ri(0, GH - h);
+    let ok = true;
+    for (let yy = y - 1; yy <= y + h && ok; yy++) for (let xx = x - 1; xx <= x + w && ok; xx++) {
+      const inside = xx >= x && xx < x + w && yy >= y && yy < y + h, v = grid[yy] && grid[yy][xx];
+      if (inside && v !== 0) ok = false;
+      if (v === 6) ok = false;
+    }
+    if (!ok) continue;
+    if (Math.max(Math.abs(dep.x - clamp(dep.x, x, x + w - 1)), Math.abs(dep.y - clamp(dep.y, y, y + h - 1))) < 3) continue;
+    if (spawns.some(s => Math.max(Math.abs(s.x - clamp(s.x, x, x + w - 1)), Math.abs(s.y - clamp(s.y, y, y + h - 1))) < 2)) continue;
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = 6;
+    out.push({ x, y, w, h });
+  }
+  return out;
+}
+function genMap(nSpawns, biomeKey) {
+  const A = BIOME_ART[biomeKey];
+  for (let attempt = 0; attempt < 160; attempt++) {
     const grid = Array.from({ length: GH }, () => new Array(GW).fill(0));
-    const w = Array.from({ length: GH }, (_, y) => Array.from({ length: GW }, (_, x) => {
-      const edge = (x === 0 || y === 0 || x === GW - 1 || y === GH - 1) ? 9 : 0;
-      return 1 + rnd() * 5 + edge;
-    }));
+    const w = Array.from({ length: GH }, (_, y) => Array.from({ length: GW }, (_, x) => 1 + rnd() * 1.2 + ((x === 0 || y === 0 || x === GW - 1 || y === GH - 1) ? 6 : 0)));
     const dep = { x: ri(Math.floor(GW * 0.58), GW - 3), y: ri(2, GH - 3) };
-    // candidate spawn points along left, top and bottom edges
     const cands = [];
     for (let y = 1; y < GH - 1; y++) cands.push({ x: 0, y });
     for (let x = 1; x < Math.floor(GW * 0.55); x++) { cands.push({ x, y: 0 }); cands.push({ x, y: GH - 1 }); }
@@ -1998,67 +2010,293 @@ function genMap(nSpawns) {
       spawns.push(c);
     }
     if (spawns.length < nSpawns) continue;
-    const onAny = new Set();
-    const paths = [];
+    if (A.liquid.river && rnd() < A.liquid.river) for (let k = 0; k < 8 && !carveRiver(grid, dep, spawns); k++);
+    const buildings = placeBuildings(grid, dep, spawns);
+    const spawnSet = new Set(spawns.map(s => s.y * GW + s.x));
+    const onAny = new Set(), paths = [];
     let ok = true;
     for (const sp of spawns) {
       let wp, g = 0;
-      do { wp = { x: ri(3, GW - 5), y: ri(1, GH - 2) }; g++; } while (g < 30 && (Math.abs(wp.x - dep.x) + Math.abs(wp.y - dep.y) < 4 || Math.abs(wp.x - sp.x) + Math.abs(wp.y - sp.y) < 4));
-      const isDep = (x, y) => x === dep.x && y === dep.y;
-      const leg1 = dijkstra(sp.x, sp.y, wp.x, wp.y, (x, y) => isDep(x, y) ? Infinity : (onAny.has(y * GW + x) ? 1 : w[y][x]));
-      if (!leg1) { ok = false; break; }
-      const own = new Set(leg1.map(p => p.y * GW + p.x));
-      const nearOwn = (x, y) => DIRS.some(([dx, dy]) => own.has((y + dy) * GW + x + dx));
-      const leg2 = dijkstra(wp.x, wp.y, dep.x, dep.y, (x, y) => {
+      do { wp = { x: ri(3, GW - 5), y: ri(1, GH - 2) }; g++; } while (g < 40 && (grid[wp.y][wp.x] !== 0 || Math.abs(wp.x - dep.x) + Math.abs(wp.y - dep.y) < 5 || Math.abs(wp.x - sp.x) + Math.abs(wp.y - sp.y) < 5));
+      const base = (x, y, own, ownNear) => {
         const k = y * GW + x;
-        if (own.has(k) && !(x === wp.x && y === wp.y)) return 60;
-        return (onAny.has(k) ? 1 : w[y][x]) + (nearOwn(x, y) ? 6 : 0);
-      });
+        if ((x === dep.x && y === dep.y) || (spawnSet.has(k) && !(x === sp.x && y === sp.y))) return Infinity;
+        if (own && own.has(k)) return Infinity;
+        if (onAny.has(k)) return 1;
+        const v = grid[y][x];
+        let c = v === 6 ? w[y][x] * 0.45 : w[y][x] + (v === 5 ? 7 : 0);
+        if (N8.some(([dx, dy]) => onAny.has((y + dy) * GW + x + dx))) c += 10;
+        if (ownNear && N8.some(([dx, dy]) => own.has((y + dy) * GW + x + dx))) c += 12;
+        return c;
+      };
+      const leg1 = dijkstraTurns(sp.x, sp.y, wp.x, wp.y, (x, y) => base(x, y, null, false), 2.2);
+      if (!leg1) { ok = false; break; }
+      const own = new Set(leg1.slice(0, -1).map(p => p.y * GW + p.x));
+      const leg2 = dijkstraTurns(wp.x, wp.y, dep.x, dep.y, (x, y) => (x === dep.x && y === dep.y) ? 1 : base(x, y, own, true), 2.2);
       if (!leg2) { ok = false; break; }
       const path = leg1.concat(leg2.slice(1));
-      if (path.length < 18) { ok = false; break; }
+      if (path.length < 16) { ok = false; break; }
       for (const p of path) onAny.add(p.y * GW + p.x);
       paths.push(path);
     }
-    if (!ok) continue;
-    for (const k of onAny) grid[(k / GW) | 0][k % GW] = 1;
+    if (!ok || !pathsOk(paths)) continue;
+    // most maps should route at least one road under a building
+    if (attempt < 100 && buildings.length && !paths.some(p => p.some(t => grid[t.y][t.x] === 6))) continue;
+    const bridges = [];
+    for (const k of onAny) {
+      const x = k % GW, y = (k / GW) | 0, v = grid[y][x];
+      if (v === 5) { bridges.push({ x, y }); grid[y][x] = 1; } else grid[y][x] = v === 6 ? 7 : 1;
+    }
     for (const s of spawns) grid[s.y][s.x] = 4;
     grid[dep.y][dep.x] = 3;
-    // a few 2x2 landmark sites on open ground, away from the drill
-    const landmarks = [], want = ri(1, 3);
-    for (let tries = 0; tries < 80 && landmarks.length < want; tries++) {
-      const x = ri(0, GW - 2), y = ri(0, GH - 2);
+    // pools of liquid on open ground
+    const [pmin, pmax] = A.liquid.pools;
+    for (let n = ri(pmin, pmax), tries = 0; n > 0 && tries < 60; tries++) {
+      const sx = ri(1, GW - 2), sy = ri(1, GH - 2);
+      if (grid[sy][sx] !== 0 || (Math.abs(sx - dep.x) <= 2 && Math.abs(sy - dep.y) <= 2)) continue;
+      const size = ri(3, 7), blob = [[sx, sy]]; grid[sy][sx] = 5;
+      for (let g = 0; g < 40 && blob.length < size; g++) {
+        const [bx, by] = pick(blob), [dx, dy] = pick(DIRS), nx = bx + dx, ny = by + dy;
+        if (nx < 1 || ny < 1 || nx >= GW - 1 || ny >= GH - 1 || grid[ny][nx] !== 0) continue;
+        if (Math.abs(nx - dep.x) <= 1 && Math.abs(ny - dep.y) <= 1) continue;
+        grid[ny][nx] = 5; blob.push([nx, ny]);
+      }
+      n--;
+    }
+    // at most one decorative landmark, well clear of the road
+    const landmarks = [];
+    for (let tries = 0; tries < 60 && landmarks.length < (rnd() < 0.7 ? 1 : 0); tries++) {
+      const x = ri(0, GW - 2), y = ri(0, GH - 2), cells = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
+      if (cells.some(([cx, cy]) => grid[cy][cx] !== 0 || N8.some(([dx, dy]) => { const v = grid[cy + dy] && grid[cy + dy][cx + dx]; return isPathCode(v); }))) continue;
       if (Math.abs(x - dep.x) < 3 && Math.abs(y - dep.y) < 3) continue;
-      const cells = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
-      if (cells.some(([cx, cy]) => grid[cy][cx] !== 0)) continue;
-      if (landmarks.some(l => Math.abs(l.x - x) < 4 && Math.abs(l.y - y) < 4)) continue;
       cells.forEach(([cx, cy]) => { grid[cy][cx] = 2; });
       landmarks.push({ x, y });
     }
-    // rocks, sometimes clustered
-    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
-      if (grid[y][x] !== 0) continue;
-      if (Math.abs(x - dep.x) <= 1 && Math.abs(y - dep.y) <= 1) continue;
-      let p = 0.07;
-      if (DIRS.some(([dx, dy]) => grid[y + dy] && grid[y + dy][x + dx] === 2)) p = 0.22;
-      if (rnd() < p) grid[y][x] = 2;
+    // contextual props: each kind only goes where it makes sense
+    const obstacles = [];
+    const at = (x, y) => (grid[y] ? grid[y][x] : undefined);
+    const free = (x, y) => at(x, y) === 0 && !(Math.abs(x - dep.x) <= 1 && Math.abs(y - dep.y) <= 1);
+    const touches = (x, y, test) => DIRS.some(([dx, dy]) => { const v = at(x + dx, y + dy); return v !== undefined && test(v); });
+    const nearPath = (x, y) => N8.some(([dx, dy]) => isPathCode(at(x + dx, y + dy)));
+    const crowded = (x, y) => N8.some(([dx, dy]) => at(x + dx, y + dy) === 2);
+    const put = (x, y, rule) => { grid[y][x] = 2; obstacles.push({ x, y, kind: pick(A.obst[rule]) }); };
+    const tiles = []; for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) tiles.push([x, y]);
+    const place = (rule, count, test) => {
+      if (!A.obst[rule]) return;
+      for (const [x, y] of shuffle(tiles.slice())) { if (count <= 0) break; if (free(x, y) && !crowded(x, y) && test(x, y)) { put(x, y, rule); count--; } }
+    };
+    place('road', ri(5, 8), (x, y) => touches(x, y, v => v === 1));
+    place('building', buildings.length * 2, (x, y) => touches(x, y, v => v === 6 || v === 7));
+    const liq = tiles.filter(([x, y]) => at(x, y) === 5).length;
+    place('shore', Math.ceil(liq / 4), (x, y) => touches(x, y, v => v === 5));
+    if (A.obst.grove) for (let g = ri(2, 3); g > 0; g--) {
+      const seeds = shuffle(tiles.slice()).find(([x, y]) => free(x, y) && !nearPath(x, y) && !crowded(x, y));
+      if (!seeds) break;
+      const grove = [seeds]; put(seeds[0], seeds[1], 'grove');
+      for (let k = 0, n = ri(2, 4); k < 20 && grove.length < n; k++) {
+        const [gx, gy] = pick(grove), [dx, dy] = pick(N8), nx = gx + dx, ny = gy + dy;
+        if (free(nx, ny) && !nearPath(nx, ny)) { put(nx, ny, 'grove'); grove.push([nx, ny]); }
+      }
     }
-    return { grid, dep, spawns, landmarks, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
+    place('open', ri(2, 4), (x, y) => !nearPath(x, y));
+    return { grid, dep, spawns, buildings, bridges, obstacles, landmarks, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
   }
   throw new Error('map generation failed');
 }
-// ---------- mission ----------
+
+// ---------- liquids, bridges and buildings ----------
+const LIQUIDS = {
+  icewater: { name: 'freezing water', a: '#1e4a72', b: '#28588a', shore: '#d8e8f2', hi: '#9fd0f0', feat: 'floe' },
+  acid:     { name: 'acid', a: '#3a8a2a', b: '#4aa834', shore: '#22301a', hi: '#c8ff7a', feat: 'bubble', glow: '#8aff4a' },
+  oasis:    { name: 'the oasis', a: '#2a7ab0', b: '#3a8cc4', shore: '#e0c890', hi: '#bfe8ff', feat: 'reed' },
+  methane:  { name: 'liquid methane', a: '#2a4a6a', b: '#34587a', shore: '#4a4270', hi: '#8af0ff', feat: 'sparkle', glow: '#6ff0ff' },
+  canal:    { name: 'the canal', a: '#141c34', b: '#1a2440', shore: '#4a4e5e', hi: '#3af0ff', feat: 'neon' },
+  water:    { name: 'the pond', a: '#2f8ac0', b: '#3a9ad0', shore: '#c8bfa4', hi: '#e2f6ff', feat: 'lily' },
+  lava:     { name: 'lava', a: '#d8481a', b: '#ff7a2a', shore: '#1a0e0c', hi: '#ffd060', feat: 'crust', glow: '#ff6a1a' },
+};
+function drawLiquidTile(P, L, x0, y0, isLiq, lights, props) {
+  for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++) P.p(x0 + x, y0 + y, ((x * 7 + y * 13 + ((x0 + y0) >> 2)) % 9) < 3 ? L.b : L.a);
+  const tx = x0 / ATILE, ty = y0 / ATILE;
+  if (!isLiq(tx, ty - 1)) P.r(x0, y0, ATILE, 2, L.shore);
+  if (!isLiq(tx, ty + 1)) P.r(x0, y0 + ATILE - 2, ATILE, 2, shade(L.shore, -0.15));
+  if (!isLiq(tx - 1, ty)) P.r(x0, y0, 2, ATILE, L.shore);
+  if (!isLiq(tx + 1, ty)) P.r(x0 + ATILE - 2, y0, 2, ATILE, L.shore);
+  const fx = x0 + ri(4, 12), fy = y0 + ri(4, 12);
+  switch (L.feat) {
+    case 'floe': if (rnd() < 0.5) { P.ell(fx, fy, ri(2, 4), 1.6, '#e8f4fb'); P.r(fx - 1, fy - 1, 2, 1, '#ffffff'); } break;
+    case 'bubble': if (rnd() < 0.5) { P.p(fx, fy, L.hi); P.p(fx + 1, fy - 1, L.hi); P.p(fx - 1, fy - 1, L.hi); P.p(fx, fy - 2, L.hi); } break;
+    case 'reed': if (!isLiq(tx, ty + 1) && rnd() < 0.6) for (let k = 0; k < 3; k++) { P.r(x0 + 3 + k * 5, y0 + 12, 1, 5, '#4a7a3a'); P.p(x0 + 3 + k * 5, y0 + 11, '#7a5a3a'); } break;
+    case 'sparkle': P.p(fx, fy, L.hi); break;
+    case 'neon': P.r(fx - 3, fy, 5, 1, rnd() < 0.5 ? '#ff3ad6' : '#3af0ff'); break;
+    case 'lily': if (rnd() < 0.55) { P.ell(fx, fy, 2.4, 1.6, '#4a9a3a'); P.p(fx + 1, fy - 1, '#3a2a14'); if (rnd() < 0.5) P.p(fx - 1, fy, '#ff8fc8'); } break;
+    case 'crust': if (rnd() < 0.6) { P.ell(fx, fy, ri(2, 3), 1.6, '#3a1a12'); P.p(fx + 1, fy, '#5a2a18'); } break;
+  }
+  if (L.glow) props.push({ kind: 'bubble', x: x0 + ri(4, 14), y: y0 + ri(4, 14), col: L.hi });
+  if (L.glow && rnd() < 0.4) lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: L.glow, r: 20, flicker: true });
+}
+function drawBridgeTile(P, metal, x0, y0, horizontal) {
+  const deck = metal ? '#4a4e5a' : '#8a6a44', rail = metal ? '#7a808e' : '#b08a5a', dark = shade(deck, -0.35);
+  if (horizontal) {
+    P.r(x0, y0 + 3, ATILE, 12, deck); for (let x = 0; x < ATILE; x += 3) P.r(x0 + x, y0 + 3, 1, 12, dark);
+    P.r(x0, y0 + 2, ATILE, 1, rail); P.r(x0, y0 + 15, ATILE, 1, rail); P.r(x0, y0 + 16, ATILE, 1, 'rgba(0,0,0,0.35)');
+    for (const x of [1, 9]) { P.r(x0 + x, y0 + 1, 1, 2, rail); P.r(x0 + x, y0 + 15, 1, 2, rail); }
+  } else {
+    P.r(x0 + 3, y0, 12, ATILE, deck); for (let y = 0; y < ATILE; y += 3) P.r(x0 + 3, y0 + y, 12, 1, dark);
+    P.r(x0 + 2, y0, 1, ATILE, rail); P.r(x0 + 15, y0, 1, ATILE, rail); P.r(x0 + 16, y0, 1, ATILE, 'rgba(0,0,0,0.35)');
+  }
+}
+const BUILD_STYLE = {
+  cyber:    { roof: '#2e3042', roof2: '#363950', edge: '#5a5e78', wall: '#191a28', win: ['#3af0ff', '#ff3ad6', '#16182a', '#16182a'], details: ['ac', 'antenna', 'vent', 'ac'], sign: true },
+  solar:    { roof: '#c8704a', roof2: '#b8643f', edge: '#e89a6a', wall: '#efe6cc', win: ['#ffd890', '#a8e0ff', '#5a5040'], details: ['solar', 'garden', 'solar', 'garden'], vines: true },
+  frozen:   { roof: '#6a7c90', roof2: '#748aa0', edge: '#e8f2f8', wall: '#4a5a6c', win: ['#9fe0ff', '#9fe0ff', '#2a3646'], details: ['dish', 'antenna', 'vent', 'snow'] },
+  dust:     { roof: '#e6dccb', roof2: '#ddd2bf', edge: '#fff8ea', wall: '#c8b898', win: ['#3a6aa8', '#2a1a10', '#ffc070'], details: ['dome', 'vapor', 'dome'] },
+  lowgrav:  { roof: '#8a90a0', roof2: '#949aaa', edge: '#c0c6d4', wall: '#4a5060', win: ['#6ff0ff', '#b48aff', '#2a2e3a'], details: ['dish', 'antenna', 'dome'] },
+  toxic:    { roof: '#6a7068', roof2: '#5f655d', edge: '#8a9086', wall: '#363c34', win: ['#d070ff', '#2a2a30', '#3ae8d0'], details: ['moss', 'vent', 'moss'], vines: true },
+  volcanic: { roof: '#6a4234', roof2: '#5e3a2e', edge: '#ffb020', wall: '#241c1c', win: ['#ff7a2a', '#ffb060', '#1a1414'], details: ['chimney', 'vent', 'chimney'], hazard: true },
+};
+// a building filling its w x h footprint: flat roof crew can stand on, a facade along the bottom,
+// and dark tunnel mouths wherever a path runs underneath and out of a side
+function buildingSprite(biomeKey, b, openings) {
+  const St = BUILD_STYLE[biomeKey], W = b.w * ATILE, H = b.h * ATILE, FH = 10, RH = H - FH, P = painter(W, H), L = [], props = [];
+  // roof with a raised parapet: light rim outside, shadowed lip inside
+  for (let y = 0; y < RH; y++) for (let x = 0; x < W; x++) P.p(x, y, rnd() < 0.18 ? St.roof2 : St.roof);
+  for (let x = 4; x < W - 4; x += ri(5, 9)) P.r(x, 3, 1, RH - 6, shade(St.roof, -0.08));
+  P.r(0, 0, W, 2, St.edge); P.r(0, 0, 2, RH, St.edge); P.r(W - 2, 0, 2, RH, shade(St.edge, -0.25)); P.r(0, RH - 2, W, 2, shade(St.edge, -0.15));
+  P.r(2, 2, W - 4, 1, shade(St.roof, -0.35)); P.r(2, 2, 1, RH - 4, shade(St.roof, -0.3));
+  if (St.hazard) for (let x = 0; x < W; x += 4) { P.r(x, 0, 2, 2, '#1a1414'); P.r(x, RH - 2, 2, 2, '#1a1414'); }
+  // facade with pilasters, a row of windows and a door
+  P.r(0, RH, W, FH, St.wall); P.r(0, RH, W, 1, shade(St.wall, -0.45)); P.r(0, H - 1, W, 1, shade(St.wall, -0.4));
+  for (let x = 0; x < W; x += 9) P.r(x, RH + 1, 1, FH - 2, shade(St.wall, -0.18));
+  const bottomOpen = new Set(openings.filter(o => o.side === 'bottom').map(o => o.i));
+  const doorTile = [...Array(b.w).keys()].find(i => !bottomOpen.has(i) && i === Math.floor(b.w / 2)) ?? -1;
+  if (doorTile >= 0) { const dx = doorTile * ATILE + 6; P.r(dx, RH + 3, 6, FH - 3, shade(St.wall, -0.55)); P.r(dx, RH + 3, 6, 1, shade(St.wall, 0.25)); P.p(dx + 4, RH + 6, '#ffd23f'); }
+  for (let x = 3; x < W - 3; x += 5) {
+    const tile = (x / ATILE) | 0; if (bottomOpen.has(tile) || (tile === doorTile && x % ATILE >= 3 && x % ATILE < 14)) continue;
+    const c = pick(St.win); P.r(x, RH + 3, 3, 3, c); P.r(x, RH + 6, 3, 1, shade(St.wall, -0.3));
+    if (c !== St.win[St.win.length - 1] && rnd() < 0.4) L.push({ x: x + 1, y: RH + 4, color: c, r: 8 });
+  }
+  if (St.sign && rnd() < 0.8) { const c = pick(['#ff3ad6', '#3af0ff', '#ffd23f']), sx = ri(3, Math.max(3, W - 15)); P.r(sx, RH - 4, 12, 5, '#0e0f18'); P.r(sx + 1, RH - 3, 10, 3, c); for (let k = sx + 2; k < sx + 10; k += 2) P.p(k, RH - 2, '#0e0f18'); L.push({ x: sx + 6, y: RH - 1, color: c, r: 16, flicker: true }); }
+  if (St.vines) for (let x = 2; x < W - 2; x += ri(3, 6)) { const len = ri(2, 7); P.r(x, RH, 1, len, '#3f7a3a'); P.p(x, RH + len, '#5aa04a'); }
+  // tunnel mouths
+  for (const o of openings) {
+    const at = o.i * ATILE + 3;
+    if (o.side === 'bottom') { P.r(at, RH, 12, FH, '#0a0b10'); P.r(at - 1, RH, 1, FH, shade(St.wall, 0.3)); P.r(at + 12, RH, 1, FH, shade(St.wall, 0.3)); P.r(at, RH + 1, 12, 1, '#ffd23f'); for (let k = at; k < at + 12; k += 4) P.r(k, RH + 1, 2, 1, '#1a1a1a'); }
+    if (o.side === 'top') { P.r(at, 0, 12, 3, '#0a0b10'); P.r(at, 3, 12, 1, shade(St.roof, -0.35)); }
+    if (o.side === 'left') { P.r(0, at, 3, 12, '#0a0b10'); P.r(3, at, 1, 12, shade(St.roof, -0.35)); }
+    if (o.side === 'right') { P.r(W - 3, at, 3, 12, '#0a0b10'); P.r(W - 4, at, 1, 12, shade(St.roof, -0.35)); }
+  }
+  // rooftop details
+  const roofH = RH - 2;
+  for (let n = Math.max(1, Math.round(b.w * b.h / 2)); n > 0; n--) {
+    const kind = pick(St.details), x = ri(3, W - 10), y = ri(3, Math.max(3, roofH - 8));
+    switch (kind) {
+      case 'ac': P.r(x, y, 7, 5, '#7a808e'); P.r(x, y + 5, 7, 1, '#3a3e4a'); P.ell(x + 2.5, y + 2.5, 1.6, 1.6, '#3a3e4a'); P.p(x + 6, y + 1, '#4fe0a6'); break;
+      case 'antenna': P.r(x + 2, y - 1, 1, 7, '#9aa3ad'); P.r(x, y + 5, 5, 2, '#5a606a'); P.p(x + 2, y - 2, '#ff4d6d'); L.push({ x: x + 2, y: y - 2, color: '#ff4d6d', r: 8, pulse: true }); break;
+      case 'vent': P.r(x, y, 6, 4, shade(St.roof, -0.3)); for (let k = 0; k < 3; k++) P.r(x + 1, y + 1 + k, 4, 1, k % 2 ? '#1a1a1e' : shade(St.roof, -0.45)); break;
+      case 'solar': for (let k = 0; k < 2; k++) { P.r(x, y + k * 4, 8, 3, '#2a5aa8'); P.r(x, y + k * 4, 8, 1, '#8ac4ff'); } break;
+      case 'garden': P.r(x, y, 8, 5, '#6a4a2a'); for (let k = 0; k < 4; k++) { P.r(x + 1 + k * 2, y + 1, 1, 3, '#3f8a3a'); P.p(x + 1 + k * 2, y, pick(['#ff6fae', '#ffd23f', '#ffffff'])); } break;
+      case 'dish': P.ell(x + 3, y + 3, 3.5, 2, '#e8eef4'); P.ell(x + 3.5, y + 3, 1.6, 1, '#b8c4d0'); P.r(x + 3, y + 5, 1, 2, '#5a626e'); break;
+      case 'dome': P.ell(x + 4, y + 4, 4, 3.2, shade(St.roof, 0.18)); P.ell(x + 3, y + 3, 2, 1.4, shade(St.roof, 0.35)); P.r(x + 3, y + 6, 2, 1, '#3a2414'); break;
+      case 'vapor': P.r(x + 2, y, 2, 7, '#b8bcc4'); P.r(x + 1, y + 2, 4, 1, '#7a808a'); P.p(x + 2, y + 4, '#6ff0ff'); break;
+      case 'snow': P.ell(x + 4, y + 3, 5, 2.5, '#eef6fc'); P.ell(x + 3, y + 2, 2.5, 1.2, '#ffffff'); break;
+      case 'moss': P.ell(x + 3, y + 3, 4, 2.5, '#3f6e34'); P.p(x + 2, y + 2, '#5aa04a'); P.p(x + 5, y + 3, '#5aa04a'); break;
+      case 'chimney': P.r(x + 1, y, 4, 7, '#1e1818'); P.r(x + 1, y, 4, 1, '#ff7a2a'); L.push({ x: x + 3, y, color: '#ff7a2a', r: 10, flicker: true }); props.push({ kind: 'smoke', x: x + 3, y: y - 1 }); break;
+    }
+  }
+  return { c: P.c, lights: L, props };
+}
+function renderGround(map, biomeKey) {
+  const A = BIOME_ART[biomeKey], Lq = LIQUIDS[A.liquid.kind], W = GW * ATILE, H = GH * ATILE, P = painter(W, H), g = P.g, lights = [], props = [];
+  const code = (tx, ty) => (tx < 0 || ty < 0 || tx >= GW || ty >= GH) ? null : map.grid[ty][tx];
+  const bridgeSet = new Set((map.bridges || []).map(b => b.y * GW + b.x));
+  const isP = (tx, ty) => { const v = code(tx, ty); return v === null ? null : isPathCode(v); };
+  const isLiq = (tx, ty) => { const v = code(tx, ty); return v === null || v === 5 || bridgeSet.has(ty * GW + tx); };
+  const img = g.createImageData(W, H), d = img.data, n1 = makeNoise(W, H, 8), n2 = makeNoise(W, H, 3);
+  const gp = A.g.map(hex2rgb), pp = A.p.map(hex2rgb);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const pal = isP((x / ATILE) | 0, (y / ATILE) | 0) ? pp : gp;
+    const n = n1(x, y) * 0.6 + n2(x, y) * 0.3 + rnd() * 0.18;
+    const c = n > 0.66 ? pal[1] : n < 0.34 ? pal[2] : pal[0];
+    const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const pEdge = shade(A.p[0], -0.25), liquidTiles = [];
+  for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) {
+    const x0 = tx * ATILE, y0 = ty * ATILE, v = map.grid[ty][tx];
+    if (v === 5 || bridgeSet.has(ty * GW + tx)) { drawLiquidTile(P, Lq, x0, y0, isLiq, lights, props); liquidTiles.push({ x: x0, y: y0, s: rnd() }); }
+    if (bridgeSet.has(ty * GW + tx)) { drawBridgeTile(P, ['cyber', 'lowgrav', 'volcanic'].includes(biomeKey), x0, y0, !!(isP(tx - 1, ty) || isP(tx + 1, ty))); continue; }
+    if (v === 5) continue;
+    if (isP(tx, ty)) {
+      if (isP(tx, ty - 1) === false && !isLiq(tx, ty - 1)) P.r(x0, y0, ATILE, 2, A.edge);
+      if (isP(tx, ty + 1) === false) P.r(x0, y0 + ATILE - 1, ATILE, 1, pEdge);
+      if (isP(tx - 1, ty) === false) P.r(x0, y0, 1, ATILE, pEdge);
+      if (isP(tx + 1, ty) === false) P.r(x0 + ATILE - 1, y0, 1, ATILE, pEdge);
+      pathDecor(P, A, x0, y0, isP, tx, ty, lights);
+    } else {
+      if (isP(tx, ty + 1)) P.r(x0, y0 + ATILE - 1, ATILE, 1, shade(A.g[0], 0.16));
+      P.p(x0, y0, shade(A.g[0], -0.18));
+      if (v === 0 && rnd() < 0.6) decor(P, A, x0, y0, lights);
+    }
+    if (v === 4) {
+      for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++) if (((x + y) >> 2) % 2 === 0) P.p(x0 + x, y0 + y, (x + y) % 9 ? '#c8384a' : '#e04a5a');
+      P.r(x0 + 6, y0 + 6, 6, 6, '#2a1418'); P.r(x0 + 8, y0 + 8, 2, 2, '#ff4d5e');
+      lights.push({ x: (x0 + 9) * AP, y: (y0 + 9) * AP, color: '#ff4d5e', r: 30, pulse: true });
+    }
+  }
+  const addAll = (o, ox, oy) => { for (const l of o.lights) lights.push({ ...l, x: (ox + l.x) * AP, y: (oy + l.y) * AP }); for (const p of o.props) props.push({ ...p, x: ox + p.x, y: oy + p.y }); };
+  // buildings, with a tunnel mouth wherever a path leaves the footprint
+  for (const b of map.buildings || []) {
+    const openings = [];
+    for (let i = 0; i < b.w; i++) {
+      if (code(b.x + i, b.y) === 7 && isP(b.x + i, b.y - 1)) openings.push({ side: 'top', i });
+      if (code(b.x + i, b.y + b.h - 1) === 7 && isP(b.x + i, b.y + b.h)) openings.push({ side: 'bottom', i });
+    }
+    for (let i = 0; i < b.h; i++) {
+      if (code(b.x, b.y + i) === 7 && isP(b.x - 1, b.y + i)) openings.push({ side: 'left', i });
+      if (code(b.x + b.w - 1, b.y + i) === 7 && isP(b.x + b.w, b.y + i)) openings.push({ side: 'right', i });
+    }
+    const o = buildingSprite(biomeKey, b, openings), ox = b.x * ATILE, oy = b.y * ATILE;
+    P.r(ox + b.w * ATILE, oy + 3, 3, b.h * ATILE - 3, 'rgba(0,0,0,0.32)');
+    g.drawImage(o.c, ox, oy); addAll(o, ox, oy);
+  }
+  // props and landmarks, top to bottom so taller ones overlap correctly
+  const items = (map.obstacles || []).map(o => ({ ...o, big: false })).concat((map.landmarks || []).map(l => ({ ...l, big: true }))).sort((a, b) => a.y - b.y);
+  for (const it of items) {
+    const x0 = it.x * ATILE, y0 = it.y * ATILE;
+    if (it.big) {
+      const o = landmarkSprite(pick(A.land)), oy = y0 + ATILE * 2 - 2 - o.c.height;
+      P.ell(x0 + 18, y0 + 33, 16, 3.5, 'rgba(0,0,0,0.3)'); g.drawImage(o.c, x0, oy); addAll(o, x0, oy);
+    } else {
+      const o = obstacleSprite(it.kind), oy = y0 + 16 - o.c.height;
+      P.ell(x0 + 9, y0 + 15, 7, 2.5, 'rgba(0,0,0,0.3)'); g.drawImage(o.c, x0, oy); addAll(o, x0, oy);
+    }
+  }
+  return { cv: P.c, lights, props, liquidTiles };
+}
+function drawLiquidFx(g, t) {
+  const Lq = LIQUIDS[BIOME_ART[M.c.biomeKey].liquid.kind];
+  g.fillStyle = rgba(Lq.hi, 0.55);
+  for (const l of M.liquidTiles || []) {
+    const k = (t * 5 + l.s * 18) % 18, y = l.y + 4 + Math.round(l.s * 9);
+    g.fillRect(l.x + Math.round(k), y, 2, 1);
+    if (l.s > 0.5) g.fillRect(l.x + Math.round((k + 9) % 18), y + 4, 1, 1);
+  }
+}
+
 function isPortrait() { const r = $('#stage').getBoundingClientRect(); return r.height > r.width * 1.05; }
 function transposeMap(map) {
-  const grid = Array.from({ length: GW }, (_, y) => Array.from({ length: GH }, (_, x) => map.grid[x][y]));
-  return { grid, dep: { x: map.dep.y, y: map.dep.x }, spawns: map.spawns.map(s => ({ x: s.y, y: s.x })), landmarks: (map.landmarks || []).map(l => ({ x: l.y, y: l.x })), paths: map.paths.map(p => p.map(q => ({ x: q.y, y: q.x }))) };
+  const grid = Array.from({ length: GW }, (_, y) => Array.from({ length: GH }, (_, x) => map.grid[x][y])), sw = q => ({ ...q, x: q.y, y: q.x });
+  return {
+    grid, dep: sw(map.dep), spawns: map.spawns.map(sw), landmarks: map.landmarks.map(sw), obstacles: map.obstacles.map(sw), bridges: map.bridges.map(sw),
+    buildings: map.buildings.map(b => ({ x: b.y, y: b.x, w: b.h, h: b.w })), paths: map.paths.map(p => p.map(sw)),
+  };
 }
 function startMission(contract) {
   S.screen = 'mission'; setMusic('mission');
   $('#bar').innerHTML = ''; $('#overlay').innerHTML = ''; hudCache = {};
   const portrait = isPortrait();
   GW = 22; GH = 13;
-  let map = genMap(contract.spawns);
+  let map = genMap(contract.spawns, contract.biomeKey);
   if (portrait) { map = transposeMap(map); GW = 13; GH = 22; }
   M = {
     c: contract, biome: contract.biome, map, grid: map.grid, paths: map.paths,
@@ -2071,7 +2309,7 @@ function startMission(contract) {
     parts: [], decals: [], shake: 0, pool: {}, lights: [], zones: [],
   };
   const gr = renderGround(map, contract.biomeKey);
-  M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props;
+  M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade;
   S.selCrew = -1; S.selTower = null;
   RUN.roster.forEach(c => { c.snooze = false; });
@@ -2081,7 +2319,15 @@ function startMission(contract) {
 }
 function tileAt(x, y) { const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE); if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return null; return { tx, ty }; }
 function towerAtTile(tx, ty) { return M.towers.find(t => t.tx === tx && t.ty === ty); }
-function canBuild(tx, ty) { return M.grid[ty][tx] === 0 && !towerAtTile(tx, ty); }
+// open ground or a rooftop (6, or 7 with a tunnel underneath)
+function deployRefusal(tx, ty) {
+  const v = M.grid[ty][tx];
+  if (v === 5) return `Crew cannot stand in ${LIQUIDS[BIOME_ART[M.c.biomeKey].liquid.kind].name}. Not covered by insurance.`;
+  if (v === 1 && (M.map.bridges || []).some(b => b.x === tx && b.y === ty)) return 'Bridge is load-rated for hostiles only.';
+  if (v === 1 || v === 4) return 'Crew cannot stand on the path. Union rules (ours).';
+  return 'Cannot deploy there';
+}
+function canBuild(tx, ty) { const v = M.grid[ty][tx]; return (v === 0 || v === 6 || v === 7) && !towerAtTile(tx, ty); }
 
 function towerStats(crew, tw) {
   const b = TOWERS[crew.type], L = crew.level;
@@ -2098,6 +2344,7 @@ function towerStats(crew, tw) {
   if (has('coffee')) s.rate *= 1.15;
   if (has('poster')) s.dmg *= 1.12;
   if (has('scope')) s.range *= 1.12;
+  if (tw && tw.roof) s.range *= 1.15;
   if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) s.dmg *= 1.2;
   if (has('tasers') && crew.type === 'taser') s.dmg *= 2;
   if (has('intern') && crew.type === 'marksman') s.rate *= 1.25;
@@ -2202,7 +2449,7 @@ function deploy(crewIdx, tx, ty) {
   M.budget -= fee;
   sfx('deploy', tx * TILE);
   const st = towerStats(crew);
-  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0 });
+  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0, roof: M.grid[ty][tx] >= 6 });
   M.deployedIds.add(crew.id);
   S.selCrew = -1;
   buildRosterBar();
@@ -2371,6 +2618,8 @@ function stepMission(dt) {
       e.virCd = (e.virCd ?? e.viral.every) - dt;
       if (e.virCd <= 0) { e.virCd = e.viral.every; for (let i = 0; i < e.viral.n; i++) m.queue.push({ at: m.t + i * 0.25, cat: e.viral.cat, tier: 0, sp: i % m.paths.length }); fxText(e.x, ecy(e) - 30, '#VIRAL', '#ff3ad6'); sfx('review', e.x); }
     }
+    // under a building: out of sight and out of reach until it comes out the other side
+    { const tx = Math.floor(e.x / TILE), ty = Math.floor(e.y / TILE); e.inTunnel = !e.fly && !!m.grid[ty] && m.grid[ty][tx] === 7; e.invuln = !!e.burrowed || e.inTunnel; }
     if (e.slowT > 0) e.slowT -= dt;
     const regen = (m.biome.mod.regen || 0) + (e.regen || 0);
     if (regen && e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * regen * dt);
@@ -2388,7 +2637,7 @@ function stepMission(dt) {
     if (e.vulnT > 0) e.vulnT -= dt;
     if (e.stunT > 0) { e.stunT -= dt; e.target = null; continue; }
     const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1) * (e.rallyT > 0 ? e.rallyMult : 1) * (e.burrowed ? 1.6 : 1);
-    if (e.sab) {
+    if (e.sab && !e.inTunnel) {
       let tgt = null, bd = 1.4 * TILE;
       for (const tw of m.towers) { if (tw.down) continue; const d = Math.hypot(tw.x - e.x, tw.y - e.y); if (d < bd) { bd = d; tgt = tw; } }
       e.target = tgt;
@@ -2455,13 +2704,13 @@ function stepMission(dt) {
     if (s.thunder) {
       tw.abT = (tw.abT || 0) + dt;
       if (tw.abT >= 6) {
-        let best = null; for (const e of m.enemies) if (!e.dead && (!best || e.hp > best.hp)) best = e;
+        let best = null; for (const e of m.enemies) if (!e.dead && !e.invuln && (!best || e.hp > best.hp)) best = e;
         if (best) { tw.abT = 0; m.fx.push({ k: 'bolt', x: best.x, y: ecy(best), life: 0.32, max: 0.32 }); sfx('thunder', best.x); shake(4); sparks(best.x, ecy(best), '#dff6ff', 8); damage(best, s.thunder, true, tw); }
       }
     }
     if (s.barrage) {
       tw.bbT = (tw.bbT || 0) + dt;
-      const ground = tw.bbT >= 8 ? m.enemies.filter(e => !e.dead && !e.fly) : [];
+      const ground = tw.bbT >= 8 ? m.enemies.filter(e => !e.dead && !e.fly && !e.invuln) : [];
       if (ground.length) {
         tw.bbT = 0; sfx('mortar', tw.x);
         for (let i = 0; i < s.barrage; i++) { const e = pick(ground); m.shots.push(makeShell(tw, s, tw.x, tw.y - 10, e.x + (rnd() - 0.5) * 24, e.y + (rnd() - 0.5) * 24, 0.7 + i * 0.12)); }
@@ -2611,6 +2860,7 @@ function fxText(x, y, txt, color) { M.fx.push({ k: 'text', x, y, txt, color, lif
 function stepFx(dt) {
   const m = M;
   for (const p of m.props || []) if ((p.kind === 'steam' || p.kind === 'smoke') && rnd() < dt * 2.5) addPart({ x: p.x * AP, y: p.y * AP, vx: (rnd() - 0.5) * 8, vy: -14 - rnd() * 8, r: 0.6, grow: 2.2, life: 1.4, max: 1.4, col: p.kind === 'steam' ? '#e2e6ea' : '#3a3036', layer: 'px', alpha: p.kind === 'steam' ? 0.55 : 0.75 });
+  for (const p of m.props || []) if (p.kind === 'bubble' && rnd() < dt * 0.5) for (let k = 0; k < 3; k++) addPart({ x: p.x * AP + (rnd() - 0.5) * 6, y: p.y * AP, vx: (rnd() - 0.5) * 14, vy: -10 - rnd() * 12, life: 0.4, max: 0.4, col: p.col, size: 1, layer: 'px' });
   for (const f of m.fx) { if (f.delay > 0) { f.delay -= dt; continue; } f.life -= dt; if (f.e && !f.e.dead) { f.tx = f.e.x; f.ty = ecy(f.e); } }
   m.fx = m.fx.filter(f => f.life > 0);
   for (const p of m.parts) {
@@ -2639,6 +2889,7 @@ function renderMission(now) {
   if (!WB || WB.width !== W || WB.height !== H) { WB = mkCanvas(W, H); WBG = WB.getContext('2d'); }
   const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1;
   g.drawImage(m.ground, 0, 0);
+  drawLiquidFx(g, t);
   // foam left by mortar shells
   for (const dc of m.decals) { g.globalAlpha = clamp(dc.life / 2, 0, 0.9); for (const b of dc.blobs) pxCircle(g, dc.x / AP + b.x, dc.y / AP + b.y, b.r, b.c); }
   // burning and foam patches, dithered
@@ -2678,7 +2929,7 @@ function renderMission(now) {
       const ok = canBuild(tl.tx, tl.ty) && m.budget >= TOWERS[sc.type].fee, x0 = tl.tx * ATILE, y0 = tl.ty * ATILE, c = ok ? '#ffd23f' : '#ff4d5e';
       for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [17, 0, -1, 1], [0, 17, 1, -1], [17, 17, -1, -1]]) { px(g, x0 + cx + (sx < 0 ? -3 : 0), y0 + cy, 4, 1, c); px(g, x0 + cx, y0 + cy + (sy < 0 ? -3 : 0), 1, 4, c); }
       if (canBuild(tl.tx, tl.ty)) { g.globalAlpha = ok ? 0.7 : 0.35; g.drawImage(palletSprite(), x0 + 1, y0 + 12); g.drawImage(crewSprites(sc).f[0], x0 + 2, y0 - 2); g.globalAlpha = 1; }
-      preview = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2, r: towerStats(sc).range * TILE, ok };
+      preview = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2, r: towerStats(sc).range * TILE * (m.grid[tl.ty][tl.tx] >= 6 ? 1.15 : 1), ok };
     }
   }
   // pixel particles
@@ -2852,6 +3103,7 @@ function drawTowerPx(g, tw, t) {
   px(g, Math.floor(pvx), Math.floor(pvy), 1, 1, CREW_OUTFITS[type].gloves || tw.crew.look.skin);
 }
 function drawEnemyPx(g, e, t) {
+  if (e.inTunnel) { e._sx = null; e._bx = null; return; }
   if (e.burrowed) {
     const ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 3;
     pxCircle(g, ax, ay, 5, '#5a4630'); px(g, ax - 4, ay - 1, 2, 1, '#8a6a46'); px(g, ax + 2, ay - 2, 2, 1, '#8a6a46'); px(g, ax - 1, ay - 3 + Math.round(Math.sin(t * 12)), 2, 1, '#b48a5e');
@@ -2944,7 +3196,7 @@ function renderTowerInfo() {
   const traits = `<span class="trait q" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}</span>` + perkSummary(cr).map((n, k) => `<span class="trait${k === 0 && cr.spec ? ' sp' : ''}">${esc(n)}</span>`).join('');
   const div = document.createElement('div'); div.className = 'tinfo';
   div.innerHTML = `<div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
-    <div class="mono" style="color:var(--muted)">DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s · RNG ${st.range.toFixed(1)}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Injured. Claim denied.</span>' : ''}</div>
+    <div class="mono" style="color:var(--muted)">DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s · RNG ${st.range.toFixed(1)}${tw.roof ? ' <span style="color:var(--accent)">(rooftop +15%)</span>' : ''}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Injured. Claim denied.</span>' : ''}</div>
     <div class="traits">${traits}</div>
     <div class="row">${cr.reviews.length ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Hold review</button>` : ''}<button class="btn sm ghost" data-act="reassign" ${st.noReassign && !tw.down ? 'disabled' : ''}>${tw.down ? 'Remove' : st.noReassign ? 'Bound by contract' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
   ov.appendChild(div);
@@ -3233,7 +3485,7 @@ cv.addEventListener('pointerdown', ev => {
   const tw = towerAtTile(tl.tx, tl.ty);
   if (tw) { S.selTower = tw; S.selCrew = -1; renderTowerInfo(); buildRosterBar(); return; }
   if (S.selCrew >= 0) {
-    if (!canBuild(tl.tx, tl.ty)) { toast(M.grid[tl.ty][tl.tx] === 1 ? 'Crew cannot stand on the path. Union rules (ours).' : 'Cannot deploy there', 1500); return; }
+    if (!canBuild(tl.tx, tl.ty)) { toast(deployRefusal(tl.tx, tl.ty), 1600); return; }
     deploy(S.selCrew, tl.tx, tl.ty);
   } else if (S.selTower) { S.selTower = null; renderTowerInfo(); }
 });
@@ -3274,7 +3526,7 @@ function frame(now) {
 // test hook for automated playtesting
 window.__AL = {
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
-  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS,
+  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk,
 };
 
 resize(); showTitle(); requestAnimationFrame(frame);
