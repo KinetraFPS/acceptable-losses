@@ -25,6 +25,24 @@ security company. You defend clients' crystal extractions across Earth and the g
 - **Enemies**: humans for the miner, protester and VectorCorp factions use the same random people generator with faction outfits and props. Each faction has its own vehicle (treads, van, walker) and drone. Wildlife are hand-built creature sprites. Veterans get a white outline and Elites a gold one.
 - **Terrain**: per-biome noise ground, a path sunk below the ground, biome decorations, and obstacle sprites with their own light sources.
 
+## Crew progression: performance reviews
+Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per rank) and a **performance review** in which you pick a card. Reviews can be held mid-contract (click the highlighted crew card, or press R; the game pauses) or between contracts ("Hold performance reviews").
+
+| Rank | Review | Options |
+|---|---|---|
+| 2 | Tier I · Common | 3 cards: role perks topped up with corporate perks |
+| 3 | Tier II · Rare | 3 cards: mechanic changers (armour shred, multishot, cluster shells, executes, extra drones...) |
+| 4 | Specialisation | 1 of 2 permanent branches per role, each showing its future capstone |
+| 5 | Capstone | the branch capstone, or one of 2 Tier II cards |
+| 6–8 | Executive | high-impact perks with trade-offs (Golden Handcuffs, Burnout Protocol, Stock Options...) |
+
+- **Branches**: Turret Operator (Suppression Specialist / Hazard Pay Gunslinger), Taser Tech (Storm Caller / Crowd Control Officer), Mortar (Long-Range Artillery / Foam Containment), Marksman (Wetwork Contractor / Spotter), Drone Operator (Drone Swarm Manager / Field Medic).
+- **Capstones** include map-wide lightning, freezing pulses, 5-shell barrages, damage-amplifying foam, executes that refund the reload, spreading marks, 4-drone hive minds, and a protective medic aura.
+- **Quirks**: every hire rolls one of 10 traits (Nepotism Hire, Tenured, Office Gossip...). They're shown in the store before you hire.
+- **Appeal decision** rerolls the cards for scrip (10, then +5 each time). **Decline promotion** takes 12 scrip instead.
+- **Synergies**: marks (Tracer Rounds, Static Cling, Spotter, Quagmire foam) amplify all crew damage. Auras buff, heal or protect crew within 1.5 tiles.
+- XP thresholds: 16 / 45 / 95 / 165 / 260 / 380 / 530.
+
 ## Audio
 - Everything is synthesised live with Web Audio. There are no audio files. Audio starts on the first tap or key press, which is a browser rule.
 - **Music**: a small chiptune sequencer with five tracks.
@@ -33,14 +51,14 @@ security company. You defend clients' crystal extractions across Earth and the g
   - A driving mission loop that adds layers as the drill fills.
   - A faster boss variant that kicks in when the boss arrives.
   - A sad trombone when you're abandoned, and a fanfare when you evacuate or win.
-- **Sound effects**: one per crew role (burst rifle, taser zap, mortar thump and foam splat, sniper crack, drone blips). Also kills, leaks, saboteur clanks, injuries, deploying and reassigning crew, promotions, the boss arrival horn, and UI clicks. The store has a "ka-ching". Effects are panned left or right by their position on the map and rate-limited so big fights don't clip.
+- **Sound effects**: quiet and distinct per role, with slight random pitch: a tight two-tick rifle burst (three with Extended Mags), a low electric taser buzz, a hollow mortar 'thoonk' and soft foam landing, a sniper crack with a bolt-action click-clack, and a soft rising drone chirp. Also kills, leaks, saboteur clanks, injuries, deploying and reassigning crew, promotions, the boss arrival horn, and UI clicks. The store has a "ka-ching". Effects are panned left or right by their position on the map and rate-limited so big fights don't clip.
 - **Settings** (gear button, bottom-right): master, music and effects volume, mute (also the M key), and a screen shake toggle. Settings are saved in the browser. Opening settings mid-contract pauses the game.
 
 ## Balance tuning knobs (in index.html)
-- `genWave`: wave threat budget `(5.5 + idx*2.7) * (1 + prog*1.7) * diff.mod`
-- `spawnEnemy`: HP scaling `(1 + 0.16*idx)`
+- `genWave`: wave threat budget `(5.5 + idx*3.3) * (1 + prog*1.7) * diff.mod`
+- `spawnEnemy`: HP scaling `(1 + 0.24*idx)` (raised to match perk power)
 - `startMission`: starting budget `110 + 10*idx`
-- An auto-play bot (greedy placement, no relics) won about 70% of simulated runs.
+- An auto-play bot (greedy placement, no relics, random review picks) won about 75% of simulated runs.
 
 ## Next up
 Sector 2+, more factions and relics, crew permadeath (an option), real art and audio, a narrative event system, deeper colony meta.

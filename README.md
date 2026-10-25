@@ -8,7 +8,8 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 
 ## What's in the vertical slice
 - Procedurally generated maps, 5 crew roles, 4 enemy factions in 5 categories and 3 tiers, and a boss
-- Randomly generated crew who keep their look through the run, earn promotions (no raise), and can be injured
+- Randomly generated crew with quirks who keep their look through the run and can be injured
+- Roguelike performance reviews: perk cards each rank, a permanent specialisation at rank 4, capstones at rank 5, and executive perks beyond, with rerolls (appeals) and declines
 - A star map, satirical HR emails and payslips, a Company Store that only takes scrip, relics, and a Colony of the Abandoned that gives meta-progression
 - Pixel art, music and sound effects all generated in code, with no asset files
 - A settings menu for volume, mute and screen shake
@@ -19,4 +20,4 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 - `DESIGN.md` has the design notes and balance tuning settings
 
 ## Controls
-Click a crew card (or press 1–8), then a tile next to the path. **Space** starts extraction and pauses. **M** mutes. The gear button opens settings.
+Click a crew card (or press 1–8), then a tile next to the path. **Space** starts extraction and pauses. **R** opens a pending performance review. **M** mutes. The gear button opens settings.

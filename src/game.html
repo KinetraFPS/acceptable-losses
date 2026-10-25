@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen:wght@400;700&family=VT323&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Jersey+10&family=Silkscreen:wght@400;700&family=VT323&display=swap">
 <style>
 /* Layout: one-screen game. HUD strip on top, framed playfield, crew roster + news ticker below.
    Pixel UI: notched 3px frames, bevelled buttons, segmented meters, window title bars on every panel. */
@@ -20,8 +20,8 @@
   --danger:#ff4d6d;
   --ok:#4fe0a6;
   --crystal:#b98cff;
-  --f-display:'Pixelify Sans','Courier New',monospace;
-  --f-body:'Pixelify Sans',system-ui,sans-serif;
+  --f-display:'Jersey 10','Arial Narrow',sans-serif;
+  --f-body:'DotGothic16',system-ui,sans-serif;
   --f-label:'Silkscreen','Courier New',monospace;
   --f-mono:'VT323',ui-monospace,Menlo,monospace;
   --b:3px;
@@ -31,7 +31,7 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{background-color:var(--bg);background-image:radial-gradient(rgba(140,150,220,.07) 1px,transparent 1.2px);background-size:9px 9px;color:var(--fg);font:16px/1.4 var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:none;font-variant-ligatures:none}
+body{background-color:var(--bg);background-image:radial-gradient(rgba(140,150,220,.07) 1px,transparent 1.2px);background-size:9px 9px;color:var(--fg);font:15px/1.5 var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:none;font-variant-ligatures:none}
 button,input{font-variant-ligatures:none}
 button{font:inherit;color:inherit}
 #app{height:100%;display:flex;flex-direction:column;gap:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
@@ -51,7 +51,7 @@ button{font:inherit;color:inherit}
 
 .lbl{font:400 10px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
 .lbl .mono{font:400 16px/1 var(--f-mono);color:var(--fg);letter-spacing:0;text-transform:none}
-.val{font:600 18px/1.1 var(--f-body)}
+.val{font:400 17px/1.15 var(--f-body)}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .val.mono{font:400 26px/.9 var(--f-mono)}
 .hud-block{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -81,7 +81,7 @@ button{font:inherit;color:inherit}
 .crew.sel{background:var(--panel2);box-shadow:inset 0 0 0 var(--b) var(--brand)}
 .crew.used{opacity:.5}
 .crew.down{box-shadow:inset 0 0 0 var(--b) var(--danger);opacity:.65}
-.crew .nm{font:600 15px/1 var(--f-body);white-space:nowrap}
+.crew .nm{font:400 14px/1.1 var(--f-body);white-space:nowrap}
 .crew .meta{font:400 16px/1 var(--f-mono);color:var(--muted);white-space:nowrap}
 .pt{width:30px;height:30px;flex:none;image-rendering:crisp-edges;image-rendering:pixelated;background:color-mix(in srgb,var(--rc) 22%,var(--panel2));outline:2px solid var(--rc);outline-offset:-2px}
 .pt.big{width:44px;height:44px}
@@ -99,7 +99,7 @@ button{font:inherit;color:inherit}
 .titlebar{display:flex;align-items:center;gap:12px;margin:calc(var(--pad) * -1) calc(var(--pad) * -1) 0;padding:8px 8px 8px var(--pad);background:var(--line);font:400 10px/1 var(--f-label);letter-spacing:.04em;color:var(--fg);text-transform:uppercase}
 .titlebar i{flex:1;height:7px;background:repeating-linear-gradient(180deg,var(--line-hi) 0 1px,transparent 1px 3px)}
 .xbtn{appearance:none;border:0;cursor:pointer;width:22px;height:20px;background:var(--danger);color:var(--ink);font:700 11px/1 var(--f-label);box-shadow:inset 0 -2px 0 rgba(0,0,0,.3)}
-.paper h2{font:700 clamp(28px,5.5vw,42px)/1 var(--f-display);margin:0;text-wrap:balance;text-shadow:3px 3px 0 var(--ink)}
+.paper h2{font:400 clamp(36px,6.5vw,54px)/.95 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance;text-shadow:3px 3px 0 var(--ink)}
 .paper h3{font:400 11px/1 var(--f-label);letter-spacing:.04em;text-transform:uppercase;margin:0;color:var(--muted)}
 .paper p{margin:0;max-width:65ch}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -114,7 +114,7 @@ button{font:inherit;color:inherit}
 .corp svg{width:33px;height:36px;flex:none}
 .big{font:700 clamp(36px,8.4vw,86px)/1.02 var(--f-label);text-transform:uppercase;margin:0;text-shadow:0 6px 0 var(--ink),6px 6px 0 var(--ink)}
 .big em{font-style:normal;color:var(--brand);text-shadow:0 6px 0 #6b5200,6px 6px 0 var(--ink)}
-.tagline{font:500 clamp(16px,2.4vw,20px)/1.3 var(--f-body);color:var(--muted);margin:0}
+.tagline{font:400 clamp(15px,2.3vw,19px)/1.35 var(--f-body);color:var(--muted);margin:0}
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0;padding:0;list-style:none}
 .steps li{padding:13px 14px 14px;font-size:15px;line-height:1.3}
 .steps li b{display:block;font:400 11px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--brand);margin-bottom:6px}
@@ -125,7 +125,7 @@ button{font:inherit;color:inherit}
 
 /* contract window on the star map */
 .card{--pad:18px;position:absolute;right:12px;top:12px;width:min(370px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;padding:var(--pad);display:flex;flex-direction:column;gap:12px}
-.card h2{font:700 30px/1 var(--f-display);margin:0;text-shadow:3px 3px 0 var(--ink)}
+.card h2{font:400 40px/.95 var(--f-display);margin:0;text-shadow:3px 3px 0 var(--ink)}
 .card .sub{font:400 10px/1.3 var(--f-label);color:var(--muted);letter-spacing:.03em;text-transform:uppercase}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:15px;margin:0}
 .kv dt{font:400 9px/1.9 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
@@ -155,8 +155,8 @@ button{font:inherit;color:inherit}
 .offer:hover:not(:disabled){box-shadow:inset 0 0 0 var(--b) var(--brand),inset 0 calc(var(--b) * -2) 0 0 rgba(0,0,0,.25);transform:translateY(-2px)}
 .offer:disabled{opacity:.4;cursor:not-allowed}
 .offer .k{font:400 9px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
-.offer .t{font:700 20px/1 var(--f-display)}
-.offer .d{font-size:14px;line-height:1.3;color:#c5cbe6;flex:1}
+.offer .t{font:400 27px/.95 var(--f-display)}
+.offer .d{font-size:13.5px;line-height:1.4;color:#c5cbe6;flex:1}
 .offer .p{font:400 22px/1 var(--f-mono);color:var(--brand)}
 .offer.sold{opacity:.35;pointer-events:none}
 .rlist{display:flex;flex-direction:column;gap:6px}
@@ -170,7 +170,7 @@ button{font:inherit;color:inherit}
 
 /* tower info + toast */
 .tinfo{position:absolute;left:10px;top:10px;width:min(260px,calc(100% - 20px));padding:13px;display:flex;flex-direction:column;gap:9px;font-size:14px}
-.tinfo h4{margin:0;font:700 19px/1 var(--f-display)}
+.tinfo h4{margin:0;font:400 26px/.95 var(--f-display)}
 .tinfo .mono{font-size:17px;line-height:1.1}
 .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:var(--brand);color:var(--brand-ink);font:700 12px/1.3 var(--f-label);letter-spacing:.02em;text-transform:uppercase;padding:10px 16px 12px;box-shadow:inset 0 calc(var(--b) * -1) 0 0 rgba(0,0,0,.3),inset 0 var(--b) 0 0 rgba(255,255,255,.45);pointer-events:none;text-align:center;max-width:calc(100% - 24px);transition:opacity .3s steps(3)}
 .toast.hide{opacity:0}
@@ -197,6 +197,25 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .toggle input{-webkit-appearance:none;appearance:none;width:22px;height:22px;margin:0;flex:none;cursor:pointer;background:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
 .toggle input:checked{background:var(--brand);box-shadow:inset 0 0 0 2px var(--brand),inset 0 0 0 6px var(--ink)}
 .toggle input:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
+
+/* performance reviews */
+.review{width:min(820px,100%);margin:0}
+.review h2{font-size:clamp(32px,5vw,44px)}
+.perks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.perk{display:flex;flex-direction:column;gap:7px;text-align:left;border:0;cursor:pointer;background:var(--panel2);padding:14px 14px 16px;clip-path:var(--notch);box-shadow:inset 0 0 0 var(--b) var(--tc),inset 0 calc(var(--b) * -2) 0 0 rgba(0,0,0,.25)}
+.perk:hover{transform:translateY(-3px);background:color-mix(in srgb,var(--tc) 12%,var(--panel2))}
+.perk:focus-visible{outline:2px dashed var(--fg);outline-offset:-8px}
+.perk .k{font:400 9px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--tc)}
+.perk .t{font:400 27px/.95 var(--f-display)}
+.perk .d{font-size:14px;line-height:1.4;color:#c5cbe6}
+.perk .cap{font:400 17px/1.1 var(--f-mono);color:var(--brand)}
+.crew.rev{box-shadow:inset 0 0 0 var(--b) var(--brand);opacity:1}
+.crew.rev .meta{color:var(--brand)}
+.traits{display:flex;flex-wrap:wrap;gap:4px}
+.trait{font:400 15px/1 var(--f-mono);padding:3px 6px 4px;background:var(--ink);box-shadow:inset 0 0 0 1px var(--line);color:var(--fg)}
+.trait.q{color:var(--ok)}
+.trait.sp{color:var(--crystal)}
+@media (prefers-reduced-motion:reduce){.perk:hover{transform:none}}
 </style>
 
 <div id="app">
@@ -245,8 +264,8 @@ const TOWERS = {
   drone:    { name: 'Drone Operator',    fee: 60, range: 3.0, dmg: 5,  rate: 3.2,  air: true,  airMult: 3, color: '#9be564', desc: 'Rapid fire. Triple damage against flyers.' },
 };
 const HIRE_COST = { gunner: 50, taser: 60, mortar: 75, drone: 65, marksman: 85 };
-const XP_TH = [0, 12, 32, 65, 110];
-const RANKS = ['Associate', 'Senior Associate', 'Lead Associate', 'Principal Associate', 'Associate Emeritus'];
+const XP_TH = [0, 16, 45, 95, 165, 260, 380, 530];
+const RANKS = ['Associate', 'Senior Associate', 'Lead Associate', 'Principal Associate', 'Associate Emeritus', 'Vice Associate', 'Senior Vice Associate', 'Executive Associate (Unpaid)'];
 
 const CATS = {
   swarm:    { label: 'Swarm',    hp: 11, spd: 1.45, armor: 0, bounty: 1, cost: 1, r: 6,  group: 4, threat: 1 },
@@ -1079,13 +1098,22 @@ function noise({ dur = 0.1, vol = 0.2, at = 0, when, bus, type = 'bandpass', f =
 }
 const arpeggio = (notes, type, gap, dur, vol) => notes.forEach((f, i) => tone({ type, f, dur, vol, at: i * gap }));
 const SFX = {
-  gun: () => { noise({ type: 'highpass', f: 1500, dur: 0.05, vol: 0.22 }); tone({ f: 880, f2: 260, dur: 0.06, vol: 0.06 }); },
-  taser: () => { tone({ type: 'sawtooth', f: 1500, f2: 500, dur: 0.17, vol: 0.06, vib: [70, 400] }); noise({ f: 3200, q: 2, dur: 0.12, vol: 0.1 }); },
-  mortar: () => { tone({ type: 'sine', f: 190, f2: 60, dur: 0.2, vol: 0.4 }); noise({ type: 'lowpass', f: 900, dur: 0.12, vol: 0.14 }); },
-  foam: () => { noise({ type: 'lowpass', f: 1800, f2: 160, dur: 0.42, vol: 0.32 }); tone({ type: 'sine', f: 95, f2: 38, dur: 0.32, vol: 0.32 }); },
-  snipe: () => { noise({ type: 'highpass', f: 2500, dur: 0.09, vol: 0.32 }); tone({ type: 'sine', f: 150, f2: 45, dur: 0.38, vol: 0.38 }); tone({ f: 1800, f2: 900, dur: 0.04, vol: 0.05 }); },
-  drone: () => tone({ f: 1500, f2: 1050, dur: 0.035, vol: 0.045 }),
-  pop: () => tone({ f: 500 + Math.random() * 160, f2: 110, dur: 0.09, vol: 0.07 }),
+  // weapons: quiet, short, and each with its own character
+  gun: n => { for (let i = 0; i < (n || 2); i++) { const j = 1 + (Math.random() - 0.5) * 0.08; noise({ f: 2600 * j, q: 1.6, dur: 0.028, vol: 0.11, at: i * 0.07 }); tone({ f: 1500 * j, f2: 650, dur: 0.02, vol: 0.022, at: i * 0.07 }); } },
+  taser: () => { const j = 1 + (Math.random() - 0.5) * 0.1; tone({ type: 'sawtooth', f: 92 * j, dur: 0.12, vol: 0.05, lp: 2200, vib: [48, 30] }); noise({ type: 'highpass', f: 5200, dur: 0.07, vol: 0.045 }); },
+  mortar: () => { const j = 1 + (Math.random() - 0.5) * 0.08; tone({ type: 'triangle', f: 270 * j, f2: 125, dur: 0.13, vol: 0.13 }); noise({ f: 520, q: 2, dur: 0.06, vol: 0.09 }); },
+  foam: () => { noise({ type: 'lowpass', f: 950, f2: 200, dur: 0.3, vol: 0.13 }); tone({ type: 'sine', f: 125, f2: 60, dur: 0.18, vol: 0.12 }); },
+  // sniper: crack, ping, then the bolt cycling
+  snipe: () => { const j = 1 + (Math.random() - 0.5) * 0.06; noise({ type: 'highpass', f: 3600, dur: 0.03, vol: 0.15 }); tone({ f: 2600 * j, f2: 2300 * j, dur: 0.05, vol: 0.022 }); tone({ type: 'sine', f: 110, f2: 55, dur: 0.2, vol: 0.12 }); noise({ f: 3000, q: 5, dur: 0.015, vol: 0.05, at: 0.32 }); noise({ f: 2300, q: 5, dur: 0.018, vol: 0.05, at: 0.42 }); },
+  drone: () => { const j = 1 + (Math.random() - 0.5) * 0.1; tone({ type: 'sine', f: 1900 * j, f2: 2700 * j, dur: 0.028, vol: 0.035 }); },
+  crit: () => tone({ f: 3300, dur: 0.03, vol: 0.018 }),
+  terminated: () => { tone({ f: 330, dur: 0.08, vol: 0.05 }); tone({ f: 220, dur: 0.14, vol: 0.05, at: 0.08 }); },
+  overcharge: () => tone({ type: 'sawtooth', f: 180, f2: 900, dur: 0.18, vol: 0.05, lp: 2400 }),
+  thunder: () => { noise({ type: 'highpass', f: 2500, dur: 0.05, vol: 0.2 }); noise({ type: 'lowpass', f: 2600, f2: 90, dur: 0.9, vol: 0.3 }); tone({ type: 'sine', f: 70, f2: 35, dur: 0.6, vol: 0.25 }); },
+  heal: () => arpeggio([880, 1175, 1568], 'triangle', 0.05, 0.1, 0.05),
+  review: () => { noise({ f: 4200, q: 0.8, dur: 0.1, vol: 0.05 }); arpeggio([784, 988], 'triangle', 0.08, 0.12, 0.06); },
+  stamp: () => { tone({ type: 'sine', f: 170, f2: 70, dur: 0.1, vol: 0.25 }); noise({ type: 'lowpass', f: 700, dur: 0.06, vol: 0.12 }); tone({ f: 1568, dur: 0.18, vol: 0.05, at: 0.08 }); },
+  pop: () => tone({ f: 500 + Math.random() * 160, f2: 110, dur: 0.09, vol: 0.05 }),
   splat: () => { noise({ type: 'lowpass', f: 900, dur: 0.12, vol: 0.18 }); tone({ type: 'triangle', f: 320, f2: 80, dur: 0.12, vol: 0.12 }); },
   bigboom: () => { noise({ type: 'lowpass', f: 2400, f2: 90, dur: 1.2, vol: 0.5 }); tone({ type: 'sine', f: 120, f2: 28, dur: 1, vol: 0.5 }); arpeggio([784, 659, 523, 392], 'square', 0.09, 0.12, 0.06); },
   leak: () => { tone({ f: 440, dur: 0.1, vol: 0.11 }); tone({ f: 311, dur: 0.2, vol: 0.11, at: 0.1 }); },
@@ -1109,8 +1137,8 @@ const SFX = {
   },
   victory: () => { arpeggio([392, 523, 659, 784, 1047, 1319], 'square', 0.09, 0.16, 0.07); arpeggio([131, 165, 196, 262], 'triangle', 0.18, 0.4, 0.14); },
 };
-const SFX_GAP = { gun: 0.045, drone: 0.035, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04 };
-function sfx(name, x) {
+const SFX_GAP = { gun: 0.06, drone: 0.05, crit: 0.05, terminated: 0.1, overcharge: 0.15, heal: 0.3, thunder: 0.3, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04 };
+function sfx(name, x, arg) {
   const c = AU.ctx;
   if (!c || CFG.muted || c.state !== 'running' || !SFX[name]) return;
   const now = c.currentTime;
@@ -1118,7 +1146,7 @@ function sfx(name, x) {
   if (AU.voices > 40) return;
   AU.last[name] = now;
   AU.pan = x != null ? clamp(x / (GW * TILE) * 2 - 1, -1, 1) * 0.6 : 0;
-  SFX[name]();
+  SFX[name](arg);
   AU.pan = 0;
 }
 
@@ -1185,6 +1213,7 @@ function scheduler() {
 
 // ---------- settings window ----------
 function showSettings() {
+  if (S.reviewOpen) return;
   if ($('#modal').innerHTML) { closeSettings(); return; }
   S.cfgPaused = M ? M.paused : null;
   if (M) M.paused = true;
@@ -1223,6 +1252,214 @@ document.addEventListener('change', ev => {
 document.addEventListener('pointerdown', audioInit, true);
 document.addEventListener('keydown', audioInit, true);
 
+// ================================================================
+// CREW PROGRESSION. Every promotion triggers a performance review: pick one
+// of several perk cards. Rank 2 offers Tier I, rank 3 Tier II, rank 4 a
+// permanent specialisation (2 branches per role), rank 5 that branch's
+// capstone, ranks 6-8 executive perks. Every hire also rolls a quirk.
+// Perks are stat modifiers read by towerStats() and the combat code.
+// ================================================================
+const MAXL = 8;
+const TIER_INFO = {
+  t1:   { label: 'Tier I · Common', col: '#8a93bd', blurb: 'HR has identified some growth opportunities. Pick one. Your pay is unchanged.' },
+  t2:   { label: 'Tier II · Rare', col: '#5fd4ff', blurb: 'Congratulations on your continued survival. Choose a development track.' },
+  spec: { label: 'Specialisation', col: '#b98cff', blurb: 'Time to specialise. This decision is permanent, like your contract.' },
+  cap:  { label: 'Capstone', col: '#ffd23f', blurb: 'Final review. Choose your legacy. The company will take credit for it.' },
+  exec: { label: 'Executive', col: '#ff7ac8', blurb: 'Executive track unlocked. Same pay, larger font on your name badge.' },
+};
+const QUIRKS = {
+  caffeinated:   { name: 'Caffeinated', desc: '+12% fire rate, -10% HP.', mod: s => { s.rate *= 1.12; s.maxhp *= 0.9; } },
+  nepotism:      { name: 'Nepotism Hire', desc: "The CEO's nephew. -15% damage, +50% XP.", mod: s => { s.dmg *= 0.85; s.xpMult *= 1.5; } },
+  exmil:         { name: 'Ex-Military', desc: '+10% range. Will not stop talking about it.', mod: s => { s.range *= 1.1; } },
+  cheap:         { name: 'Works for Exposure', desc: 'Deploy fee -25%.', mod: s => { s.feeMult *= 0.75; } },
+  lucky:         { name: 'Lucky Socks', desc: '+10% crit chance.', mod: s => { s.crit += 0.1; } },
+  anxious:       { name: 'Anxious Energy', desc: '+12% damage, -20% HP.', mod: s => { s.dmg *= 1.12; s.maxhp *= 0.8; } },
+  gossip:        { name: 'Office Gossip', desc: 'Crew within 1.5 tiles fire 6% faster, motivated by drama.', mod: s => { s.auraRate += 0.06; } },
+  tenured:       { name: 'Tenured', desc: '+35% HP. Has been here since before the lawsuits.', mod: s => { s.maxhp *= 1.35; } },
+  perfectionist: { name: 'Perfectionist', desc: '+20% damage, -10% fire rate.', mod: s => { s.dmg *= 1.2; s.rate *= 0.9; } },
+  influencer:    { name: 'Posts Every Kill', desc: '+1 budget per kill. Sponsored content.', mod: s => { s.bountyAdd += 1; } },
+};
+const P = (id, tier, role, name, desc, mod) => ({ id, tier, role, name, desc, mod });
+const PERKS = [
+  // corporate: any role
+  P('espresso', 't1', null, 'Double Espresso', '+15% fire rate.', s => { s.rate *= 1.15; }),
+  P('gym', 't1', null, 'Gym Membership (Unused)', '+50% HP.', s => { s.maxhp *= 1.5; }),
+  P('networking', 't1', null, 'Networking Event', '+30% XP from kills.', s => { s.xpMult *= 1.3; }),
+  P('sidehustle', 't1', null, 'Side Hustle', '+1 budget per kill.', s => { s.bountyAdd += 1; }),
+  P('lanyard', 't1', null, 'Fancy Lanyard', '+12% range.', s => { s.range *= 1.12; }),
+  P('buddy', 't1', null, 'Buddy System', 'Crew within 1.5 tiles deal +8% damage.', s => { s.auraDmg += 0.08; }),
+  P('commission', 't2', null, 'Commission-Based Pay', '+3% damage per kill this contract, up to +30%.', s => { s.commission = 0.03; }),
+  P('teamlead', 't2', null, 'Team Lead', 'Crew within 1.5 tiles fire 12% faster.', s => { s.auraRate += 0.12; }),
+  P('expenses', 't2', null, 'Creative Expense Report', 'Deploy fee -40%.', s => { s.feeMult *= 0.6; }),
+  P('bonusplan', 't2', null, 'Combat Bonus Structure', '+15% crit chance. Crits deal 2.5x.', s => { s.crit += 0.15; s.critMult = Math.max(s.critMult, 2.5); }),
+  P('takeover', 't2', null, 'Hostile Takeover', '+40% damage against Elites and bosses.', s => { s.eliteBonus += 0.4; }),
+  P('handcuffs', 'exec', null, 'Golden Handcuffs', '+30% damage and fire rate. Can never be reassigned.', s => { s.dmg *= 1.3; s.rate *= 1.3; s.noReassign = true; }),
+  P('mentor', 'exec', null, 'Mentorship Program', 'Crew within 1.5 tiles gain +50% XP.', s => { s.auraXp += 0.5; }),
+  P('stock', 'exec', null, 'Stock Options', 'Every kill also pays 1 scrip.', s => { s.scripKill += 1; }),
+  P('crunch', 'exec', null, 'Crunch Time', '+25% damage. Fires 30% faster once the drill passes 75%.', s => { s.dmg *= 1.25; s.crunch = true; }),
+  P('burnout', 'exec', null, 'Burnout Protocol', '+60% fire rate, -40% HP.', s => { s.rate *= 1.6; s.maxhp *= 0.6; }),
+  P('raise', 'any', null, 'Pay Rise (Denied)', '+10% damage. Stacks. HR is looking into it.', s => { s.dmg *= 1.1; }),
+  // Turret Operator
+  P('rubber', 't1', 'gunner', 'Rubber Bullets', 'Hits slow enemies by 25% for 1s.', s => { s.slowHit = Math.max(s.slowHit, 0.25); }),
+  P('hollow', 't1', 'gunner', 'Hollow Points', '+35% damage against unarmoured enemies.', s => { s.unarmored += 0.35; }),
+  P('extmag', 't1', 'gunner', 'Extended Mags', 'Three-round bursts: +35% damage.', s => { s.burst = 3; s.dmg *= 1.35; }),
+  P('apround', 't2', 'gunner', 'AP Rounds', 'Every hit strips 1 armour.', s => { s.shred += 1; }),
+  P('spray', 't2', 'gunner', 'Spray and Pray', 'Hits 2 targets at once, -15% damage.', s => { s.multi = Math.max(s.multi, 2); s.dmg *= 0.85; }),
+  P('tracer', 't2', 'gunner', 'Tracer Rounds', 'Targets hit take +15% damage from all crew for 2s.', s => { s.vuln = Math.max(s.vuln, 0.15); }),
+  // Taser Technician
+  P('voltage', 't1', 'taser', 'Higher Voltage', 'Pulses stun for 0.25s.', s => { s.pulseStun = Math.max(s.pulseStun, 0.25); }),
+  P('cord', 't1', 'taser', 'Extension Cord', '+20% range.', s => { s.range *= 1.2; }),
+  P('boots', 't1', 'taser', 'Rubber Boots', '+60% HP. Saboteurs touching you take 8 damage/s.', s => { s.maxhp *= 1.6; s.thorns += 8; }),
+  P('static', 't2', 'taser', 'Static Cling', 'Pulsed enemies take +20% damage from all crew for 2s.', s => { s.vuln = Math.max(s.vuln, 0.2); }),
+  P('overcharge', 't2', 'taser', 'Overcharge', 'Every 4th pulse deals 4x damage.', s => { s.overcharge = 4; }),
+  P('arcjump', 't2', 'taser', 'Arc Jump', 'Pulses also arc to 2 enemies just outside range.', s => { s.arcJump = Math.max(s.arcJump, 2); }),
+  // Foam Mortar Crew
+  P('indfoam', 't1', 'mortar', 'Industrial Foam', '+30% splash radius.', s => { s.splash *= 1.3; }),
+  P('quickload', 't1', 'mortar', 'Quick Loader', '+25% fire rate.', s => { s.rate *= 1.25; }),
+  P('sticky', 't1', 'mortar', 'Sticky Foam', 'Splash slows enemies by 40% for 2s.', s => { s.slowSplash = Math.max(s.slowSplash, 0.4); }),
+  P('cluster', 't2', 'mortar', 'Cluster Shells', 'Shells split into 3 bomblets on impact.', s => { s.cluster = 3; }),
+  P('spicy', 't2', 'mortar', 'Spicy Foam', 'Leaves a burning patch: 14 damage/s for 3s.', s => { s.napalm = 14; }),
+  P('shrapnel', 't2', 'mortar', 'Shrapnel Casing', 'Splash strips 2 armour.', s => { s.shred += 2; }),
+  // Marksman (Intern)
+  P('scope2', 't1', 'marksman', 'Better Scope', '+20% range.', s => { s.range *= 1.2; }),
+  P('patience', 't1', 'marksman', 'Patience Training', '+35% damage, -10% fire rate.', s => { s.dmg *= 1.35; s.rate *= 0.9; }),
+  P('bolt', 't1', 'marksman', 'Smooth Bolt', '+20% fire rate.', s => { s.rate *= 1.2; }),
+  P('overpen', 't2', 'marksman', 'Overpenetration', 'Shots carry on into 1 more enemy.', s => { s.chain += 1; }),
+  P('perfreview', 't2', 'marksman', 'Performance Review', 'Instantly removes non-boss enemies below 20% HP.', s => { s.execute = Math.max(s.execute, 0.2); }),
+  P('headhunter', 't2', 'marksman', 'Headhunter', '+60% damage against Elites and bosses.', s => { s.eliteBonus += 0.6; }),
+  // Drone Operator
+  P('spikes', 't1', 'drone', 'Bird Spikes', 'Quadruple damage against flyers.', s => { s.airMult = 4; }),
+  P('battery', 't1', 'drone', 'Bigger Battery', '+20% fire rate.', s => { s.rate *= 1.2; }),
+  P('antenna', 't1', 'drone', 'Long Antenna', '+20% range.', s => { s.range *= 1.2; }),
+  P('twin', 't2', 'drone', 'Second Drone', 'A second drone joins the shift.', s => { s.drones = Math.max(s.drones, 2); }),
+  P('repair', 't2', 'drone', 'Repair Mode', 'Heals crew within 1.5 tiles for 4 HP/s.', s => { s.heal += 4; }),
+  P('emp', 't2', 'drone', 'EMP Rounds', '10% chance per hit to stun for 1s.', s => { s.stun = Math.max(s.stun, 0.1); s.stunDur = Math.max(s.stunDur, 1); }),
+  // capstones (offered at rank 5 by their branch)
+  P('pinned', 'cap', 'gunner', 'Pinned Down', '20% chance per hit to stun for 0.8s.', s => { s.stun = Math.max(s.stun, 0.2); s.stunDur = Math.max(s.stunDur, 0.8); }),
+  P('deadeye', 'cap', 'gunner', 'Dead-Eye Bonus', '+10% crit chance. Crits ricochet to 2 more enemies.', s => { s.crit += 0.1; s.chainOnCrit += 2; }),
+  P('thunder', 'cap', 'taser', 'Act of God (Not Covered)', 'Every 6s, lightning hits the toughest enemy on the map for 150.', s => { s.thunder = 150; }),
+  P('freeze', 'cap', 'taser', 'Total Lockdown', 'Every 3rd pulse freezes everything in range for 1s.', s => { s.freezeEvery = 3; }),
+  P('barrage', 'cap', 'mortar', 'Quarterly Barrage', 'Every 8s, lobs 5 extra shells at random enemies.', s => { s.barrage = 5; }),
+  P('quagmire', 'cap', 'mortar', 'Quagmire', 'Enemies in foam take +30% damage from everything.', s => { s.foamVuln = 0.3; s.foamZone = Math.max(s.foamZone, 0.5); }),
+  P('termination', 'cap', 'marksman', 'Termination Letter', 'Removes non-boss enemies below 35% HP. Kills refund 30% of the reload.', s => { s.execute = Math.max(s.execute, 0.35); s.cdRefund = 0.3; }),
+  P('hwe', 'cap', 'marksman', 'Hostile Work Environment', 'Marks spread to every enemy within 1.5 tiles of the target.', s => { s.vulnSpread = 1.5; }),
+  P('hive', 'cap', 'drone', 'Hive Mind', '4 drones, all firing 25% faster.', s => { s.drones = 4; s.rate *= 1.25; }),
+  P('premium', 'cap', 'drone', 'Premium Coverage', 'Crew within 1.5 tiles take 40% less damage and fire 15% faster.', s => { s.auraDr = 0.4; s.auraRate += 0.15; }),
+];
+const PERK = Object.fromEntries(PERKS.map(p => [p.id, p]));
+const BRANCHES = {
+  gunner: [
+    { id: 'suppression', name: 'Suppression Specialist', desc: 'Hits slow enemies by 35%. +15% range.', cap: 'pinned', mod: s => { s.slowHit = Math.max(s.slowHit, 0.35); s.range *= 1.15; } },
+    { id: 'gunslinger', name: 'Hazard Pay Gunslinger', desc: '+25% fire rate, +10% crit chance.', cap: 'deadeye', mod: s => { s.rate *= 1.25; s.crit += 0.1; } },
+  ],
+  taser: [
+    { id: 'storm', name: 'Storm Caller', desc: '+30% range, +50% damage.', cap: 'thunder', mod: s => { s.range *= 1.3; s.dmg *= 1.5; } },
+    { id: 'lockdown', name: 'Crowd Control Officer', desc: 'Slows rise to 65%. Pulses stun for 0.3s.', cap: 'freeze', mod: s => { s.slow = 0.65; s.pulseStun = Math.max(s.pulseStun, 0.3); } },
+  ],
+  mortar: [
+    { id: 'artillery', name: 'Long-Range Artillery', desc: '+50% range, +30% damage.', cap: 'barrage', mod: s => { s.range *= 1.5; s.dmg *= 1.3; } },
+    { id: 'containment', name: 'Foam Containment', desc: 'Shells leave foam that slows by 50% for 4s.', cap: 'quagmire', mod: s => { s.foamZone = Math.max(s.foamZone, 0.5); } },
+  ],
+  marksman: [
+    { id: 'wetwork', name: 'Wetwork Contractor', desc: '+35% crit chance. Crits deal 2.5x.', cap: 'termination', mod: s => { s.crit += 0.35; s.critMult = Math.max(s.critMult, 2.5); } },
+    { id: 'spotter', name: 'Spotter', desc: 'Targets take +30% damage from all crew for 3s. +20% range.', cap: 'hwe', mod: s => { s.vuln = Math.max(s.vuln, 0.3); s.vulnDur = 3; s.range *= 1.2; } },
+  ],
+  drone: [
+    { id: 'swarmmgr', name: 'Drone Swarm Manager', desc: 'Runs 3 drones at once.', cap: 'hive', mod: s => { s.drones = Math.max(s.drones, 3); } },
+    { id: 'medic', name: 'Field Medic (Uncertified)', desc: 'Heals crew within 1.5 tiles for 8 HP/s and revives injured crew nearby after 8s.', cap: 'premium', mod: s => { s.heal += 8; s.revive = 8; } },
+  ],
+};
+const BRANCH = {};
+for (const role in BRANCHES) for (const b of BRANCHES[role]) BRANCH[b.id] = { ...b, tier: 'spec', role };
+const perkDef = id => PERK[id] || BRANCH[id];
+const tierFor = (r, cr) => r <= 2 ? 't1' : r === 3 ? 't2' : r === 4 ? 'spec' : r === 5 ? (cr.spec ? 'cap' : 't2') : 'exec';
+function reviewOptions(cr, r) {
+  const tier = tierFor(r, cr), owned = new Set(cr.perks);
+  const fits = p => (!p.role || p.role === cr.type) && !owned.has(p.id);
+  const draw = (list, n) => shuffle(list.filter(fits)).slice(0, n).map(p => p.id);
+  let opts;
+  if (tier === 'spec') opts = BRANCHES[cr.type].map(b => b.id);
+  else if (tier === 'cap') opts = [BRANCH[cr.spec].cap, ...draw(PERKS.filter(p => p.tier === 't2'), 2)];
+  else if (tier === 'exec') opts = draw(PERKS.filter(p => p.tier === 'exec' || p.tier === 't2'), 3);
+  else {
+    // lean towards the role's own perks, topped up with corporate ones
+    const role = draw(PERKS.filter(p => p.tier === tier && p.role), 2);
+    opts = role.concat(draw(PERKS.filter(p => p.tier === tier && !p.role), 3 - role.length));
+  }
+  while (opts.length < (tier === 'spec' ? 2 : 3)) opts.push('raise');
+  return opts;
+}
+function pendingReviews() { return RUN ? RUN.roster.reduce((n, c) => n + (c.reviews ? c.reviews.length : 0), 0) : 0; }
+function pickPerk(cr, id) {
+  if (BRANCH[id]) cr.spec = id; else cr.perks.push(id);
+  cr.reviews.shift(); cr.opts = null;
+}
+function autoReview() { for (const cr of RUN.roster) while (cr.reviews.length) { cr.opts = cr.opts || reviewOptions(cr, cr.reviews[0]); pickPerk(cr, pick(cr.opts)); } }
+const appealCost = () => 10 + 5 * (RUN.appeals || 0);
+function perkSummary(cr) {
+  const bits = [];
+  if (cr.spec) bits.push(BRANCH[cr.spec].name);
+  for (const id of cr.perks) bits.push(PERK[id].name);
+  return bits;
+}
+
+// ---------- review window ----------
+function showReview(cr) {
+  if (!cr || !cr.reviews || !cr.reviews.length) return;
+  if (!S.reviewOpen) { S.revPaused = M ? M.paused : null; if (M) M.paused = true; }
+  S.reviewOpen = cr.id;
+  const r = cr.reviews[0], tier = tierFor(r, cr), T = TIER_INFO[tier];
+  if (!cr.opts) cr.opts = reviewOptions(cr, r);
+  const cards = cr.opts.map(id => {
+    const p = perkDef(id), pt = TIER_INFO[p.tier] || TIER_INFO.t1;
+    const extra = BRANCH[id] ? `<span class="cap">Rank 5 capstone: ${esc(PERK[BRANCH[id].cap].name)}. ${esc(PERK[BRANCH[id].cap].desc)}</span>` : '';
+    return `<button class="perk" data-act="pickperk" data-id="${id}" style="--tc:${pt.col}"><span class="k">${esc(pt.label)}${p.role ? '' : ' · Corporate'}</span><span class="t">${esc(p.name)}</span><span class="d">${esc(p.desc)}</span>${extra}</button>`;
+  }).join('');
+  const more = pendingReviews() - 1, cost = appealCost();
+  $('#modal').innerHTML = `<div class="paper review" role="dialog" aria-modal="true" aria-label="Performance review">
+    ${titlebar('Performance_Review.pdf', 'closereview')}
+    <div class="row" style="gap:12px">${portraitImg(cr, 'pt big')}<div style="min-width:0"><div class="lbl" style="color:${T.col}">${esc(T.label)}</div><h2>${esc(cr.name)}</h2><div class="colony">Promoted to ${esc(RANKS[r - 1])} · ${esc(TOWERS[cr.type].name)} · ${esc(QUIRKS[cr.quirk].name)}</div></div></div>
+    <p>${esc(T.blurb)}</p>
+    <div class="perks">${cards}</div>
+    <div class="row">
+      ${tier === 'spec' ? '' : `<button class="btn ghost sm" data-act="appeal" ${RUN.scrip < cost ? 'disabled' : ''}>Appeal decision · ${cost} scrip</button>`}
+      <button class="btn ghost sm" data-act="decline">Decline promotion · +12 scrip</button>
+      <span class="colony">Balance ${RUN.scrip} scrip${more > 0 ? ` · ${more} more review${more > 1 ? 's' : ''} pending` : ''}</span>
+    </div>
+  </div>`;
+  sfx('review');
+  const first = $('#modal .perk'); if (first) first.focus();
+}
+function closeReview(snooze) {
+  const cr = RUN && RUN.roster.find(c => c.id === S.reviewOpen);
+  if (cr && snooze) cr.snooze = true;
+  $('#modal').innerHTML = '';
+  if (M && S.revPaused != null) M.paused = S.revPaused;
+  S.reviewOpen = null; S.revPaused = null;
+  if (S.reviewFlow === 'store') { S.reviewFlow = null; showStore(); return; }
+  if (S.screen === 'mission') { buildRosterBar(); renderTowerInfo(); }
+  if (S.screen === 'store') showStore();
+}
+function nextReview() {
+  const cr = RUN.roster.find(c => c.id === S.reviewOpen);
+  if (cr && cr.reviews.length) { showReview(cr); return; }
+  if (S.reviewFlow === 'store') { const n = RUN.roster.find(c => c.reviews.length); if (n) { S.reviewOpen = null; showReview(n); return; } }
+  closeReview(false);
+}
+function resolveReview(id) {
+  const cr = RUN.roster.find(c => c.id === S.reviewOpen); if (!cr) return;
+  if (id) { pickPerk(cr, id); sfx('stamp'); toast(`${cr.name}: ${perkDef(id).name}`, 1600); }
+  else { cr.reviews.shift(); cr.opts = null; RUN.scrip += 12; sfx('buy'); toast(`${cr.name} declined the promotion. +12 scrip`, 1600); }
+  // a promotion mid-contract can change max HP
+  if (M) { const tw = M.towers.find(t => t.crew === cr); if (tw) { const st = towerStats(cr, tw); if (!tw.down) tw.hp = tw.hp * st.maxhp / tw.maxhp; tw.maxhp = st.maxhp; } }
+  nextReview();
+}
+function startReviewFlow() {
+  const cr = RUN.roster.find(c => c.reviews.length);
+  if (!cr) return false;
+  S.reviewFlow = 'store'; showReview(cr); return true;
+}
+
 // ---------- RUN ----------
 function newRun() {
   const colony = store.get('al_colony', 0);
@@ -1237,7 +1474,8 @@ function newRun() {
   };
   RUN.options = genOptions();
 }
-function mkCrew(type, name, look = genLook()) { return { id: Math.random().toString(36).slice(2, 8), type, name, look, level: 1, xp: 0, kills: 0 }; }
+const pickQuirk = () => pick(Object.keys(QUIRKS));
+function mkCrew(type, name, look = genLook(), quirk = pickQuirk()) { return { id: Math.random().toString(36).slice(2, 8), type, name, look, quirk, level: 1, xp: 0, kills: 0, perks: [], spec: null, reviews: [] }; }
 function freshName() { let n, g = 0; do { n = pick(CREW_NAMES); } while (RUN.usedNames.has(n) && g++ < 60); if (RUN.usedNames.has(n)) n += ' ' + ri(2, 9); RUN.usedNames.add(n); return n; }
 function planetName() { return pick(SYL_A) + pick(SYL_B) + pick(SYL_C); }
 
@@ -1418,11 +1656,12 @@ function startMission(contract) {
     t: 0, T: contract.T * (has('overtime') ? 0.85 : 1), phase: 'prep', waveTimer: 2, waveInterval: 13, waveNum: 0,
     lost: 0, insured: has('insurance') ? 6 : 0, kills: 0, promos: [], downed: [], bossSpawned: false, boss: null,
     incomeAcc: 0, speed: 1, paused: false, endTimer: 0, deployedIds: new Set(),
-    parts: [], decals: [], shake: 0, pool: {}, lights: [],
+    parts: [], decals: [], shake: 0, pool: {}, lights: [], zones: [],
   };
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights;
   S.selCrew = -1; S.selTower = null;
+  RUN.roster.forEach(c => { c.snooze = false; });
   buildMissionHud(); buildRosterBar();
   setView(GW * TILE, GH * TILE);
   toast(contract.boss ? `Executive priority: ${contract.fac.boss.name} expected` : 'Deploy crew, then begin extraction', 2600);
@@ -1431,36 +1670,124 @@ function tileAt(x, y) { const tx = Math.floor(x / TILE), ty = Math.floor(y / TIL
 function towerAtTile(tx, ty) { return M.towers.find(t => t.tx === tx && t.ty === ty); }
 function canBuild(tx, ty) { return M.grid[ty][tx] === 0 && !towerAtTile(tx, ty); }
 
-function towerStats(crew) {
+function towerStats(crew, tw) {
   const b = TOWERS[crew.type], L = crew.level;
-  let dmg = b.dmg * (1 + 0.3 * (L - 1)), rate = b.rate * (1 + 0.06 * (L - 1)), range = b.range * (1 + 0.05 * (L - 1));
+  const s = {
+    ...b, dmg: b.dmg * (1 + 0.1 * (L - 1)), rate: b.rate * (1 + 0.03 * (L - 1)), range: b.range, maxhp: 80 + 12 * (L - 1),
+    crit: 0, critMult: 2, shred: 0, multi: 1, chain: 0, chainOnCrit: 0, stun: 0, stunDur: 0.5, slowHit: 0, slowSplash: 0,
+    vuln: 0, vulnDur: 2, vulnSpread: 0, execute: 0, cdRefund: 0, unarmored: 0, eliteBonus: 0, burst: crew.type === 'gunner' ? 2 : 1,
+    overcharge: 0, arcJump: 0, pulseStun: 0, freezeEvery: 0, cluster: 0, napalm: 0, foamZone: 0, foamVuln: 0, drones: 1,
+    heal: 0, revive: 0, auraDr: 0, auraRate: 0, auraDmg: 0, auraXp: 0, xpMult: 1, bountyAdd: 0, scripKill: 0, feeMult: 1,
+    thorns: 0, commission: 0, noReassign: false, thunder: 0, barrage: 0, crunch: false,
+  };
   const bm = M ? M.biome.mod : {};
-  rate *= bm.rate || 1; range *= bm.range || 1;
-  if (has('coffee')) rate *= 1.15;
-  if (has('poster')) dmg *= 1.12;
-  if (has('scope')) range *= 1.12;
-  if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) dmg *= 1.2;
-  if (has('tasers') && crew.type === 'taser') dmg *= 2;
-  if (has('intern') && crew.type === 'marksman') rate *= 1.25;
-  const maxhp = (80 + 20 * (L - 1)) * (has('waiver') ? 1.6 : 1);
-  return { ...b, dmg, rate, range, maxhp };
+  s.rate *= bm.rate || 1; s.range *= bm.range || 1;
+  if (has('coffee')) s.rate *= 1.15;
+  if (has('poster')) s.dmg *= 1.12;
+  if (has('scope')) s.range *= 1.12;
+  if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) s.dmg *= 1.2;
+  if (has('tasers') && crew.type === 'taser') s.dmg *= 2;
+  if (has('intern') && crew.type === 'marksman') s.rate *= 1.25;
+  if (crew.quirk) QUIRKS[crew.quirk].mod(s);
+  if (crew.spec) BRANCH[crew.spec].mod(s);
+  for (const id of crew.perks || []) PERK[id].mod(s);
+  if (s.commission && tw) s.dmg *= 1 + Math.min(0.3, s.commission * (tw.mkills || 0));
+  if (s.crunch && M && M.t / M.T > 0.75) s.rate *= 1.3;
+  if (has('waiver')) s.maxhp *= 1.6;
+  return s;
+}
+const crewFee = cr => Math.round(TOWERS[cr.type].fee * towerStats(cr).feeMult);
+
+function applySlow(e, v, dur) { if (e.boss) v *= 0.5; e.slowAmt = e.slowT > 0 ? Math.max(e.slowAmt, v) : v; e.slowT = Math.max(e.slowT, dur); }
+function stunE(e, dur) { e.stunT = Math.max(e.stunT || 0, e.boss ? dur * 0.3 : dur); }
+function markE(e, amt, dur) { e.vulnAmt = e.vulnT > 0 ? Math.max(e.vulnAmt, amt) : amt; e.vulnT = Math.max(e.vulnT || 0, dur); }
+// one direct hit from a crew member, with every on-hit perk applied
+function hitEnemy(e, base, s, tw, opt = {}) {
+  if (e.dead) return;
+  let d = base;
+  if (s.eliteBonus && (e.tier >= 2 || e.boss)) d *= 1 + s.eliteBonus;
+  if (s.unarmored && e.armor <= 0) d *= 1 + s.unarmored;
+  if (e.fly && s.airMult) d *= s.airMult;
+  const crit = s.crit > 0 && rnd() < s.crit;
+  if (crit) { d *= s.critMult; sfx('crit', e.x); if (tw.crew.type === 'marksman') fxText(e.x, ecy(e) - 12, 'CRIT', '#ff6b8b'); }
+  damage(e, d, !!s.pierce, tw);
+  if (!e.dead) {
+    if (s.shred) e.armor = Math.max(0, e.armor - s.shred);
+    if (s.slowHit) applySlow(e, s.slowHit, 1);
+    if (s.stun && rnd() < s.stun) stunE(e, s.stunDur);
+    if (s.vuln) {
+      markE(e, s.vuln, s.vulnDur);
+      if (s.vulnSpread) for (const o of M.enemies) if (o !== e && !o.dead && Math.hypot(o.x - e.x, o.y - e.y) <= s.vulnSpread * TILE) markE(o, s.vuln, s.vulnDur);
+    }
+    if (s.execute && !e.boss && e.hp / e.maxhp < s.execute) { fxText(e.x, ecy(e) - 12, 'TERMINATED', '#ff6b8b'); sfx('terminated', e.x); damage(e, e.hp + 1, true, tw); }
+  }
+  if (e.dead && s.cdRefund) tw.cd *= 1 - s.cdRefund;
+  const chains = opt.chained ? 0 : s.chain + (crit ? s.chainOnCrit : 0);
+  let from = e; const hitSet = new Set([e]);
+  for (let k = 0; k < chains; k++) {
+    let nb = null, bd = 1.8 * TILE;
+    for (const o of M.enemies) { if (o.dead || hitSet.has(o) || (o.fly && !s.air)) continue; const dd = Math.hypot(o.x - from.x, o.y - from.y); if (dd < bd) { bd = dd; nb = o; } }
+    if (!nb) break;
+    hitSet.add(nb);
+    M.fx.push({ k: 'tracer', x1: from.x, y1: ecy(from), x2: nb.x, y2: ecy(nb), life: 0.1, max: 0.1, color: s.color, w: 1.2 });
+    hitEnemy(nb, base * 0.5, s, tw, { chained: true });
+    from = nb;
+  }
+}
+function makeShell(tw, s, sx, sy, tx, ty, dur) {
+  return { sx, sy, tx, ty, t: 0, dur, dmg: s.dmg, r: s.splash * TILE, tw, s, cluster: s.cluster };
+}
+// extra drones orbit the operator; drone 0 follows the aim
+function dronePos(tw, k) {
+  if (k === 0) return { x: tw.x + tw.dx, y: tw.y + tw.dy };
+  const a = M.t * 1.6 + k * 2.1;
+  return { x: tw.x + Math.cos(a) * 16, y: tw.y - 22 + Math.sin(a) * 6 };
+}
+
+function damage(e, dmg, pierce, tw, quiet) {
+  if (e.dead) return;
+  if (e.vulnT > 0) dmg *= 1 + e.vulnAmt;
+  const eff = pierce ? dmg : Math.max(1, dmg - e.armor);
+  e.hp -= eff;
+  if (!quiet) { e.hitT = 0.08; if (rnd() < 0.5) sparks(e.x, ecy(e), '#fff2c0', 1); }
+  if (e.hp <= 0) {
+    e.dead = true;
+    M.kills++; RUN.kills++;
+    M.budget += e.bounty + (has('loyalty') ? 1 : 0);
+    deathFx(e); sfx(e.boss ? 'bigboom' : M.c.facKey === 'fauna' ? 'splat' : 'pop', e.x);
+    if (tw) {
+      const s = tw.st || towerStats(tw.crew, tw), cr = tw.crew;
+      M.budget += s.bountyAdd; if (s.scripKill) RUN.scrip += s.scripKill;
+      tw.mkills = (tw.mkills || 0) + 1;
+      cr.kills++; cr.xp += e.bounty * s.xpMult;
+      while (cr.level < MAXL && cr.xp >= XP_TH[cr.level]) {
+        cr.level++; cr.reviews.push(cr.level);
+        M.promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); sfx('promote', tw.x);
+        fxText(tw.x, tw.y - 22, 'REVIEW DUE', '#ffd23f');
+        if (!M.reviewHint) { M.reviewHint = true; toast(`${cr.name} is up for a performance review. Click their card.`, 2800); }
+        buildRosterBar();
+      }
+    }
+    if (e.boss) { M.boss = null; toast(`${e.name} neutralised`, 2400); }
+  }
 }
 
 function deploy(crewIdx, tx, ty) {
   const crew = RUN.roster[crewIdx];
   if (!crew || M.deployedIds.has(crew.id) || !canBuild(tx, ty)) return false;
-  const fee = TOWERS[crew.type].fee;
+  const fee = crewFee(crew);
   if (M.budget < fee) { toast('Insufficient budget. Have you tried working harder?', 1800); sfx('deny'); return false; }
   M.budget -= fee;
   sfx('deploy', tx * TILE);
   const st = towerStats(crew);
-  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee });
+  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0 });
   M.deployedIds.add(crew.id);
   S.selCrew = -1;
   buildRosterBar();
   return true;
 }
 function reassign(tw) {
+  if (tw.st && tw.st.noReassign && !tw.down) { toast('Golden Handcuffs: contractually unable to leave.', 1800); sfx('deny'); return; }
   sfx('reassign', tw.x);
   M.towers = M.towers.filter(t => t !== tw);
   M.deployedIds.delete(tw.crew.id);
@@ -1470,7 +1797,7 @@ function reassign(tw) {
 
 function genWave() {
   const m = M, c = m.c, idx = c.idx, prog = m.t / m.T;
-  let budget = (5.5 + idx * 2.7) * (1 + prog * 1.7) * c.mod;
+  let budget = (5.5 + idx * 3.3) * (1 + prog * 1.7) * c.mod;
   m.waveNum++;
   const vet = clamp(-0.05 + idx * 0.13 + prog * 0.3, 0, 0.65), eli = clamp(-0.22 + idx * 0.07 + prog * 0.15, 0, 0.3);
   const weights = { ...c.fac.cats };
@@ -1497,7 +1824,7 @@ function genWave() {
 }
 function spawnEnemy(q) {
   const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = M.paths[q.sp];
-  const hp = C.hp * Tt.hp * (1 + 0.16 * c.idx) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod);
+  const hp = C.hp * Tt.hp * (1 + 0.24 * c.idx) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod);
   const armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3));
   const e = {
     cat: q.cat, tier: q.tier, name: c.fac.names[q.cat], color: c.fac.color,
@@ -1537,30 +1864,6 @@ function loseMargin(n, x, y) {
     } else {
       RUN.margin = 0; M.phase = 'failed'; M.endTimer = 2.2; sfx('fail'); setMusic(null); toast('Profitability threshold breached', 2200);
     }
-  }
-}
-
-function damage(e, dmg, pierce, tw) {
-  if (e.dead) return;
-  const eff = pierce ? dmg : Math.max(1, dmg - e.armor);
-  e.hp -= eff; e.hitT = 0.08;
-  if (rnd() < 0.5) sparks(e.x, ecy(e), '#fff2c0', 1);
-  if (e.hp <= 0) {
-    e.dead = true;
-    M.kills++; RUN.kills++;
-    M.budget += e.bounty + (has('loyalty') ? 1 : 0);
-    deathFx(e); sfx(e.boss ? 'bigboom' : M.c.facKey === 'fauna' ? 'splat' : 'pop', e.x);
-    if (tw) {
-      const cr = tw.crew; cr.kills++; cr.xp += e.bounty;
-      while (cr.level < 5 && cr.xp >= XP_TH[cr.level]) {
-        cr.level++;
-        M.promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); sfx('promote', tw.x);
-        fxText(tw.x, tw.y - 22, 'PROMOTED', '#ffd23f');
-        const st = towerStats(cr); tw.hp += st.maxhp - tw.maxhp; tw.maxhp = st.maxhp;
-        buildRosterBar();
-      }
-    }
-    if (e.boss) { M.boss = null; toast(`${e.name} neutralised`, 2400); }
   }
 }
 
@@ -1608,13 +1911,16 @@ function stepMission(dt) {
         }
       }
     }
+    if (e.vulnT > 0) e.vulnT -= dt;
+    if (e.stunT > 0) { e.stunT -= dt; e.target = null; continue; }
     const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1);
     if (e.sab) {
       let tgt = null, bd = 1.4 * TILE;
       for (const tw of m.towers) { if (tw.down) continue; const d = Math.hypot(tw.x - e.x, tw.y - e.y); if (d < bd) { bd = d; tgt = tw; } }
       e.target = tgt;
       if (tgt) {
-        tgt.hp -= e.dps * dt; tgt.flash = 0.1;
+        tgt.hp -= e.dps * dt * (1 - (tgt.bDr || 0)); tgt.flash = 0.1;
+        if (tgt.st && tgt.st.thorns) damage(e, tgt.st.thorns * dt, true, tgt, true);
         e.atk = (e.atk || 0) + dt; if (e.atk > 0.3) { e.atk = 0; sparks(tgt.x, tgt.y - 6, '#ffb0b0', 2); sfx('sabo', tgt.x); }
         if (Math.abs(tgt.x - e.x) > 2) e.face = tgt.x < e.x ? -1 : 1;
         if (tgt.hp <= 0) { tgt.down = true; tgt.hp = 0; sfx('hit', tgt.x); m.downed.push(tgt.crew.name); fxText(tgt.x, tgt.y - 20, 'INJURED', '#ff4d5e'); buildRosterBar(); if (S.selTower === tgt) renderTowerInfo(); }
@@ -1637,18 +1943,60 @@ function stepMission(dt) {
       e.dist += mv;
     }
   }
+  // crew stats, auras (buffs, healing, damage reduction) and revives
+  for (const tw of m.towers) { tw.st = towerStats(tw.crew, tw); tw.bRate = 0; tw.bDmg = 0; tw.bXp = 0; tw.bDr = 0; tw.bHeal = 0; tw.medic = 0; }
+  for (const a of m.towers) {
+    const s = a.st;
+    if (a.down || !(s.auraRate || s.auraDmg || s.auraXp || s.heal || s.auraDr || s.revive)) continue;
+    for (const b of m.towers) {
+      if (Math.hypot(a.x - b.x, a.y - b.y) > 1.6 * TILE) continue;
+      if (b !== a) { b.bRate += s.auraRate; b.bDmg += s.auraDmg; b.bXp += s.auraXp; b.bDr = Math.max(b.bDr, s.auraDr); }
+      b.bHeal += s.heal; if (s.revive) b.medic = s.revive;
+    }
+  }
+  for (const tw of m.towers) {
+    const s = tw.st;
+    s.rate *= 1 + tw.bRate; s.dmg *= 1 + tw.bDmg; s.xpMult *= 1 + tw.bXp;
+    if (Math.abs(tw.maxhp - s.maxhp) > 0.01) { if (!tw.down) tw.hp = tw.hp * s.maxhp / tw.maxhp; tw.maxhp = s.maxhp; }
+    if (tw.down) {
+      if (tw.medic) {
+        tw.reviveT = (tw.reviveT || 0) + dt;
+        if (tw.reviveT >= tw.medic) { tw.down = false; tw.hp = tw.maxhp * 0.5; tw.reviveT = 0; fxText(tw.x, tw.y - 22, 'BACK TO WORK', '#4fe0a6'); sfx('heal', tw.x); buildRosterBar(); }
+      } else tw.reviveT = 0;
+    } else if (tw.bHeal && tw.hp < tw.maxhp) {
+      tw.hp = Math.min(tw.maxhp, tw.hp + tw.bHeal * dt);
+      if (rnd() < dt * 3) addPart({ x: tw.x + (rnd() - 0.5) * 16, y: tw.y - 4, vx: 0, vy: -18, life: 0.7, max: 0.7, col: '#4fe0a6', size: 1, layer: 'px' });
+    }
+  }
   // towers: track a target every step so aiming is smooth, fire when the cooldown is up
   for (const tw of m.towers) {
     if (tw.flash > 0) tw.flash -= dt;
     tw.recoil *= Math.exp(-dt * 14);
     if (tw.muzzle > 0) tw.muzzle -= dt;
     if (tw.down) continue;
-    const s = towerStats(tw.crew), R2 = s.range * TILE, type = tw.crew.type;
+    const s = tw.st, R2 = s.range * TILE, type = tw.crew.type;
     tw.cd -= dt;
+    // timed capstones
+    if (s.thunder) {
+      tw.abT = (tw.abT || 0) + dt;
+      if (tw.abT >= 6) {
+        let best = null; for (const e of m.enemies) if (!e.dead && (!best || e.hp > best.hp)) best = e;
+        if (best) { tw.abT = 0; m.fx.push({ k: 'bolt', x: best.x, y: ecy(best), life: 0.32, max: 0.32 }); sfx('thunder', best.x); shake(4); sparks(best.x, ecy(best), '#dff6ff', 8); damage(best, s.thunder, true, tw); }
+      }
+    }
+    if (s.barrage) {
+      tw.bbT = (tw.bbT || 0) + dt;
+      const ground = tw.bbT >= 8 ? m.enemies.filter(e => !e.dead && !e.fly) : [];
+      if (ground.length) {
+        tw.bbT = 0; sfx('mortar', tw.x);
+        for (let i = 0; i < s.barrage; i++) { const e = pick(ground); m.shots.push(makeShell(tw, s, tw.x, tw.y - 10, e.x + (rnd() - 0.5) * 24, e.y + (rnd() - 0.5) * 24, 0.7 + i * 0.12)); }
+      }
+    }
     const inRange = [];
     for (const e of m.enemies) { if (e.dead) continue; if (e.fly && !s.air) continue; if (Math.hypot(e.x - tw.x, e.y - tw.y) <= R2 + e.r * 0.5) inRange.push(e); }
+    const better = (a, b) => s.strong ? a.hp > b.hp : a.dist > b.dist;
     let tgt = null;
-    for (const e of inRange) if (!tgt || (s.strong ? e.hp > tgt.hp : e.dist > tgt.dist)) tgt = e;
+    for (const e of inRange) if (!tgt || better(e, tgt)) tgt = e;
     tw.aim = tgt;
     if (tgt) { tw.ang = Math.atan2(ecy(tgt) - tw.y, tgt.x - tw.x); if (Math.abs(tgt.x - tw.x) > 3) tw.face = tgt.x < tw.x ? -1 : 1; }
     const want = type === 'mortar' ? (tw.face > 0 ? -0.85 : Math.PI + 0.85) : tw.ang;
@@ -1659,32 +2007,48 @@ function stepMission(dt) {
     }
     if (tw.cd > 0 || !tgt) continue;
     tw.cd = 1 / s.rate; tw.recoil = 1; tw.muzzle = 0.07;
-    sfx({ gunner: 'gun', taser: 'taser', mortar: 'mortar', marksman: 'snipe', drone: 'drone' }[type], tw.x);
+    sfx({ gunner: 'gun', taser: 'taser', mortar: 'mortar', marksman: 'snipe', drone: 'drone' }[type], tw.x, s.burst);
     const mz = muzzlePos(tw);
     if (s.aoe) {
-      for (const e of inRange) {
-        damage(e, s.dmg, false, tw); e.slowT = s.slowDur; e.slowAmt = e.boss ? s.slow * 0.5 : s.slow;
+      tw.pulses = (tw.pulses || 0) + 1;
+      const over = s.overcharge && tw.pulses % s.overcharge === 0, freeze = s.freezeEvery && tw.pulses % s.freezeEvery === 0;
+      let hits = inRange;
+      if (s.arcJump) hits = hits.concat(m.enemies.filter(e => !e.dead && !inRange.includes(e) && Math.hypot(e.x - tw.x, e.y - tw.y) <= R2 + 1.5 * TILE).slice(0, s.arcJump));
+      for (const e of hits) {
+        hitEnemy(e, s.dmg * (over ? 4 : 1), s, tw);
+        if (e.dead) continue;
+        applySlow(e, s.slow, s.slowDur);
+        if (s.pulseStun) stunE(e, s.pulseStun);
+        if (freeze) stunE(e, 1);
         m.fx.push({ k: 'arc', x: mz.x, y: mz.y, e, tx: e.x, ty: ecy(e), life: 0.22, max: 0.22 });
         sparks(e.x, ecy(e), '#bff4ff', 3);
       }
-      m.fx.push({ k: 'ring', x: tw.x, y: tw.y, r: R2, life: 0.3, max: 0.3, color: s.color });
+      m.fx.push({ k: 'ring', x: tw.x, y: tw.y, r: R2, life: 0.3, max: 0.3, color: over || freeze ? '#ffffff' : s.color });
+      if (over || freeze) { sfx('overcharge', tw.x); shake(1.5); }
       continue;
     }
     if (s.splash) {
       const lead = 0.6;
       let tx = tgt.x, ty = tgt.y;
       if (!tgt.fly && tgt.path[tgt.wi]) { const nx = tgt.path[tgt.wi].x - tgt.x, ny = tgt.path[tgt.wi].y - tgt.y, nd = Math.hypot(nx, ny) || 1, k = Math.min(1, tgt.spd * TILE * lead / nd); tx += nx * k; ty += ny * k; }
-      m.shots.push({ sx: mz.x, sy: mz.y, tx, ty, t: 0, dur: lead, dmg: s.dmg, r: s.splash * TILE, tw });
+      m.shots.push(makeShell(tw, s, mz.x, mz.y, tx, ty, lead));
       smoke(mz.x, mz.y, 3); shake(1.5);
       continue;
     }
-    let dmg = s.dmg; if (s.airMult && tgt.fly) dmg *= s.airMult;
-    damage(tgt, dmg, !!s.pierce, tw);
-    const burst = type === 'gunner' ? 2 : 1, life = type === 'marksman' ? 0.16 : 0.07;
-    for (let b = 0; b < burst; b++) m.fx.push({ k: 'tracer', x1: mz.x, y1: mz.y, x2: tgt.x + (rnd() - 0.5) * 6, y2: ecy(tgt) + (rnd() - 0.5) * 6, life, max: life, delay: b * 0.07, color: s.color, w: type === 'marksman' ? 2.4 : type === 'drone' ? 1.1 : 1.5 });
+    // direct fire: several targets for Spray and Pray, one per drone for drone operators
+    const n = type === 'drone' ? s.drones : s.multi;
+    const picks = [tgt].concat(inRange.filter(e => e !== tgt).sort((a, b) => better(a, b) ? -1 : 1).slice(0, n - 1));
+    const life = type === 'marksman' ? 0.16 : 0.07;
+    for (let k = 0; k < n; k++) {
+      const e = picks[k % picks.length];
+      if (e.dead) continue;
+      const from = type === 'drone' ? (p => ({ x: p.x, y: p.y + 3 }))(dronePos(tw, k)) : mz;
+      hitEnemy(e, s.dmg, s, tw);
+      for (let b = 0; b < s.burst; b++) m.fx.push({ k: 'tracer', x1: from.x, y1: from.y, x2: e.x + (rnd() - 0.5) * 6, y2: ecy(e) + (rnd() - 0.5) * 6, life, max: life, delay: b * 0.07, color: s.color, w: type === 'marksman' ? 2.4 : type === 'drone' ? 1.1 : 1.5 });
+      sparks(e.x, ecy(e), '#fff2c0', type === 'marksman' ? 5 : 2);
+    }
     if (type === 'gunner' || type === 'marksman') casing(tw);
     if (type === 'marksman') { smoke(mz.x, mz.y, 2); shake(2.5); }
-    sparks(tgt.x, ecy(tgt), '#fff2c0', type === 'marksman' ? 5 : 2);
   }
   // foam shells
   for (const sh of m.shots) {
@@ -1693,12 +2057,34 @@ function stepMission(dt) {
     if (sh.trail > 0.035 && sh.t < sh.dur) { sh.trail = 0; const p = shellPos(sh); addPart({ x: p.x, y: p.y, vx: (rnd() - 0.5) * 8, vy: -6, r: 0.6, grow: 1.6, life: 0.4, max: 0.4, col: '#e8edf2', layer: 'px', alpha: 0.6 }); }
     if (sh.t >= sh.dur && !sh.hit) {
       sh.hit = true;
-      for (const e of m.enemies) if (!e.dead && !e.fly && Math.hypot(e.x - sh.tx, e.y - sh.ty) <= sh.r + e.r * 0.5) damage(e, sh.dmg, false, sh.tw);
+      const s = sh.s;
+      for (const e of m.enemies) {
+        if (e.dead || e.fly || Math.hypot(e.x - sh.tx, e.y - sh.ty) > sh.r + e.r * 0.5) continue;
+        hitEnemy(e, sh.dmg, s, sh.tw, { chained: true });
+        if (!e.dead && s.slowSplash) applySlow(e, s.slowSplash, 2);
+      }
+      if (sh.cluster) for (let k = 0; k < sh.cluster; k++) {
+        const a = rnd() * Math.PI * 2, d = sh.r * (0.7 + rnd() * 0.5);
+        m.shots.push({ ...sh, sx: sh.tx, sy: sh.ty, tx: sh.tx + Math.cos(a) * d, ty: sh.ty + Math.sin(a) * d * 0.7, t: 0, dur: 0.28, dmg: sh.dmg * 0.4, r: sh.r * 0.55, cluster: 0, hit: false, trail: 0 });
+      }
+      if (s.napalm) m.zones.push({ x: sh.tx, y: sh.ty, r: sh.r * 0.9, life: 3, max: 3, dps: s.napalm, kind: 'fire', tw: sh.tw });
+      if (s.foamZone) m.zones.push({ x: sh.tx, y: sh.ty, r: sh.r, life: 4, max: 4, slow: s.foamZone, vuln: s.foamVuln, kind: 'foam', tw: sh.tw });
       m.fx.push({ k: 'boom', x: sh.tx, y: sh.ty, r: sh.r, life: 0.4, max: 0.4, color: '#ffb860' });
       sfx('foam', sh.tx); foam(sh.tx, sh.ty, sh.r); smoke(sh.tx, sh.ty, 4); sparks(sh.tx, sh.ty, '#ffe0a0', 6); shake(3);
     }
   }
   m.shots = m.shots.filter(s => !s.hit);
+  // burning and foam patches
+  for (const z of m.zones) {
+    z.life -= dt;
+    for (const e of m.enemies) {
+      if (e.dead || e.fly || Math.hypot(e.x - z.x, e.y - z.y) > z.r) continue;
+      if (z.dps) damage(e, z.dps * dt, true, z.tw, true);
+      if (z.slow && !e.dead) applySlow(e, z.slow, 0.2);
+      if (z.vuln && !e.dead) markE(e, z.vuln, 0.2);
+    }
+  }
+  m.zones = m.zones.filter(z => z.life > 0);
   m.enemies = m.enemies.filter(e => !e.dead && !e.gone);
   if (m.phase === 'evac' && !m.enemies.length && !m.queue.length) {
     m.phase = 'done'; m.endTimer = 2; sfx('evac'); toast('Area secure. Dropship inbound.', 2000);
@@ -1771,6 +2157,15 @@ function renderMission(now) {
   g.drawImage(m.ground, 0, 0);
   // foam left by mortar shells
   for (const dc of m.decals) { g.globalAlpha = clamp(dc.life / 2, 0, 0.9); for (const b of dc.blobs) pxCircle(g, dc.x / AP + b.x, dc.y / AP + b.y, b.r, b.c); }
+  // burning and foam patches, dithered
+  for (const z of m.zones) {
+    const cx = Math.round(z.x / AP), cy = Math.round(z.y / AP), r = Math.round(z.r / AP), fl = Math.floor(t * 12);
+    g.globalAlpha = clamp(z.life / 0.6, 0, 1) * (z.kind === 'fire' ? 0.75 : 0.55);
+    for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) {
+      if (x * x + y * y * 1.8 > r * r || ((x + y + (z.kind === 'fire' ? fl : 0)) & 1)) continue;
+      px(g, cx + x, cy + y, 1, 1, z.kind === 'fire' ? ((x * 7 + y * 3 + fl) % 3 ? '#ff7a2a' : '#ffd060') : '#d8f0ff');
+    }
+  }
   g.globalAlpha = 1;
   // ground shadows
   g.fillStyle = 'rgba(0,0,0,0.28)';
@@ -1819,7 +2214,9 @@ function renderMission(now) {
   }
   for (const tw of m.towers) {
     const ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6;
-    for (let i = 0; i < tw.crew.level; i++) px(g, ax - 7 + i * 3, ay + 3, 2, 1, tw.down ? '#59616b' : '#ffd23f');
+    for (let i = 0; i < tw.crew.level; i++) px(g, ax - 7 + i * 2, ay + 3, 1, 1, tw.down ? '#59616b' : '#ffd23f');
+    if (tw.crew.spec) px(g, ax + 6, ay + 2, 2, 2, tw.crew.perks.includes(BRANCH[tw.crew.spec].cap) ? '#ffd23f' : '#b98cff');
+    if (tw.crew.reviews.length && Math.floor(t * 3) % 2) { px(g, ax - 1, ay - 26, 3, 5, '#0c0e14'); px(g, ax, ay - 25, 1, 2, '#ffd23f'); px(g, ax, ay - 22, 1, 1, '#ffd23f'); }
     if (!tw.down && tw.hp < tw.maxhp) { px(g, ax - 7, ay - 21, 14, 3, '#0c0e14'); px(g, ax - 6, ay - 20, Math.round(12 * tw.hp / tw.maxhp), 1, '#4fd1a1'); }
   }
 
@@ -1860,6 +2257,13 @@ function renderMission(now) {
       glow(f.tx, f.ty, 14, '#5fd4ff', 0.5 * k);
     } else if (f.k === 'ring') { ctx.strokeStyle = rgba(f.color, 0.35 * k); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.1 - k * 0.4), 0, 7); ctx.stroke(); }
     else if (f.k === 'boom') glow(f.x, f.y, f.r * 1.5, f.color, 0.75 * k);
+    else if (f.k === 'bolt') {
+      const pts = [[f.x + (rnd() - 0.5) * 30, -10]];
+      for (let i = 1; i < 8; i++) pts.push([f.x + (rnd() - 0.5) * 22, -10 + (f.y + 10) * i / 8]);
+      pts.push([f.x, f.y]);
+      for (const [w, col] of [[7, rgba('#7fd8ff', 0.35 * k)], [2, rgba('#ffffff', k)]]) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); }
+      glow(f.x, f.y, 40, '#bfeaff', 0.8 * k);
+    }
   }
   for (const p of m.parts) if (p.layer === 'fx') { ctx.fillStyle = rgba(p.col, clamp(p.life / p.max, 0, 1)); ctx.fillRect(p.x - 1, p.y - 1, p.size, p.size); }
   ctx.globalCompositeOperation = 'source-over';
@@ -1873,7 +2277,7 @@ function renderMission(now) {
   // ranges
   const ring = (x, y, r, col, fill) => { ctx.setLineDash([4, 4]); ctx.strokeStyle = col; ctx.fillStyle = fill; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); };
   if (preview) ring(preview.x, preview.y, preview.r, preview.ok ? 'rgba(255,210,63,0.7)' : 'rgba(255,77,94,0.7)', preview.ok ? 'rgba(255,210,63,0.07)' : 'rgba(255,77,94,0.07)');
-  if (S.selTower && m.towers.includes(S.selTower)) ring(S.selTower.x, S.selTower.y, towerStats(S.selTower.crew).range * TILE, 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0.05)');
+  if (S.selTower && m.towers.includes(S.selTower)) ring(S.selTower.x, S.selTower.y, (S.selTower.st || towerStats(S.selTower.crew)).range * TILE, 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0.05)');
   // floating text
   ctx.textAlign = 'center';
   ctx.font = '700 12px Silkscreen, VT323, monospace';
@@ -1927,9 +2331,12 @@ function drawTowerPx(g, tw, t) {
   if (S.selTower === tw) for (const [dx, dy] of OFF4) { g.save(); g.translate(dx, dy); blit(sp.sel[bob]); g.restore(); }
   blit(tw.flash > 0 && Math.floor(t * 30) % 2 ? sp.red[bob] : sp.f[bob]);
   if (type === 'drone') {
-    const dr = droneSprites()[Math.floor(t * 24) % 2], dx = Math.round((tw.x + tw.dx) / AP), dy = Math.round((tw.y + tw.dy) / AP + Math.sin(t * 3 + tw.tx) * 1.2);
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(dx - 3, Math.round(tw.y / AP) + 7, 6, 1);
-    g.save(); g.translate(dx, dy); g.rotate(clamp(Math.cos(tw.vis) * 0.3, -0.3, 0.3)); g.drawImage(dr, -6 - Math.round(Math.cos(tw.vis) * tw.recoil * 2), -3); g.restore();
+    const n = (tw.st && tw.st.drones) || 1;
+    for (let k = 0; k < n; k++) {
+      const p = dronePos(tw, k), dr = droneSprites()[Math.floor(t * 24 + k) % 2], dx = Math.round(p.x / AP), dy = Math.round(p.y / AP + Math.sin(t * 3 + tw.tx + k) * 1.2);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(dx - 3, Math.round(tw.y / AP) + 7, 6, 1);
+      g.save(); g.translate(dx, dy); g.rotate(clamp(Math.cos(tw.vis) * 0.3, -0.3, 0.3)); g.drawImage(dr, -6 - Math.round(Math.cos(tw.vis) * tw.recoil * 2), -3); g.restore();
+    }
     return;
   }
   const wp = weaponSprite(type), pvx = ax + face * 3.5, pvy = ay - 6 + bob + 0.5;
@@ -1955,6 +2362,9 @@ function drawEnemyPx(g, e, t) {
   if (e.tier === 1 || e.tier === 2) { const ol = e.tier === 2 ? v.elite[fi] : v.vet[fi]; for (const [dx, dy] of OFF4) blit(ol, dx, dy); }
   if (e.slowT > 0) { g.globalAlpha = 0.5; for (const [dx, dy] of OFF4) blit(v.slow[fi], dx, dy); g.globalAlpha = 1; }
   blit(img, 0, 0);
+  if (e.stunT > 0) for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(g, Math.round(ax + Math.cos(a) * 4), Math.round(sy - 2 + Math.sin(a) * 1.5), 1, 1, '#ffd23f'); }
+  if (e.vulnT > 0) { const w = v.frames[0].width, h = v.frames[0].height, x0 = ax - (flip ? w - v.ax : v.ax) - 1, y0 = sy - 1;
+    for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x0 + w + 1, y0, -1, 1], [x0, y0 + h + 1, 1, -1], [x0 + w + 1, y0 + h + 1, -1, -1]]) { px(g, dx > 0 ? cx : cx - 1, cy, 2, 1, '#ff3b5c'); px(g, cx, dy > 0 ? cy : cy - 1, 1, 2, '#ff3b5c'); } }
   e._ax = ax; e._sx = sx; e._sy = sy; e._flip = flip; e._bx = ax; e._by = sy - 2;
 }
 
@@ -1996,9 +2406,9 @@ function buildRosterBar() {
   const html = RUN.roster.map((cr, i) => {
     const tw = M.towers.find(t => t.crew === cr);
     const used = M.deployedIds.has(cr.id), down = tw && tw.down;
-    const fee = TOWERS[cr.type].fee;
-    const status = down ? 'Injured' : used ? 'Deployed' : '$' + fee;
-    return `<button class="crew${S.selCrew === i ? ' sel' : ''}${used ? ' used' : ''}${down ? ' down' : ''}" data-act="crew" data-i="${i}" data-fee="${fee}" aria-pressed="${S.selCrew === i}" title="${esc(TOWERS[cr.type].name)}: ${esc(TOWERS[cr.type].desc)}">
+    const fee = crewFee(cr), rev = cr.reviews.length;
+    const status = rev ? '★ Review' : down ? 'Injured' : used ? 'Deployed' : '$' + fee;
+    return `<button class="crew${S.selCrew === i ? ' sel' : ''}${used ? ' used' : ''}${down ? ' down' : ''}${rev ? ' rev' : ''}" data-act="crew" data-i="${i}" data-fee="${fee}" aria-pressed="${S.selCrew === i}" title="${esc(TOWERS[cr.type].name)}: ${esc(TOWERS[cr.type].desc)} Quirk: ${esc(QUIRKS[cr.quirk].name)}. ${esc(QUIRKS[cr.quirk].desc)}">
       ${portraitImg(cr)}<span class="nm">${esc(cr.name)}</span><span class="meta">Lv${cr.level} · ${status}</span></button>`;
   }).join('');
   let roster = $('#bar .roster');
@@ -2020,12 +2430,14 @@ function renderTowerInfo() {
   const ov = $('#overlay');
   const old = ov.querySelector('.tinfo'); if (old) old.remove();
   const tw = S.selTower; if (!tw || !M.towers.includes(tw)) return;
-  const st = towerStats(tw.crew), cr = tw.crew;
-  const next = cr.level < 5 ? `${cr.xp}/${XP_TH[cr.level]} xp to promotion` : 'Max rank. Still no raise.';
+  const st = tw.st || towerStats(tw.crew, tw), cr = tw.crew;
+  const next = cr.level < MAXL ? `${Math.floor(cr.xp)}/${XP_TH[cr.level]} xp to next review` : 'Max rank. Still no raise.';
+  const traits = `<span class="trait q" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}</span>` + perkSummary(cr).map((n, k) => `<span class="trait${k === 0 && cr.spec ? ' sp' : ''}">${esc(n)}</span>`).join('');
   const div = document.createElement('div'); div.className = 'tinfo';
   div.innerHTML = `<div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
     <div class="mono" style="color:var(--muted)">DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s · RNG ${st.range.toFixed(1)}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Injured. Claim denied.</span>' : ''}</div>
-    <div class="row"><button class="btn sm ghost" data-act="reassign">${tw.down ? 'Remove' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
+    <div class="traits">${traits}</div>
+    <div class="row">${cr.reviews.length ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Hold review</button>` : ''}<button class="btn sm ghost" data-act="reassign" ${st.noReassign && !tw.down ? 'disabled' : ''}>${tw.down ? 'Remove' : st.noReassign ? 'Bound by contract' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
   ov.appendChild(div);
 }
 let toastTimer = 0;
@@ -2076,6 +2488,7 @@ Breaks are not scheduled. Good luck.                                    — HR-B
       <li><b>Deploy your crew</b>Select a crew member, then a tile beside the path.</li>
       <li><b>Hold the drill</b>Survive until extraction hits 100%, then clear the area.</li>
       <li><b>Spend your scrip</b>Hire crew and buy relics at the Company Store.</li>
+      <li><b>Review your crew</b>Promotions offer perk cards, a specialisation at rank 4 and a capstone at rank 5.</li>
     </ul>
     <div class="row"><button class="btn" data-act="newrun">Clock in</button>
     ${colony ? `<span class="colony">Colony of the Abandoned: ${colony} survivor${colony === 1 ? '' : 's'} · new hires start with +${Math.min(50, colony * 5)} scrip</span>` : ''}</div>
@@ -2152,7 +2565,7 @@ function showDebrief(d) {
     <h3>Payslip · Contract ${c.idx + 1}</h3>
     <table class="slip"><tbody>${d.slip.map(([k, v]) => `<tr class="${v < 0 ? 'neg' : ''}"><td>${esc(k)}</td><td>${v < 0 ? '−' : '+'}${Math.abs(v)}</td></tr>`).join('')}
     <tr class="tot"><td>Net scrip (company store only)</td><td>${d.net}</td></tr></tbody></table>
-    <div class="row"><button class="btn" data-act="tostore">Go to the Company Store</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip · Margin ${RUN.margin}%</span></div>
+    <div class="row"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip · Margin ${RUN.margin}%</span></div>
   </div></div>`;
   RUN.offers = genOffers();
 }
@@ -2162,7 +2575,7 @@ function genOffers() {
   // make sure a non-owned type shows up early
   const owned = new Set(RUN.roster.map(c => c.type));
   types.sort((a, b) => owned.has(a) - owned.has(b));
-  for (const t of types.slice(0, 2)) offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook() });
+  for (const t of types.slice(0, 2)) offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook(), quirk: pickQuirk() });
   const relics = shuffle(Object.keys(RELICS).filter(r => !RUN.relics.includes(r))).slice(0, 2);
   for (const r of relics) offers.push({ kind: 'relic', id: r, price: ri(70, 90) });
   offers.push(rnd() < 0.5 || RUN.margin >= 90 ? { kind: 'train', price: 40 } : { kind: 'account', price: 55 });
@@ -2174,17 +2587,17 @@ function showStore() {
   const o = RUN.offers;
   const offerHtml = o.map((it, i) => {
     let k, t, d;
-    if (it.kind === 'hire') { k = 'Hire · ' + TOWERS[it.type].name; t = it.name; d = TOWERS[it.type].desc; }
+    if (it.kind === 'hire') { k = 'Hire · ' + TOWERS[it.type].name; t = it.name; d = `${TOWERS[it.type].desc} Quirk: ${QUIRKS[it.quirk].name}. ${QUIRKS[it.quirk].desc}`; }
     else if (it.kind === 'relic') { k = 'Relic'; t = RELICS[it.id].name; d = RELICS[it.id].desc; }
-    else if (it.kind === 'train') { k = 'Training seminar'; t = 'Leadership Webinar'; d = 'Promote one crew member a full rank. Certificate not included.'; }
+    else if (it.kind === 'train') { k = 'Training seminar'; t = 'Leadership Webinar'; d = 'Promote one crew member a rank, with a performance review. Certificate not included.'; }
     else { k = 'Finance'; t = 'Creative Accounting'; d = 'Restore 15% profit margin. Legally grey. Ethically black.'; }
     const full = it.kind === 'hire' && RUN.roster.length >= 8;
     return `<button class="offer${it.sold ? ' sold' : ''}" data-act="buy" data-i="${i}" ${RUN.scrip < it.price || full || it.sold ? 'disabled' : ''}>
       <span class="k">${esc(k)}</span>${it.kind === 'hire' ? `<span class="row" style="gap:8px">${portraitImg({ id: 'offer-' + it.name, type: it.type, look: it.look })}<span class="t">${esc(t)}</span></span>` : `<span class="t">${esc(t)}</span>`}
       <span class="d">${esc(d)}${full ? ' Roster full (8).' : ''}</span><span class="p">${it.sold ? 'Purchased' : it.price + ' scrip'}</span></button>`;
   }).join('');
-  const rosterHtml = RUN.roster.map((cr, i) => `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)}<small>${esc(RANKS[cr.level - 1])} · ${esc(TOWERS[cr.type].name)} · Lv${cr.level} · ${cr.kills} kills</small></div>
-    ${S.promotePick ? (cr.level < 5 ? `<button class="btn sm" data-act="promote" data-i="${i}">Promote</button>` : '') : (RUN.roster.length > 1 ? `<button class="btn sm ghost" data-act="dismiss" data-i="${i}" aria-label="Dismiss ${esc(cr.name)}">Dismiss</button>` : '')}</div>`).join('');
+  const rosterHtml = RUN.roster.map((cr, i) => `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)}<small>${esc(RANKS[cr.level - 1])} · ${esc(TOWERS[cr.type].name)} · Lv${cr.level} · ${cr.kills} kills</small><small style="color:var(--ok)" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}${cr.spec ? ` · <span style="color:var(--crystal)">${esc(BRANCH[cr.spec].name)}</span>` : ''}${cr.perks.length ? ` · ${cr.perks.length} perk${cr.perks.length > 1 ? 's' : ''}` : ''}</small></div>
+    ${S.promotePick ? (cr.level < MAXL ? `<button class="btn sm" data-act="promote" data-i="${i}">Promote</button>` : '') : cr.reviews.length ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Review</button>` : (RUN.roster.length > 1 ? `<button class="btn sm ghost" data-act="dismiss" data-i="${i}" aria-label="Dismiss ${esc(cr.name)}">Dismiss</button>` : '')}</div>`).join('');
   const relicHtml = RUN.relics.length ? RUN.relics.map(r => `<span class="relic" title="${esc(RELICS[r].desc)}">${esc(RELICS[r].name)}</span>`).join('') : '<span class="colony">No relics yet.</span>';
   $('#overlay').innerHTML = `<div class="screen"><div class="store">
     <div class="paper" style="width:100%">
@@ -2203,9 +2616,9 @@ function showStore() {
 }
 function buy(i) {
   const it = RUN.offers[i]; if (!it || it.sold || RUN.scrip < it.price) return;
-  if (it.kind === 'hire') { if (RUN.roster.length >= 8) return; RUN.roster.push(mkCrew(it.type, it.name, it.look)); }
+  if (it.kind === 'hire') { if (RUN.roster.length >= 8) return; RUN.roster.push(mkCrew(it.type, it.name, it.look, it.quirk)); }
   else if (it.kind === 'relic') RUN.relics.push(it.id);
-  else if (it.kind === 'train') { if (!RUN.roster.some(c => c.level < 5)) return; S.promotePick = true; }
+  else if (it.kind === 'train') { if (!RUN.roster.some(c => c.level < MAXL)) return; S.promotePick = true; }
   else if (it.kind === 'account') RUN.margin = Math.min(100, RUN.margin + 15);
   RUN.scrip -= it.price; it.sold = true;
   showStore();
@@ -2256,7 +2669,7 @@ Crew: ${RUN.roster.map(r => `${esc(r.name)} (Lv${r.level})`).join(', ')}</div>
 document.addEventListener('click', ev => {
   const b = ev.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act, i = +b.dataset.i;
-  sfx(act === 'buy' ? 'buy' : act === 'accept' || act === 'newrun' || act === 'tomap' ? 'confirm' : 'click');
+  if (act !== 'pickperk') sfx(act === 'buy' ? 'buy' : act === 'accept' || act === 'newrun' || act === 'tomap' ? 'confirm' : 'click');
   if (act === 'newrun') { newRun(); showMap(); }
   else if (act === 'title') showTitle();
   else if (act === 'accept') { const o = RUN.options[i]; startMission(o); }
@@ -2269,15 +2682,21 @@ document.addEventListener('click', ev => {
   else if (act === 'speed') { if (M) { M.speed = +b.dataset.v; M.paused = false; } }
   else if (act === 'crew') {
     const cr = RUN.roster[i];
+    if (cr.reviews.length && !cr.snooze) { showReview(cr); return; }
     if (M.deployedIds.has(cr.id)) { S.selTower = M.towers.find(t => t.crew === cr) || null; S.selCrew = -1; renderTowerInfo(); }
     else { S.selCrew = S.selCrew === i ? -1 : i; S.selTower = null; renderTowerInfo(); }
     buildRosterBar();
   }
   else if (act === 'reassign') { if (S.selTower) reassign(S.selTower); }
   else if (act === 'closeinfo') { S.selTower = null; renderTowerInfo(); }
-  else if (act === 'tostore') showStore();
+  else if (act === 'tostore') { if (!startReviewFlow()) showStore(); }
+  else if (act === 'review') showReview(RUN.roster.find(c => c.id === b.dataset.id));
+  else if (act === 'pickperk') resolveReview(b.dataset.id);
+  else if (act === 'decline') resolveReview(null);
+  else if (act === 'closereview') closeReview(true);
+  else if (act === 'appeal') { const cr = RUN.roster.find(c => c.id === S.reviewOpen), cost = appealCost(); if (cr && RUN.scrip >= cost) { RUN.scrip -= cost; RUN.appeals = (RUN.appeals || 0) + 1; cr.opts = null; showReview(cr); } }
   else if (act === 'buy') buy(i);
-  else if (act === 'promote') { const cr = RUN.roster[i]; if (cr && cr.level < 5) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); } S.promotePick = false; showStore(); }
+  else if (act === 'promote') { const cr = RUN.roster[i]; S.promotePick = false; if (cr && cr.level < MAXL) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); cr.reviews.push(cr.level); showReview(cr); } else showStore(); }
   else if (act === 'dismiss') { if (RUN.roster.length > 1) { RUN.roster.splice(i, 1); showStore(); } }
   else if (act === 'tomap') { RUN.options = genOptions(); showMap(); }
 });
@@ -2320,9 +2739,10 @@ function planetAt(p) {
 }
 document.addEventListener('keydown', ev => {
   const modal = !!$('#modal').innerHTML;
-  if (modal && ev.key === 'Escape') { closeSettings(); return; }
+  if (modal && ev.key === 'Escape') { if (S.reviewOpen) closeReview(true); else closeSettings(); return; }
   if (ev.target.matches && ev.target.matches('input')) return;
   if (ev.key === 'm' || ev.key === 'M') { setMuted(!CFG.muted); return; }
+  if (!modal && (ev.key === 'r' || ev.key === 'R') && RUN) { const cr = RUN.roster.find(c => c.reviews.length); if (cr) { showReview(cr); return; } }
   if (modal || S.screen !== 'mission' || !M) return;
   if (ev.key === ' ') { ev.preventDefault(); if (M.phase === 'prep') { M.phase = 'drill'; sfx('start'); } else M.paused = !M.paused; }
   else if (ev.key >= '1' && ev.key <= '8') { const i = +ev.key - 1; if (RUN.roster[i] && !M.deployedIds.has(RUN.roster[i].id)) { S.selCrew = S.selCrew === i ? -1 : i; buildRosterBar(); } }
@@ -2343,7 +2763,7 @@ function frame(now) {
 
 // test hook for automated playtesting
 window.__AL = {
-  get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
+  get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS,
 };
 
