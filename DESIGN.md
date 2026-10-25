@@ -14,7 +14,7 @@ security company. You defend clients' crystal extractions across Earth and the g
 ## Rules
 - **Profit margin** is run-wide HP (starts at 100%). Leaked enemies reduce it. At 0% you're abandoned and stranded.
 - **Budget** is spent during a mission to deploy crew (from kills plus a trickle). **Scrip** is spent between missions, only at the store.
-- **Crew** are named towers that carry over between contracts. They gain XP and promotions (a new title, no raise). Saboteurs can injure them for the rest of a contract.
+- **Crew** are named towers that carry over between contracts. They gain XP and promotions (a new title, no raise). Saboteurs, ranged hostiles and boss attacks can kill them; a replacement hire inherits their kit.
 - **Enemies**: 15 categories × 3 tiers (Grunt, Veteran, Elite), skinned per faction. The five core types (Swarm, Runner, Armoured, Flyer, Saboteur) are joined from contract 2 by five specials, and from contract 3 by five nastier behaviours. Each is introduced with a toast the first time it appears in a run:
   - **Medic** heals nearby hostiles. **Shield** cuts damage to nearby hostiles by 30%. **Splitter** bursts into smaller hostiles. **Stealth** cloaks on and off; crew only see it up close or once it's marked. **Jammer** makes nearby crew fire 35% slower.
   - Union: First Aider, Strike Committee, Union Rep. Protesters: Umbrella Bloc, Group Chat Admin, Livestream Crew. VectorCorp: Wellness Officer, Riot Contractor, Cloaked Counsel. Wildlife: Spore Nurse, Brood Sac, Chameleon Stalker.
@@ -46,8 +46,23 @@ security company. You defend clients' crystal extractions across Earth and the g
 ## Art direction: neo-pixel
 - The playfield is drawn into a low-res buffer (1 art px = 2 game px) and scaled up crisply. Lights, tracers, taser arcs, muzzle flashes and the laser sight are drawn on top at full resolution with additive glow.
 - **Crew** are 12×17 chibi sprites. The body is random (10 skin tones, 12 hair styles including afro, braids, bun and headscarf, natural or dyed hair colours, facial hair, glasses, build, and extras like freckles, an eyepatch or a plaster). The role sets the outfit: hi-vis guard, taser tech with a battery pack, hard-hat mortar crew, pink-polo intern with a lanyard, hoodie drone operator. Everyone stands on a company-issued pallet.
+- **Crew gear upgrades** as crew progress:
+  - Rank 3: a silver pin and a sight on the weapon.
+  - Specialisation: a branch outfit and weapon with its own accent colour for tracers, arcs, shell trails and muzzle flashes:
+    - Suppression: helmet and drum-fed LMG. Gunslinger: stetson, gold chain and a gold-plated gun.
+    - Storm Caller: violet coil staff. Crowd Control: riot helmet and shock gun.
+    - Artillery: beret and long rifled tube. Foam Containment: gas mask and foam cannon.
+    - Wetwork: balaclava and suppressed rifle. Spotter: boonie hat and designator rifle.
+    - Swarm Manager: glowing visor and tinted drones. Field Medic: white coat with a red cross.
+  - Capstone: armour plating, a gold pin, a glowing accent line on the weapon, wider glowing tracers with accent sparks, a steady weapon glow and rising aura motes.
+  - Capstone at rank 7+: gold trim, and more aura motes.
+- **Death**: crew who are killed stay dead and lie under a sheet with a marker flag. Their card offers **Hire replacement** for `1.5 × fee + 10 × rank` budget:
+  - A new person with a different face and name takes over the same role, rank, perks, specialisation and quirk.
+  - The Field Medic's revive now fast-tracks a replacement for free after 8s.
+  - Anyone still dead when the contract ends is replaced automatically for 15 scrip on the payslip, and HR's email names who died and who replaced them.
+  - The final screens list the fallen "In memoriam".
 - **Firing**: weapons track the target smoothly and kick back on recoil. Effects include muzzle flash sprites and light, ejected shell casings, gunner two-round bursts, taser arcs, foam mortar shells with smoke trails and foam splats, the marksman's charging laser sight and screen shake, and the drone's hover-and-tilt.
-- **Enemies**: humans for the miner, protester and VectorCorp factions use the same random people generator with faction outfits and props. Each faction has its own vehicle (treads, van, walker) and drone. Wildlife are hand-built creature sprites with 4-frame walk cycles, timed to distance travelled so feet don't slide. Four-legged creatures step in diagonal pairs, with far legs drawn darker behind the body, feet lifting on the forward swing, and body, head and tail bobbing. Insects use a tripod gait, and worms, wyrms, the leviathan and slugs send a wave back along the body. Veterans get a white outline and Elites a gold one.
+- **Enemies**: humans for the miner, protester and VectorCorp factions use the same random people generator with faction outfits and props. Each faction has its own vehicle (treads, van, walker) and drone. Humans walk on a 4-frame cycle (contact, passing with a lifted foot, other contact, passing) with a swinging back arm, and walker mechs stride with opposing legs, a lifted swing foot and the hull dipping on each footfall. Wildlife are hand-built creature sprites with 4-frame walk cycles, timed to distance travelled so feet don't slide. Four-legged creatures step in diagonal pairs, with far legs drawn darker behind the body, feet lifting on the forward swing, and body, head and tail bobbing. Insects use a tripod gait, and worms, wyrms, the leviathan and slugs send a wave back along the body. Veterans get a white outline and Elites a gold one.
 - **Terrain**: per-biome noise ground, a path sunk below the ground, biome decorations, and obstacle sprites with their own light sources.
 - **Spawn points** are animated transit chambers on steel landing pads:
   - The sliding doors open just before a hostile arrives, flooding the path with blue light.
