@@ -872,6 +872,12 @@ function drawHuman(L, of, legs = 'n', yo = 0) {
     case 'umbrella': R(9, 1 + yo, 1, 10, '#5a4a3a'); R(4, 0 + yo, 10, 2, of.umbCol || '#ff6fae'); R(5, -0 + yo, 8, 1, shade(of.umbCol || '#ff6fae', 0.3)); break;
     case 'riotshield': U(9, 5, 3, 11, 'rgba(180,210,240,0.75)'); U(9, 5, 1, 11, '#c8dcf0'); U(11, 5, 1, 11, '#8aa0b8'); U(10, 7, 1, 1, '#e8f4ff'); break;
     case 'tablet': U(9, 8, 3, 4, '#1e2026'); U(10, 9, 1, 2, '#3af0ff'); break;
+    case 'sling': U(10, 8, 1, 4, '#7a5a3a'); UD(9, 7, '#7a5a3a'); UD(11, 7, '#7a5a3a'); UD(10, 6, '#d0d4da'); break;
+    case 'flag': { const fc = of.flagCol || '#d23c3c'; R(12, yo, 1, 13, '#7a5a3a'); R(7, yo, 5, 4, fc); R(8, 1 + yo, 2, 2, '#ffd23f'); break; }
+    case 'pickaxe': U(10, 5, 1, 8, '#7a5a3a'); U(8, 5, 5, 1, '#9aa3ad'); UD(8, 6, '#9aa3ad'); UD(12, 6, '#9aa3ad'); break;
+    case 'rifle': U(5, 9, 8, 1, '#2b2f36'); U(8, 8, 3, 1, '#4a4e5a'); UD(12, 9, '#ff4d6d'); UD(6, 10, '#2b2f36'); break;
+    case 'eggs': U(8, 10, 4, 2, '#c8a46a'); UD(8, 9, '#f2efe6'); UD(9, 9, '#f8f4ea'); UD(10, 9, '#f2efe6'); UD(11, 9, '#f8f4ea'); break;
+    case 'ringlight': U(11, 5, 1, 8, '#3a3a40'); for (const [dx, dy] of [[-1, -2], [0, -2], [1, -2], [-2, -1], [2, -1], [-2, 0], [2, 0], [-1, 1], [0, 1], [1, 1]]) UD(11 + dx, 2 + dy, '#fff6c8'); break;
   }
   return postProcess(P.c, { shadeIt: false });
 }
@@ -1165,6 +1171,293 @@ function bossFrameExtra(id, col, f, look) {
   return null;
 }
 
+// ---------- more hostiles: five new behaviours, three new types per faction, two new bosses each ----------
+Object.assign(CATS, {
+  ranged:   { label: 'Ranged',    hp: 34, spd: 0.95, armor: 0, bounty: 5, cost: 3, r: 9,  threat: 4.5, shoot: { range: 2.6, dmg: 7, every: 1.8 }, desc: 'Shoots your crew from range as it walks.' },
+  carrier:  { label: 'Carrier',   hp: 72, spd: 0.7,  armor: 2, bounty: 8, cost: 4, r: 11, threat: 6,   carry: { cat: 'swarm', n: 2, every: 6 }, desc: 'Keeps calling in reinforcements until it is stopped.' },
+  blinker:  { label: 'Blinker',   hp: 30, spd: 1.2,  armor: 0, bounty: 5, cost: 3, r: 8,  threat: 4,   blink: { every: 5, tiles: 2.2 }, desc: 'Teleports forward along the path every few seconds.' },
+  berserk:  { label: 'Berserker', hp: 62, spd: 0.9,  armor: 1, bounty: 6, cost: 3, r: 10, threat: 4.5, rage: true, desc: 'Gets faster and tougher the more it is hurt.' },
+  burrower: { label: 'Burrower',  hp: 42, spd: 1.1,  armor: 1, bounty: 5, cost: 3, r: 9,  threat: 4,   dig: { every: 4, dur: 2 }, desc: 'Burrows underground, out of reach, for 2s at a time.' },
+});
+SPECIALS.push('ranged', 'carrier', 'blinker', 'berserk', 'burrower');
+const SHOT_COL = { union: '#d0d4da', fauna: '#9be564', rival: '#ff5d73', activists: '#fff2a0' };
+Object.assign(FACTIONS.union.cats, { ranged: 1.4, carrier: 1, burrower: 1.2 });
+Object.assign(FACTIONS.union.names, { ranged: 'Rivet Slinger', carrier: 'Union Recruiter', burrower: 'Tunnel Rat' });
+Object.assign(FACTIONS.fauna.cats, { ranged: 1.4, burrower: 1.3, berserk: 1.4 });
+Object.assign(FACTIONS.fauna.names, { ranged: 'Acid Spitter', burrower: 'Burrow Wyrm', berserk: 'Frenzied Ravager' });
+Object.assign(FACTIONS.rival.cats, { ranged: 1.5, blinker: 1.3, carrier: 1 });
+Object.assign(FACTIONS.rival.names, { ranged: 'Hostile Auditor', blinker: 'Fixer', carrier: 'Middle Manager' });
+Object.assign(FACTIONS.activists.cats, { ranged: 1.4, carrier: 1.1, blinker: 1.3 });
+Object.assign(FACTIONS.activists.names, { ranged: 'Egg Thrower', carrier: 'Influencer', blinker: 'Flash Mobber' });
+Object.assign(ENEMY_HUMANS.union, {
+  ranged: () => ({ shirt: pick(['#7a5a3c', '#6d4c3d']), pants: '#3b4a6b', hat: 'miner', prop: 'sling' }),
+  carrier: () => ({ shirt: '#c83a3a', pants: '#3b4a6b', prop: 'flag', flagCol: '#d23c3c', hat: 'beanie', capCol: '#d23c3c' }),
+  burrower: () => ({ shirt: '#5a4a3a', pants: '#2e2a26', hat: 'miner', prop: 'pickaxe', mask: '#3a3a40' }),
+});
+Object.assign(ENEMY_HUMANS.rival, {
+  ranged: () => ({ shirt: '#1e2229', suit: '#3a3e4a', pants: '#1e2229', shades: true, prop: 'rifle' }),
+  blinker: () => ({ shirt: '#1e2229', coat: '#2a3a5a', pants: '#1e2229', hat: 'fedora', prop: 'phone' }),
+  carrier: () => ({ shirt: '#e8eef4', suit: '#e0455c', pants: '#3a3e4a', prop: 'tablet', hat: 'headset' }),
+});
+Object.assign(ENEMY_HUMANS.activists, {
+  ranged: () => ({ shirt: pick(PROTEST_COLS), pants: '#3b4a6b', prop: 'eggs', hat: 'cap', capCol: '#7bdc6a' }),
+  carrier: () => ({ shirt: '#ff7ac8', pants: '#22252b', prop: 'ringlight', shades: true }),
+  blinker: () => ({ shirt: pick(PROTEST_COLS), hood: true, pants: '#22252b', mask: '#22252b', prop: 'phone' }),
+});
+// wildlife for the new behaviours
+function crSpitter(c, f) {
+  const P = painter(17, 13), d = shade(c, -0.3);
+  P.ell(8, 10, 7, 2.6, d); P.ell(8, 9, 6.5, 2.4, c);
+  P.ell(7, 5, 4, 3.6 + f * 0.4, '#b8f06a'); P.ell(6, 4, 1.6, 1.2, '#efffc8'); P.p(9, 6, '#7ac83a');
+  P.ell(14, 8, 2.4, 2.2, c); P.r(15, 8, 2, 1, '#2a1a20'); P.p(16, 9 + f, '#b8f06a'); P.p(13, 7, '#ff5ad1');
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 12, lights: [{ x: 7, y: 5, color: '#9be564', r: 10 }] };
+}
+function crWyrm(c, f) {
+  const P = painter(18, 14), d = shade(c, -0.3), o = f ? 1 : -1;
+  P.ell(9, 12, 7, 2, '#5a4630');
+  for (let i = 0; i < 4; i++) P.ell(4 + i * 2.5 + (i % 2 ? o * 0.5 : 0), 11 - i * 2, 3.2 - i * 0.3, 2.6, i % 2 ? d : c);
+  P.ell(13 + o * 0.5, 4, 3, 2.6, shade(c, 0.1)); P.p(15, 2, '#e8e0d0'); P.p(16, 3, '#e8e0d0'); P.p(15, 6, '#e8e0d0'); P.p(16, 5, '#e8e0d0'); P.p(13, 3, '#ff5ad1');
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 13 };
+}
+function crRavager(c, f) {
+  const P = painter(19, 14), d = shade(c, -0.35);
+  for (const [x, o] of (f ? [[4, -1], [12, 1]] : [[4, 1], [12, -1]])) { P.r(x, 9, 2, 3, d); P.p(x + o, 12, d); P.r(x + 2, 9, 2, 3, d); }
+  P.ell(9, 7, 6.5, 3.4, c);
+  for (let x = 4; x <= 13; x += 2) { P.p(x, 3, '#f2efe6'); P.p(x, 4, shade(c, 0.3)); }
+  P.ell(16, 6, 3, 2.6, c); P.r(16, 7, 3, 1, '#2a1a20'); P.p(18, 6, '#f2efe6'); P.p(17, 5, '#ff3a3a');
+  P.line(3, 6, 0, 4, c);
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 12, lights: [{ x: 17, y: 5, color: '#ff3a3a', r: 6 }] };
+}
+
+// ---------- new bosses ----------
+FACTIONS.union.bosses.push(
+  { id: 'pension', name: 'The Pension Fund', hp: 2900, spd: 0.3, armor: 10, r: 24, bubble: { at: [0.66, 0.33], cat: 'armored', n: 3 }, spawn: { cat: 'swarm', n: 3, every: 9 }, desc: 'An armoured vault on treads. At two-thirds and one-third health it seals itself shut until its three Hauler Rig guards are destroyed.' },
+  { id: 'formeremp', name: 'Former Employee of the Month', hp: 2600, spd: 0.42, armor: 6, r: 22, charge: { every: 8, dur: 1.6, mult: 2.6 }, shockwave: { every: 10, r: 2.2, dmg: 30, stun: 2 }, desc: 'A Kindly security mech that defected to the union. Charges every 8s and slams the ground every 10s, hurting nearby crew and knocking them offline.' },
+);
+FACTIONS.fauna.bosses.push(
+  { id: 'hivemind', name: 'The Hive Mind', hp: 2200, spd: 0.42, armor: 2, r: 22, fly: true, blink: { every: 8, tiles: 3 }, regen: 0.004, spawn: { cat: 'flyer', n: 2, every: 9 }, desc: 'A floating brain. Flies straight for the crystals, blinks three tiles closer every 8s, regenerates and lays gasbags.' },
+  { id: 'colossus', name: 'Thornback Colossus', hp: 3000, spd: 0.34, armor: 8, r: 24, barrage: { every: 6, n: 2, dmg: 28, range: 4 }, splitDeath: { n: 2, name: 'Thornback Calf' }, desc: 'Spits acid at two crew every 6s. When it dies, two calves burst out of the shell.' },
+);
+FACTIONS.rival.bosses.push(
+  { id: 'legal', name: 'Chief Legal Officer', hp: 2500, spd: 0.4, armor: 6, r: 22, bubble: { at: [0.66, 0.33], cat: 'shield', n: 3 }, jamAura: { r: 2.4, amt: 0.4 }, desc: 'Files an injunction at two-thirds and one-third health: untouchable until three Riot Contractors are dealt with. Crew nearby work 40% slower.' },
+  { id: 'severance', name: 'Severance Package', hp: 2600, spd: 0.46, armor: 7, r: 22, barrage: { every: 5, n: 3, dmg: 22, range: 4.2 }, charge: { every: 9, dur: 1.4, mult: 2.4 }, desc: 'A termination robot. Fires on three crew every 5s and sprints forward every 9s.' },
+);
+FACTIONS.activists.bosses.push(
+  { id: 'critmass', name: 'Critical Mass', hp: 3000, spd: 0.36, armor: 2, r: 24, shed: { step: 0.12, cat: 'swarm', n: 6 }, rally: { every: 12, dur: 4, mult: 1.35 }, desc: 'A crowd so big it counts as one hostile. Every 12% of health it loses, six protesters break away. Rallies the map every 12s.' },
+  { id: 'hunger', name: 'Hunger Striker', hp: 3400, spd: 0.28, armor: 4, r: 22, secondWind: { at: 0.2, to: 0.6 }, jamAura: { r: 2.8, amt: 0.45 }, healAura: { r: 2.5, hps: 14 }, desc: 'Day 47, on a mobile sit-in. Crew nearby work 45% slower out of guilt, nearby hostiles heal, and at 20% health it gets a second wind back to 60%.' },
+);
+const BOSS_MECHANICS = ['bubble', 'charge', 'shockwave', 'barrage', 'blink', 'shed', 'splitDeath', 'secondWind'];
+function bossFrameMore(id, col, f, look) {
+  const o = f ? 1 : 0;
+  switch (id) {
+    case 'pension': {
+      const P = painter(46, 38);
+      P.r(3, 30, 40, 6, '#2b2f36'); for (let i = 0; i < 9; i++) P.p(5 + i * 4 + o * 2, 32, '#59606b'); P.r(3, 29, 40, 1, '#3a3e46');
+      P.r(6, 8, 34, 22, '#7a808e'); P.r(6, 8, 34, 2, '#9aa3ad'); P.r(6, 28, 34, 2, '#4a4e5a');
+      for (const [x, y] of [[8, 11], [37, 11], [8, 26], [37, 26]]) P.p(x, y, '#d0d4da');
+      P.ell(23, 19, 8, 8, '#5a606a'); P.ell(23, 19, 6, 6, '#c8a040'); P.ell(23, 19, 2.5, 2.5, '#7a5a1a');
+      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283 + o * 0.5; P.p(Math.round(23 + Math.cos(a) * 4.5), Math.round(19 + Math.sin(a) * 4.5), '#ffe08a'); }
+      P.r(38, 14, 4, 4, '#4a4e5a'); P.r(41, 15, 1, 2, '#c8a040');
+      P.r(14, 0, 1, 9, '#9aa3ad'); P.r(15, 0, 10, 6, '#d23c3c'); P.r(17, 2, 6, 1, '#f2efe6'); P.r(17, 4, 4, 1, '#f2efe6');
+      postProcess(P.c); return { c: P.c, ax: 23, ay: 36, lights: [{ x: 23, y: 19, color: '#ffd23f', r: 18 }] };
+    }
+    case 'formeremp': {
+      const P = painter(38, 44);
+      for (const [x, s] of [[11, o], [22, 1 - o]]) { P.r(x, 32, 5, 9 - s, '#3a3e46'); P.r(x - 1, 41 - s, 7, 3, '#22252b'); }
+      P.r(7, 12, 24, 21, '#e8b830'); P.r(7, 12, 24, 2, '#fff0a0'); P.r(9, 20, 20, 2, '#c8c8c8'); P.r(9, 25, 20, 2, '#c8c8c8');
+      P.ell(19, 17, 4, 3.5, '#ffd23f'); P.p(17, 16, '#231a00'); P.p(21, 16, '#231a00'); P.r(17, 18, 5, 1, '#231a00');
+      P.line(14, 12, 25, 22, '#d23c3c'); P.line(25, 12, 14, 22, '#d23c3c');
+      P.r(13, 4, 12, 9, '#4a4e5a'); P.r(14, 7, 10, 2, '#ff4d6d');
+      P.r(1, 14 + o, 6, 12, '#4a4e5a'); P.r(0, 25 + o, 8, 6, '#2b2f36'); P.r(31, 14 + (1 - o), 6, 12, '#4a4e5a'); P.r(30, 25 + (1 - o), 8, 6, '#2b2f36');
+      P.r(2, 17, 4, 2, '#d23c3c');
+      postProcess(P.c); return { c: P.c, ax: 19, ay: 43, lights: [{ x: 19, y: 8, color: '#ff4d6d', r: 16 }] };
+    }
+    case 'hivemind': {
+      const P = painter(42, 40);
+      for (let k = 0; k < 6; k++) { const x = 8 + k * 5, sw = Math.round(Math.sin(k + o * 2) * 2); P.line(x, 24, x + sw, 37, '#b04ac8'); P.p(x + sw, 38, '#ff9ff0'); }
+      P.ell(21, 15, 17, 13, '#e88ac8'); P.ell(21, 12, 14, 9, '#f2a8dc');
+      for (const [a, b, c2, d2] of [[10, 10, 18, 14], [26, 8, 33, 13], [15, 18, 25, 20], [9, 16, 14, 21]]) P.line(a, b, c2, d2, '#c050a0');
+      P.line(21, 3, 21, 25, '#c050a0');
+      for (const [x, y] of [[15, 21], [21, 23], [27, 21]]) { P.ell(x, y, 2.2, 2.2, '#2a1a30'); P.p(x, y - 1, '#6ff0ff'); }
+      postProcess(P.c); return { c: P.c, ax: 21, ay: 26, lights: [{ x: 21, y: 14, color: '#ff5ad1', r: 30, flicker: true }, { x: 21, y: 22, color: '#6ff0ff', r: 12 }] };
+    }
+    case 'colossus': {
+      const P = painter(50, 34), c2 = '#2f5e2a', d2 = '#1f3a1e';
+      for (let i = 0; i < 3; i++) { const x = 10 + i * 12, s = (i + o) % 2; P.line(x, 24, x - 3 + s * 2, 32, d2); P.line(x + 4, 24, x + 6 - s * 2, 32, d2); }
+      P.ell(24, 18, 21, 11, c2); P.ell(24, 15, 18, 8, '#3f7a3a');
+      for (let x = 8; x <= 40; x += 4) { P.line(x, 9, x - 1, 3, '#d8d0b0'); P.p(x - 1, 2, '#ffffff'); }
+      P.line(24, 7, 24, 26, d2);
+      P.ell(44, 19, 6, 5, '#3f6e34'); P.line(48, 16, 50 - 1, 9, '#d8d0b0'); P.p(46, 18, '#ff3a3a'); P.r(46, 22, 4, 1, '#9be564');
+      postProcess(P.c); return { c: P.c, ax: 24, ay: 32, lights: [{ x: 46, y: 18, color: '#ff3a3a', r: 10 }, { x: 47, y: 22, color: '#9be564', r: 10 }] };
+    }
+    case 'legal': {
+      const c = mkCanvas(34, 40), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+      px(g, 4, 22, 26, 10, '#3a2a1e'); px(g, 4, 22, 26, 2, '#5a4430'); px(g, 12, 25, 10, 5, '#c8a040'); px(g, 16, 26, 2, 3, '#7a5a1a');
+      px(g, 6, 32, 22, 3, '#22252b'); px(g, 8 + o * 2, 36, 4, 2, '#3af0ff'); px(g, 22 - o * 2, 36, 4, 2, '#3af0ff');
+      const law = drawHuman(look, { shirt: '#e8eef4', suit: '#22252b', pants: '#22252b', prop: 'rulebook', collar: '#e0455c' }, 'n', 0);
+      g.drawImage(law, 0, 0, 14, 13, 6, 0, 22, 21);
+      px(g, 27, 8 - o * 3, 6, 3, '#7a5a3a'); px(g, 29, 10 - o * 3, 1, 8, '#7a5a3a');
+      for (const [x, y] of [[1, 14], [8, 14]]) { px(g, x, y, 5, 1, '#ffd23f'); }
+      px(g, 5, 10, 1, 4, '#ffd23f'); px(g, 3, 10, 5, 1, '#ffd23f');
+      postProcess(c, { shadeIt: false }); return { c, ax: 17, ay: 37, lights: [{ x: 17, y: 27, color: '#ffd23f', r: 16 }, { x: 10, y: 37, color: '#3af0ff', r: 10 }] };
+    }
+    case 'severance': {
+      const P = painter(38, 44);
+      for (const [x, s] of [[12, o], [21, 1 - o]]) { P.r(x, 30, 4, 10 - s, '#9aa3ad'); P.r(x - 1, 40 - s, 6, 3, '#4a4e5a'); }
+      P.r(9, 12, 20, 19, '#c8ccd4'); P.r(9, 12, 20, 2, '#f2f4f8'); P.r(11, 22, 16, 5, '#22252b');
+      for (let x = 12; x < 26; x += 3) P.r(x, 23, 2, 3, '#ff4d6d');
+      P.r(13, 2, 12, 10, '#9aa3ad'); P.r(13, 6, 12, 2, '#ff1a3a'); P.r(14, 6, 3 + o * 6, 2, '#ff8a9a');
+      P.r(2, 14, 7, 5, '#5a606a'); P.r(0, 15, 3, 3, '#22252b'); P.r(29, 14, 7, 5, '#5a606a'); P.r(35, 15, 3, 3, '#22252b');
+      postProcess(P.c); return { c: P.c, ax: 19, ay: 43, lights: [{ x: 19, y: 7, color: '#ff1a3a', r: 16, pulse: true }] };
+    }
+    case 'critmass': {
+      const P = painter(50, 38);
+      P.r(4, 1, 42, 7, '#f2efe6'); P.r(4, 1, 42, 1, '#d8d4c8'); P.r(8, 3, 6, 3, '#d23c3c'); P.r(16, 3, 5, 3, '#d23c3c'); P.r(23, 3, 7, 3, '#d23c3c'); P.r(32, 3, 10, 3, '#d23c3c');
+      P.r(4, 8, 1, 8, '#7a5a3a'); P.r(45, 8, 1, 8, '#7a5a3a');
+      const spots = [[2, 13], [11, 11], [20, 12], [29, 11], [37, 13], [7, 19], [16, 18], [25, 19], [34, 18]];
+      spots.forEach(([x, y], k) => P.g.drawImage(drawHuman(genLook(), { shirt: pick(PROTEST_COLS), pants: '#3b4a6b', prop: k % 3 ? null : 'sign', signCol: '#2c8a4a' }, (k + o) % 2 ? 'a' : 'b', 0), x, y));
+      postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 25, ay: 36, lights: [] };
+    }
+    case 'hunger': {
+      const P = painter(38, 36);
+      P.r(2, 27, 34, 5, '#5a4a3a'); P.r(2, 26, 34, 1, '#7a6a5a'); P.ell(8, 33, 2.5, 2.5, '#1b1d22'); P.ell(30, 33, 2.5, 2.5, '#1b1d22'); P.p(8 + o, 33, '#9aa3ad'); P.p(30 - o, 33, '#9aa3ad');
+      P.line(4, 26, 14, 6, '#ff7a1a'); P.line(24, 26, 14, 6, '#ff7a1a'); P.line(5, 26, 14, 8, '#ff9a3a');
+      for (let y = 8; y < 26; y++) { const w = Math.round((y - 6) * 0.5); P.r(14 - w, y, w * 2, 1, y % 3 ? '#e86a1a' : '#c85a14'); }
+      P.r(12, 18, 5, 8, '#1a1418');
+      P.g.drawImage(drawHuman(look, { shirt: '#f2efe6', pants: '#5a4a3a', prop: null }, 'n', 0), 20, 9);
+      P.r(26, 10, 1, 12, '#7a5a3a'); P.r(27, 6, 10, 7, '#f2efe6'); P.r(28, 8, 3, 1, '#2a2418'); P.r(32, 8, 3, 1, '#2a2418'); P.r(28, 10, 7, 1, '#d23c3c');
+      postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 19, ay: 34, lights: [{ x: 14, y: 20, color: '#ffb060', r: 14 }] };
+    }
+  }
+  return null;
+}
+
+// ---------- behaviour ----------
+function hurtTower(tw, dmg) {
+  if (tw.down) return;
+  tw.hp -= dmg * (1 - (tw.bDr || 0)); tw.flash = 0.12;
+  if (tw.hp <= 0) { tw.down = true; tw.hp = 0; sfx('hit', tw.x); M.downed.push(tw.crew.name); fxText(tw.x, tw.y - 20, 'INJURED', '#ff4d5e'); buildRosterBar(); if (S.selTower === tw) renderTowerInfo(); }
+}
+// jump forward along the path (or straight at the drill for flyers)
+function advanceAlong(e, dist) {
+  if (e.fly) { const dx = M.dep.x - e.x, dy = M.dep.y - e.y, d = Math.hypot(dx, dy), k = Math.min(1, dist / (d || 1)) * 0.95; e.x += dx * k; e.y += dy * k; e.dist += d * k; return; }
+  while (dist > 0 && e.wi < e.path.length - 1) {
+    const tp = e.path[e.wi], d = Math.hypot(tp.x - e.x, tp.y - e.y);
+    if (d <= dist) { e.x = tp.x; e.y = tp.y; e.wi++; dist -= d; e.dist += d; }
+    else { e.x += (tp.x - e.x) / d * dist; e.y += (tp.y - e.y) / d * dist; e.dist += dist; dist = 0; }
+  }
+}
+function crewNear(e, r) { return M.towers.filter(tw => !tw.down && Math.hypot(tw.x - e.x, tw.y - e.y) <= r * TILE); }
+function enemyShot(e, tw, dmg, col) {
+  M.fx.push({ k: 'tracer', x1: e.x, y1: ecy(e), x2: tw.x, y2: tw.y - 8, life: 0.14, max: 0.14, color: col, w: e.boss ? 2 : 1.2 });
+  sparks(tw.x, tw.y - 8, col, 2); hurtTower(tw, dmg); sfx('sabo', tw.x);
+}
+// per-step behaviour for the new hostile types, elite traits and boss mechanics
+function stepThreats(e, dt) {
+  const hidden = e.inTunnel || e.burrowed;
+  e.aimSlow = 1;
+  if (e.shoot && !hidden && !(e.stunT > 0)) {
+    const near = crewNear(e, e.shoot.range);
+    if (near.length) {
+      e.aimSlow = 0.55;
+      if ((e.shootCd = (e.shootCd ?? e.shoot.every * 0.5) - dt) <= 0) {
+        e.shootCd = e.shoot.every;
+        const tw = near.reduce((a, b) => Math.hypot(a.x - e.x, a.y - e.y) < Math.hypot(b.x - e.x, b.y - e.y) ? a : b);
+        if (Math.abs(tw.x - e.x) > 2) e.face = tw.x < e.x ? -1 : 1;
+        enemyShot(e, tw, e.shoot.dmg, SHOT_COL[M.c.facKey]);
+      }
+    }
+  }
+  if (e.blink && !hidden && !(e.stunT > 0)) {
+    if ((e.blinkCd = (e.blinkCd ?? e.blink.every * (0.5 + rnd() * 0.5)) - dt) <= 0) {
+      e.blinkCd = e.blink.every;
+      smoke(e.x, e.y, e.boss ? 8 : 4); sparks(e.x, ecy(e), '#b48aff', 4);
+      advanceAlong(e, e.blink.tiles * TILE);
+      smoke(e.x, e.y, e.boss ? 8 : 4); sparks(e.x, ecy(e), '#b48aff', 4);
+      if (e.boss) { fxText(e.x, ecy(e) - 30, 'BLINK', '#b48aff'); sfx('overcharge', e.x); }
+    }
+  }
+  if (e.rage) e.dr = Math.max(e.dr || 0, 0.3 * (1 - e.hp / e.maxhp));
+  if (e.charge) {
+    if (e.chargeT > 0) { e.chargeT -= dt; if (rnd() < dt * 20) smoke(e.x, e.y + 4, 1); }
+    else if ((e.chargeCd = (e.chargeCd ?? e.charge.every) - dt) <= 0) { e.chargeCd = e.charge.every; e.chargeT = e.charge.dur; fxText(e.x, ecy(e) - 30, 'CHARGE!', '#ff4d6d'); sfx('start', e.x); }
+  }
+  if (e.shockwave && !hidden && (e.shockCd = (e.shockCd ?? e.shockwave.every * 0.7) - dt) <= 0) {
+    e.shockCd = e.shockwave.every; shake(5); sfx('thunder', e.x);
+    M.fx.push({ k: 'ring', x: e.x, y: e.y, r: e.shockwave.r * TILE, life: 0.5, max: 0.5, color: '#ffd23f' });
+    for (const tw of crewNear(e, e.shockwave.r)) { hurtTower(tw, e.shockwave.dmg); tw.offline = Math.max(tw.offline || 0, e.shockwave.stun); fxText(tw.x, tw.y - 22, 'STUNNED', '#ffd23f'); }
+  }
+  if (e.barrage && !hidden && (e.barrCd = (e.barrCd ?? e.barrage.every * 0.6) - dt) <= 0) {
+    e.barrCd = e.barrage.every;
+    const near = shuffle(crewNear(e, e.barrage.range)).slice(0, e.barrage.n);
+    for (const tw of near) enemyShot(e, tw, e.barrage.dmg, M.c.facKey === 'fauna' ? '#9be564' : '#ff1a3a');
+  }
+  if (e.shed) {
+    e.shedNext = e.shedNext ?? 1 - e.shed.step;
+    while (e.hp / e.maxhp < e.shedNext && e.shedNext > 0) {
+      e.shedNext -= e.shed.step;
+      for (let i = 0; i < e.shed.n; i++) { const a = spawnEnemy({ cat: e.shed.cat, tier: rnd() < 0.3 ? 1 : 0, sp: e.sp }); a.x = e.x + (rnd() - 0.5) * 30; a.y = e.y + (rnd() - 0.5) * 30; a.wi = e.wi; a.dist = e.dist; }
+      fxText(e.x, ecy(e) - 30, 'THE CROWD SPLITS', '#ff7ac8');
+    }
+  }
+  if (e.secondWind && !e.winded && e.hp / e.maxhp < e.secondWind.at) {
+    e.winded = true; e.hp = e.maxhp * e.secondWind.to; fxText(e.x, ecy(e) - 34, 'SECOND WIND', '#4fe0a6'); sfx('heal', e.x);
+    M.fx.push({ k: 'ring', x: e.x, y: e.y, r: 2 * TILE, life: 0.6, max: 0.6, color: '#4fe0a6' });
+  }
+  if (e.bubble) {
+    if (e.bubbled) {
+      if (e.guards.every(g => g.dead || g.gone)) { e.bubbled = false; fxText(e.x, ecy(e) - 34, 'SEAL BROKEN', '#ffd23f'); sfx('bigboom', e.x); shake(3); }
+    } else {
+      e.bubbleI = e.bubbleI || 0;
+      if (e.bubbleI < e.bubble.at.length && e.hp / e.maxhp < e.bubble.at[e.bubbleI]) {
+        e.bubbleI++; e.bubbled = true; e.guards = [];
+        for (let i = 0; i < e.bubble.n; i++) { const a = spawnEnemy({ cat: e.bubble.cat, tier: 1, sp: e.sp }); a.x = e.x + (rnd() - 0.5) * 34; a.y = e.y + (rnd() - 0.5) * 34; a.wi = e.wi; a.dist = e.dist; e.guards.push(a); }
+        fxText(e.x, ecy(e) - 34, M.c.facKey === 'rival' ? 'INJUNCTION FILED' : 'VAULT SEALED', '#ffd23f'); sfx('stamp', e.x);
+      }
+    }
+  }
+}
+// two smaller bosses burst out when a splitting boss dies
+function splitBoss(e) {
+  const B = { ...M.c.bossDef, ...(FACTIONS[M.c.facKey].bosses.find(b => b.name === e.name.replace(' (Understudy)', '')) || {}) };
+  for (let i = 0; i < e.splitDeath.n; i++) {
+    const c = spawnBoss({ ...B, name: e.splitDeath.name, splitDeath: null, hp: B.hp * (e.mini ? 0.5 : 1) }, true, true);
+    c.x = e.x + (i ? 14 : -14); c.y = e.y; c.wi = e.wi; c.dist = e.dist; c.path = e.path; c.sp = e.sp;
+  }
+  toast(`${e.splitDeath.name}s burst out of the shell`, 2200);
+}
+// elite traits from contract 3 onwards
+const AFFIXES = {
+  swift:    { name: 'Swift',    col: '#5ab8ff', apply: e => { e.spd *= 1.3; } },
+  hardened: { name: 'Hardened', col: '#c8ccd4', apply: e => { e.armor += 4; } },
+  regen:    { name: 'Regenerating', col: '#4fe0a6', apply: e => { e.regen = (e.regen || 0) + 0.02; } },
+  volatile: { name: 'Volatile', col: '#ff7a1a', apply: e => { e.volatile = true; } },
+};
+function rollAffix(e, q, idx) {
+  const p = q.tier === 2 ? (idx >= 2 ? 0.15 + 0.15 * (idx - 2) : 0) : q.tier === 1 ? (idx >= 3 ? 0.1 + 0.06 * (idx - 3) : 0) : 0;
+  if (!p || rnd() >= p) return;
+  const k = pick(Object.keys(AFFIXES)); e.affix = k; AFFIXES[k].apply(e); e.name = AFFIXES[k].name + ' ' + e.name;
+  if (!RUN.seenAffix) { RUN.seenAffix = true; toast('Elites now arrive with traits: Swift, Hardened, Regenerating or Volatile. Watch the coloured pips.', 3400); }
+}
+function volatileBlast(e) {
+  M.fx.push({ k: 'boom', x: e.x, y: e.y, r: 1.3 * TILE, life: 0.4, max: 0.4, color: '#ff7a1a' }); sfx('mortar', e.x); shake(2);
+  for (const tw of crewNear(e, 1.3)) hurtTower(tw, 22 + 4 * M.c.idx);
+}
+function drawThreatMarks(g, e, t) {
+  if (e._bx == null) return;
+  if (e.affix) { const c = AFFIXES[e.affix].col; px(g, e._bx - 1, e._by - 4, 3, 2, '#0c0e14'); px(g, e._bx, e._by - 4, 1, 1, c); px(g, e._bx - 1, e._by - 3, 3, 1, c); }
+  if (e.bubbled) {
+    // a golden dome: nothing gets through until the guards are down
+    const f = e.v.frames[0], rx = Math.round(f.width / 2) + 4, ry = Math.round(f.height / 2) + 3, cx = e._bx, cy = e._by + 2 + Math.round(f.height / 2);
+    g.globalAlpha = 0.2 + 0.08 * Math.sin(t * 5); g.fillStyle = '#ffd23f';
+    for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y / ry) ** 2)); g.fillRect(cx - w, cy + y, w * 2 + 1, 1); }
+    g.globalAlpha = 1;
+    const N = Math.round((rx + ry) * 3);
+    for (let k = 0; k < N; k++) { const a = k / N * 6.283; px(g, Math.round(cx + Math.cos(a) * rx), Math.round(cy + Math.sin(a) * ry), 1, 1, (k + Math.floor(t * 16)) % 6 < 2 ? '#ffffff' : '#ffd23f'); }
+  }
+  if (e.chargeT > 0) for (let k = 0; k < 3; k++) px(g, e._bx - e.face * (6 + k * 3), e._by + 12 + k, 2, 1, 'rgba(255,255,255,0.6)');
+}
+
 function finishVariant(kind, r, frames) {
   frames = frames || r.map(x => x.c);
   return {
@@ -1176,7 +1469,7 @@ function makeVariant(facKey, cat) {
   const col = FACTIONS[facKey].color;
   if (facKey === 'fauna') {
     const c = mixHex(col, pick(['#a8f06a', '#4fdc9a', '#d0e85a', '#6ad0c0']), rnd() * 0.5);
-    const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm, splitter: crSac, stealth: crLizard, medic: crNurse }[cat];
+    const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm, splitter: crSac, stealth: crLizard, medic: crNurse, ranged: crSpitter, burrower: crWyrm, berserk: crRavager }[cat];
     return finishVariant('creature', [0, 1].map(f => gen(c, f)));
   }
   if (cat === 'armored') { const gen = { union: vehTreads, activists: vehVan, rival: vehWalker }[facKey], skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => gen(col, skin, f))); }
@@ -1187,10 +1480,11 @@ function makeVariant(facKey, cat) {
   if (of.prop === 'phone') lights.push({ x: 10, y: 9, color: '#9fd3ff', r: 9 });
   if (of.prop === 'camera') lights.push({ x: 9, y: 6, color: '#ff4d6d', r: 7 });
   if (of.prop === 'medkit') lights.push({ x: 10, y: 11, color: '#4fe0a6', r: 8 });
+  if (of.prop === 'ringlight') lights.push({ x: 11, y: 3, color: '#fff6c8', r: 12 });
   const frames = [drawHuman(look, of, 'n', 0), drawHuman(look, of, 'a', 1), drawHuman(look, of, 'b', 1)];
   return finishVariant('human', [{ ax: 7, ay: 17, lights }], frames);
 }
-function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', [0, 1].map(f => bossFrameExtra(id, col, f, look) || bossFrame(facKey, f, look))); }
+function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', [0, 1].map(f => bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
 function getVariant(cat) {
   const human = M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer';
   const pool = M.pool[cat] || (M.pool[cat] = Array.from({ length: human ? 10 : 3 }, () => makeVariant(M.c.facKey, cat)));
@@ -2483,6 +2777,8 @@ function damage(e, dmg, pierce, tw, quiet) {
     e.dead = true;
     if (e.deal) { deathFx(e); sfx('splat', e.x); dealCasualty(e, tw); return; }
     M.kills++; RUN.kills++;
+    if (e.volatile) volatileBlast(e);
+    if (e.splitDeath) splitBoss(e);
     if (e.split) for (let k = 0; k < e.split; k++) {
       const c = spawnEnemy({ cat: 'swarm', tier: Math.max(0, e.tier - 1), sp: e.sp });
       c.x = e.x + (rnd() - 0.5) * 16; c.y = e.y + (rnd() - 0.5) * 16; c.wi = e.wi; c.dist = e.dist;
@@ -2502,7 +2798,7 @@ function damage(e, dmg, pierce, tw, quiet) {
         buildRosterBar();
       }
     }
-    if (e.boss) { M.boss = null; toast(`${e.name} neutralised`, 2400); }
+    if (e.boss && (e === M.boss || !e.mini)) { M.boss = null; toast(`${e.name} neutralised`, 2400); }
   }
 }
 
@@ -2531,15 +2827,17 @@ function reassign(tw) {
 
 function genWave() {
   const m = M, c = m.c, idx = c.idx, prog = m.t / m.T;
-  let budget = (5.5 + idx * 3.0) * (1 + prog * 1.7) * c.mod;
+  let budget = (5.5 + idx * 3.0 + idx * idx * 0.3) * (1 + prog * 1.8) * c.mod;
   m.waveNum++;
-  const vet = clamp(-0.05 + idx * 0.13 + prog * 0.3, 0, 0.65), eli = clamp(-0.22 + idx * 0.07 + prog * 0.15, 0, 0.3);
+  const vet = clamp(-0.04 + idx * 0.14 + prog * 0.3, 0, 0.68), eli = clamp(-0.2 + idx * 0.08 + prog * 0.16, 0, 0.34);
   const weights = { ...c.fac.cats };
   if (m.biome.mod.flyers) weights.flyer = (weights.flyer || 0.8) * m.biome.mod.flyers;
   if (m.biome.mod.swarm) weights.swarm = (weights.swarm || 1) * m.biome.mod.swarm;
   // first contract eases you in: no saboteurs, fewer armoured
   if (idx === 0) { delete weights.saboteur; if (weights.armored) weights.armored *= 0.5; }
-  for (const k of SPECIALS) if (weights[k]) { if (idx === 0) delete weights[k]; else weights[k] *= Math.min(1, idx / 3); }
+  for (const k of SPECIALS) if (weights[k]) { if (idx === 0) delete weights[k]; else weights[k] *= Math.min(1, idx / 2.5); }
+  // the nastier behaviours (ranged, carriers, blinkers, berserkers, burrowers) arrive from contract 3
+  for (const k of ['ranged', 'carrier', 'blinker', 'berserk', 'burrower']) if (weights[k]) { if (idx < 2) delete weights[k]; else weights[k] *= Math.min(1, (idx - 1) / 3); }
   const list = []; let guard = 0;
   while (budget > 0.5 && guard++ < 40) {
     const cat = wpick(weights);
@@ -2560,7 +2858,7 @@ function genWave() {
 }
 function spawnEnemy(q) {
   const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = M.paths[q.sp];
-  const hp = C.hp * Tt.hp * (1 + 0.24 * c.idx) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
+  const hp = C.hp * Tt.hp * (1 + 0.22 * c.idx + 0.03 * c.idx * c.idx) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
   const armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3));
   const e = {
     cat: q.cat, tier: q.tier, name: c.fac.names[q.cat], color: c.fac.color,
@@ -2577,13 +2875,19 @@ function spawnEnemy(q) {
   if (C.jam) e.jamAura = { r: 1.6, amt: C.jam };
   if (C.split) e.split = C.split + q.tier;
   if (C.cloak) e.cloakT = rnd() * 5;
+  if (C.shoot) e.shoot = { ...C.shoot, dmg: C.shoot.dmg * (1 + 0.35 * q.tier) * (1 + 0.1 * c.idx) };
+  if (C.carry) { e.spawn = { ...C.carry }; e.spawnCd = C.carry.every * 0.6; }
+  if (C.blink) e.blink = { ...C.blink };
+  if (C.rage) e.rage = true;
+  if (C.dig) e.burrow = { ...C.dig, n: 0 };
   if (q.deal) {
     // marked units carry no auras or tricks: they just want to get to the drill
-    Object.assign(e, { deal: q.deal, cost: q.deal.ask.each, bounty: 0, sab: false, healAura: null, shieldAura: null, jamAura: null, split: 0, cloakT: undefined, color: FACTIONS[q.deal.unitFac].color });
+    Object.assign(e, { deal: q.deal, cost: q.deal.ask.each, bounty: 0, sab: false, healAura: null, shieldAura: null, jamAura: null, split: 0, cloakT: undefined, shoot: null, spawn: null, blink: null, rage: false, burrow: null, color: FACTIONS[q.deal.unitFac].color });
     e.name = (q.deal.A.oneOff ? c.fac.names[q.cat] || CATS[q.cat].label : UNIT_NAMES[q.deal.ask.kind]) + ' (marked)';
   } else {
     if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
     if (has('doxx') && q.tier === 2) { e.vulnT = 1e9; e.vulnAmt = 0.15; }
+    rollAffix(e, q, c.idx);
   }
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e);
@@ -2591,9 +2895,9 @@ function spawnEnemy(q) {
   if (C.desc && !q.deal && RUN && !(RUN.seen || (RUN.seen = {}))[q.cat]) { RUN.seen[q.cat] = true; toast(`New hostile: ${e.name}. ${C.desc}`, 3200); }
   return e;
 }
-function spawnBoss(B, mini) {
+function spawnBoss(B, mini, child) {
   const path = M.paths[0], k = mini ? 0.3 : 1;
-  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : 1);
+  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : 1.1);
   const slow = mini ? 1.5 : 1, iv = o => o && { ...o, every: o.every * slow };
   const e = {
     cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
@@ -2602,15 +2906,18 @@ function spawnBoss(B, mini) {
     regen: B.regen || 0, spawn: iv(B.spawn), spawnCd: 4, ox: 0, oy: 0, v: makeBossVariant(M.c.facKey, B.id), face: 1,
     rally: iv(B.rally), burrow: iv(B.burrow), emp: iv(B.emp), viral: iv(B.viral), phase2: !!B.phase2 && !mini,
     healAura: B.healAura, shieldAura: B.shieldAura, jamAura: B.jamAura,
+    charge: iv(B.charge), shockwave: iv(B.shockwave), barrage: iv(B.barrage), blink: iv(B.blink), bubble: B.bubble, shed: B.shed, splitDeath: B.splitDeath, secondWind: B.secondWind,
   };
+  if (child) e.name = B.name;
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
-  M.enemies.push(e); sfx('bossIn');
-  if (mini) { toast(`Mini-boss: ${e.name}`, 2600); return; }
+  M.enemies.push(e); if (!child) sfx('bossIn');
+  if (mini) { if (!child) toast(`Mini-boss: ${e.name}`, 2600); return e; }
   if (RUN.story.flags.takeover) { e.hp *= 0.7; e.maxhp = e.hp; e.vulnT = 1e9; e.vulnAmt = 0.2; toast('VectorCorp restructured the target: -30% HP, permanently marked', 2600); }
   if (has('doxx')) { e.vulnT = 1e9; e.vulnAmt = Math.max(e.vulnAmt || 0, 0.15); }
   if (RUN.story.flags.stream) cancelBoss(e);
   M.boss = e; M.bossSpawned = true; setMusic('boss');
   toast(`${B.name} has entered the area`, 2600);
+  return e;
 }
 
 function loseMargin(n, x, y) {
@@ -2647,7 +2954,7 @@ function stepMission(dt) {
       toast(m.boss ? 'Drill complete. Neutralise the target for pickup.' : 'Drill complete. Clear the area for pickup.', 2600);
     } else {
       m.waveTimer -= dt;
-      if (m.waveTimer <= 0) { genWave(); m.waveTimer = m.waveInterval; }
+      if (m.waveTimer <= 0) { genWave(); m.waveTimer = Math.max(8.5, m.waveInterval - 0.9 * Math.max(0, m.c.idx - 2) - 2.4 * clamp(m.t / m.T, 0, 1) * Math.min(1, Math.max(0, m.c.idx - 1) / 2)); }
       if (m.c.boss && !m.bossSpawned && m.t >= m.T * 0.45) spawnBoss(m.c.bossDef);
       if (!m.c.boss && m.c.idx >= 2 && !m.miniSpawned && m.t >= m.T * 0.65) { m.miniSpawned = true; spawnBoss(pick(m.c.fac.bosses), true); }
     }
@@ -2684,7 +2991,7 @@ function stepMission(dt) {
       if (e.burrowed) {
         e.burT -= dt;
         if (e.burT <= 0) {
-          e.burrowed = false; e.invuln = false; e.burCd = e.burrow.every; shake(4); smoke(e.x, e.y, 8); sfx('foam', e.x);
+          e.burrowed = false; e.invuln = false; e.burCd = e.burrow.every; smoke(e.x, e.y, e.boss ? 8 : 4); if (e.boss) { shake(4); sfx('foam', e.x); }
           for (let i = 0; i < e.burrow.n; i++) { const a = spawnEnemy({ cat: 'swarm', tier: rnd() < 0.3 ? 1 : 0, sp: e.sp }); a.x = e.x + (rnd() - 0.5) * 30; a.y = e.y + (rnd() - 0.5) * 30; a.wi = e.wi; a.dist = e.dist; }
         }
       }
@@ -2701,11 +3008,12 @@ function stepMission(dt) {
       if (e.virCd <= 0) { e.virCd = e.viral.every; for (let i = 0; i < e.viral.n; i++) m.queue.push({ at: m.t + i * 0.25, cat: e.viral.cat, tier: 0, sp: i % m.paths.length }); fxText(e.x, ecy(e) - 30, '#VIRAL', '#ff3ad6'); sfx('review', e.x); }
     }
     // under a building: out of sight and out of reach until it comes out the other side
-    { const tx = Math.floor(e.x / TILE), ty = Math.floor(e.y / TILE); e.inTunnel = !e.fly && !!m.grid[ty] && m.grid[ty][tx] === 7; e.invuln = !!e.burrowed || e.inTunnel; }
+    { const tx = Math.floor(e.x / TILE), ty = Math.floor(e.y / TILE); e.inTunnel = !e.fly && !!m.grid[ty] && m.grid[ty][tx] === 7; e.invuln = !!e.burrowed || e.inTunnel || !!e.bubbled; }
     if (e.slowT > 0) e.slowT -= dt;
     const regen = (m.biome.mod.regen || 0) + (e.regen || 0);
     if (regen && e.hp < e.maxhp) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * regen * dt);
-    if (e.boss && e.spawn) {
+    stepThreats(e, dt);
+    if (e.spawn && !e.burrowed) {
       e.spawnCd -= dt;
       if (e.spawnCd <= 0) {
         e.spawnCd = e.spawn.every;
@@ -2718,7 +3026,7 @@ function stepMission(dt) {
     }
     if (e.vulnT > 0) e.vulnT -= dt;
     if (e.stunT > 0) { e.stunT -= dt; e.target = null; continue; }
-    const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1) * (e.rallyT > 0 ? e.rallyMult : 1) * (e.burrowed ? 1.6 : 1);
+    const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1) * (e.rallyT > 0 ? e.rallyMult : 1) * (e.burrowed ? 1.6 : 1) * (e.chargeT > 0 ? e.charge.mult : 1) * (e.rage ? 1 + 0.9 * (1 - e.hp / e.maxhp) : 1) * (e.aimSlow || 1);
     if (e.sab && !e.inTunnel) {
       let tgt = null, bd = 1.4 * TILE;
       for (const tw of m.towers) { if (tw.down) continue; const d = Math.hypot(tw.x - e.x, tw.y - e.y); if (d < bd) { bd = d; tgt = tw; } }
@@ -3000,7 +3308,7 @@ function renderMission(now) {
   // y-sorted world
   const list = [];
   for (const tw of m.towers) list.push([tw.y + 6, () => drawTowerPx(g, tw, t)]);
-  for (const e of m.enemies) if (!e.fly) list.push([e.y, () => { drawEnemyPx(g, e, t); drawDealMark(g, e, t); }]);
+  for (const e of m.enemies) if (!e.fly) list.push([e.y, () => { drawEnemyPx(g, e, t); drawDealMark(g, e, t); drawThreatMarks(g, e, t); }]);
   for (const a of m.allies || []) list.push([a.y, () => drawAllyPx(g, a, t)]);
   list.push([m.dep.y, () => drawDepositPx(g, t)]);
   list.sort((a, b) => a[0] - b[0]);
@@ -3032,7 +3340,7 @@ function renderMission(now) {
     px(g, x - 2, y - 2, 4, 4, '#1d2026'); px(g, x - 1, y - 1, 2, 2, '#f4f8fb'); px(g, x - 1, y - 1, 1, 1, '#ffffff');
   }
   // fliers above everything on the ground
-  for (const e of m.enemies) if (e.fly) { drawEnemyPx(g, e, t); drawDealMark(g, e, t); }
+  for (const e of m.enemies) if (e.fly) { drawEnemyPx(g, e, t); drawDealMark(g, e, t); drawThreatMarks(g, e, t); }
   // health bars
   for (const e of m.enemies) {
     if (!(e.hp < e.maxhp || e.boss) || e._bx == null) continue;
@@ -4575,7 +4883,7 @@ function frame(now) {
 // test hook for automated playtesting
 window.__AL = {
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
-  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
+  newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, spawnEnemy, AFFIXES, damage, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
 
 resize(); showTitle(); requestAnimationFrame(frame);

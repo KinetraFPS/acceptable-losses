@@ -15,14 +15,30 @@ security company. You defend clients' crystal extractions across Earth and the g
 - **Profit margin** is run-wide HP (starts at 100%). Leaked enemies reduce it. At 0% you're abandoned and stranded.
 - **Budget** is spent during a mission to deploy crew (from kills plus a trickle). **Scrip** is spent between missions, only at the store.
 - **Crew** are named towers that carry over between contracts. They gain XP and promotions (a new title, no raise). Saboteurs can injure them for the rest of a contract.
-- **Enemies**: 10 categories × 3 tiers (Grunt, Veteran, Elite), skinned per faction. The five core types (Swarm, Runner, Armoured, Flyer, Saboteur) are joined from contract 2 by five specials, each introduced with a toast the first time it appears in a run:
+- **Enemies**: 15 categories × 3 tiers (Grunt, Veteran, Elite), skinned per faction. The five core types (Swarm, Runner, Armoured, Flyer, Saboteur) are joined from contract 2 by five specials, and from contract 3 by five nastier behaviours. Each is introduced with a toast the first time it appears in a run:
   - **Medic** heals nearby hostiles. **Shield** cuts damage to nearby hostiles by 30%. **Splitter** bursts into smaller hostiles. **Stealth** cloaks on and off; crew only see it up close or once it's marked. **Jammer** makes nearby crew fire 35% slower.
   - Union: First Aider, Strike Committee, Union Rep. Protesters: Umbrella Bloc, Group Chat Admin, Livestream Crew. VectorCorp: Wellness Officer, Riot Contractor, Cloaked Counsel. Wildlife: Spore Nurse, Brood Sac, Chameleon Stalker.
-- **Bosses**: three per faction, one picked for each sector finale:
-  - Union: Shop Steward Mk.IV (summons picketers), General Strike (bulldozer that periodically rallies every hostile +45% speed), Collective Bargaining Unit (van that slows crew within 2.5 tiles by 50%).
-  - Protesters: The Influencer (summons followers), The Movement (CEO effigy giving 50% damage reduction nearby), #Trending (blimp that goes viral and floods every entrance).
-  - VectorCorp: Regional Manager (flies, drops spies), Acquisitions Division (EMP knocks nearby crew offline for 2.5s), C-Suite Executive (when killed, deploys a Golden Parachute and returns flying at half health).
-  - Wildlife: Brood Matriarch (regenerates, lays gasbags), Sand Leviathan (burrows untouchable, surfaces with a swarm), Mother of Spores (heals everything within 3 tiles).
+  - Contract 3 onwards, three of these five per faction:
+    - **Ranged** shoots crew from 2.6 tiles while walking, slowing down to aim.
+    - **Carrier** calls in two reinforcements every 6s.
+    - **Blinker** teleports 2.2 tiles along the path every 5s.
+    - **Berserker** gets up to 90% faster and 30% tougher as it's hurt.
+    - **Burrower** goes underground and out of reach for 2s in every 6.
+  - New types per faction:
+    - Union: Rivet Slinger, Union Recruiter, Tunnel Rat.
+    - Wildlife: Acid Spitter, Burrow Wyrm, Frenzied Ravager.
+    - VectorCorp: Hostile Auditor, Fixer, Middle Manager.
+    - Protesters: Egg Thrower, Influencer, Flash Mobber.
+- **Elite traits**: from contract 3, some elites (15%, rising 15% per contract) and later veterans arrive with a trait, shown by a coloured pip over their head:
+  - **Swift**: +30% speed.
+  - **Hardened**: +4 armour.
+  - **Regenerating**: heals 2% HP per second.
+  - **Volatile**: explodes on death, hurting nearby crew.
+- **Bosses**: five per faction, one picked for each sector finale:
+  - Union: Shop Steward Mk.IV (summons picketers), General Strike (bulldozer that periodically rallies every hostile +45% speed), Collective Bargaining Unit (van that slows crew within 2.5 tiles by 50%), **The Pension Fund** (armoured vault that seals itself at 66% and 33% health until three Hauler Rig guards die), **Former Employee of the Month** (defected Kindly mech that charges and slams the ground, hurting and stunning nearby crew).
+  - Protesters: The Influencer (summons followers), The Movement (CEO effigy giving 50% damage reduction nearby), #Trending (blimp that goes viral and floods every entrance), **Critical Mass** (a crowd boss that sheds six protesters every 12% of health lost and rallies the map), **Hunger Striker** (mobile sit-in: guilt slows nearby crew 45%, heals nearby hostiles, second wind at 20% back to 60%).
+  - VectorCorp: Regional Manager (flies, drops spies), Acquisitions Division (EMP knocks nearby crew offline for 2.5s), C-Suite Executive (when killed, deploys a Golden Parachute and returns flying at half health), **Chief Legal Officer** (files injunctions at 66% and 33%: untouchable under a golden dome until three Riot Contractors fall; slows nearby crew), **Severance Package** (termination robot that fires on three crew every 5s and sprints).
+  - Wildlife: Brood Matriarch (regenerates, lays gasbags), Sand Leviathan (burrows untouchable, surfaces with a swarm), Mother of Spores (heals everything within 3 tiles), **The Hive Mind** (flying brain that blinks three tiles closer every 8s and lays gasbags), **Thornback Colossus** (spits acid at two crew every 6s; two calves burst out when it dies).
 - **Mini-bosses**: from contract 3, an "Understudy" version of a faction boss (30% HP) turns up at 65% extraction. It takes its cut once instead of circling back.
 - **Persistence**: factions you've fought return with a grudge (+10% HP). The boss is chosen from your history. Hints about the mind-control twist show up in email P.S. lines.
 - **Meta**: every failed run adds a survivor to the Colony of the Abandoned (+5 starting scrip each, capped at 50).
@@ -175,10 +191,16 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Settings** (gear button, bottom-right): master, music and effects volume, mute (also the M key), and a screen shake toggle. Settings are saved in the browser. Opening settings mid-contract pauses the game.
 
 ## Balance tuning knobs (in index.html)
-- `genWave`: wave threat budget `(5.5 + idx*3.0) * (1 + prog*1.7) * diff.mod`
-- `spawnEnemy`: HP scaling `(1 + 0.24*idx)` (raised to match perk power)
+Difficulty is tuned to rise through the run rather than flatten out as your crew levels up.
+- `genWave`: wave threat budget `(5.5 + idx*3.0 + idx²*0.3) * (1 + prog*1.8) * diff.mod`
+- `genWave`: veteran rate `-0.04 + idx*0.14 + prog*0.3` (max 68%), elite rate `-0.2 + idx*0.08 + prog*0.16` (max 34%)
+- Wave interval: 13s, tightening from contract 4 by 0.9s per contract and up to 2.4s as the drill fills (minimum 8.5s)
+- `spawnEnemy`: HP scaling `(1 + 0.22*idx + 0.03*idx²)`
+- Bosses have +10% HP. Understudies have `30% × (1 + 0.2*idx)`.
 - `startMission`: starting budget `110 + 10*idx`
-- An auto-play bot (greedy placement, no relics, random review picks) won about 75% of simulated runs (15/20 after the special enemies landed).
+- The auto-play bot (greedy placement, random contracts, random review picks) wins about 28% of runs, down from 67% before this pass (80 runs each). Average margin lost per contract:
+  - Before: 11 / 21 / 26 / 15 / 5% (it got easier as crew levelled).
+  - Now: 12 / 18 / 33 / 25 / 24%.
 
 ## Next up
 Sector 2+, more factions and relics, crew permadeath (an option), real art and audio, a narrative event system, deeper colony meta.
