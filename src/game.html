@@ -2783,6 +2783,24 @@ function carveRiver(grid, dep, spawns) {
 }
 function placeBuildings(grid, dep, spawns) {
   const out = [], want = ri(2, 4), sizes = [[2, 2], [3, 2], [2, 3], [3, 3], [4, 2], [2, 4]];
+  const fits = (x, y, w, h) => {
+    if (x < 1 || y < 0 || x + w > GW - 1 || y + h > GH) return false;
+    for (let yy = y - 1; yy <= y + h; yy++) for (let xx = x - 1; xx <= x + w; xx++) { const inside = xx >= x && xx < x + w && yy >= y && yy < y + h, v = grid[yy] && grid[yy][xx]; if ((inside && v !== 0) || v === 6) return false; }
+    if (Math.max(Math.abs(dep.x - clamp(dep.x, x, x + w - 1)), Math.abs(dep.y - clamp(dep.y, y, y + h - 1))) < 3) return false;
+    return !spawns.some(s => Math.max(Math.abs(s.x - clamp(s.x, x, x + w - 1)), Math.abs(s.y - clamp(s.y, y, y + h - 1))) < 2);
+  };
+  // a planned street first: a row of matching buildings at an even spacing, sometimes with a
+  // second row facing it across a two-tile street
+  for (let tries = 0; tries < 120 && !out.length; tries++) {
+    const horiz = rnd() < 0.75, [w, h] = pick(horiz ? [[2, 2], [3, 2], [2, 2]] : [[2, 2], [2, 3]]), n = ri(2, 3);
+    const x0 = ri(1, GW - 2), y0 = ri(0, GH - 2), row = Array.from({ length: n }, (_, k) => horiz ? [x0 + k * (w + 1), y0] : [x0, y0 + k * (h + 1)]);
+    if (!row.every(([x, y]) => fits(x, y, w, h))) continue;
+    for (const [x, y] of row) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = 6; out.push({ x, y, w, h }); }
+    if (rnd() < 0.55) {
+      const facing = row.map(([x, y]) => horiz ? [x, y + h + 2] : [x + w + 2, y]);
+      if (facing.every(([x, y]) => fits(x, y, w, h))) for (const [x, y] of facing) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = 6; out.push({ x, y, w, h }); }
+    }
+  }
   for (let tries = 0; tries < 160 && out.length < want; tries++) {
     const [w, h] = pick(sizes), x = ri(1, GW - w - 1), y = ri(0, GH - h);
     let ok = true;
@@ -2892,7 +2910,7 @@ function genMap(nSpawns, biomeKey) {
       if (!A.obst[rule]) return;
       for (const [x, y] of shuffle(tiles.slice())) { if (count <= 0) break; if (free(x, y) && !crowded(x, y) && test(x, y)) { put(x, y, rule); count--; } }
     };
-    place('road', ri(5, 8), (x, y) => touches(x, y, v => v === 1));
+    place('road', ri(3, 5), (x, y) => touches(x, y, v => v === 1));
     // building props sit on the corners, leaving the walls free for crew to take cover against
     place('building', buildings.length * 2, (x, y) => !touches(x, y, v => v === 6 || v === 7) && N8.some(([dx, dy]) => { const v = at(x + dx, y + dy); return v === 6 || v === 7; }));
     const liq = tiles.filter(([x, y]) => at(x, y) === 5).length;
@@ -2906,7 +2924,7 @@ function genMap(nSpawns, biomeKey) {
         if (free(nx, ny) && !nearPath(nx, ny)) { put(nx, ny, 'grove'); grove.push([nx, ny]); }
       }
     }
-    place('open', ri(2, 4), (x, y) => !nearPath(x, y));
+    place('open', ri(1, 2), (x, y) => !nearPath(x, y));
     // from Act 2 the company's own abandoned rigs rust on the open ground
     if (RUN && ACTS[actOf(RUN.idx)].derelict) for (let n = ri(1, 2), k = 0; n > 0 && k < 200; k++) { const [x, y] = pick(tiles); if (free(x, y) && !crowded(x, y) && !nearPath(x, y)) { grid[y][x] = 2; obstacles.push({ x, y, kind: 'derelict' }); n--; } }
     return { grid, dep, spawns, buildings, bridges, obstacles, landmarks, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
@@ -2965,10 +2983,168 @@ const BUILD_STYLE = {
   toxic:    { roof: '#6a7068', roof2: '#5f655d', edge: '#8a9086', wall: '#363c34', win: ['#d070ff', '#2a2a30', '#3ae8d0'], details: ['moss', 'vent', 'moss'], vines: true },
   volcanic: { roof: '#6a4234', roof2: '#5e3a2e', edge: '#ffb020', wall: '#241c1c', win: ['#ff7a2a', '#ffb060', '#1a1414'], details: ['chimney', 'vent', 'chimney'], hazard: true },
 };
+// ================================================================
+// ARCHITECTURE. Each world builds in its own style: a polar research station, bio-dome
+// greenhouses, adobe with arches, habitat pods, city blocks, eco terraces, forge halls, sky
+// villas and precursor temples. Roofs stay flat enough to stand on; tunnel mouths are cut in after.
+// ================================================================
+// window slots along the facade, skipping tunnel mouths and the door
+function facadeSlots(c, step, w) {
+  const out = [];
+  for (let x = 3; x < c.W - w - 1; x += step) { const t = (x / ATILE) | 0; if (c.bottomOpen.has(t) || (t === c.doorTile && x % ATILE >= 2 && x % ATILE < 15)) continue; out.push(x); }
+  return out;
+}
+const doorX = c => c.doorTile >= 0 ? c.doorTile * ATILE + 6 : -1;
+const ARCH = {
+  frozen(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // insulated white roof panels with a red safety border and drifts on the edges
+    P.r(0, 0, W, RH, '#d8e4ee'); for (let x = 0; x < W; x += 9) P.r(x, 0, 1, RH, '#b8c8d6'); for (let y = 0; y < RH; y += 7) P.r(0, y, W, 1, '#b8c8d6');
+    P.r(0, 0, W, 2, '#c83a3a'); P.r(0, RH - 2, W, 2, '#a82a2a'); P.r(0, 0, 2, RH, '#c83a3a'); P.r(W - 2, 0, 2, RH, '#a82a2a');
+    for (let x = 3; x < W - 3; x += ri(4, 7)) P.ell(x, 3, ri(2, 4), 1.4, '#ffffff');
+    const ox = ri(6, W - 14); P.ell(ox + 4, RH / 2, 5, 4, '#9aa8b8'); P.ell(ox + 3, RH / 2 - 1, 3, 2, '#c8f0ff'); P.r(ox + 4, RH / 2 - 6, 1, 3, '#5a6270'); L.push({ x: ox + 4, y: RH / 2, color: '#9fe0ff', r: 10 });
+    // corrugated wall, a red band, portholes and an airlock
+    P.r(0, RH, W, FH, '#5a6a7c'); for (let x = 0; x < W; x += 2) P.r(x, RH + 1, 1, FH - 2, '#4a5a6c'); P.r(0, RH + 2, W, 1, '#c83a3a');
+    for (const x of facadeSlots(c, 7, 4)) { P.ell(x + 2, RH + 6, 2, 2, '#1a2634'); P.p(x + 2, RH + 6, '#9fe0ff'); if (rnd() < 0.5) L.push({ x: x + 2, y: RH + 6, color: '#9fe0ff', r: 7 }); }
+    const dx = doorX(c); if (dx >= 0) { P.r(dx, RH + 3, 6, FH - 3, '#2a3442'); P.r(dx, RH + 3, 6, 1, '#ffd23f'); P.r(dx + 2, RH + 5, 2, 2, '#9fe0ff'); }
+    for (let x = 2; x < W - 2; x += ri(3, 6)) P.r(x, RH, 1, ri(1, 3), '#e8f6ff');
+    P.r(0, H - 2, W, 1, '#7a8a9a');
+  },
+  toxic(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // a glass greenhouse roof: tinted panes on a dark frame, moss creeping over the edges
+    P.r(0, 0, W, RH, '#2a3a2e');
+    for (let y = 2; y < RH - 2; y += 6) for (let x = 2; x < W - 2; x += 6) { P.r(x, y, 5, 5, '#3a6a4a'); P.r(x, y, 5, 1, '#6aa87a'); P.p(x + 1, y + 1, '#a8e0b8'); }
+    for (let x = 0; x < W; x += ri(2, 4)) P.ell(x, 1, ri(1, 3), 1.5, '#3f6e34'); for (let x = 0; x < W; x += ri(3, 6)) P.ell(x, RH - 1, 2, 1.4, '#3f6e34');
+    // dark wall with purple grow-lights, vines
+    P.r(0, RH, W, FH, '#262e28'); P.r(0, RH, W, 1, '#141a16');
+    for (const x of facadeSlots(c, 6, 4)) { P.r(x, RH + 3, 4, 4, '#3a1a4a'); P.r(x + 1, RH + 4, 2, 2, '#d070ff'); L.push({ x: x + 2, y: RH + 5, color: '#d070ff', r: 9 }); }
+    const dx = doorX(c); if (dx >= 0) { P.r(dx, RH + 3, 6, FH - 3, '#141a16'); P.r(dx, RH + 3, 6, 1, '#3ae8d0'); }
+    for (let x = 1; x < W - 1; x += ri(2, 5)) { const len = ri(2, FH); P.r(x, RH, 1, len, '#3f7a3a'); P.p(x, RH + len, '#8ae06a'); }
+  },
+  dust(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // smooth plaster roof, a crenellated parapet, a small dome and drainage spouts
+    P.r(0, 0, W, RH, '#e6d8be'); for (let k = 0; k < W * RH / 30; k++) P.p(ri(0, W - 1), ri(0, RH - 1), '#d8c8aa');
+    P.r(0, 0, W, 2, '#f2e6cc'); for (let x = 0; x < W; x += 4) P.r(x, 0, 2, 3, '#fff6e2');
+    P.r(0, RH - 2, W, 2, '#c8b494'); P.r(0, 0, 2, RH, '#f2e6cc'); P.r(W - 2, 0, 2, RH, '#c8b494');
+    const ox = ri(5, W - 13); P.ell(ox + 4, RH / 2, 4.5, 3.6, '#f6ead2'); P.ell(ox + 3, RH / 2 - 1, 2, 1.4, '#ffffff'); P.r(ox + 4, RH / 2 - 5, 1, 2, '#c8a040');
+    // warm walls with arched windows, an arched door under a striped awning
+    P.r(0, RH, W, FH, '#d4b890'); P.r(0, RH, W, 1, '#a88a62'); P.r(0, H - 1, W, 1, '#a88a62');
+    for (const x of facadeSlots(c, 7, 4)) { P.r(x, RH + 4, 4, 4, '#2a1a10'); P.r(x + 1, RH + 3, 2, 1, '#2a1a10'); if (rnd() < 0.4) { P.p(x + 1, RH + 5, '#ffc070'); L.push({ x: x + 2, y: RH + 5, color: '#ffc070', r: 7 }); } }
+    const dx = doorX(c); if (dx >= 0) { P.r(dx, RH + 4, 6, FH - 4, '#3a2414'); P.r(dx + 1, RH + 3, 4, 1, '#3a2414'); for (let k = 0; k < 8; k++) P.r(dx - 1 + k, RH + 1, 1, 2, k % 2 ? '#c83a3a' : '#f2e6cc'); }
+    P.r(2, RH + 1, 2, 1, '#8a6a42'); P.r(W - 4, RH + 1, 2, 1, '#8a6a42');
+  },
+  lowgrav(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // linked habitat pods with hex panels and solar fins
+    P.r(0, 0, W, RH, '#3a3e4e');
+    const pods = Math.max(1, Math.round(W / 22));
+    for (let k = 0; k < pods; k++) { const cx = Math.round((k + 0.5) * W / pods); P.ell(cx, RH / 2, W / pods / 2 - 1, RH / 2 - 1, '#9aa0b0'); P.ell(cx - 2, RH / 2 - 2, W / pods / 4, RH / 4, '#c0c6d4'); for (let a = 0; a < 6; a++) P.p(Math.round(cx + Math.cos(a) * 4), Math.round(RH / 2 + Math.sin(a) * 3), '#6a7080'); P.p(cx, RH / 2, '#b48aff'); L.push({ x: cx, y: RH / 2, color: '#b48aff', r: 8, pulse: true }); }
+    for (let k = 1; k < pods; k++) P.r(Math.round(k * W / pods) - 1, RH / 2 - 1, 3, 3, '#6a7080');
+    P.r(0, 1, 6, 2, '#2a5aa8'); P.r(W - 6, 1, 6, 2, '#2a5aa8');
+    // rounded wall with portholes and a beacon
+    P.r(1, RH, W - 2, FH, '#4a5060'); P.r(0, RH + 1, W, FH - 2, '#4a5060'); P.r(0, RH + 1, W, 1, '#6a7080');
+    for (const x of facadeSlots(c, 6, 3)) { P.ell(x + 1, RH + 5, 1.6, 1.6, '#1a1e28'); P.p(x + 1, RH + 5, '#6ff0ff'); }
+    const dx = doorX(c); if (dx >= 0) { P.ell(dx + 3, RH + 6, 3, 3.5, '#1a1e28'); P.r(dx + 1, RH + 6, 4, 1, '#b48aff'); }
+  },
+  cyber(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // tar and gravel, a water tank, AC units, a billboard frame
+    P.r(0, 0, W, RH, '#26283a'); for (let k = 0; k < W * RH / 10; k++) P.p(ri(0, W - 1), ri(0, RH - 1), pick(['#2e3044', '#1e2030']));
+    P.r(0, 0, W, 2, '#5a5e78'); P.r(0, RH - 2, W, 2, '#3a3e58'); P.r(0, 0, 2, RH, '#5a5e78'); P.r(W - 2, 0, 2, RH, '#3a3e58');
+    const tx = ri(4, W - 12); P.ell(tx + 4, 7, 4, 3, '#5a4a3a'); P.r(tx + 1, 7, 7, 4, '#4a3a2e'); P.r(tx + 1, 11, 1, 2, '#2a2a30'); P.r(tx + 7, 11, 1, 2, '#2a2a30');
+    for (let k = 0; k < Math.max(1, W / 24 | 0); k++) { const x = ri(3, W - 10), y = ri(RH - 10, RH - 7); P.r(x, y, 7, 5, '#7a808e'); P.ell(x + 2.5, y + 2.5, 1.6, 1.6, '#3a3e4a'); P.p(x + 6, y + 1, '#4fe0a6'); }
+    // a wall of lit windows, a neon strip and a shuttered door
+    P.r(0, RH, W, FH, '#16182a');
+    for (let x = 2; x < W - 2; x += 3) for (let y = RH + 2; y < H - 2; y += 3) if (rnd() < 0.45) { const col = pick(['#ffd890', '#3af0ff', '#ff3ad6', '#9fd3ff']); P.p(x, y, col); }
+    const nc = pick(['#ff3ad6', '#3af0ff', '#ffd23f']); P.r(0, RH, W, 1, nc); L.push({ x: W / 2, y: RH, color: nc, r: 18, flicker: true });
+    const dx = doorX(c); if (dx >= 0) { P.r(dx, RH + 3, 6, FH - 3, '#3a3e4a'); for (let y = RH + 4; y < H - 1; y += 2) P.r(dx, y, 6, 1, '#2a2e38'); }
+  },
+  solar(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // a green roof with flowers, a row of solar panels, a timber pergola edge
+    P.r(0, 0, W, RH, '#5a9a4a'); for (let k = 0; k < W * RH / 6; k++) P.p(ri(0, W - 1), ri(0, RH - 1), pick(['#6aaa5a', '#4a8a3a', '#7aba6a']));
+    for (let k = 0; k < W * RH / 40; k++) P.p(ri(2, W - 3), ri(2, RH - 3), pick(['#ff6fae', '#ffd23f', '#ffffff']));
+    const py = ri(3, Math.max(3, RH - 9)); for (let x = 3; x < W - 9; x += 10) { P.r(x, py, 8, 5, '#2a5aa8'); P.r(x, py, 8, 1, '#8ac4ff'); P.r(x + 3, py, 1, 5, '#1a3a78'); }
+    P.r(0, 0, W, 2, '#a8784a'); for (let x = 0; x < W; x += 4) P.r(x, 0, 1, 3, '#7a5432'); P.r(0, RH - 2, W, 2, '#8a6440');
+    // cream walls, timber beams, wide warm windows, planter boxes and a round door
+    P.r(0, RH, W, FH, '#efe6cc'); for (let x = 0; x < W; x += 9) P.r(x, RH, 1, FH, '#a8784a'); P.r(0, RH, W, 1, '#a8784a');
+    for (const x of facadeSlots(c, 9, 6)) { P.r(x, RH + 3, 6, 4, '#ffd890'); P.r(x, RH + 3, 6, 1, '#fff2c8'); P.r(x, RH + 7, 6, 2, '#6a4a2a'); P.p(x + 1, RH + 6, '#ff6fae'); P.p(x + 4, RH + 6, '#ffd23f'); L.push({ x: x + 3, y: RH + 5, color: '#ffd890', r: 10 }); }
+    const dx = doorX(c); if (dx >= 0) { P.ell(dx + 3, RH + 6, 3, 3.6, '#5a8a3a'); P.p(dx + 4, RH + 6, '#ffd23f'); }
+  },
+  volcanic(P, c) {
+    const { W, H, RH, FH, L, props } = c;
+    // riveted iron plate, hazard stripes, glowing chimneys
+    P.r(0, 0, W, RH, '#4a3a34'); for (let x = 0; x < W; x += 9) for (let y = 0; y < RH; y += 9) { P.r(x, y, 9, 9, '#54423a'); P.r(x, y, 9, 1, '#6a5246'); P.p(x + 1, y + 1, '#8a6a5a'); P.p(x + 7, y + 7, '#2a1e1a'); }
+    for (let x = 0; x < W; x += 4) { P.r(x, 0, 2, 2, '#ffb020'); P.r(x + 2, 0, 2, 2, '#1a1414'); P.r(x, RH - 2, 2, 2, '#ffb020'); P.r(x + 2, RH - 2, 2, 2, '#1a1414'); }
+    for (let k = 0; k < Math.max(1, W / 26 | 0); k++) { const x = ri(4, W - 8), y = ri(3, Math.max(3, RH - 10)); P.r(x, y, 5, 7, '#1e1818'); P.r(x, y, 5, 1, '#ff7a2a'); L.push({ x: x + 2, y, color: '#ff7a2a', r: 11, flicker: true }); props.push({ kind: 'smoke', x: x + 2, y: y - 1 }); }
+    // furnace windows and a blast door
+    P.r(0, RH, W, FH, '#1e1616'); P.r(0, RH, W, 1, '#0e0a0a');
+    for (const x of facadeSlots(c, 7, 4)) { P.r(x, RH + 3, 4, 5, '#3a1a10'); P.r(x + 1, RH + 4, 2, 3, '#ff7a2a'); P.p(x + 1, RH + 4, '#ffd060'); L.push({ x: x + 2, y: RH + 5, color: '#ff7a2a', r: 10, flicker: true }); }
+    const dx = doorX(c); if (dx >= 0) { P.r(dx - 1, RH + 2, 8, FH - 2, '#2a2424'); P.r(dx - 1, RH + 2, 8, 1, '#ffb020'); for (let y = RH + 4; y < H - 1; y += 3) P.r(dx, y, 6, 1, '#3a3434'); }
+  },
+  cloud(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // white marble tiles with gold trim and a little gazebo dome
+    P.r(0, 0, W, RH, '#eeeaf6'); for (let x = 0; x < W; x += 6) for (let y = 0; y < RH; y += 6) P.r(x, y, 6, 1, '#dcd8ea'); for (let x = 0; x < W; x += 6) P.r(x, 0, 1, RH, '#dcd8ea');
+    P.r(0, 0, W, 2, '#e8c870'); P.r(0, RH - 2, W, 2, '#c8a850'); P.r(0, 0, 2, RH, '#e8c870'); P.r(W - 2, 0, 2, RH, '#c8a850');
+    const gx = ri(5, W - 13); P.ell(gx + 4, RH / 2 - 1, 4.5, 3, '#ffffff'); P.r(gx, RH / 2, 9, 3, '#ffffff'); P.r(gx + 1, RH / 2 + 1, 1, 2, '#c8a850'); P.r(gx + 7, RH / 2 + 1, 1, 2, '#c8a850'); P.p(gx + 4, RH / 2 - 4, '#e8c870');
+    // columns, tall windows and a balcony rail
+    P.r(0, RH, W, FH, '#f6f2ff'); for (let x = 1; x < W; x += 6) { P.r(x, RH + 1, 2, FH - 1, '#ffffff'); P.r(x + 2, RH + 1, 1, FH - 1, '#d8d4e8'); }
+    for (const x of facadeSlots(c, 6, 2)) { P.r(x + 1, RH + 3, 2, 5, '#9fd3ff'); if (rnd() < 0.3) L.push({ x: x + 2, y: RH + 5, color: '#fff6d0', r: 8 }); }
+    P.r(0, RH + 1, W, 1, '#e8c870');
+    const dx = doorX(c); if (dx >= 0) { P.r(dx, RH + 3, 6, FH - 3, '#7a76a0'); P.r(dx, RH + 3, 6, 1, '#e8c870'); }
+  },
+  tomb(P, c) {
+    const { W, H, RH, FH, L } = c;
+    // stepped stone blocks with glowing glyph inlays
+    P.r(0, 0, W, RH, '#3a4446'); for (let y = 0; y < RH; y += 5) for (let x = (y / 5 % 2) * 4; x < W; x += 8) { P.r(x, y, 8, 5, '#424e50'); P.r(x, y, 8, 1, '#56625f'); P.r(x, y, 1, 5, '#2e3638'); }
+    P.r(0, 0, W, 2, '#5a6664'); P.r(2, 2, W - 4, 1, '#4a5654'); P.r(0, RH - 2, W, 2, '#262e30');
+    for (let k = 0; k < Math.max(1, W / 18 | 0); k++) { const x = ri(4, W - 8), y = ri(4, Math.max(4, RH - 8)); P.r(x, y, 4, 4, '#2a3234'); P.p(x + 1, y + 1, '#ff5ad1'); P.p(x + 2, y + 2, '#ff5ad1'); P.p(x + 1, y + 2, '#ff9ae8'); L.push({ x: x + 2, y: y + 2, color: '#ff5ad1', r: 8, pulse: true }); }
+    // carved facade and a dark doorway breathing pink light
+    P.r(0, RH, W, FH, '#2e3638'); for (let x = 2; x < W - 2; x += 4) P.r(x, RH + 2, 2, 1, '#4a5654');
+    for (const x of facadeSlots(c, 8, 3)) { P.r(x, RH + 4, 3, 3, '#1a2022'); P.p(x + 1, RH + 5, '#ff5ad1'); }
+    const dx = doorX(c); if (dx >= 0) { P.r(dx - 1, RH + 2, 8, FH - 2, '#0e1214'); P.r(dx - 1, RH + 2, 8, 1, '#5a6664'); P.r(dx + 2, RH + 6, 2, 2, '#ff5ad1'); L.push({ x: dx + 3, y: RH + 7, color: '#ff5ad1', r: 12, pulse: true }); }
+  },
+};
+// biome street lamps: posts at a regular interval along every road, on the open tile beside it
+const LAMP_COL = { frozen: '#bfe6ff', toxic: '#c8ff8a', dust: '#ffd090', lowgrav: '#d0b8ff', cyber: '#3af0ff', solar: '#fff0b0', volcanic: '#ff9a4a', cloud: '#fff6d0', tomb: '#ff5ad1' };
+function planStreets(P, map, biomeKey, lights) {
+  const A = BIOME_ART[biomeKey], code = (x, y) => (x < 0 || y < 0 || x >= GW || y >= GH) ? null : map.grid[y][x];
+  const pave = shade(A.p[0], 0.08), seam = shade(A.p[0], -0.18), lampCol = LAMP_COL[biomeKey] || '#ffe8a0';
+  const paveTile = (tx, ty, edge) => { const x0 = tx * ATILE, y0 = ty * ATILE; P.r(x0, y0, ATILE, ATILE, pave); for (let k = 0; k < ATILE; k += 6) { P.r(x0 + k, y0, 1, ATILE, seam); P.r(x0, y0 + k, ATILE, 1, seam); } if (edge) P.r(x0, y0 + ATILE - 1, ATILE, 1, shade(seam, -0.2)); };
+  // a paved plaza around the drill
+  const dx = map.dep.x, dy = map.dep.y;
+  for (let y = dy - 1; y <= dy + 1; y++) for (let x = dx - 1; x <= dx + 1; x++) if (code(x, y) === 0) paveTile(x, y, y === dy + 1);
+  // a front yard under each building, on the open ground below its facade
+  for (const b of map.buildings || []) for (let x = b.x; x < b.x + b.w; x++) if (code(x, b.y + b.h) === 0) paveTile(x, b.y + b.h, true);
+  // street lamps every few tiles along each road, always on the same side
+  const done = new Set();
+  for (const p of map.paths) for (let i = 2; i < p.length - 1; i += 4) {
+    const tx = Math.floor(p[i].x / TILE), ty = Math.floor(p[i].y / TILE), nx = Math.floor(p[i + 1].x / TILE) - tx, ny = Math.floor(p[i + 1].y / TILE) - ty;
+    for (const [sx, sy] of [[ny, -nx], [-ny, nx]]) {
+      const lx = tx + sx, ly = ty + sy, k = ly * GW + lx;
+      if (code(lx, ly) !== 0 || done.has(k)) continue;
+      done.add(k);
+      // the post stands at the edge of the open tile that faces the road
+      const px0 = lx * ATILE + (sx > 0 ? 2 : sx < 0 ? ATILE - 3 : ATILE / 2), py0 = ly * ATILE + (sy > 0 ? 6 : sy < 0 ? ATILE - 2 : ATILE - 4);
+      P.r(px0, py0 - 10, 1, 10, '#5a606a'); P.r(px0 - 1, py0, 3, 1, '#3a3e46'); P.r(px0 - 1, py0 - 12, 3, 2, '#2a2e36'); P.p(px0, py0 - 11, lampCol);
+      lights.push({ x: (px0 + 0.5) * AP, y: (py0 - 11) * AP, color: lampCol, r: 12 });
+      break;
+    }
+  }
+}
+
 // a building filling its w x h footprint: flat roof crew can stand on, a facade along the bottom,
 // and dark tunnel mouths wherever a path runs underneath and out of a side
 function buildingSprite(biomeKey, b, openings) {
   const St = BUILD_STYLE[biomeKey], W = b.w * ATILE, H = b.h * ATILE, FH = 10, RH = H - FH, P = painter(W, H), L = [], props = [];
+  const bottomOpen = new Set(openings.filter(o => o.side === 'bottom').map(o => o.i));
+  const doorTile = [...Array(b.w).keys()].find(i => !bottomOpen.has(i) && i === Math.floor(b.w / 2)) ?? -1;
+  const bespoke = ARCH[biomeKey];
+  if (bespoke) bespoke(P, { W, H, RH, FH, b, St, L, props, bottomOpen, doorTile });
+  else {
   // roof with a raised parapet: light rim outside, shadowed lip inside
   for (let y = 0; y < RH; y++) for (let x = 0; x < W; x++) P.p(x, y, rnd() < 0.18 ? St.roof2 : St.roof);
   for (let x = 4; x < W - 4; x += ri(5, 9)) P.r(x, 3, 1, RH - 6, shade(St.roof, -0.08));
@@ -2978,8 +3154,6 @@ function buildingSprite(biomeKey, b, openings) {
   // facade with pilasters, a row of windows and a door
   P.r(0, RH, W, FH, St.wall); P.r(0, RH, W, 1, shade(St.wall, -0.45)); P.r(0, H - 1, W, 1, shade(St.wall, -0.4));
   for (let x = 0; x < W; x += 9) P.r(x, RH + 1, 1, FH - 2, shade(St.wall, -0.18));
-  const bottomOpen = new Set(openings.filter(o => o.side === 'bottom').map(o => o.i));
-  const doorTile = [...Array(b.w).keys()].find(i => !bottomOpen.has(i) && i === Math.floor(b.w / 2)) ?? -1;
   if (doorTile >= 0) { const dx = doorTile * ATILE + 6; P.r(dx, RH + 3, 6, FH - 3, shade(St.wall, -0.55)); P.r(dx, RH + 3, 6, 1, shade(St.wall, 0.25)); P.p(dx + 4, RH + 6, '#ffd23f'); }
   for (let x = 3; x < W - 3; x += 5) {
     const tile = (x / ATILE) | 0; if (bottomOpen.has(tile) || (tile === doorTile && x % ATILE >= 3 && x % ATILE < 14)) continue;
@@ -2988,6 +3162,7 @@ function buildingSprite(biomeKey, b, openings) {
   }
   if (St.sign && rnd() < 0.8) { const c = pick(['#ff3ad6', '#3af0ff', '#ffd23f']), sx = ri(3, Math.max(3, W - 15)); P.r(sx, RH - 4, 12, 5, '#0e0f18'); P.r(sx + 1, RH - 3, 10, 3, c); for (let k = sx + 2; k < sx + 10; k += 2) P.p(k, RH - 2, '#0e0f18'); L.push({ x: sx + 6, y: RH - 1, color: c, r: 16, flicker: true }); }
   if (St.vines) for (let x = 2; x < W - 2; x += ri(3, 6)) { const len = ri(2, 7); P.r(x, RH, 1, len, '#3f7a3a'); P.p(x, RH + len, '#5aa04a'); }
+  }
   // tunnel mouths
   for (const o of openings) {
     const at = o.i * ATILE + 3;
@@ -2996,9 +3171,9 @@ function buildingSprite(biomeKey, b, openings) {
     if (o.side === 'left') { P.r(0, at, 3, 12, '#0a0b10'); P.r(3, at, 1, 12, shade(St.roof, -0.35)); }
     if (o.side === 'right') { P.r(W - 3, at, 3, 12, '#0a0b10'); P.r(W - 4, at, 1, 12, shade(St.roof, -0.35)); }
   }
-  // rooftop details
+  // rooftop details (the bespoke styles draw their own)
   const roofH = RH - 2;
-  for (let n = Math.max(1, Math.round(b.w * b.h / 2)); n > 0; n--) {
+  for (let n = bespoke ? 0 : Math.max(1, Math.round(b.w * b.h / 2)); n > 0; n--) {
     const kind = pick(St.details), x = ri(3, W - 10), y = ri(3, Math.max(3, roofH - 8));
     switch (kind) {
       case 'ac': P.r(x, y, 7, 5, '#7a808e'); P.r(x, y + 5, 7, 1, '#3a3e4a'); P.ell(x + 2.5, y + 2.5, 1.6, 1.6, '#3a3e4a'); P.p(x + 6, y + 1, '#4fe0a6'); break;
@@ -3055,6 +3230,7 @@ function renderGround(map, biomeKey) {
     }
   }
   const addAll = (o, ox, oy) => { for (const l of o.lights) lights.push({ ...l, x: (ox + l.x) * AP, y: (oy + l.y) * AP }); for (const p of o.props) props.push({ ...p, x: ox + p.x, y: oy + p.y }); };
+  planStreets(P, map, biomeKey, lights);
   // buildings, with a tunnel mouth wherever a path leaves the footprint
   for (const b of map.buildings || []) {
     const openings = [];
