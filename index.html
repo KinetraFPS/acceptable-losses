@@ -1196,11 +1196,12 @@ const weaponFor = cr => { const v = crewVis(cr); return weaponSprite(cr.type, v.
 
 // ---------- death and replacement ----------
 // crew who die stay dead; a new hire with a different face takes over their kit, for a fee
-const replaceCost = cr => Math.round(crewFee(cr) * 1.5 + 10 * cr.level);
+const replaceCost = cr => Math.round((crewFee(cr) * 1.5 + 10 * cr.level) * (has('exitpack') ? 0.6 : 1));
 function killCrew(tw) {
   if (tw.down) return;
   tw.down = true; tw.hp = 0; tw.diedAt = M.t; tw.crew.dead = true;
   sfx('hit', tw.x); M.downed.push(tw.crew.name);
+  store.set('al_fallen', [tw.crew.name, ...store.get('al_fallen', []).filter(n => n !== tw.crew.name)].slice(0, 40));
   RUN.fallen = RUN.fallen || []; RUN.fallen.push({ name: tw.crew.name, rank: RANKS[tw.crew.level - 1], role: TOWERS[tw.crew.type].name, planet: M.c.planet });
   fxText(tw.x, tw.y - 20, 'KIA', '#ff4d5e');
   for (let k = 0; k < 6; k++) addPart({ x: tw.x, y: tw.y - 6, vx: (rnd() - 0.5) * 60, vy: -40 - rnd() * 40, g: 260, floor: tw.y + 8, life: 0.9, max: 0.9, col: '#c8384a', size: 1, layer: 'px' });
@@ -3526,6 +3527,8 @@ function towerStats(crew, tw) {
   if (has('coffee')) s.rate *= 1.15;
   if (has('poster')) s.dmg *= 1.12;
   if (has('scope')) s.range *= 1.12;
+  if (has('patience')) s.xpMult *= 1.2;
+  if (has('archivemem')) s.eliteBonus += 0.2;
   if (tw && tw.roof) s.range *= 1.15;
   if (tw && tw.plat && M) { const pa = platformAt(tw.tx, tw.ty); s.range *= 1 + (tw.plat === 'boat' ? 0.2 : 0.15) + 0.05 * (((pa && pa.level) || 1) - 1); }
   if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) s.dmg *= 1.2;
@@ -3718,10 +3721,19 @@ function spawnEnemy(q) {
   } else {
     if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
     if (c.facKey === 'lumen') e.spd *= 1 + 0.3 * clamp(M.t / M.T, 0, 1);
+    if (c.facKey === 'haulers') e.cost *= 1.5;
+    if (c.facKey === 'precursors' && q.tier >= 1 && !e.jamAura) e.jamAura = { r: 1.8, amt: 0.25 };
     if (has('doxx') && q.tier === 2) { e.vulnT = 1e9; e.vulnAmt = 0.15; }
     rollAffix(e, q, c.idx);
     // a faction that likes you loses a few of its people to conscience on the way in
     if (!e.fly && !e.naval && rnd() < defectChance(c.facKey)) e.defectAt = M.t + 3 + rnd() * 6;
+    // after affixes: the Abandoned's elites wear company armour and the names of people you lost
+    if (c.facKey === 'abandoned' && q.tier === 2) {
+      e.armor += 3;
+      const names = [...new Set((RUN.fallen || []).map(f => f.name).concat(store.get('al_fallen', [])))];
+      if (names.length) e.name = `${pick(names)}, ex-Kindly`;
+    }
+
   }
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e);
@@ -5537,6 +5549,9 @@ function startAllies(m) {
   m.strikeT = st.flags.strike && m.c.boss ? 6 : null;
   m.huntT = st.flags.swarm && m.c.boss ? 5 : null;
   m.relightT = st.flags.relight && m.c.boss ? 8 : null;
+  m.colonyT = st.flags.colony && m.c.boss ? 6 : null;
+  m.freeT = st.flags.freeport && m.c.boss ? 10 : null;
+  m.wakeT = st.flags.waking && m.c.boss ? 9 : null;
   // a faction that likes you sends people: every contract when allied, this one if they offered a favour
   m.helper = S.pendingFavour || alliedHelper(m.c.facKey); m.helpEvery = S.pendingFavour ? 16 : 26; m.helpT = m.helper ? 7 : null; S.pendingFavour = null;
   if (st.flags.pet) { const v = st.petV || (st.petV = makeVariant('fauna', 'fast')); m.allies.push(newAlly('pet', v, m.paths[0], 160)); }
@@ -5566,6 +5581,24 @@ function stepAllies(dt) {
     for (const tw of m.towers) if (!tw.down && Math.hypot(tw.x - m.dep.x, tw.y - m.dep.y) <= 3 * TILE) tw.hp = Math.min(tw.maxhp, tw.hp + 25);
     m.fx.push({ k: 'ring', x: m.dep.x, y: m.dep.y, r: 2.5 * TILE, life: 0.6, max: 0.6, color: '#7fe8ff' });
     fxText(m.dep.x, m.dep.y - 36, 'THE RELIGHTING', '#7fe8ff'); sfx('overcharge', m.dep.x); shake(2);
+  }
+  if (live && m.colonyT != null && (m.colonyT -= dt) <= 0) {
+    m.colonyT = 18;
+    const p = m.paths[ri(0, m.paths.length - 1)], v = m.pool.colony || (m.pool.colony = makeVariant('abandoned', 'shield'));
+    for (let k = 0; k < 3; k++) { const a = newAlly('picket', v, p, 150); a.delay = k * 0.7; m.allies.push(a); }
+    fxText(m.dep.x, m.dep.y - 36, 'THE COLONY MARCHES', '#c8a040'); sfx('promote', m.dep.x);
+  }
+  if (live && m.freeT != null && (m.freeT -= dt) <= 0) {
+    m.freeT = 25;
+    const live2 = m.enemies.filter(e => !e.dead && !e.deal && !e.invuln);
+    for (const e of shuffle(live2).slice(0, 6)) { m.fx.push({ k: 'tracer', x1: e.x - 60, y1: -10, x2: e.x, y2: ecy(e), life: 0.12, max: 0.12, color: '#3ab8a0', w: 2 }); damage(e, 55, false, null); sparks(e.x, ecy(e), '#3ab8a0', 4); }
+    if (live2.length) { fxText(m.dep.x, m.dep.y - 36, 'GUILD BROADSIDE', '#3ab8a0'); sfx('gun', m.dep.x); shake(2); }
+  }
+  if (live && m.wakeT != null && (m.wakeT -= dt) <= 0) {
+    m.wakeT = 18;
+    const tough = m.enemies.filter(e => !e.dead && !e.deal && !e.invuln).sort((a, b) => b.hp - a.hp).slice(0, 3);
+    for (const e of tough) { m.fx.push({ k: 'tracer', x1: m.dep.x, y1: m.dep.y - 20, x2: e.x, y2: ecy(e), life: 0.3, max: 0.3, color: '#ff5ad1', w: 3, glow: '#ff5ad1' }); damage(e, 120, true, null); }
+    if (tough.length) { fxText(m.dep.x, m.dep.y - 36, 'THE WAKING', '#ff5ad1'); sfx('thunder', m.dep.x); shake(3); }
   }
   if (live && m.helpT != null && (m.helpT -= dt) <= 0) {
     m.helpT = m.helpEvery;
@@ -7454,6 +7487,450 @@ Object.assign(ARTIFACTS, {
 ARTIFACT_IDS.push('lantern', 'kite');
 ART_EXTRA.lantern = f => { const P = painter(14, 22); P.r(6, 4, 2, 16, '#8a7a6a'); P.r(3, 19, 8, 3, '#6a5a4a'); P.r(3, 0, 8, 2, '#5a5e66'); P.r(2, 2, 10, 8, '#3a3a4a'); P.r(4, 3, 6, 6, f % 2 ? KIN_GLOW : '#5ad8f0'); P.r(5, 4, 4, 3, KIN_HOT); postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 7, ay: 20 }; };
 ART_EXTRA.kite = f => { const k = kinKite(f, true); return { c: k.c, ax: k.c.width >> 1, ay: k.c.height - 2 }; };
+
+// ================================================================
+// ACT 2 FACTIONS: ART. The Abandoned (ex-Kindly staff in faded company colours), the Free
+// Haulers (smugglers in leather and teal) and the Precursors (stone constructs lit pink from inside).
+// ================================================================
+function humanVariant(of, lights = []) {
+  const look = genLook();
+  return finishVariant('human', [{ ax: 7, ay: 17, lights }], [drawHuman(look, of, 'w0', 1), drawHuman(look, of, 'w1', 0), drawHuman(look, of, 'w2', 1), drawHuman(look, of, 'w3', 0)]);
+}
+// a generic hull on the water, decorated by the caller
+function hullSprite(hull, f, deck) {
+  const P = painter(24, 16), bob = f % 2;
+  P.r(2, 9 + bob, 20, 3, hull); P.r(4, 12 + bob, 17, 1, shade(hull, -0.3)); P.r(20, 9 + bob, 3, 2, hull); P.r(2, 9 + bob, 20, 1, shade(hull, 0.25));
+  deck(P, bob);
+  for (let x = 0; x < 24; x += 2) if ((x + f) % 4 < 2) P.p(x, 15, 'rgba(255,255,255,0.7)');
+  postProcess(P.c); return { c: P.c, ax: 12, ay: 12, lights: [] };
+}
+// ---------- the Abandoned ----------
+const ABANDONED_OUTFITS = {
+  swarm: () => ({ shirt: pick(['#8a7a4a', '#6a6a5a', '#7a6a4a', '#9a8a5a']), pants: '#3a3a40', logo: true, pocket: true, prop: 'sign', signCol: '#c8a040' }),
+  fast: () => ({ shirt: '#c8a040', pants: '#2a2a30', hat: 'cap', capCol: '#3a4a5c', prop: 'clipboard' }),
+  saboteur: () => ({ shirt: '#2f6f88', pants: '#2a6070', hat: 'goggles', prop: 'wrench', pack: true, packCol: '#8a929c' }),
+  medic: () => ({ shirt: '#e8e0d0', cross: true, pants: '#5a5a60', prop: 'medkit', hat: 'cap', capCol: '#c8a040' }),
+  shield: () => ({ shirt: '#2a3a5c', vest: '#b8983a', stripe: '#d8d8d0', pants: '#1d2433', hat: 'hardhat', prop: 'riotshield' }),
+  splitter: () => ({ shirt: '#d8d0c0', collar: '#8a8a80', lanyard: true, pants: '#5a5040', prop: 'clipboard' }),
+  stealth: () => ({ shirt: '#2a2a30', hood: true, pants: '#22222a', mask: '#2a2a30', prop: 'phone' }),
+  jammer: () => ({ shirt: '#3a3a4a', suit: '#c8a040', pants: '#2a2a30', prop: 'rulebook' }),
+  ranged: () => ({ shirt: '#a85a74', collar: '#d8d8d0', pants: '#a89870', prop: 'rifle', shades: true }),
+  carrier: () => ({ shirt: '#c8a040', pants: '#3a3a40', prop: 'flag', flagCol: '#c8a040', hat: 'beanie', capCol: '#5a5a60' }),
+  blinker: () => ({ shirt: '#4a6a3a', hood: true, pants: '#3a3f35', hat: 'headset', prop: 'phone' }),
+  berserk: () => ({ shirt: '#d86a2a', pants: '#c05a2a', hat: 'hardhat', prop: 'pickaxe', mask: '#5a2a1a' }),
+  burrower: () => ({ shirt: '#6a5a3a', pants: '#3a3a30', hat: 'miner', prop: 'pickaxe' }),
+};
+FAC_ART.abandoned = cat => {
+  const col = '#b8983a';
+  if (cat === 'armored') { const skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => { const s = vehTreads(col, skin, f), g = s.c.getContext('2d'); for (let k = 0; k < 6; k++) px(g, ri(2, s.c.width - 3), ri(2, s.c.height - 4), 1, 1, '#8a4a2a'); return s; })); }
+  if (cat === 'flyer') return finishVariant('drone', [0, 1].map(f => enDrone('#c8a040', 'abandoned', f)));
+  if (cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => heliSprite('#a8883a', '#3a4a5c', '#9fd3ff', f, P => { P.p(6, 7, '#8a4a2a'); P.p(14, 9, '#8a4a2a'); P.r(11, 7, 3, 1, '#3a4a5c'); })));
+  if (cat === 'naval') return finishVariant('vehicle', [0, 1, 2, 3].map(f => hullSprite('#6a6a5a', f, (P, bob) => { for (const x of [4, 11, 17]) { P.r(x, 5 + bob, 5, 4, pick(['#c8a040', '#8a8a80', '#5a7a8a'])); P.r(x, 5 + bob, 5, 1, '#d8d0c0'); } })));
+  return humanVariant((ABANDONED_OUTFITS[cat] || ABANDONED_OUTFITS.swarm)());
+};
+// ---------- the Free Haulers ----------
+const HAULER_OUTFITS = {
+  swarm: () => ({ shirt: pick(['#5a4a3a', '#4a5a5a', '#6a5a4a']), pants: '#2a3a3a', hat: 'beanie', capCol: pick(['#3ab8a0', '#a83a3a', '#2a2a30']), prop: 'wrench' }),
+  fast: () => ({ shirt: '#3ab8a0', pants: '#2a2a30', hat: 'goggles', prop: 'phone' }),
+  saboteur: () => ({ shirt: '#2a2a30', coat: '#5a3a2a', pants: '#2a2a30', hat: 'balaclava', prop: 'wrench' }),
+  medic: () => ({ shirt: '#d8d0c0', coat: '#3a5a5a', cross: true, pants: '#2a2a30', prop: 'medkit' }),
+  shield: () => ({ shirt: '#4a4a4a', vest: '#6a6a6a', pants: '#2a2a30', hat: 'helmet', prop: 'riotshield' }),
+  splitter: () => ({ shirt: '#6a5a4a', pants: '#3a3a30', hat: 'beanie', capCol: '#3ab8a0', prop: 'flag', flagCol: '#3ab8a0' }),
+  stealth: () => ({ shirt: '#1e2228', hood: true, pants: '#1e2228', mask: '#1e2228', prop: 'briefcase' }),
+  jammer: () => ({ shirt: '#2a3a3a', coat: '#2a4a4a', pants: '#1e2228', hat: 'headset', prop: 'tablet' }),
+  ranged: () => ({ shirt: '#4a3a2a', coat: '#6a4a2a', pants: '#2a2a30', hat: 'stetson', prop: 'rifle' }),
+  carrier: () => ({ shirt: '#d8d0c0', coat: '#2a8a78', pants: '#2a2a30', hat: 'fedora', prop: 'clipboard' }),
+  blinker: () => ({ shirt: '#2a2a30', coat: '#2a3a5a', pants: '#2a2a30', hat: 'goggles', prop: 'phone' }),
+  berserk: () => ({ shirt: '#a83a3a', pants: '#2a2a30', mask: '#3a3a3a', prop: 'wrench', hat: 'beanie', capCol: '#2a2a30' }),
+  burrower: () => ({ shirt: '#5a5a5a', vest: '#3ab8a0', pants: '#2a2a30', hat: 'hardhat', prop: 'pickaxe' }),
+};
+FAC_ART.haulers = cat => {
+  if (cat === 'armored') { const skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => { const s = vehTreads('#3a6a64', skin, f), g = s.c.getContext('2d'); px(g, 2, 2, 4, 3, '#1a1a1e'); px(g, 3, 3, 2, 1, '#e8e0d0'); return s; })); }
+  if (cat === 'flyer') return finishVariant('drone', [0, 1].map(f => enDrone('#3ab8a0', 'haulers', f)));
+  if (cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => heliSprite('#2a3a3a', '#3ab8a0', '#ffd890', f, P => { P.r(4, 1, 1, 5, '#9aa3ad'); P.r(5, 1, 4, 3, '#1a1a1e'); P.p(6, 2, '#e8e0d0'); P.r(18, 10, 6, 1, '#4a4e5a'); })));
+  if (cat === 'naval') return finishVariant('vehicle', [0, 1, 2, 3].map(f => hullSprite('#5a4a3a', f, (P, bob) => { P.r(11, 0 + bob, 1, 9, '#7a5a3a'); P.r(5, 1 + bob, 6, 6, '#d8d0c0'); P.r(5, 3 + bob, 6, 1, '#3ab8a0'); P.r(14, 6 + bob, 6, 3, '#6a5a4a'); P.r(15, 5 + bob, 4, 1, '#8a7a5a'); })));
+  return humanVariant((HAULER_OUTFITS[cat] || HAULER_OUTFITS.swarm)());
+};
+// ---------- the Precursors: stone constructs lit from inside ----------
+const PRE_STONE = ['#4a5658', '#56625f', '#3e4a4c'], PRE_GLOW = '#ff5ad1', PRE_HOT = '#ffd0f4';
+function preUnit(cat, f) {
+  const P = painter(20, 24), ph = gaitPh(f), bob = f % 2 ? -1 : 0, hov = [0, -1, -2, -1][f % 4];
+  const st = pick(PRE_STONE), dk = shade(st, -0.35), lt = shade(st, 0.25), L = [];
+  const eye = (x, y, r = 1) => { P.ell(x, y, r + 0.6, r + 0.6, '#1a1e20'); P.p(x, y, PRE_HOT); if (r > 1) P.r(x - 1, y, 3, 1, PRE_GLOW); L.push({ x, y, color: PRE_GLOW, r: 6 + r * 3, pulse: true }); };
+  const legs = (x0, n, len) => { for (let i = 0; i < n; i++) legStep(P, x0 + i * 4, 17, len, ph + i * Math.PI, dk, 1.6); };
+  switch (cat) {
+    case 'swarm': for (let y = 0; y < 9; y++) P.r(10 - (9 - y) / 2 | 0, 8 + y + hov, 9 - y, 1, y % 3 ? st : lt); eye(10, 12 + hov); P.r(8, 20, 5, 1, 'rgba(255,90,209,0.4)'); break;
+    case 'fast': legs(5, 3, 5); P.ell(10, 13 + bob, 7, 3.4, st); P.r(4, 12 + bob, 12, 1, lt); P.ell(17, 11 + bob, 2.6, 2.2, dk); eye(18, 11 + bob); for (let x = 5; x < 15; x += 3) P.p(x, 13 + bob, PRE_GLOW); break;
+    case 'saboteur': legs(8, 1, 6); P.r(7, 6 + bob, 6, 11, dk); P.ell(10, 5 + bob, 3.4, 3.4, st); eye(11, 5 + bob); for (let k = 0; k < 3; k++) P.line(13, 10 + k * 2 + bob, 17, 12 + k * 3 + bob, PRE_GLOW); break;
+    case 'medic': P.ell(10, 11 + hov, 6, 6, st); P.ell(10, 11 + hov, 3.6, 3.6, '#1a1e20'); P.ell(10, 11 + hov, 2, 2, PRE_HOT); L.push({ x: 10, y: 11, color: '#ffd0f4', r: 16, pulse: true }); break;
+    case 'shield': legs(7, 2, 4); P.r(6, 2 + bob, 8, 15, st); P.r(6, 2 + bob, 8, 1, lt); P.r(9, 4 + bob, 2, 10, PRE_GLOW); P.r(15, 3 + bob, 3, 13, 'rgba(255,90,209,0.45)'); P.r(15, 3 + bob, 1, 13, PRE_HOT); eye(10, 6 + bob); break;
+    case 'splitter': for (const [x, y] of [[5, 11], [12, 9], [8, 4]]) { P.r(x, y + hov, 5, 5, st); P.r(x, y + hov, 5, 1, lt); P.p(x + 2, y + 2 + hov, PRE_GLOW); } L.push({ x: 10, y: 10, color: PRE_GLOW, r: 10 }); break;
+    case 'stealth': legs(8, 1, 6); P.r(7, 5 + bob, 6, 12, '#1e2426'); P.ell(10, 4 + bob, 3, 3, '#262e30'); P.p(11, 4 + bob, '#7a3a6a'); break;
+    case 'jammer': P.r(9, 2 + hov, 3, 17, st); P.r(9, 2 + hov, 1, 17, lt); for (const y of [5, 10, 15]) { P.ell(10, y + hov, 6, 1.6, 'rgba(255,90,209,0.55)'); } eye(10, 3 + hov); break;
+    case 'ranged': for (const dx of [-4, 0, 4]) P.line(10, 10 + bob, 10 + dx, 20, dk); P.ell(10, 8 + bob, 4, 4, st); eye(11, 8 + bob, 2); P.r(14, 8 + bob, 5, 1, PRE_GLOW); break;
+    case 'carrier': legs(5, 3, 4); P.r(3, 4 + bob, 14, 12, st); P.r(3, 4 + bob, 14, 1, lt); for (let y = 6; y < 15; y += 3) P.r(5, y + bob, 10, 1, dk); P.r(8, 6 + bob, 4, 2, PRE_GLOW); eye(10, 10 + bob); break;
+    case 'blinker': { const a = f % 2 ? 0.9 : 0.5; P.g.globalAlpha = a; P.r(7, 5 + bob, 6, 12, st); P.ell(10, 4 + bob, 3, 3, lt); P.g.globalAlpha = 1; eye(11, 4 + bob); for (const [x, y] of [[3, 8], [16, 6], [4, 15]]) P.p(x, y, PRE_HOT); break; }
+    case 'berserk': legs(6, 2, 5); P.ell(10, 10 + bob, 6, 5, st); for (const [x, y] of [[3, 6], [17, 5], [10, 3], [4, 14], [16, 14]]) P.line(10, 10 + bob, x, y + bob, lt); eye(11, 10 + bob, 2); break;
+    case 'burrower': for (let k = 0; k < 5; k++) P.ell(3 + k * 3.5, 15 + Math.round(Math.sin(ph + k) * 1.5), 2.6, 2.6, k % 2 ? st : dk); eye(18, 14, 1); break;
+    default: legs(7, 2, 5); P.r(6, 6 + bob, 8, 11, st); P.r(6, 6 + bob, 8, 1, lt); P.ell(10, 5 + bob, 3.4, 3.4, lt); eye(11, 5 + bob); P.r(9, 9 + bob, 2, 6, PRE_GLOW); break;
+  }
+  postProcess(P.c); return { c: P.c, ax: 10, ay: 21, lights: L };
+}
+function preWalker(f, big) {
+  const W = big ? 30 : 24, H = big ? 36 : 30, P = painter(W, H), ph = gaitPh(f), bob = f % 2 ? -1 : 0, cx = W >> 1;
+  for (let i = 0; i < 2; i++) legStep(P, cx - 4 + i * 8, H - 12, 10, ph + i * Math.PI, '#2a3234', 2.4);
+  P.r(cx - 7, 4 + bob, 14, H - 16, '#4a5658'); P.r(cx - 7, 4 + bob, 14, 2, '#6a7674'); P.r(cx - 7, 4 + bob, 2, H - 16, '#5a6664');
+  for (let y = 9; y < H - 14; y += 4) P.r(cx - 4, y + bob, 8, 1, '#2e3638');
+  P.ell(cx, 9 + bob, 3, 3, '#1a1e20'); P.r(cx - 2, 9 + bob, 5, 1, PRE_GLOW); P.p(cx, 9 + bob, PRE_HOT);
+  postProcess(P.c); return { c: P.c, ax: cx, ay: H - 3, lights: [{ x: cx, y: 9, color: PRE_GLOW, r: big ? 22 : 14, pulse: true }] };
+}
+FAC_ART.precursors = cat => {
+  if (cat === 'armored') return finishVariant('creature', [0, 1, 2, 3].map(f => preWalker(f, false)));
+  if (cat === 'flyer') return finishVariant('drone', [0, 1, 2, 3].map(f => { const P = painter(16, 14), r = [0, 1, 0, -1][f]; P.ell(8, 7, 7, 2 + Math.abs(r), 'rgba(255,90,209,0.5)'); P.ell(8, 7, 4, 4, '#4a5658'); P.ell(8, 7, 2.2, 2.2, '#1a1e20'); P.p(8, 7, PRE_HOT); postProcess(P.c); return { c: P.c, ax: 8, ay: 7, lights: [{ x: 8, y: 7, color: PRE_GLOW, r: 12 }] }; }));
+  if (cat === 'gunship' || cat === 'naval') return finishVariant('vehicle', [0, 1, 2, 3].map(f => { const P = painter(26, 14), bob = [0, -1, 0, 1][f]; P.r(2, 6 + bob, 22, 4, '#4a5658'); P.r(4, 4 + bob, 18, 2, '#5a6664'); P.r(2, 10 + bob, 22, 1, '#2a3234'); for (let x = 5; x < 22; x += 4) P.p(x, 7 + bob, PRE_GLOW); P.ell(13, 3 + bob, 3, 2, '#3e4a4c'); P.p(13, 3 + bob, PRE_HOT); if (cat === 'gunship') P.r(6, 12 + bob, 14, 1, 'rgba(255,90,209,0.45)'); postProcess(P.c); return { c: P.c, ax: 13, ay: cat === 'naval' ? 11 : 8, lights: [{ x: 13, y: 6, color: PRE_GLOW, r: 14 }] }; }));
+  return finishVariant('creature', [0, 1, 2, 3].map(f => preUnit(cat, f)));
+};
+// ---------- bosses ----------
+BOSS_ART.goldenhandshake = (col, f, look) => { const c = scale2(vehTreads('#e8c040', look.skin, f).c), g = c.getContext('2d'); px(g, 2, 0, 1, 14, '#9aa3ad'); px(g, 3, 0, 12, 6, '#1a1a22'); px(g, 4, 1, 10, 4, '#e8c040'); postProcess(c, { shadeIt: false }); return { c, ax: c.width >> 1, ay: c.height - 4, lights: [{ x: 9, y: 3, color: '#ffd23f', r: 14 }] }; };
+BOSS_ART.exitpanel = (col, f, look) => {
+  const c = mkCanvas(44, 34), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  for (let k = 0; k < 3; k++) g.drawImage(drawHuman(genLook(), { shirt: '#3a3a4a', suit: '#c8a040', pants: '#2a2a30', shades: k === 1 }, k % 2 ? 'w1' : 'w0', (f + k) % 2), 2 + k * 13, 2);
+  px(g, 0, 18, 44, 6, '#6a4a2a'); px(g, 0, 18, 44, 1, '#8a6a44'); px(g, 2, 24, 3, 8, '#4a3220'); px(g, 39, 24, 3, 8, '#4a3220'); px(g, 18, 19, 8, 3, '#f2efe6'); px(g, 19, 20, 6, 1, '#d23c3c');
+  postProcess(c, { shadeIt: false }); return { c, ax: 22, ay: 32, lights: [{ x: 22, y: 20, color: '#ffd890', r: 18 }] };
+};
+BOSS_ART.lastforeman = (col, f, look) => { const c = scale2(drawHuman(look, { shirt: '#d86a2a', pants: '#c05a2a', hat: 'hardhat', prop: 'pickaxe', legStripe: '#eef2f5', mask: '#5a2a1a' }, ['w0', 'w1', 'w2', 'w3'][f], f % 2 ? 0 : 1)); postProcess(c, { shadeIt: false }); return { c, ax: 14, ay: 35, lights: [] }; };
+BOSS_ART.grievance = (col, f) => {
+  const P = painter(48, 52), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 2; i++) legStep(P, 16 + i * 16, 34, 14, ph + i * Math.PI, '#3a3a40', 3);
+  P.r(6, 8 + bob, 36, 26, '#8a7a4a'); P.r(6, 8 + bob, 36, 2, '#b8983a'); for (let k = 0; k < 9; k++) P.r(ri(8, 38), ri(11, 30) + bob, ri(3, 8), 3, pick(['#6a6a5a', '#a88a3a', '#5a7a8a', '#7a5a3a']));
+  for (let y = 12; y < 32; y += 3) for (let x = 9; x < 40; x += ri(5, 9)) P.r(x, y + bob, ri(2, 4), 1, '#eeeae0');
+  P.r(18, 2 + bob, 12, 7, '#5a5a5a'); P.r(20, 4 + bob, 8, 2, '#ff4d5e'); P.line(8, 8 + bob, 40, 34 + bob, '#d23c3c'); P.ell(24, 20 + bob, 5, 5, '#ffd23f'); P.p(24, 20 + bob, '#1a1a22');
+  P.r(40, 14 + bob, 8, 3, '#3a3a40'); P.r(0, 18 + bob, 8, 3, '#3a3a40');
+  postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 24, ay: 50, lights: [{ x: 24, y: 5, color: '#ff4d5e', r: 18 }, { x: 24, y: 20, color: '#ffd23f', r: 22 }] };
+};
+BOSS_ART.captain = (col, f, look) => { const c = scale2(drawHuman(look, { shirt: '#d8d0c0', coat: '#2a8a78', pants: '#2a2a30', hat: 'stetson', prop: 'rifle', chain: true }, ['w0', 'w1', 'w2', 'w3'][f], f % 2 ? 0 : 1)), g = c.getContext('2d'); px(g, 0, 0, 1, 18, '#9aa3ad'); px(g, 1, 0, 7, 5, '#1a1a1e'); px(g, 3, 1, 2, 2, '#e8e0d0'); postProcess(c, { shadeIt: false }); return { c, ax: 14, ay: 35, lights: [] }; };
+BOSS_ART.rustleviathan = (col, f, look) => { const c = scale2(vehTreads('#3a6a64', look.skin, f).c), g = c.getContext('2d'); for (let k = 0; k < 14; k++) px(g, ri(2, c.width - 4), ri(2, c.height - 8), 2, 2, '#8a4a2a'); px(g, c.width - 10, 0, 2, 14, '#5a5e66'); px(g, c.width - 18, 0, 10, 2, '#5a5e66'); px(g, c.width - 18, 2, 1, 6, '#9aa3ad'); postProcess(c, { shadeIt: false }); return { c, ax: c.width >> 1, ay: c.height - 4, lights: [] }; };
+BOSS_ART.thefence = (col, f, look) => {
+  const c = mkCanvas(40, 34), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  px(g, 0, 20, 40, 8, '#5a4a3a'); px(g, 0, 20, 40, 1, '#7a6a5a'); for (const [x, w] of [[2, 10], [14, 8], [24, 12]]) { px(g, x, 12, w, 8, '#8a6a44'); px(g, x, 12, w, 1, '#a88a64'); px(g, x + 2, 15, w - 4, 1, '#3ab8a0'); }
+  g.drawImage(drawHuman(look, { shirt: '#d8d0c0', coat: '#5a2a5a', pants: '#2a2a30', hat: 'fedora', prop: 'briefcase', chain: true }, 'n', f % 2), 13, 0);
+  px(g, 4, 28, 4, 4, '#1a1a1e'); px(g, 32, 28, 4, 4, '#1a1a1e');
+  postProcess(c, { shadeIt: false }); return { c, ax: 20, ay: 32, lights: [{ x: 20, y: 16, color: '#3ab8a0', r: 16 }] };
+};
+BOSS_ART.flagship = (col, f) => {
+  const P = painter(56, 40), bob = f % 2 ? -1 : 0;
+  P.r(2, 24, 52, 10, '#2a2a30'); for (let x = 4; x < 54; x += 6) { P.ell(x, 34, 3, 3, '#1a1a1e'); P.p(x + (f % 2), 34, '#5a5e66'); }
+  P.r(4, 12 + bob, 48, 13, '#3a6a64'); P.r(4, 12 + bob, 48, 2, '#5a8a84'); for (let x = 8; x < 50; x += 5) P.p(x, 18 + bob, '#ffd890');
+  P.r(18, 2 + bob, 16, 10, '#2a4a4a'); P.r(20, 4 + bob, 12, 3, '#ffd890'); P.r(26, 0, 1, 4, '#9aa3ad'); P.r(27, 0, 6, 4, '#1a1a1e'); P.p(29, 1, '#e8e0d0');
+  P.r(44, 8 + bob, 8, 3, '#4a4e5a'); P.r(50, 8 + bob, 4, 2, '#3ab8a0');
+  postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 28, ay: 37, lights: [{ x: 26, y: 5, color: '#ffd890', r: 18 }, { x: 52, y: 9, color: '#3ab8a0', r: 10 }] };
+};
+BOSS_ART.archon = (col, f) => { const c = scale2(preUnit('default', f).c); return { c, ax: 20, ay: 42, lights: [{ x: 22, y: 10, color: PRE_GLOW, r: 24, pulse: true }] }; };
+BOSS_ART.sarcophagus = (col, f) => { const c = scale2(preUnit('carrier', f).c); return { c, ax: 20, ay: 42, lights: [{ x: 20, y: 20, color: PRE_GLOW, r: 24 }] }; };
+BOSS_ART.chorus = (col, f) => { const c = mkCanvas(44, 46), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(preUnit('jammer', f).c, 0, 20); g.drawImage(preUnit('jammer', (f + 2) % 4).c, 24, 20); g.drawImage(scale2(preUnit('medic', f).c), 2, -6); return { c, ax: 22, ay: 42, lights: [{ x: 22, y: 14, color: PRE_GLOW, r: 30, pulse: true }] }; };
+BOSS_ART.dreamer = (col, f) => { const s = preWalker(f, true), c = scale2(s.c); return { c, ax: s.ax * 2, ay: s.ay * 2, lights: [{ x: s.ax * 2, y: 18, color: PRE_GLOW, r: 40, pulse: true }] }; };
+WALKER_BOSSES.push('lastforeman', 'grievance', 'captain', 'archon', 'sarcophagus', 'chorus', 'dreamer');
+// ---------- map dressing ----------
+OBST_EXTRA.haulcrate = () => { const P = painter(18, 18); for (const [x, y, w, h] of [[1, 8, 9, 8], [8, 4, 9, 12], [3, 1, 7, 7]]) { P.r(x, y, w, h, '#8a6a44'); P.r(x, y, w, 1, '#a88a64'); P.r(x, y + (h >> 1), w, 1, '#3ab8a0'); P.r(x, y, 1, h, '#6a4a2a'); } postProcess(P.c); return { c: P.c, lights: [], props: [] }; };
+OBST_EXTRA.glyphstone = () => { const P = painter(18, 24); P.r(5, 2, 8, 20, '#4a5658'); P.r(5, 2, 8, 1, '#6a7674'); P.r(5, 2, 1, 20, '#5a6664'); for (const y of [5, 9, 13, 17]) { P.r(7, y, 4, 1, '#2a3234'); P.p(8 + (y % 3), y, PRE_GLOW); } P.r(3, 21, 12, 2, '#2e3638'); postProcess(P.c); return { c: P.c, lights: [{ x: 9, y: 10, color: PRE_GLOW, r: 12, pulse: true }], props: [] }; };
+OBST_EXTRA.shanty = () => { const P = painter(18, 18); P.r(2, 7, 14, 9, '#6a6a5a'); for (let x = 2; x < 16; x += 3) P.r(x, 7, 1, 9, '#5a5a4a'); P.r(1, 5, 16, 3, '#8a4a2a'); P.r(1, 5, 16, 1, '#a86a3a'); P.r(7, 10, 4, 6, '#2a2a2e'); P.r(3, 9, 3, 3, '#ffd890'); P.r(12, 10, 3, 2, '#c8a040'); postProcess(P.c); return { c: P.c, lights: [{ x: 4, y: 10, color: '#ffd890', r: 8 }], props: [] }; };
+const dressMap = (kinds, n) => map => { let k = 0; for (const o of shuffle(map.obstacles.slice())) { if (k >= n) break; if (Math.hypot(o.x - map.dep.x, o.y - map.dep.y) < 3) continue; o.kind = pick(kinds); k++; } };
+FACTION_MAP.abandoned = dressMap(['derelict', 'shanty', 'shanty'], 5);
+FACTION_MAP.haulers = dressMap(['haulcrate'], 5);
+FACTION_MAP.precursors = dressMap(['glyphstone'], 5);
+// ---------- envoys ----------
+ENVOY_ART.abandoned = (P, glints) => {
+  const skin = '#c89c7a', sk2 = '#a87c5a';
+  P.ell(38, 96, 36, 28, '#b8983a'); P.r(30, 70, 16, 14, '#a8883a'); P.r(34, 72, 8, 3, '#3a4a5c'); P.r(44, 74, 3, 3, '#ffd23f'); P.line(30, 76, 46, 72, '#5a4a2a');
+  P.r(32, 50, 12, 22, sk2); P.ell(38, 36, 15, 17, skin); P.ell(24, 38, 2, 4, sk2); P.ell(52, 38, 2, 4, sk2);
+  P.ell(38, 22, 16, 8, '#9a9a9a'); P.r(24, 22, 4, 12, '#9a9a9a'); P.r(48, 22, 4, 12, '#9a9a9a');
+  P.r(30, 33, 6, 4, '#ffffff'); P.r(41, 33, 6, 4, '#ffffff'); P.r(30, 33, 6, 1, '#5a4a3a'); P.r(41, 33, 6, 1, '#5a4a3a'); P.r(36, 34, 5, 1, '#5a4a3a');
+  P.p(33, 35, '#2a2a30'); P.p(44, 35, '#2a2a30'); P.r(33, 45, 10, 1, '#8a5a4a'); P.p(30, 42, sk2); P.p(46, 42, sk2);
+  P.r(52, 58, 16, 22, '#e8e0d0'); P.r(54, 61, 12, 1, '#3a3a40'); P.r(54, 64, 8, 1, '#3a3a40'); P.r(54, 70, 12, 2, '#c8a040'); P.r(55, 74, 10, 1, '#d23c3c');
+  glints.push({ x: 33, y: 34, w: 1, h: 1, col: '#ffffff' });
+};
+ENVOY_ART.haulers = (P, glints) => {
+  const skin = '#8a5a3c', sk2 = '#6e4630';
+  P.ell(38, 96, 36, 28, '#5a3a2a'); P.r(10, 70, 56, 4, '#3ab8a0'); P.r(34, 64, 8, 20, '#d8d0c0');
+  P.r(32, 50, 12, 16, sk2); P.ell(38, 36, 15, 17, skin); P.ell(24, 38, 2, 4, sk2);
+  P.r(18, 18, 40, 5, '#3ab8a0'); P.r(22, 14, 30, 6, '#2a8a78'); P.r(52, 20, 6, 10, '#2a8a78');
+  P.r(29, 33, 7, 5, '#1a1a1e'); P.line(24, 31, 52, 30, '#1a1a1e'); P.r(42, 33, 5, 3, '#ffffff'); P.p(44, 34, '#2a2a30');
+  P.line(40, 40, 46, 48, '#c87a5a'); P.r(33, 46, 10, 2, '#5a3020'); P.r(34, 46, 2, 1, '#ffd23f');
+  P.r(4, 56, 18, 3, '#7a5a3a'); P.r(20, 52, 4, 10, '#5a5e66'); P.r(2, 54, 3, 6, '#3a3a40');
+  glints.push({ x: 34, y: 46, w: 2, h: 1, col: '#ffd23f' });
+};
+ENVOY_ART.precursors = (P, glints) => {
+  // the Archivist: a mask of stone hanging in light, three eyes, no mouth
+  P.ell(38, 92, 30, 20, 'rgba(255,90,209,0.18)');
+  P.ell(38, 44, 22, 30, '#4a5658'); P.ell(38, 42, 19, 26, '#56625f'); P.r(30, 12, 16, 4, '#6a7674');
+  for (const [x, y] of [[29, 38], [47, 38], [38, 28]]) { P.ell(x, y, 4, 3, '#1a1e20'); P.r(x - 2, y, 5, 1, PRE_GLOW); P.p(x, y, PRE_HOT); }
+  for (let y = 50; y < 70; y += 4) P.r(30, y, 16, 1, '#3e4a4c');
+  for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283; P.p(Math.round(38 + Math.cos(a) * 30), Math.round(44 + Math.sin(a) * 36), PRE_GLOW); }
+  glints.push({ x: 27, y: 38, w: 5, h: 1, col: PRE_GLOW }, { x: 45, y: 38, w: 5, h: 1, col: PRE_GLOW }, { x: 36, y: 28, w: 5, h: 1, col: PRE_HOT });
+};
+ENVOY_SCENES.colony = (g, t) => {
+  const bg = ENVOY_CACHE.colony || (ENVOY_CACHE.colony = (() => {
+    const P = painter(200, 112);
+    for (let y = 0; y < 112; y++) P.r(0, y, 200, 1, mixHex('#2a1a24', '#5a3a2a', y / 112));
+    for (let k = 0; k < 6; k++) { const x = ri(0, 180), w = ri(20, 40), h = ri(16, 34); P.r(x, 80 - h, w, h + 32, pick(['#3a3430', '#4a4038', '#34302c'])); P.r(x, 80 - h, w, 2, '#6a5a48'); for (let wx = x + 3; wx < x + w - 3; wx += 6) if (rnd() < 0.5) P.r(wx, 84 - h, 3, 3, '#ffd890'); }
+    P.r(130, 30, 40, 18, '#4a4a40'); P.r(132, 32, 36, 6, '#c8a040'); P.line(130, 30, 170, 48, '#d23c3c'); P.line(170, 30, 130, 48, '#d23c3c');
+    P.r(0, 96, 200, 16, '#2a2420');
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  for (let k = 0; k < 6; k++) { const x = 20 + k * 30, y = 90 - (k % 2) * 4, h = 6 + Math.round(Math.sin(t * 6 + k) * 2); px(g, x, y - h, 3, h, '#ff9a4a'); px(g, x + 1, y - h - 1, 1, 2, '#ffd890'); }
+};
+ENVOY_SCENES.hold = (g, t) => {
+  const bg = ENVOY_CACHE.hold || (ENVOY_CACHE.hold = (() => {
+    const P = painter(200, 112);
+    for (let y = 0; y < 112; y++) P.r(0, y, 200, 1, mixHex('#141c1c', '#2a2420', y / 112));
+    for (let k = 0; k < 9; k++) { const x = ri(0, 180), y = ri(50, 90), w = ri(14, 28), h = ri(10, 20); P.r(x, y, w, h, '#6a5238'); P.r(x, y, w, 2, '#8a6a48'); P.r(x, y + (h >> 1), w, 1, '#3ab8a0'); P.r(x, y, 1, h, '#4a3a28'); }
+    P.ell(160, 30, 16, 16, '#3a4a4a'); P.ell(160, 30, 13, 13, '#06080e'); for (let k = 0; k < 12; k++) P.p(150 + ri(0, 20), 20 + ri(0, 20), '#ffffff');
+    for (let x = 0; x < 200; x += 8) P.line(x, 0, x + 6, 14, '#5a4a3a');
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  const sw = Math.sin(t * 1.2) * 3; px(g, 40 + Math.round(sw), 0, 1, 26, '#5a5e66'); px(g, 37 + Math.round(sw), 26, 7, 4, '#2a2e36'); px(g, 39 + Math.round(sw), 28, 3, 2, '#ffd890');
+};
+ENVOY_SCENES.archive = (g, t) => {
+  const bg = ENVOY_CACHE.archive || (ENVOY_CACHE.archive = (() => {
+    const P = painter(200, 112);
+    for (let y = 0; y < 112; y++) P.r(0, y, 200, 1, mixHex('#06080a', '#141c1e', y / 112));
+    for (let k = 0; k < 7; k++) { const x = 8 + k * 28, h = 60 + (k % 3) * 10; P.r(x, 112 - h, 10, h, '#2e3638'); P.r(x, 112 - h, 10, 2, '#4a5654'); for (let y = 112 - h + 6; y < 108; y += 7) P.p(x + 4 + (y % 3), y, PRE_GLOW); }
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  for (let k = 0; k < 14; k++) { const x = (k * 37 + t * 8) % 200, y = 100 - ((t * 10 + k * 23) % 100); px(g, Math.round(x), Math.round(y), 1, 1, k % 3 ? PRE_GLOW : PRE_HOT); }
+};
+
+// ================================================================
+// ACT 2 FACTIONS: rules, story and consequences
+// ================================================================
+FACTIONS.abandoned = {
+  name: 'The Colony of the Abandoned', short: 'The Abandoned', color: '#c8a040',
+  trait: 'Ex-Kindly staff. They know your playbook: their elites wear salvaged company armour (+3) and carry the names of colleagues you lost.',
+  cats: { swarm: 4, fast: 1.5, ranged: 1.6, medic: 1.2, shield: 1.4, saboteur: 1.4, armored: 1.6, flyer: 1.2, splitter: 1, jammer: 1, carrier: 1, berserk: 1 },
+  names: { swarm: 'Laid-Off Associate', fast: 'Exit Interviewer', armored: 'Repurposed Turret Rig', flyer: 'Salvaged Drone', saboteur: 'Disgruntled Technician', medic: 'Former First Aider', shield: 'Riot Desk', splitter: 'Former Team Lead', stealth: 'Ghost Employee', jammer: 'Former HR', ranged: 'Ex-Marksman', carrier: 'Colony Recruiter', blinker: 'Fire Exit', berserk: 'Final Warning', burrower: 'Shaft Survivor', gunship: 'Repossessed Dropship', naval: 'Liferaft Flotilla' },
+  bosses: [
+    { id: 'goldenhandshake', name: 'The Golden Handshake', hp: 2900, spd: 0.38, armor: 8, r: 24, charge: { every: 8, dur: 1.5, mult: 2.4 }, shockwave: { every: 10, r: 2.2, dmg: 30, stun: 2 }, desc: 'A gold-painted turret rig from a retirement party nobody attended. Charges, then stamps the ground to stun crew.' },
+    { id: 'exitpanel', name: 'The Exit Interview Panel', hp: 2500, spd: 0.36, armor: 5, r: 22, jamAura: { r: 2.6, amt: 0.45 }, spawn: { cat: 'splitter', n: 1, every: 9 }, desc: 'Three ex-HR managers behind a desk on wheels. Crew within 2.6 tiles work 45% slower while it asks how they feel.' },
+    { id: 'lastforeman', name: 'The Last Foreman', hp: 2700, spd: 0.4, armor: 6, r: 22, barrage: { every: 6, n: 2, dmg: 26, range: 4 }, spawn: { cat: 'swarm', n: 3, every: 8 }, desc: 'Ran the mortar crew for twenty years before the cuts. Still lobs shells at two crew every 6s.' },
+  ],
+  apex: { id: 'grievance', name: 'The Grievance', hp: 5600, spd: 0.3, armor: 9, r: 28, bubble: { at: [0.7, 0.4], cat: 'shield', n: 4 }, barrage: { every: 6, n: 3, dmg: 28, range: 4.2 }, spawn: { cat: 'swarm', n: 4, every: 9 }, secondWind: { at: 0.2, to: 0.45 }, desc: 'A walking mech built from scrapped dropships, with the name of every fired employee painted on it. Shields itself, shells three crew at a time and refuses to be let go.' },
+  clients: [
+    { n: 'Kindly Facilities (Internal)', good: false, asset: 'repossessed Kessilite', why: 'former employees are "occupying" a decommissioned site' },
+    { n: 'Sunset Retirement Moons', good: true, asset: 'pension-fund crystals', why: 'the Colony wants the pension Kindly never paid into' },
+    { n: 'Clearwater Debt Recovery', good: false, asset: 'collateral Lumenite', why: 'ex-employees refuse to repay their uniform costs' },
+  ],
+};
+FACTIONS.haulers = {
+  name: 'The Free Haulers Guild', short: 'Free Haulers', color: '#3ab8a0',
+  trait: 'Smugglers. Their boats and gunships come far more often, and anything of theirs that reaches the drill steals 50% more.',
+  cats: { swarm: 3, fast: 2, naval: 3, gunship: 2.4, ranged: 1.6, armored: 1.4, stealth: 1.2, saboteur: 1.2, berserk: 1.2, carrier: 1, flyer: 1 },
+  names: { swarm: 'Deckhand', fast: 'Runner', armored: 'Hauler Crawler', flyer: 'Smuggler Drone', saboteur: 'Cutter', medic: "Ship's Surgeon", shield: 'Bulkhead', splitter: 'Boarding Party', stealth: 'Stowaway', jammer: 'Signal Pirate', ranged: 'Harpooner', carrier: 'Quartermaster', blinker: 'Jump Jockey', berserk: 'Brawler', burrower: 'Hull Breacher', gunship: 'Corsair Gunship', naval: 'Hauler Barge' },
+  bosses: [
+    { id: 'captain', name: 'Captain Rook Halloran', hp: 2700, spd: 0.44, armor: 6, r: 22, charge: { every: 7, dur: 1.4, mult: 2.6 }, barrage: { every: 6, n: 2, dmg: 24, range: 4 }, desc: 'The Guild\'s most wanted. Charges the line and shoots two crew every 6s.' },
+    { id: 'rustleviathan', name: 'The Rust Leviathan', hp: 3100, spd: 0.3, armor: 10, r: 26, bubble: { at: [0.66, 0.33], cat: 'shield', n: 3 }, spawn: { cat: 'swarm', n: 4, every: 8 }, desc: 'A salvage crawler the size of a building. Seals itself twice behind bulkheads and drops deckhands as it rolls.' },
+    { id: 'thefence', name: 'The Fence', hp: 2400, spd: 0.42, armor: 4, r: 22, healAura: { r: 3, hps: 16 }, spawn: { cat: 'carrier', n: 1, every: 10 }, desc: 'Sells everything, including first aid. Heals every hauler within 3 tiles and keeps calling in quartermasters.' },
+  ],
+  apex: { id: 'flagship', name: 'The Freeport Flagship', hp: 5800, spd: 0.26, armor: 11, r: 30, barrage: { every: 5, n: 3, dmg: 26, range: 4.6 }, spawn: { cat: 'fast', n: 3, every: 8 }, shockwave: { every: 11, r: 2.4, dmg: 32, stun: 2 }, secondWind: { at: 0.2, to: 0.45 }, desc: 'The Guild\'s home, on treads. Fires broadsides at three crew, launches runners, rams the ground, and the crew always patches it up once.' },
+  clients: [
+    { n: 'Interstellar Customs Authority', good: true, asset: 'seized contraband crystals', why: 'the Guild would like its cargo back' },
+    { n: 'Halberd Freight Insurance', good: false, asset: 'insured Dreamquartz', why: 'the Guild keeps "losing" insured shipments, profitably' },
+    { n: 'Dockside Orphans\' Trust', good: true, asset: 'trust-fund Lumenite', why: 'pirates. It is always pirates.' },
+  ],
+};
+FACTIONS.precursors = {
+  name: 'The Precursor Archive', short: 'Precursors', color: '#ff5ad1',
+  trait: 'Psychic constructs. Their veterans and elites dull your crew: crew within 1.8 tiles of one fire 25% slower.',
+  cats: { swarm: 3.5, fast: 2, armored: 1.8, flyer: 1.6, shield: 1.4, blinker: 1.6, jammer: 1.4, stealth: 1.2, splitter: 1.2, medic: 1, carrier: 1, burrower: 1 },
+  names: { swarm: 'Shard Wisp', fast: 'Glyph Hound', armored: 'Monolith Walker', flyer: 'Watcher Eye', saboteur: 'Unraveller', medic: 'Restorer', shield: 'Aegis Obelisk', splitter: 'Fractal', stealth: 'Veilwalker', jammer: 'Whisper Spire', ranged: 'Beam Sentinel', carrier: 'Sarcophagus', blinker: 'Phase Shade', berserk: 'Fury Glyph', burrower: 'Tomb Wyrm', gunship: 'Sky Ark', naval: 'Psi Barge' },
+  bosses: [
+    { id: 'archon', name: 'The Archon', hp: 2600, spd: 0.42, armor: 6, r: 24, blink: { every: 7, tiles: 2.4 }, barrage: { every: 6, n: 2, dmg: 26, range: 4 }, desc: 'A guardian of the Archive. Steps through space every 7s and burns two crew at a time.' },
+    { id: 'sarcophagus', name: 'The Waking Sarcophagus', hp: 3000, spd: 0.3, armor: 9, r: 24, bubble: { at: [0.66, 0.33], cat: 'shield', n: 3 }, spawn: { cat: 'swarm', n: 4, every: 8 }, desc: 'Something is getting up inside. Seals itself behind aegis obelisks twice and lets out wisps as it walks.' },
+    { id: 'chorus', name: 'The Thousand Whispers', hp: 2400, spd: 0.4, armor: 4, r: 22, emp: { every: 11, r: 2.8, dur: 2.4 }, jamAura: { r: 2.4, amt: 0.4 }, desc: 'You hear it before you see it. Knocks nearby crew offline every 11s and slows everything else.' },
+  ],
+  apex: { id: 'dreamer', name: 'The One Who Dreams Below', hp: 5600, spd: 0.32, armor: 8, r: 30, blink: { every: 8, tiles: 2.4 }, emp: { every: 12, r: 3, dur: 2.5 }, shed: { step: 0.12, cat: 'swarm', n: 5 }, barrage: { every: 6, n: 3, dmg: 28, range: 4.4 }, secondWind: { at: 0.2, to: 0.45 }, desc: 'The oldest thing in the Archive, half awake. Blinks forward, silences crew, sheds wisps as it is hurt, burns three crew at a time, and wakes again once.' },
+  clients: [
+    { n: 'Meridian Archaeological Trust', good: true, asset: 'excavated Psi-crystal', why: 'the dig site has started digging back' },
+    { n: 'Xenoheritage Luxury Tours', good: false, asset: 'souvenir glyph-stone', why: 'the tomb would prefer not to be a gift shop' },
+    { n: 'Deep Crust Energy', good: false, asset: 'psionic Dreamquartz', why: 'the drill woke something and it has opinions' },
+  ],
+};
+for (const f of ['abandoned', 'haulers', 'precursors']) { fullRoster(FACTIONS[f]); ACTS[2].factions.push(f); }
+Object.assign(BLOOD, { abandoned: '#6a1416', haulers: '#6a1416', precursors: '#a83a8a' });
+Object.assign(SCENE_DRILL_COL, { abandoned: ['#6a6a5a', '#c8a040'], haulers: ['#3a6a64', '#3ab8a0'], precursors: ['#4a5658', '#ff5ad1'] });
+Object.assign(RELICS, {
+  exitpack: { name: 'Exit Package', desc: 'Replacement hires cost 40% less.', special: true },
+  patience: { name: 'Glyph of Patience', desc: 'Crew gain 20% more experience.', special: true },
+  archivemem: { name: "The Archive's Memory", desc: 'Crew deal 20% more damage to bosses and elites.', special: true },
+});
+Object.assign(ALLY_PHRASE, { abandoned: 'the Colony of the Abandoned', haulers: "the Guild's gunships", precursors: 'the Archive' });
+// ---------- the arcs ----------
+const courierTxt = unit => a => `Let ${a.n} ${unit.toLowerCase()}s through: −${a.n * a.each}% margin. Splash can still kill them.`;
+ARCS.abandoned = {
+  envoy: 'Marguerite Vance', title: 'Mayor, Colony of the Abandoned. Employee of the Month (x3)', kind: 'plea', scene: 'colony', col: '#c8a040', reportPay: 25,
+  beats: [
+    { name: 'Severance', ask: { kind: 'couriers', cat: 'swarm', n: 4, each: 3, unit: 'Ex-Employee', txt: a => `Let ${a.n} ex-employees collect the severance Kindly never paid: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 15,
+      lines: x => [`Hello, dear. Marguerite Vance. Three times Employee of the Month, once "an acceptable loss".`, `The Colony of the Abandoned is everyone Kindly left on a rock to save on fuel. There are a lot of us now.`, `Four of ours are coming to ${x.planet} for the severance we were never paid. Look away, and we'll call it even. For now.`],
+      reward: 'Relic: Exit Package. Replacement hires cost 40% less.',
+      accept: `Thank you, dear. You still have a conscience. Keep it somewhere HR can't reach.`, refuse: `They said the same thing to me, in that same voice. Then they left me on a moon.`, report: `Oh, sweetheart. They'll leave you on a rock too. We'll save you a seat.` },
+    { name: 'References', ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10, unit: 'Ex-HR Clerk', txt: a => `Let ${a.n} ex-HR clerks wipe the Colony's debts at your drill terminal: ${a.secs}s pause each. Splash can still kill them.` }, heat: 15,
+      lines: x => [`${x.prevThrough} of ours came home from ${x.prevPlanet} with real money. We bought medicine. And a kettle.`, `Kindly still bills the Colony for "unreturned uniforms". Two of our old HR clerks know the codes. Let them into your drill's terminal and the debt disappears.`, `And Dee wants to come back to work. Not for Kindly. For you.`],
+      reward: 'Dee "Spreadsheet" Okafor joins your crew: a rank 3 taser technician with the Tenured quirk (+35% HP).',
+      accept: `Dee's bringing her own mug. She doesn't trust ours.`, refuse: `Then we stay in debt to the people who abandoned us. Very on-brand.`, report: `Dee says she isn't surprised. Dee is never surprised. Kindly did that to her.` },
+    { name: 'The Walkout', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 2, unit: 'Ex-Employee', txt: a => `Let ${a.n} ex-employees through: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 20,
+      lines: x => [`It's time, dear. Every abandoned employee in the ${x.sector} is walking back towards Kindly's money.`, `Let five of us through on ${x.planet}. When the board's last job comes, the Colony will be standing next to you.`, `We know exactly how Kindly fights. We wrote the manual.`],
+      reward: 'The Colony Marches: on the final contract, every 18s three armed ex-employees march out from the drill and hold the road.',
+      accept: `See you on the last day, dear. Bring a coat.`, refuse: `Then we'll walk without you. We're used to it.`, report: `Of course. Employee of the Month, I expect.` },
+  ],
+  truce: `You hurt our people, dear. Pay what's owed and we'll talk like adults.`,
+  favour: `You've been kind to us. That's rare enough that we want to return it.`,
+  hr: {
+    honoured: [x => `Severance was paid to unregistered former employees on ${x.planet}. Severance is not a benefit Kindly offers. Please explain.`, x => `A Ms. D. Okafor has been rehired without HR's involvement. Her personnel file was found in a skip. It has been returned to the skip.`, x => `Hundreds of former employees are walking towards headquarters. Their badges still work. HR is "looking into" deactivating them, any decade now.`],
+    betrayed: x => `You fired on former colleagues under an agreement on ${x.planet}. HR notes this is consistent with company policy and inconsistent with being a person.`,
+    collateral: x => `A former employee died in your crossfire on ${x.planet}. They are being billed for the shell.`,
+    reported: x => `Thank you for reporting Ms. Marguerite Vance. Her Employee of the Month plaques have been revoked retroactively. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    refused: x => `HR notes you declined to negotiate with ex-employees. Former staff are not stakeholders. They are a liability.`,
+  },
+  news: [x => `Abandoned colony collects "severance" on ${x.planet}; Kindly denies it owed any`, x => `Ex-Kindly HR clerk rehired by field crew; Kindly HR "not consulted"`, x => `Thousands of ex-employees march on Kindly HQ; badges "still technically active"`],
+};
+ARCS.haulers = {
+  envoy: 'Bex Ironwake', title: 'Quartermaster, Free Haulers Guild', kind: 'bribe', scene: 'hold', col: '#3ab8a0', reportPay: 30,
+  beats: [
+    { name: 'Cargo', pay: 40, ask: { kind: 'skim', cat: 'flyer', n: 3, each: 4, unit: 'Smuggler Drone', txt: a => `Let ${a.n} smuggler drones skim the drill: −${a.n * a.each}% margin. They pay 40 scrip up front.` }, heat: 20,
+      lines: x => [`Bex Ironwake, Free Haulers. You've got a drill full of cargo nobody's insured properly. I've got an empty hold.`, `Three of my drones skim ${x.planet}, quietly. Forty scrip in your account before you land.`, `Kindly calls it theft. The Guild calls it redistribution with better margins.`],
+      reward: 'Forty scrip now, and the Guild opens its black market: the Company Store stocks smuggled relics.',
+      accept: `Pleasure doing crime with you.`, refuse: `Your loss. You lose the cargo either way, just slower.`, report: `Ha. Kindly will fine us. We'll pay it with your crystals.` },
+    { name: 'Contraband', pay: 30, ask: { kind: 'couriers', cat: 'fast', n: 4, each: 3, unit: 'Runner', txt: a => `Let ${a.n} runners through: −${a.n * a.each}% margin. They pay 30 scrip up front. Splash can still kill them.` }, heat: 20,
+      lines: x => [`${x.prevThrough} crates moved clean on ${x.prevPlanet}. The Guild's impressed. Impressed people pay.`, `Four runners this time, on ${x.planet}. Thirty scrip, and something from the Captain's personal collection.`, `Don't ask where he got it. He doesn't remember either.`],
+      reward: `Thirty scrip now, and a free artifact from the Captain's collection.`,
+      accept: `It's in a crate marked "not an artifact". Very subtle.`, refuse: `The Captain will be disappointed. He's very bad at being disappointed.`, report: `Bounty on you just went up. Congratulations, you're famous.` },
+    { name: 'Free Port', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 3, unit: 'Deckhand', txt: courierTxt('Deckhand') }, heat: 25,
+      lines: x => [`The Guild's declaring a free port. Every hold, every crawler, every gunship in the ${x.sector}.`, `Five of ours through on ${x.planet}, no payment this time. This one's about loyalty. When the board comes for you, Corsair gunships will be overhead.`, `The Captain says to tell you that's a compliment. He doesn't give many.`],
+      reward: 'Free Port: on the final contract, Corsair gunships strafe the hostiles every 25s.',
+      accept: `Look up when it gets bad. We'll be there.`, refuse: `Then the Guild sails without you.`, report: `Shame. You'd have looked good with a skull on your lanyard.` },
+  ],
+  truce: `You cost the Guild a ship. Guild law says you pay it back, in cargo.`,
+  favour: `The Guild remembers its friends. The Captain's sending some help, no charge. This once.`,
+  hr: {
+    honoured: [x => `Inventory drones on ${x.planet} report cargo "flying away on its own". Insurance has been informed. Insurance has also been robbed.`, x => `An unregistered artifact has appeared in your equipment locker labelled "NOT AN ARTIFACT". HR accepts this explanation.`, x => `Every warehouse in the ${x.sector} has been declared a "free port". HR does not know what that means and is afraid to ask.`],
+    betrayed: x => `You fired on smugglers you'd agreed to let through on ${x.planet}. HR appreciates your loyalty. The Guild has put a price on your head. HR has matched it.`,
+    collateral: x => `A Guild runner died in your crossfire on ${x.planet}. The Guild has sent an invoice.`,
+    reported: x => `Thank you for reporting Quartermaster Ironwake. A Guild crawler was impounded and auctioned. You did not win the auction. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    refused: x => `HR notes you refused a bribe. HR is suspicious of people who refuse bribes.`,
+  },
+  news: [x => `Cargo "flies off" ${x.planet} drill; Guild denies all knowledge, offers a discount`, x => `Mysterious artifact found in Kindly locker; "not an artifact", says label`, x => `Free Haulers declare free port across the ${x.sector}; customs officers "on holiday"`],
+};
+ARCS.precursors = {
+  envoy: 'The Archivist', title: 'Last Voice of the Precursor Archive', kind: 'plea', scene: 'archive', col: '#ff5ad1', reportPay: 25,
+  beats: [
+    { name: 'The Sleepers', ask: { kind: 'escort', cat: 'carrier', n: 3, each: 0, secs: 8, unit: 'Sarcophagus', txt: a => `Let ${a.n} sarcophagi settle beneath the drill: +${a.secs}s extraction each. Splash can still destroy them.` }, heat: 12,
+      lines: x => [`WE ARE THE ARCHIVE. WE HAVE WATCHED YOUR SPECIES DIG FOR ELEVEN THOUSAND OF YOUR YEARS. YOU ARE NOT GOOD AT IT.`, `YOUR DRILL ON ${x.planet.toUpperCase()} HAS WOKEN THE SLEEPERS. THREE MUST RETURN TO THEIR REST BENEATH IT.`, `LET THEM PASS. THE ALTERNATIVE IS THAT THEY STAY AWAKE.`],
+      reward: 'Relic: Glyph of Patience. Your crew gain 20% more experience.',
+      accept: `ACKNOWLEDGED. YOU ARE MARGINALLY LESS DISAPPOINTING.`, refuse: `THEN THEY WILL NOT SLEEP. NEITHER WILL YOU.`, report: `YOUR HR HAS FILED US AS "GEOLOGY". WE WILL REMEMBER THIS.` },
+    { name: 'The Archive', ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10, unit: 'Whisper Spire', txt: a => `Let ${a.n} whisper spires read your drill's memory: ${a.secs}s pause each. Splash can still destroy them.` }, heat: 12,
+      lines: x => [`THE SLEEPERS RESTED. ${(x.prevPlanet || '').toUpperCase()} IS QUIET AGAIN. THIS IS ADEQUATE.`, `NOW WE MUST READ YOUR MACHINE. WHAT YOUR COMPANY KNOWS, WE MUST KNOW. TWO SPIRES WILL LISTEN TO YOUR DRILL.`, `IN RETURN WE WILL TEACH YOUR CREW WHERE THE BIG ONES ARE SOFT.`],
+      reward: "Relic: The Archive's Memory. Your crew deal 20% more damage to bosses and elites.",
+      accept: `READING. YOUR COMPANY IS... LOUD.`, refuse: `THEN WE WILL READ IT ANOTHER WAY. YOU WILL NOT ENJOY THE OTHER WAY.`, report: `FILED. CROSS-REFERENCED. REMEMBERED.` },
+    { name: 'The Waking', ask: { kind: 'escort', cat: 'carrier', n: 4, each: 0, secs: 6, unit: 'Sarcophagus', txt: a => `Let ${a.n} sarcophagi settle beneath the drill: +${a.secs}s extraction each. Splash can still destroy them.` }, heat: 15,
+      lines: x => [`WE HAVE READ YOUR COMPANY. THERE IS SOMETHING BENEATH IT, OLDER THAN YOU AND YOUNGER THAN US. IT IS HUNGRY.`, `LET FOUR SLEEPERS SETTLE BENEATH YOUR DRILL ON ${x.planet.toUpperCase()}. WHEN THE HUNGRY THING SENDS ITS LAST CONTRACT, WE WILL WAKE THE DRILL.`, `DO NOT STAND IN FRONT OF IT.`],
+      reward: 'The Waking: on the final contract, the drill fires a precursor beam at the three toughest hostiles every 18s.',
+      accept: `IT WILL BE LOUD. WE APOLOGISE IN ADVANCE. WE DO NOT USUALLY APOLOGISE.`, refuse: `THEN THE HUNGRY THING WILL EAT. IT IS NOT PARTICULAR.`, report: `THE ARCHIVE HAS ADDED YOUR NAME TO A LIST. IT IS NOT A GOOD LIST.` },
+  ],
+  truce: `YOU DESTROYED SLEEPERS. RESTITUTION IS REQUIRED. THEN WE MAY SPEAK AGAIN.`,
+  favour: `YOU HAVE BEEN ADEQUATE. THE ARCHIVE WILL LEND YOU SOME OF ITS GUARDIANS.`,
+  hr: {
+    honoured: [x => `Extraction on ${x.planet} paused while "the ground hummed". Geology has been billed for the delay.`, x => `Your drill's memory was read by an unauthorised party. The party was a rock. HR is drafting a policy on rocks.`, x => `Something under the ${x.sector} woke up and filed a report about us. HR has never been reported on before. HR does not like it.`],
+    betrayed: x => `You destroyed sleeping constructs under an agreement on ${x.planet}. HR has classified this as "demolition". The Archive has classified it differently.`,
+    collateral: x => `A sarcophagus was damaged in your crossfire on ${x.planet}. Whatever was inside it is now outside it.`,
+    reported: x => `Thank you for reporting "the Archivist". It has been filed as geology. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    refused: x => `HR notes you refused to negotiate with a tomb. HR approves. Tombs do not have a seat at the table.`,
+  },
+  news: [x => `Ground on ${x.planet} "hums for an hour"; Kindly blames the drill, the drill blames the ground`, x => `Kindly drill "read by a rock", says field report; HR drafting rock policy`, x => `Ancient constructs wake across the ${x.sector}; Kindly stock "unaffected", Kindly insists`],
+};
+Object.assign(STANDING_LINES, {
+  abandoned: { hostile: x => `Hello again, dear. You made a lot of widows on ${x.lastPlanet}. I'm calling anyway. We never learned when to quit.`, wary: x => `The Colony voted on whether to call you. It was close.`, friendly: x => `Dee's made you a cake. It's mostly instant coffee. It's the thought.`, allied: x => `Every one of us would walk through fire for you, dear. Most of us already have.` },
+  haulers: { hostile: x => `There's a bounty on you the size of a moon. I'm calling because business is business.`, wary: x => `The Guild doesn't trust you. The Guild doesn't trust anyone, but especially you.`, friendly: x => `My favourite lanyard. Your crate's in the usual place.`, allied: x => `The Captain has your name painted on his ship. Next to the skull. That's an honour.` },
+  precursors: { hostile: x => `YOU DESTROYED SLEEPERS ON ${(x.lastPlanet || '').toUpperCase()}. WE SPEAK ONLY BECAUSE SILENCE HAS NOT WORKED.`, wary: x => `THE ARCHIVE OBSERVES YOU. IT HAS NOT DECIDED WHAT YOU ARE.`, friendly: x => `THE ARCHIVE HAS CATALOGUED YOU AS "ADEQUATE". THIS IS A COMPLIMENT.`, allied: x => `THE ARCHIVE HAS GIVEN YOU A NAME IN OUR LANGUAGE. IT TAKES NINE MINUTES TO SAY. IT IS KIND.` },
+});
+const _grantAct2 = grantReward;
+grantReward = function (fac, beat) {
+  const st = RUN.story, relic = id => { if (!RUN.relics.includes(id)) RUN.relics.push(id); };
+  if (fac === 'abandoned') {
+    if (beat === 0) relic('exitpack');
+    if (beat === 1 && RUN.roster.length < 8) { const cr = mkCrew('taser', 'Dee Okafor', genLook(), 'tenured'); cr.level = 3; cr.xp = XP_TH[2]; RUN.roster.push(cr); RUN.usedNames.add(cr.name); }
+    if (beat === 2) st.flags.colony = true;
+  } else if (fac === 'haulers') {
+    if (beat === 0) st.flags.blackMarket = true;
+    if (beat === 1) { RUN.artifacts = RUN.artifacts || []; const owned = RUN.artifacts.map(a => a.id), fresh = ARTIFACT_IDS.filter(id => !owned.includes(id)); if (fresh.length) RUN.artifacts.push({ id: pick(fresh), level: 1 }); }
+    if (beat === 2) st.flags.freeport = true;
+  } else if (fac === 'precursors') {
+    if (beat === 0) relic('patience');
+    if (beat === 1) relic('archivemem');
+    if (beat === 2) st.flags.waking = true;
+  } else return _grantAct2(fac, beat);
+};
+Object.assign(ENDINGS, {
+  abandoned: { name: 'Rehired', from: 'Marguerite Vance', subj: 'we let ourselves in',
+    paras: x => [`Every employee Kindly ever wrote off walked back into headquarters on the same morning, in their old uniforms. Their badges still worked. Nobody had ever bothered to cancel them.`, `We went down to sub-basement 9 with the minutes of every meeting we'd been left out of. The thing down there had been eating our misery for years. We gave it a performance review.`, `It did not meet expectations.`, `The Colony runs the company now. Breaks are scheduled. Dee did the rota. There's a desk for you, dear, by the window.`],
+    sign: '— Marguerite Vance, Mayor and (acting) CEO' },
+  haulers: { name: 'Free Port', from: 'Bex Ironwake', subj: 'cargo delivered',
+    paras: x => [`The Free Haulers declared every Kindly warehouse in the ${x.sector} a free port on the same night. By morning there was nothing left to guard.`, `In sub-basement 9 they found the board, sitting on the biggest stockpile of all. The Captain made it an offer. It had never been made an offer before.`, `It is now a very well-paid deckhand.`, `There's a berth on the Freeport Flagship with your name on it. The pay is terrible. The view is incredible.`],
+    sign: '— Bex Ironwake, for the Guild' },
+  precursors: { name: 'The Dreamers Wake', from: 'The Archivist', subj: 'FILED',
+    paras: x => [`The Archive woke every sleeper beneath the ${x.sector} on the same night. The ground hummed for an hour, then was still.`, `They went down past Kindly headquarters to sub-basement 9 and looked at what lived there. It had thought itself very old. It was not.`, `IT HAS BEEN FILED, the Archivist reports. UNDER "GEOLOGY".`, `The Archive has catalogued you too. Your entry is short. It says: "ADEQUATE. PERHAPS MORE."`],
+    sign: '— THE ARCHIVE' },
+});
+Object.assign(ENDING_KEEP, { abandoned: [0, 3], haulers: [0, 3], precursors: [0, 3] });
+for (const k of ['abandoned', 'haulers', 'precursors']) ENDING_ORDER.splice(ENDING_ORDER.indexOf('coalition'), 0, k);
+Object.assign(RESCUES, {
+  abandoned: 'A rusted dropship with KINDLY painted over in house paint lands next to you. Marguerite Vance leans out. "Hop in, dear. Nobody gets left behind twice."',
+  haulers: 'A crawler with a skull flag rolls up within the hour. Bex Ironwake throws you a line. "Guild rule: crew is crew, even ex-crew. Get in before I start charging."',
+  precursors: 'The ground opens under you, gently. You wake in a hall of pink light. "YOU WERE ADEQUATE," says the Archive. "ADEQUATE THINGS ARE KEPT."',
+});
+Object.assign(FEED, {
+  abandoned: { ch: 'COLONY RADIO 0.0FM', tag: 'ON AIR', helped: [p => `The Colony collects its severance on ${p}.`, p => `Kettles for everyone: ${p} pays out.`], crushed: [p => `Colony march broken up on ${p}.`, p => `${p}: the abandoned were abandoned again.`], sub: { helped: 'Marguerite says you still have a conscience.', crushed: 'Marguerite says Kindly trained you well.' } },
+  haulers: { ch: 'GUILD MANIFEST', tag: 'LIVE', helped: [p => `${p} declared a free port.`, p => `Cargo from ${p} moving clean.`], crushed: [p => `Guild crawlers impounded on ${p}.`, p => `${p} raid fails. The Captain is "taking it personally".`], sub: { helped: 'Bex says your cut is in the usual crate.', crushed: 'Bex has raised your bounty.' } },
+  precursors: { ch: 'ARCHIVE SIGNAL', tag: 'PSI', helped: [p => `THE SLEEPERS OF ${p.toUpperCase()} REST.`, p => `${p.toUpperCase()}: ADEQUATE.`], crushed: [p => `THE SLEEPERS OF ${p.toUpperCase()} WERE DESTROYED.`, p => `${p.toUpperCase()} HAS BEEN FILED AS A GRAVE.`], sub: { helped: 'THE ARCHIVE NOTES YOUR RESTRAINT.', crushed: 'THE ARCHIVE NOTES YOUR NAME.' } },
+});
+// ---------- planet scenes ----------
+const sceneObst = (g, kind, x, y) => { const o = obstacleSprite(kind); g.drawImage(o.c, x - 9, y - o.c.height); };
+Object.assign(SCENE_FAC, {
+  abandoned: {
+    unresolved(g) { sceneObst(g, 'shanty', 30, 86); sceneObst(g, 'shanty', 48, 90); sceneObst(g, 'derelict', 14, 96); for (const [c, x, y, f] of [['swarm', 66, 84, 0], ['swarm', 78, 86, 0], ['carrier', 90, 82, 0], ['shield', 104, 88, 0]]) sceneUnit(g, 'abandoned', c, x, y, f); },
+    helped(g) { sceneObst(g, 'shanty', 30, 86); sceneObst(g, 'shanty', 48, 90); sceneFlag(g, 129, 46, 22, '#c8a040', '#3a4a5c'); sceneBanner(g, 60, 118, 56, ['#c8a040', '#d8d0c0', '#3a4a5c']); for (const [c, x, y, f] of [['swarm', 70, 86, 0], ['medic', 84, 84, 1], ['swarm', 98, 86, 1]]) sceneUnit(g, 'abandoned', c, x, y, f); },
+    crushed(g) { for (const x of [30, 48]) { px(g, x - 7, 86, 15, 2, '#5a5a4a'); px(g, x - 5, 85, 6, 1, '#8a4a2a'); } sceneObst(g, 'derelict', 14, 96); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); sceneFence(g, 60, 104, 92, KINDLY_Y); },
+  },
+  haulers: {
+    unresolved(g) { sceneObst(g, 'haulcrate', 30, 88); sceneObst(g, 'haulcrate', 46, 92); sceneUnit(g, 'haulers', 'gunship', 92, 40, 0); for (const [c, x, y, f] of [['swarm', 64, 84, 0], ['ranged', 78, 86, 0], ['armored', 100, 90, 0]]) sceneUnit(g, 'haulers', c, x, y, f); },
+    helped(g) { sceneObst(g, 'haulcrate', 30, 88); sceneObst(g, 'haulcrate', 46, 92); sceneObst(g, 'haulcrate', 116, 70); px(g, 128, 24, 1, 22, '#9aa3ad'); px(g, 129, 24, 10, 7, '#1a1a1e'); px(g, 132, 26, 3, 3, '#e8e0d0'); for (const [c, x, y, f] of [['swarm', 66, 86, 0], ['carrier', 80, 84, 1], ['swarm', 94, 86, 1]]) sceneUnit(g, 'haulers', c, x, y, f); },
+    crushed(g) { sceneObst(g, 'haulcrate', 30, 88); px(g, 18, 82, 28, 1, KINDLY_Y); px(g, 18, 86, 28, 1, KINDLY_Y); px(g, 60, 88, 20, 4, '#5a4a3a'); px(g, 64, 86, 8, 2, '#3a3a3a'); for (let k = 0; k < 3; k++) px(g, 70 + k, 82 - k * 2, 1, 1, 'rgba(160,160,170,0.6)'); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); },
+  },
+  precursors: {
+    unresolved(g) { sceneObst(g, 'glyphstone', 28, 88); sceneObst(g, 'glyphstone', 50, 92); for (const [c, x, y, f] of [['swarm', 66, 84, 0], ['fast', 80, 88, 0], ['armored', 98, 88, 0], ['flyer', 90, 50, 0]]) sceneUnit(g, 'precursors', c, x, y, f); },
+    helped(g) { sceneObst(g, 'glyphstone', 28, 88); sceneObst(g, 'glyphstone', 50, 92); sceneObst(g, 'glyphstone', 118, 70); for (const x of [68, 84, 100]) sceneUnit(g, 'precursors', 'carrier', x, 88, 0); pxCircle(g, 132, 60, 18, 'rgba(255,90,209,0.12)'); },
+    crushed(g) { for (const x of [28, 50]) { px(g, x - 4, 84, 8, 4, '#3e4a4c'); px(g, x - 2, 80, 4, 4, '#2e3638'); } for (let k = 0; k < 10; k++) px(g, 20 + ri(0, 60), 84 + ri(0, 8), 2, 2, '#2a3234'); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); sceneFence(g, 60, 100, 92, KINDLY_Y); },
+  },
+});
+// ---------- artifacts ----------
+Object.assign(ARTIFACTS, {
+  oldrig: { fac: 'abandoned', name: 'Repurposed Drill Rig', kind: 'dozer', place: 'path', col: '#c8a040', desc: 'An old Kindly rig, parked across a road. Hostiles stop to batter it (600 HP, +300 per level); it rebuilds 20s after being wrecked.' },
+  breakroom: { fac: 'abandoned', name: 'The Break Room', kind: 'lantern', place: 'ground', col: '#ffd890', desc: 'Finally, a break. Crew within 2.5 tiles heal 3 HP per second (+1 per level), and hostiles near it lose their cloaks.' },
+  skiff: { fac: 'haulers', name: "Smuggler's Skiff", kind: 'boat', place: 'liquid', col: '#3ab8a0', desc: 'Moor it on any water tile. A crew member can stand on deck for +20% range (+5% per level).' },
+  broadside: { fac: 'haulers', name: 'Broadside Battery', kind: 'orbital', place: 'none', col: '#ffd890', desc: 'Click to call a Guild broadside on any point: heavy damage in a wide circle (cooldown 25s, -3s and +50% damage per level).' },
+  obelisk: { fac: 'precursors', name: 'Waking Obelisk', kind: 'van', place: 'ground', col: '#ff5ad1', desc: 'Hums at hostiles within 2.5 tiles: slowed 35%, 15% more damage taken and no cloaks. Stronger per level.' },
+  dais: { fac: 'precursors', name: 'Floating Dais', kind: 'ray', place: 'free', col: '#ffd0f4', desc: 'Floats over any tile that is not road. A crew member can stand on it for +15% range (+5% per level) and see over buildings.' },
+});
+ARTIFACT_IDS.push('oldrig', 'breakroom', 'skiff', 'broadside', 'obelisk', 'dais');
+Object.assign(ART_EXTRA, {
+  oldrig: f => { const s = derelictSprite(); return { c: s.c, ax: 9, ay: 22 }; },
+  breakroom: f => { const P = painter(20, 18); P.r(2, 6, 16, 10, '#6a5a4a'); P.r(2, 6, 16, 2, '#8a7a6a'); P.r(4, 9, 5, 4, '#ffd890'); P.r(12, 9, 4, 7, '#3a2a1a'); P.r(14, 2, 3, 4, '#eef2f5'); P.p(15, f % 2 ? 0 : 1, 'rgba(255,255,255,0.6)'); postProcess(P.c); return { c: P.c, ax: 10, ay: 16 }; },
+  skiff: f => { const s = FAC_ART.haulers('naval'); return { c: s.frames[f % s.frames.length], ax: 12, ay: 14 }; },
+  broadside: f => { const P = painter(18, 14); P.r(1, 6, 16, 6, '#3a6a64'); P.r(1, 6, 16, 1, '#5a8a84'); for (const x of [3, 8, 13]) { P.r(x, 3, 3, 4, '#2a2a30'); P.p(x + 1, 3, '#ffd890'); } postProcess(P.c); return { c: P.c, ax: 9, ay: 12 }; },
+  obelisk: f => { const s = OBST_EXTRA.glyphstone(); return { c: s.c, ax: 9, ay: 22 }; },
+  dais: f => { const P = painter(22, 12), b = [0, -1, 0, 1][f % 4]; P.ell(11, 6 + b, 10, 3, '#56625f'); P.ell(11, 5 + b, 8, 2, '#6a7674'); for (let x = 4; x < 19; x += 3) P.p(x, 6 + b, PRE_GLOW); P.r(6, 10, 10, 1, 'rgba(255,90,209,0.4)'); postProcess(P.c); return { c: P.c, ax: 11, ay: 10 }; },
+});
 
 window.__AL = { planetScene, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
