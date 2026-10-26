@@ -5956,7 +5956,7 @@ function finishMission(success) {
   RUN.factionCount[c.facKey] = (RUN.factionCount[c.facKey] || 0) + 1;
   // the planet keeps what happened to it: theirs if you honoured their deal, the company's otherwise
   const d0 = m.deal, wstate = d0 && !d0.broken && d0.fac === c.facKey ? 'helped' : 'crushed';
-  (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
+  (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, kills: m.kills, boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
   // payslip
   const gross = Math.round((50 + 12 * c.idx) * c.pay);
   const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
@@ -6058,7 +6058,7 @@ function showContractCard(i) {
     ${o.boss ? `<div class="intel">Target: ${esc(o.bossDef.name)}. ${esc(o.bossDef.desc)} You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
     ${o.envoy ? `<div class="intel" style="--brand:${ARCS[o.envoy.fac].col};color:${ARCS[o.envoy.fac].col}">Encrypted chatter on this planet. ${RUN.story.arcs[o.envoy.fac] && RUN.story.arcs[o.envoy.fac].state === 'active' ? esc(ARCS[o.envoy.fac].envoy) + ' wants to talk again.' : 'Someone wants to talk before you land.'}</div>` : ''}
     ${RUN.story.grudge[o.facKey] ? `<div class="intel" style="color:var(--danger)">The ${esc(o.fac.short)} know what you did. Expect them to be tougher (+${Math.round((RUN.story.grudge[o.facKey] - 1) * 100)}% HP).</div>` : ''}
-    ${o.grudge ? (() => { const w = [...(RUN.worlds || [])].reverse().find(w => w.fac === o.facKey); return `<div class="intel recall">${w ? sceneImg(w.bk, w.fac, w.state, w.v, 'thumb') : ''}<span>Survivors of ${esc(o.grudge)} are among them${w ? ` (you left it ${w.state === 'helped' ? 'in their hands' : 'under company flags'})` : ''}. +10% HP.</span></div>`; })() : ''}
+    ${o.grudge ? (() => { const w = [...(RUN.worlds || [])].reverse().find(w => w.fac === o.facKey); return `<div class="intel recall">${w ? sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills)) : ''}<span>Survivors of ${esc(o.grudge)} are among them${w ? ` (you left it ${w.state === 'helped' ? 'in their hands' : 'under company flags'})` : ''}. +10% HP.</span></div>`; })() : ''}
     <div class="row"><button class="btn" data-act="accept" data-i="${i}">Accept deployment</button><button class="btn ghost" data-act="mapback">Back</button></div>
   </div>`;
 }
@@ -6162,6 +6162,38 @@ function sceneGuard(g, k, x, y, flip) {
   const f = crewSprites(SCENE_GUARDS[k % 3]).f[0];
   px(g, x - 4, y, 9, 1, 'rgba(0,0,0,0.3)'); sceneSprite(g, f, x - (f.width >> 1), y - f.height + 1, flip);
 }
+// the fallen: the faction's own sprites, lying where they dropped. People and creatures lie on their
+// side in a pool (red for people, green ichor for wildlife); machines are dark, smoking wrecks.
+const BLOOD = { union: '#6a1416', rival: '#5a1216', activists: '#6a1416', fauna: '#3f7a22' };
+function sceneCorpse(g, facKey, cat, x, y) {
+  let v; try { v = makeVariant(facKey, cat); } catch (e) { v = makeVariant(facKey, 'swarm'); }
+  const src = v.frames[0], w = src.width, h = src.height, dark = mkCanvas(w, h), dg = dark.getContext('2d');
+  dg.drawImage(src, 0, 0); dg.globalCompositeOperation = 'source-atop';
+  const machine = v.kind === 'vehicle' || (facKey === 'rival' && cat === 'flyer');
+  dg.fillStyle = machine ? 'rgba(12,10,14,0.62)' : 'rgba(30,14,18,0.3)'; dg.fillRect(0, 0, w, h);
+  if (machine) {
+    px(g, x - (w >> 1), y - 1, w, 2, 'rgba(10,10,14,0.55)');
+    g.drawImage(dark, x - (w >> 1), y - h + 3);
+    px(g, x - 1, y - h + 2, 3, 2, '#ff8a2a'); px(g, x, y - h + 1, 1, 1, '#ffd23f');
+    for (let k = 0; k < 4; k++) px(g, x + (k % 2) - 1, y - h - 1 - k * 3, 2, 2, rgba('#8a8e96', 0.55 - k * 0.1));
+    return;
+  }
+  // a pool first, then the body on its side (pixel-exact quarter turn)
+  const pool = BLOOD[facKey];
+  for (let yy = -2; yy <= 2; yy++) for (let xx = -9; xx <= 9; xx++) if ((xx / 9) ** 2 + (yy / 2.4) ** 2 <= 1 && rnd() < 0.85) px(g, x + xx, y + yy, 1, 1, yy < 0 ? pool : shade(pool, -0.25));
+  const side = rnd() < 0.5 ? -1 : 1;
+  g.save(); g.translate(x, y - Math.min(w, h) / 2 + 1); g.rotate(side * Math.PI / 2); g.drawImage(dark, -(w >> 1), -(h >> 1)); g.restore();
+}
+function sceneFallen(g, facKey, n) {
+  const cats = Object.keys(FACTIONS[facKey].cats).filter(k => CATS[k] && !CATS[k].naval && !CATS[k].fly);
+  const roadY = x => Math.round(78 - Math.sin(x / 30) * 6 - Math.max(0, x - 70) * 0.25);
+  // spread along the road, drawn back to front; at most two big wrecks
+  const spots = [];
+  for (let i = 0; i < n; i++) { const x = Math.round(12 + (i + 0.2 + rnd() * 0.6) * (138 / n)); spots.push([x, clamp(roadY(x) + ri(-8, 10), SCENE_HZ + 14, SCENE_H - 4), i]); }
+  spots.sort((a, b) => a[1] - b[1]);
+  const small = cats.filter(k => k !== 'armored');
+  for (const [x, y, i] of spots) sceneCorpse(g, facKey, (i === 2 || i === 7) && cats.includes('armored') ? 'armored' : pick(small.length ? small : cats), x, y);
+}
 // what each faction leaves on a planet, by state
 const SCENE_FAC = {
   union: {
@@ -6211,12 +6243,13 @@ function sceneProps(g, bk) {
   const kinds = (A.obst.open || A.obst.grove || A.obst.road || []).concat(A.obst.building || []);
   for (const [x, y] of [[132, 62], [190, 72], [8, 96]]) { if (!kinds.length) break; const o = obstacleSprite(pick(kinds)); g.drawImage(o.c, x - 9, y - o.c.height); }
 }
-function planetScene(bk, facKey, state = 'unresolved', variant = 0) {
-  const key = [bk, facKey, state, variant].join('|');
+function planetScene(bk, facKey, state = 'unresolved', variant = 0, dead = 0) {
+  const key = [bk, facKey, state, variant, dead].join('|');
   if (SCENES.has(key)) return SCENES.get(key);
   const c = mkCanvas(SCENE_W, SCENE_H), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   sceneSky(g, bk); sceneGround(g, bk); sceneProps(g, bk);
   sceneDrill(g, 132, 80, state, facKey);
+  if (dead) sceneFallen(g, facKey, dead);
   SCENE_FAC[facKey][state](g, bk);
   if (state === 'unresolved') sceneGuard(g, 0, 114, 86, true);
   if (state === 'crushed') { sceneGuard(g, 0, 112, 86, true); sceneGuard(g, 1, 154, 90, false); sceneGuard(g, 2, 86, 92, true); }
@@ -6229,7 +6262,9 @@ function planetScene(bk, facKey, state = 'unresolved', variant = 0) {
   SCENES.set(key, url);
   return url;
 }
-const sceneImg = (bk, facKey, state, variant, cls = 'scene') => `<img class="${cls}" src="${planetScene(bk, facKey, state, variant)}" alt="" width="${SCENE_W}" height="${SCENE_H}">`;
+// how many bodies a planet shows, from how many you killed there (bucketed so scenes cache well)
+const deadShown = kills => kills ? clamp(Math.round(kills / 10) * 2, 2, 12) : 0;
+const sceneImg = (bk, facKey, state, variant, cls = 'scene', dead = 0) => `<img class="${cls}" src="${planetScene(bk, facKey, state, variant, dead)}" alt="" width="${SCENE_W}" height="${SCENE_H}">`;
 
 // ================================================================
 // THE DESK. After each contract you are back at your workstation: Kindly's intranet on the left,
@@ -6301,12 +6336,12 @@ function deskPropUrl(kind, k = 0) {
 function worldStrip() {
   const ws = (RUN.worlds || []).slice(-6);
   if (ws.length < 2) return '';
-  return `<div class="wstrip"><div class="lbl">Your planets</div><div class="wrow">${ws.map(w => `<figure class="${w.state}" title="${esc(w.planet)}: ${w.state === 'helped' ? FACTIONS[w.fac].short + ' hold it' : 'company flags'}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb')}<figcaption>${esc(w.planet.replace(/^Earth · /, ''))}</figcaption></figure>`).join('')}</div></div>`;
+  return `<div class="wstrip"><div class="lbl">Your planets</div><div class="wrow">${ws.map(w => `<figure class="${w.state}" title="${esc(w.planet)}: ${w.state === 'helped' ? FACTIONS[w.fac].short + ' hold it' : 'company flags'}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills))}<figcaption>${esc(w.planet.replace(/^Earth · /, ''))}</figcaption></figure>`).join('')}</div></div>`;
 }
 // every planet you touched, as you left it: for sector reviews, terminations and endings
 function worldMontage(ws, title = 'Your planets') {
   if (!ws || !ws.length) return '';
-  return `<div class="montage"><div class="lbl">${esc(title)}</div><div class="mgrid">${ws.map(w => `<figure class="${w.state}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb')}<figcaption><b>${esc(w.planet.replace(/^Earth · /, ''))}</b><span>${w.state === 'helped' ? esc(FACTIONS[w.fac].short) + ' hold it' : 'Company flags'}</span></figcaption></figure>`).join('')}</div></div>`;
+  return `<div class="montage"><div class="lbl">${esc(title)}</div><div class="mgrid">${ws.map(w => `<figure class="${w.state}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills))}<figcaption><b>${esc(w.planet.replace(/^Earth · /, ''))}</b><span>${w.state === 'helped' ? esc(FACTIONS[w.fac].short) + ' hold it' : 'Company flags'}</span></figcaption></figure>`).join('')}</div></div>`;
 }
 const statLine = items => `<div class="statline">${items.map(([k, v]) => `<div><span class="lbl">${esc(k)}</span><b>${v}</b></div>`).join('')}</div>`;
 function showDebrief(d) {
@@ -6343,7 +6378,7 @@ function showDebrief(d) {
       <section class="win feed ${w.state}" style="--fc:${FACTIONS[c.facKey].color}" aria-label="${esc(F.ch)}">
         <div class="titlebar"><span>${esc(F.ch)}</span><i></i><em class="live">● ${esc(F.tag)}</em></div>
         <div class="wbody">
-          <figure class="scenebox big">${sceneImg(w.bk, w.fac, w.state, w.v)}<figcaption>${esc(c.planet)} · ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}</figcaption></figure>
+          <figure class="scenebox big">${sceneImg(w.bk, w.fac, w.state, w.v, 'scene', deadShown(w.kills))}<figcaption>${esc(c.planet)} · ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}</figcaption></figure>
           <h3 class="headline">${esc(F[w.state][w.v % 2](c.planet))}</h3>
           <p class="sub">${esc(F.sub[w.state])}</p>
           ${worldStrip()}

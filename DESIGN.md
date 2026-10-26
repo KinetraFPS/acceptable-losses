@@ -235,6 +235,7 @@ The auto-play bot does not use artifacts.
 
 ## Planet scenes and the desk
 - **Planet scenes:** each of the 9 worlds has a pixel-art postcard for each of the 4 factions, in 3 states: unresolved (the faction is on site and the drill is contested), helped (you honoured their deal, so the site is theirs and the rig is repainted) and crushed (Kindly flags, guards and the faction's wreckage). That is 108 scenes, built in code from each biome's own sky, ground, road, liquid, building, landmark, props and weather, plus the faction's real unit sprites (`planetScene`, `SCENE_FAC`).
+- **The fallen:** resolved scenes show the bodies of the faction's units you killed there, two for every ten kills, up to 12. People and creatures lie on their side in a pool of blood (green ichor for wildlife); machines are dark, smoking wrecks (`sceneFallen`).
 - **Continuity:** every finished contract is stored in `RUN.worlds` with its outcome. Contract cards show the planet live and unresolved. A faction you've fought before shows a thumbnail of how you left their last planet. Sector reviews, game over and endings show a montage of your planets.
 - **The desk:** the debrief is now a first-person view of your desk.
   - **Kindly Intranet (left):** a one-line HR quip, a performance rating, margin and net pay, a compact payslip, one line per story event, and Kindly News.
