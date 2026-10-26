@@ -2933,7 +2933,7 @@ function deployRefusal(tx, ty) {
   const v = M.grid[ty][tx];
   if (v === 5) return `Crew cannot stand in ${LIQUIDS[BIOME_ART[M.c.biomeKey].liquid.kind].name}. Not covered by insurance.`;
   if (v === 1 && (M.map.bridges || []).some(b => b.x === tx && b.y === ty)) return 'Bridge is load-rated for hostiles only.';
-  if (v === 1 || v === 4) return 'Crew cannot stand on the path. Union rules (ours).';
+  if (v === 1 || v === 4 || tunnelMouth(tx, ty)) return 'Crew cannot stand on the path. Union rules (ours).';
   return 'Cannot deploy there';
 }
 // ---------- line of sight and cover ----------
@@ -3083,7 +3083,9 @@ function initPeek() {
   bar.addEventListener('scroll', () => refreshPeek(), true);
   window.addEventListener('resize', () => refreshPeek());
 }
-function canBuild(tx, ty) { const v = M.grid[ty][tx]; return (v === 0 || v === 6 || v === 7 || !!platformAt(tx, ty)) && !towerAtTile(tx, ty) && !artBlocks(tx, ty); }
+// a tunnel tile on a building's front row is the tunnel mouth itself: that is road, not rooftop
+const tunnelMouth = (tx, ty) => M.grid[ty][tx] === 7 && facadeAt(tx, ty);
+function canBuild(tx, ty) { const v = M.grid[ty][tx]; return (v === 0 || v === 6 || (v === 7 && !tunnelMouth(tx, ty)) || !!platformAt(tx, ty)) && !towerAtTile(tx, ty) && !artBlocks(tx, ty); }
 
 function towerStats(crew, tw) {
   const b = TOWERS[crew.type], L = crew.level;
