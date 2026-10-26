@@ -2025,6 +2025,7 @@ function decor(P, A, x0, y0, lights) {
       else { P.r(x, y - 3, 1, 4, '#e8e4d4'); P.p(x, y - 4, '#fff2a0'); lights.push({ x: x * AP, y: (y - 4) * AP, color: '#fff2a0', r: 8 }); }
       break;
     case 'cloud': case 'tomb': decorSector2(P, A, x0, y0, lights); break;
+    case 'hq': decorHQ(P, A, x0, y0, lights); break;
     case 'lava':
       if (r < 0.4) { P.line(x, y, x + 2, y + 1, '#1a0b0a'); P.line(x + 2, y + 1, x + 4, y, '#1a0b0a'); P.p(x + 2, y + 1, '#ff7a2a'); P.p(x + 1, y, '#ff9a3a'); lights.push({ x: (x + 2) * AP, y: (y + 1) * AP, color: '#ff7a2a', r: 9, flicker: true }); }
       else if (r < 0.7) { P.ell(x + 1, y, 2.5, 1.3, '#4a3a38'); P.p(x, y - 1, '#5a4a48'); }
@@ -2037,6 +2038,7 @@ function pathDecor(P, A, x0, y0, isP, tx, ty, lights) {
   const p0 = A.p[0];
   switch (A.path) {
     case 'grate': case 'glyph': pathDecorSector2(P, A, x0, y0, isP, tx, ty, lights); break;
+    case 'lanes': pathDecorHQ(P, A, x0, y0, isP, tx, ty, lights); break;
     case 'snow': for (let k = 0; k < 3; k++) { const x = x0 + 3 + ri(0, 10), y = y0 + 3 + ri(0, 10); P.p(x, y, shade(p0, -0.18)); P.p(x + 2, y + 1, shade(p0, -0.18)); } break;
     case 'mud': if (rnd() < 0.4) { const x = x0 + ri(4, 13), y = y0 + ri(5, 12); P.ell(x, y, ri(2, 4), 1.5, '#2a3a1a'); P.p(x - 1, y, '#5a7a3a'); } break;
     case 'sand': for (let k = 0; k < 2; k++) { const x = x0 + ri(1, 10), y = y0 + ri(3, 14); P.r(x, y, ri(3, 6), 1, shade(p0, 0.12)); } break;
@@ -2608,7 +2610,7 @@ const ACTS = {
     space: { base: '#0c0710', cols: ['#24101e', '#3e1832', '#6a2836', '#4a3218'] } },
   3: { name: 'The Endless Quarter', sub: 'Reckoning', factions: [],
     // corporate night: blue-black, company yellow and alarm red
-    grade: ['#ffd23f', '#06102e', 0.3], mult: '#8a98c8', haze: '#0a1430', hazeA: 0.06, smog: 0.1, derelict: true,
+    grade: ['#7a9ae8', '#06102e', 0.3], mult: '#8a98c8', haze: '#0a1430', hazeA: 0.06, smog: 0.1, derelict: true,
     sky: ['#02040e', '#1a2a5a'],
     space: { base: '#04060e', cols: ['#0a1030', '#121c48', '#3a3410', '#3a0a14'] } },
 };
@@ -2697,11 +2699,11 @@ function genContract(idx, diff, boss, forceFac) {
   if (boss) spawns = 2;
   const o = {
     idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? (sector >= MAX_SECTOR ? fac.apex : pick(fac.bosses)) : null,
-    planet: biomeKey === 'cloud' ? pick(CLOUD_NAMES) : biomeKey === 'tomb' ? pick(TOMB_NAMES) : biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
+    planet: biomeKey === 'hq' ? pick(HQ_NAMES) : biomeKey === 'cloud' ? pick(CLOUD_NAMES) : biomeKey === 'tomb' ? pick(TOMB_NAMES) : biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
     pstyle: ri(0, PLANET_STYLES[biomeKey].length - 1),
     mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? (sector >= MAX_SECTOR ? 'Board Priority' : 'Executive Priority') : D.label, stars: boss ? 4 : D.stars,
     spawns: clamp(spawns, 1, 3),
-    T: Math.round((165 + Math.min(idx, 4) * 25 + Math.max(0, idx - 4) * 12) * (BIOMES[biomeKey].mod.T || 1)),
+    T: Math.round((165 + Math.min(idx, 4) * 25 + clamp(idx - 4, 0, 7) * 12) * (BIOMES[biomeKey].mod.T || 1)),
     grudge: prev ? prev.planet : null,
     seed: Math.random(),
   };
@@ -2716,7 +2718,8 @@ function genOptions() {
   for (const f of Object.keys(ARCS)) if (!ARCS[f].oneOff && RUN.story.arcs[f] && RUN.story.arcs[f].state === 'active' && !opts.some(o => o.facKey === f) && rnd() < 0.8) opts[ri(0, n - 1)] = genContract(RUN.idx, ri(0, 2), false, f);
   if (!opts.some(o => o.diff === 0)) opts[ri(0, n - 1)] = genContract(RUN.idx, 0, false);
   // a new sector should show off its new worlds
-  if (sectorOf(RUN.idx) >= 2) for (let g = 0; g < 20 && opts.filter(o => o.biomeKey === 'cloud' || o.biomeKey === 'tomb').length < 2; g++) { const k = ri(0, n - 1); if (opts[k].envoy) continue; const c = genContract(RUN.idx, opts[k].diff, false); if (c.biomeKey === 'cloud' || c.biomeKey === 'tomb') opts[k] = c; }
+  const nb = NEW_BIOMES[sectorOf(RUN.idx)] || [];
+  if (nb.length) for (let g = 0; g < 20 && opts.filter(o => nb.includes(o.biomeKey)).length < 2; g++) { const k = ri(0, n - 1); if (opts[k].envoy) continue; const c = genContract(RUN.idx, opts[k].diff, false); if (nb.includes(c.biomeKey)) opts[k] = c; }
   return opts;
 }
 
@@ -3532,6 +3535,7 @@ function towerStats(crew, tw) {
   if (has('patience')) s.xpMult *= 1.2;
   { const mt = moraleTier(crew); s.dmg *= mt.dmg; s.rate *= mt.rate; }
   if (has('archivemem')) s.eliteBonus += 0.2;
+  if (has('tactical')) s.maxhp *= 1.15;
   if (tw && tw.roof) s.range *= 1.15;
   if (tw && tw.plat && M) { const pa = platformAt(tw.tx, tw.ty); s.range *= 1 + (tw.plat === 'boat' ? 0.2 : 0.15) + 0.05 * (((pa && pa.level) || 1) - 1); }
   if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) s.dmg *= 1.2;
@@ -3597,6 +3601,7 @@ function damage(e, dmg, pierce, tw, quiet) {
   if (e.dead || e.invuln) return;
   if (e.vulnT > 0) dmg *= 1 + e.vulnAmt;
   if (e.dr) dmg *= 1 - e.dr;
+  if (e.apRole && tw && tw.crew && tw.crew.type === e.apRole) dmg *= 0.75;
   const eff = pierce ? dmg : Math.max(1, dmg - e.armor);
   e.hp -= eff;
   if (!quiet) { e.hitT = 0.08; if (rnd() < 0.5) sparks(e.x, ecy(e), '#fff2c0', 1); }
@@ -3728,6 +3733,11 @@ function spawnEnemy(q) {
     if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
     if (c.facKey === 'lumen') e.spd *= 1 + 0.3 * clamp(M.t / M.T, 0, 1);
     if (c.facKey === 'haulers') e.cost *= 1.3;
+    if (c.facKey === 'kindly') {
+      e.apRole = M.apRole !== undefined ? M.apRole : (M.apRole = topRole());
+      if (e.apRole && !M.apToast) { M.apToast = true; toast(`Asset Protection has read your file: your ${roleName(e.apRole)}s do 25% less damage to them.`, 3000); }
+    }
+    if (c.facKey === 'church') { const k = M.churchK || (M.churchK = 1 + 0.3 * clamp((62 - avgMorale()) / 40, 0, 1)); e.hp *= k; e.maxhp = e.hp; }
     if (c.facKey === 'precursors' && q.tier >= 1 && !e.jamAura) e.jamAura = { r: 1.8, amt: 0.2 };
     if (has('doxx') && q.tier === 2) { e.vulnT = 1e9; e.vulnAmt = 0.15; }
     rollAffix(e, q, c.idx);
@@ -4753,7 +4763,7 @@ function moraleEvent(kind, fac, mult = 1) {
     let d = cr.value === 'sympath' ? (cr.sym === fac ? R.sym : R.other) : R[cr.value];
     if (!d) continue;
     d *= mult;
-    cr.morale = clamp(Math.round((cr.morale ?? 65) + d), 0, 100);
+    cr.morale = clamp(Math.round((cr.morale ?? 65) + d), has('communion') ? 30 : 0, 100);
     (cr.moodLog = cr.moodLog || []).push({ kind, d: Math.round(d), idx: RUN.idx });
   }
 }
@@ -4767,7 +4777,7 @@ function crewQuits() {
   for (const cr of RUN.roster.slice()) {
     if (cr.dead || (cr.morale ?? 65) >= 8 || RUN.roster.length <= 2) continue;
     if (has('retention') && RUN.retainedSector !== sectorOf(RUN.idx)) { RUN.retainedSector = sectorOf(RUN.idx); cr.morale = 30; out.push({ name: cr.name, kept: true }); continue; }
-    const fac = cr.value === 'sympath' && FACTIONS[cr.sym] ? cr.sym : 'abandoned';
+    const fac = cr.value === 'sympath' && FACTIONS[cr.sym] ? cr.sym : FACTIONS.church && curAct() >= 3 ? 'church' : 'abandoned';
     RUN.roster = RUN.roster.filter(c => c !== cr);
     (RUN.defectors = RUN.defectors || []).push({ name: cr.name, type: cr.type, level: cr.level, look: cr.look, spec: cr.spec, perks: cr.perks, quirk: cr.quirk, id: cr.id, fac, returned: false, dead: false });
     out.push({ name: cr.name, fac });
@@ -6147,6 +6157,8 @@ function startAllies(m) {
   m.colonyT = st.flags.colony && m.c.boss ? 6 : null;
   m.freeT = st.flags.freeport && m.c.boss ? 10 : null;
   m.wakeT = st.flags.waking && m.c.boss ? 9 : null;
+  m.lockT = st.flags.lockdown && m.c.boss ? 8 : null;
+  m.raptureT = st.flags.rapture && m.c.boss ? 10 : null;
   // a faction that likes you sends people: every contract when allied, this one if they offered a favour
   m.helper = S.pendingFavour || alliedHelper(m.c.facKey); m.helpEvery = S.pendingFavour ? 16 : 26; m.helpT = m.helper ? 7 : null; S.pendingFavour = null;
   if (st.flags.pet) { const v = st.petV || (st.petV = makeVariant('fauna', 'fast')); m.allies.push(newAlly('pet', v, m.paths[0], 160)); }
@@ -6194,6 +6206,22 @@ function stepAllies(dt) {
     const tough = m.enemies.filter(e => !e.dead && !e.deal && !e.invuln).sort((a, b) => b.hp - a.hp).slice(0, 3);
     for (const e of tough) { m.fx.push({ k: 'tracer', x1: m.dep.x, y1: m.dep.y - 20, x2: e.x, y2: ecy(e), life: 0.3, max: 0.3, color: '#ff5ad1', w: 3, glow: '#ff5ad1' }); damage(e, 120, true, null); }
     if (tough.length) { fxText(m.dep.x, m.dep.y - 36, 'THE WAKING', '#ff5ad1'); sfx('thunder', m.dep.x); shake(3); }
+  }
+  if (live && m.lockT != null && (m.lockT -= dt) <= 0) {
+    m.lockT = 20;
+    const near = m.enemies.filter(e => !e.dead && !e.deal && !e.invuln).sort((a, b) => Math.hypot(a.x - m.dep.x, a.y - m.dep.y) - Math.hypot(b.x - m.dep.x, b.y - m.dep.y)).slice(0, 4);
+    for (const e of near) { m.fx.push({ k: 'tracer', x1: e.x + 80, y1: -10, x2: e.x, y2: ecy(e), life: 0.15, max: 0.15, color: '#9fd3ff', w: 2 }); damage(e, 80, true, null); sparks(e.x, ecy(e), '#9fd3ff', 4); }
+    if (near.length) { fxText(m.dep.x, m.dep.y - 36, 'LOCKDOWN', '#4a7ae8'); sfx('gun', m.dep.x); shake(2); }
+  }
+  if (live && m.raptureT != null && (m.raptureT -= dt) <= 0) {
+    m.raptureT = 22;
+    const near = m.enemies.filter(e => !e.dead && !e.deal && !e.invuln && !e.boss && !e.fly).sort((a, b) => Math.hypot(a.x - m.dep.x, a.y - m.dep.y) - Math.hypot(b.x - m.dep.x, b.y - m.dep.y)).slice(0, 2);
+    for (const e of near) {
+      // they stop, listen, and turn around
+      e.dead = true; const a = newAlly('hunter', e.v, m.paths[0], Math.min(220, Math.max(60, e.hp))); a.x = e.x; a.y = e.y; a.life = 14; m.allies.push(a);
+      m.fx.push({ k: 'ring', x: e.x, y: ecy(e), r: TILE * 0.8, life: 0.6, max: 0.6, color: '#ffd23f' });
+    }
+    if (near.length) { fxText(m.dep.x, m.dep.y - 36, 'THE RAPTURE', '#ffd23f'); sfx('promote', m.dep.x); }
   }
   if (live && m.helpT != null && (m.helpT -= dt) <= 0) {
     m.helpT = m.helpEvery;
@@ -6323,7 +6351,7 @@ const ENDINGS = {
     paras: x => [
       `The board thanks you. You may not have met the board. That is for the best.`,
       `Every crystal you guarded, every ${x.fac} you pacified, every crew member denied a lunch break produced exactly the right amount of suffering. We have eaten well this quarter.`,
-      `Your margin of ${x.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 3. There is no Sector 3. Report anyway. Do not look directly at the CEO.`,
+      `Your margin of ${x.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 4. There is no Sector 4. Report anyway. Do not look directly at the CEO.`,
     ], sign: '— Q.' },
 };
 // the two paragraphs each ending keeps on screen: the setup and the punchline
@@ -6454,11 +6482,11 @@ function flightState(now) {
 // SECTOR 2. Contracts 6-10 continue the difficulty curve on two new worlds,
 // and each faction fields an apex boss for the finale.
 // ================================================================
-const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 2;
+const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 3;
 const sectorOf = idx => Math.floor(idx / SECTOR_LEN) + 1;
 const sectorPos = idx => idx % SECTOR_LEN;
-// how hard a contract is: full steps through sector 1, then gentler ones so sector 2 stays beatable
-const diffLevel = idx => idx <= 4 ? idx : 4 + (idx - 4) * 0.56;
+// how hard a contract is: full steps through sector 1, then gentler ones so sectors 2 and 3 stay beatable
+const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : 6.8 + (idx - 9) * 0.32;
 const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
 Object.assign(BIOMES, {
   cloud: { name: 'Cloud City', mod: { flyers: 1.8, range: 1.1, espd: 1.05 }, hazard: 'High-altitude winds: far more flyers, enemies 5% faster, crew range +10%.' },
@@ -6619,6 +6647,97 @@ function weatherSector2(g, p, t, W, H, wrap, type) {
   return false;
 }
 
+// ================================================================
+// SECTOR 3 / ACT 3. Kindly's own front yard: corporate arcology worlds where the company has
+// split in two and the people it hurt have found religion.
+// ================================================================
+SECTOR_BIOMES[3] = ['hq', 'hq', 'hq', 'hq', 'cloud', 'tomb', 'cyber', 'frozen', 'volcanic'];
+SECTOR_NAMES[3] = ['Headquarters Orbit', 'The Arcology Belt', 'Sub-Basement Approach', 'The Endless Quarter'];
+const NEW_BIOMES = { 2: ['cloud', 'tomb'], 3: ['hq'] };
+const HQ_NAMES = ['Kindly Plaza', 'Campus Prime', 'Synergy Park', 'The Atrium', 'Wellness District 9', 'Head Office Annex'];
+Object.assign(BIOMES, {
+  hq: { name: 'Kindly Arcology', mod: { ehp: 1.1, rate: 1.05 }, hazard: 'Company property: enemies +10% HP, crew fire 5% faster with management watching.' },
+});
+Object.assign(BIOME_ART, {
+  hq: { g: ['#4a5266', '#525a6e', '#444c60'], p: ['#2a2e3a', '#30343f', '#262a34'], edge: '#1a1e28', path: 'lanes', deco: 'hq',
+        obst: { road: ['bollard', 'cctv', 'bollard', 'kiosk'], building: ['planterbox', 'planterbox', 'kiosk'], shore: ['planterbox', 'bollard'], grove: ['planterbox', 'mascot'], open: ['mascot', 'planterbox'] },
+        liquid: { kind: 'reflect', river: 0.45, pools: [1, 2] }, land: ['hqtower'], weather: 'memos', grade: ['#ffd23f', '#1a2a5a', 0.16] },
+});
+Object.assign(LIQUIDS, { reflect: { name: 'the reflecting pool', a: '#14244a', b: '#1c2e5a', shore: '#8a92a6', hi: '#ffd23f', feat: 'sparkle', glow: '#ffd23f' } });
+Object.assign(BUILD_STYLE, { hq: { roof: '#3a4258', roof2: '#343c50', edge: '#8a92a6', wall: '#1a2236', win: ['#ffd23f', '#9fd3ff', '#0e1424'], details: ['dish', 'antenna', 'vent', 'solar'] } });
+Object.assign(PLANET_STYLES, {
+  hq: [{ name: 'Arcology World', pal: ['#04060e', '#0e1630', '#1e2a50', '#3a4a7a', '#ffd23f', '#fff2b0'], bands: 1, ring: ['#ffd23f', '#3a4a7a'] },
+       { name: 'Paved Planet', pal: ['#06080e', '#141a2a', '#2a3248', '#4a5266', '#ffd23f', '#e8eef8'], craters: 1 }],
+});
+TROPES.hq = 'A planet paved edge to edge and branded twice. Every window is an office. Every office is open-plan. Nobody has seen the CEO.';
+LAMP_COL.hq = '#ffd23f';
+// the walkways: dark tarmac with yellow lane markings and the odd arrow
+function decorHQ(P, A, x0, y0, lights) {
+  const x = x0 + ri(2, 13), y = y0 + ri(3, 14), g0 = A.g[0], r = rnd();
+  if (r < 0.3) { P.r(x0, y0, ATILE, 1, shade(g0, -0.14)); P.r(x0, y0, 1, ATILE, shade(g0, -0.14)); }
+  else if (r < 0.45) { P.ell(x + 1, y, 2.5, 2.5, '#2e3446'); P.ell(x + 1, y, 1.5, 1.5, '#3a4258'); }
+  else if (r < 0.6) { P.r(x, y, 2, 3, '#e8e4dc'); P.p(x, y, '#c83a3a'); }
+  else if (r < 0.72) { P.r(x, y, 4, 1, '#ffd23f'); P.p(x + 1, y + 1, '#1a1e28'); }
+  else if (r < 0.85) { P.r(x, y, 3, 2, '#f2efe6'); P.r(x + 1, y, 1, 2, '#c8c4ba'); }
+  else { P.p(x, y, '#9fd3ff'); lights.push({ x: x * AP, y: y * AP, color: '#9fd3ff', r: 6 }); }
+}
+function pathDecorHQ(P, A, x0, y0, isP, tx, ty, lights) {
+  const p0 = A.p[0];
+  P.r(x0, y0, ATILE, 1, shade(p0, 0.12));
+  if ((tx + ty) % 2 === 0) P.r(x0 + 7, y0 + 4, 2, 8, '#c8a830');
+  if (rnd() < 0.08) { P.r(x0 + 5, y0 + 7, 6, 1, '#e8e4dc'); P.p(x0 + 10, y0 + 6, '#e8e4dc'); P.p(x0 + 10, y0 + 8, '#e8e4dc'); }
+}
+// company furniture
+const hqObst = (H, draw) => () => { const P = painter(18, H), L = [], props = []; draw(P, L, props); postProcess(P.c); return { c: P.c, lights: L, props }; };
+Object.assign(OBST_EXTRA, {
+  planterbox: hqObst(18, (P, L) => { P.r(2, 9, 14, 7, '#8a92a6'); P.r(2, 9, 14, 1, '#b8c0d0'); P.r(2, 15, 14, 1, '#5a6276'); P.ell(9, 7, 6, 4, '#2e6a3a'); P.ell(7, 5, 3, 2, '#3e8a4a'); P.ell(12, 6, 3, 2, '#3a7a44'); P.r(4, 11, 10, 1, '#ffd23f'); }),
+  bollard: hqObst(18, (P, L) => { for (const [x, y] of [[3, 9], [8, 6], [13, 9]]) { P.ell(x + 1, y + 7, 2.5, 1.2, '#2a3248'); P.r(x, y, 3, 7, '#c8ccd4'); P.r(x, y, 1, 7, '#e8ecf4'); P.r(x, y - 1, 3, 1, '#8a92a6'); P.r(x, y + 2, 3, 1, '#ffd23f'); } }),
+  kiosk: hqObst(24, (P, L) => { P.r(5, 4, 8, 18, '#1a2236'); P.r(5, 4, 8, 1, '#4a5674'); P.r(6, 6, 6, 8, '#ffd23f'); P.r(7, 8, 4, 1, '#1a2236'); P.r(7, 10, 3, 1, '#1a2236'); P.p(9, 16, '#9fd3ff'); P.r(4, 21, 10, 2, '#2a3248'); L.push({ x: 9, y: 10, color: '#ffd23f', r: 12 }); }),
+  mascot: hqObst(24, (P, L) => {
+    // Kindly's mascot: a smiling sun on a plinth, faded where the rain gets it
+    P.r(5, 18, 9, 5, '#8a92a6'); P.r(5, 18, 9, 1, '#b8c0d0'); P.r(8, 12, 3, 6, '#c8a830');
+    for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283; P.p(Math.round(9.5 + Math.cos(a) * 6), Math.round(7 + Math.sin(a) * 6), '#e8b830'); }
+    P.ell(9.5, 7, 4.5, 4.5, '#ffd23f'); P.ell(8, 5.5, 2, 1.5, '#fff2b0'); P.p(8, 6, '#1a1a22'); P.p(11, 6, '#1a1a22'); P.r(8, 9, 4, 1, '#1a1a22'); P.p(7, 8, '#1a1a22'); P.p(12, 8, '#1a1a22');
+    L.push({ x: 9, y: 7, color: '#ffd23f', r: 10 });
+  }),
+  cctv: hqObst(24, (P, L) => { P.r(8, 6, 2, 16, '#5a6276'); P.r(6, 21, 6, 2, '#3a4258'); P.r(9, 4, 6, 3, '#c8ccd4'); P.r(14, 5, 2, 1, '#1a1e28'); P.p(10, 5, '#ff4d5e'); L.push({ x: 10, y: 5, color: '#ff4d5e', r: 6, pulse: true }); }),
+});
+// a skyscraper with the logo on top
+const _land3 = landmarkSector2;
+landmarkSector2 = function (P, kind, L, props) {
+  if (kind !== 'hqtower') return _land3(P, kind, L, props);
+  P.r(6, 40, 24, 4, '#2a3248'); P.r(9, 4, 18, 37, '#1a2236'); P.r(9, 4, 2, 37, '#3a4664'); P.r(25, 4, 2, 37, '#10162a');
+  for (let y = 8; y < 39; y += 3) for (let x = 12; x < 25; x += 3) if (rnd() < 0.7) P.r(x, y, 2, 2, rnd() < 0.8 ? '#ffd23f' : '#9fd3ff');
+  P.ell(18, 3, 7, 3, '#ffd23f'); P.ell(17, 2, 3, 1, '#fff2b0'); P.r(17, 0, 2, 2, '#c8a830');
+  L.push({ x: 18, y: 3, color: '#ffd23f', r: 26, pulse: true }); L.push({ x: 18, y: 24, color: '#ffd23f', r: 18 });
+  return true;
+};
+// memos drifting down between the towers
+const _weather3 = weatherSector2;
+weatherSector2 = function (g, p, t, W, H, wrap, type) {
+  if (type !== 'memos') return _weather3(g, p, t, W, H, wrap, type);
+  const x = wrap(p.x * W + Math.sin(t * (0.8 + p.s) + p.ph) * 10 + t * 4, W), y = wrap(p.y * H + t * (8 + p.s * 8), H), flip = Math.sin(t * 3 + p.ph) > 0;
+  if (p.s < 0.6) return true;
+  g.fillStyle = 'rgba(242,239,230,0.75)'; g.fillRect(Math.round(x), Math.round(y), flip ? 3 : 2, flip ? 2 : 3);
+  return true;
+};
+// Kindly's headquarters architecture: glass curtain walls and a lobby
+ARCH.hq = function (P, c) {
+  const { W, H, RH, FH, L } = c;
+  // a flat glass roof in a steel grid, a helipad or a plant room
+  P.r(0, 0, W, RH, '#2e3850');
+  for (let y = 2; y < RH - 2; y += 5) for (let x = 2; x < W - 2; x += 5) { P.r(x, y, 4, 4, '#3a4a6a'); P.p(x, y, '#5a6a8a'); }
+  P.r(0, 0, W, 2, '#8a92a6'); P.r(0, 0, 2, RH, '#8a92a6'); P.r(W - 2, 0, 2, RH, '#4a5266'); P.r(0, RH - 2, W, 2, '#4a5266');
+  if (W >= 36 && RH >= 20 && rnd() < 0.5) { const hx = ri(6, W - 22), hy = ri(4, RH - 18); P.ell(hx + 8, hy + 7, 8, 6, '#2a3248'); P.ell(hx + 8, hy + 7, 6.5, 4.5, '#ffd23f'); P.ell(hx + 8, hy + 7, 5, 3.4, '#2a3248'); P.r(hx + 6, hy + 5, 1, 5, '#e8e4dc'); P.r(hx + 10, hy + 5, 1, 5, '#e8e4dc'); P.r(hx + 6, hy + 7, 5, 1, '#e8e4dc'); }
+  else { const ox = ri(4, W - 14); P.r(ox, 4, 10, 6, '#5a6276'); P.r(ox, 4, 10, 1, '#8a92a6'); P.ell(ox + 3, 7, 2, 2, '#2a3248'); P.ell(ox + 7, 7, 2, 2, '#2a3248'); }
+  for (let x = 4; x < W - 4; x += 8) { P.p(x, RH - 4, '#ff4d5e'); }
+  // a full glass facade with a yellow band and a revolving door
+  P.r(0, RH, W, FH, '#1a2236'); P.r(0, RH, W, 1, '#8a92a6');
+  for (let x = 1; x < W - 1; x += 4) { P.r(x, RH + 2, 3, FH - 4, '#2a3a5a'); P.p(x, RH + 2, '#5a7aaa'); if (rnd() < 0.45) { P.r(x, RH + 3, 3, 2, '#ffd23f'); if (rnd() < 0.4) L.push({ x: x + 1, y: RH + 4, color: '#ffd23f', r: 8 }); } }
+  P.r(0, RH + FH - 2, W, 1, '#ffd23f');
+  const dx = doorX(c); if (dx >= 0) { P.r(dx - 1, RH + 2, 8, FH - 2, '#0e1424'); P.r(dx, RH + 3, 6, FH - 4, '#9fd3ff'); P.r(dx + 3, RH + 3, 1, FH - 4, '#2a3248'); P.r(dx - 1, RH + 1, 8, 1, '#ffd23f'); L.push({ x: dx + 3, y: RH + 6, color: '#9fd3ff', r: 10 }); }
+};
+
 // ---------- the sector break ----------
 function showSectorComplete(c, net) {
   S.screen = 'sector'; M = null; clearMissionUi(); backdropView(); sfx('victory'); setMusic('menu');
@@ -6644,7 +6763,7 @@ function showSectorComplete(c, net) {
 // every screen arrives with a wipe and staggered content
 const juiced = (f, after) => function (...a) { const r = f.apply(this, a); try { if (!S.noJuice) juiceScreen(); if (after) after(...a); } catch (e) { } return r; };
 showTitle = juiced(showTitle);
-showMap = juiced(showMap, () => { const n = sectorOf(RUN.idx); if (S.sectorSeen !== n) { S.sectorSeen = n; const A = ACTS[actOf(RUN.idx)]; banner(`Act ${actOf(RUN.idx)}: ${A.name}`, `Sector ${n} · ${RUN.sectorName}`, n > 1 ? '#ff9a5a' : '#ffd23f'); } });
+showMap = juiced(showMap, () => { const n = sectorOf(RUN.idx); if (S.sectorSeen !== n) { S.sectorSeen = n; const A = ACTS[actOf(RUN.idx)]; banner(`Act ${actOf(RUN.idx)}: ${A.name}`, `Sector ${n} · ${RUN.sectorName}`, ['#ffd23f', '#ff9a5a', '#9fd3ff'][actOf(RUN.idx) - 1]); } });
 showGameOver = juiced(showGameOver);
 showMessenger = juiced(showMessenger);
 showVictory = juiced(showVictory, () => { confetti(null, null, 120); setTimeout(() => confetti(null, null, 80), 500); });
@@ -7138,7 +7257,7 @@ function finishMission(success) {
   moraleDrift();
   const quits = crewQuits();
   // payslip
-  const gross = Math.round((50 + 12 * c.idx) * c.pay);
+  const gross = Math.round((50 + 12 * c.idx) * c.pay * (has('tithe') ? 1.2 : 1));
   const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
   if (m.lost === 0) lines.push(['Zero-loss bonus', 25]);
   const ded = shuffle([...DEDUCTIONS]).slice(0, ri(2, 3)).map(d => [d, -ri(3, 9)]);
@@ -7276,6 +7395,7 @@ function sceneSky(g, bk, act = 1) {
     case 'solar': pxCircle(g, 30, 12, 6, '#fff6c8'); for (let i = 0; i < 3; i++) { const x = ri(10, 190), y = ri(6, 22); px(g, x, y, 14, 2, '#ffffff'); px(g, x + 3, y - 1, 7, 1, '#ffffff'); } sil(0, 9, '#3a7a3a', 2); break;
     case 'volcanic': star(4); for (let x = 120; x < 190; x++) { const h = 26 - Math.abs(x - 155) * 0.7; if (h > 0) px(g, x, SCENE_HZ - Math.round(h), 1, Math.round(h), '#2a1210'); } px(g, 151, SCENE_HZ - 26, 8, 2, '#ff8a3a'); px(g, 153, SCENE_HZ - 30, 4, 4, 'rgba(255,138,58,0.5)'); sil(0, 8, '#241010', 2); break;
     case 'cloud': for (let i = 0; i < 6; i++) { const x = ri(-10, 190), y = ri(8, 36), w = ri(18, 36); px(g, x, y, w, 4, '#eef0ff'); px(g, x + 4, y - 2, w - 10, 2, '#ffffff'); px(g, x + 2, y + 4, w - 4, 1, '#c8cce8'); } break;
+    case 'hq': star(10); for (let x = 0; x < SCENE_W; x += ri(7, 13)) { const w = ri(6, 12), h = ri(18, 40); px(g, x, SCENE_HZ - h, w, h, '#0e1426'); for (let wy = SCENE_HZ - h + 2; wy < SCENE_HZ - 2; wy += 3) for (let wx = x + 1; wx < x + w - 1; wx += 2) if (rnd() < 0.55) px(g, wx, wy, 1, 1, rnd() < 0.85 ? '#ffd23f' : '#9fd3ff'); } pxCircle(g, 150, 10, 5, '#ffd23f'); px(g, 148, 9, 1, 1, '#1a1a22'); px(g, 152, 9, 1, 1, '#1a1a22'); px(g, 148, 12, 5, 1, '#1a1a22'); break;
     case 'tomb': star(24); for (const x of [40, 90, 150]) { const h = ri(16, 26); px(g, x, SCENE_HZ - h, 6, h, '#0c1618'); px(g, x + 2, SCENE_HZ - h + 4, 2, 2, '#ff5ad1'); } break;
   }
 }
@@ -7417,6 +7537,7 @@ function sceneWeather(g, bk) {
       case 'embers': if (y > 30) px(g, x, y, 1, 1, i % 3 ? '#ff8a3a' : '#ffd23f'); break;
       case 'clouds': if (i < 10) px(g, x, y, 8, 1, 'rgba(255,255,255,0.35)'); break;
       case 'whispers': if (i % 3 === 0) px(g, x, y, 1, 1, '#ff5ad1'); break;
+      case 'memos': if (i % 4 === 0) px(g, x, y, 2, 2, 'rgba(242,239,230,0.7)'); break;
     }
   }
 }
@@ -7599,6 +7720,7 @@ function genOffers() {
   offers.push(rnd() < 0.5 || RUN.margin >= 90 ? { kind: 'train', price: 40 } : { kind: 'account', price: 55 });
   if (RUN.margin < 60 && !offers.some(o => o.kind === 'account')) offers.push({ kind: 'account', price: 55 });
   if (has('blackcard')) for (const o of offers) o.price = Math.round(o.price * 0.75);
+  if (has('clearance')) for (const o of offers) o.price = Math.round(o.price * 0.8);
   return offers;
 }
 function showStore() {
@@ -8535,6 +8657,329 @@ Object.assign(ART_EXTRA, {
   obelisk: f => { const s = OBST_EXTRA.glyphstone(); return { c: s.c, ax: 9, ay: 22 }; },
   dais: f => { const P = painter(22, 12), b = [0, -1, 0, 1][f % 4]; P.ell(11, 6 + b, 10, 3, '#56625f'); P.ell(11, 5 + b, 8, 2, '#6a7674'); for (let x = 4; x < 19; x += 3) P.p(x, 6 + b, PRE_GLOW); P.r(6, 10, 10, 1, 'rgba(255,90,209,0.4)'); postProcess(P.c); return { c: P.c, ax: 11, ay: 10 }; },
 });
+
+// ================================================================
+// ACT 3 FACTIONS: ART. Asset Protection in navy and company yellow; the Church in crimson,
+// candle gold and borrowed office wear.
+// ================================================================
+const AP_NAVY = '#1d2433', AP_BLUE = '#4a7ae8', CH_RED = '#7a1a2a', CH_GOLD = '#c8a040';
+const KINDLY_OUTFITS = {
+  swarm: () => ({ shirt: AP_NAVY, vest: '#2a3348', stripe: KINDLY_Y, pants: '#141a26', hat: 'cap', capCol: AP_NAVY, badge: KINDLY_Y, prop: 'clipboard' }),
+  fast: () => ({ shirt: KINDLY_Y, pants: AP_NAVY, hat: 'headset', lanyard: true, prop: 'tablet' }),
+  saboteur: () => ({ shirt: '#2a3348', vest: KINDLY_Y, pants: '#141a26', hat: 'goggles', prop: 'wrench', pack: true, packCol: '#5a6276' }),
+  medic: () => ({ shirt: '#e8eef8', cross: true, pants: AP_NAVY, hat: 'cap', capCol: AP_BLUE, prop: 'medkit' }),
+  shield: () => ({ shirt: AP_NAVY, vest: '#3a4258', pants: '#141a26', hat: 'helmet', prop: 'riotshield', gloves: true }),
+  splitter: () => ({ shirt: '#e8e4dc', collar: AP_BLUE, lanyard: true, pants: '#3a4258', prop: 'flag', flagCol: KINDLY_Y }),
+  stealth: () => ({ shirt: '#3a3a44', coat: '#5a5a64', pants: '#2a2a30', shades: true, prop: 'phone' }),
+  jammer: () => ({ shirt: '#e8e4dc', suit: AP_NAVY, pants: AP_NAVY, shades: true, prop: 'briefcase' }),
+  ranged: () => ({ shirt: AP_NAVY, vest: '#2a3348', pants: '#141a26', hat: 'helmet', prop: 'rifle', gloves: true }),
+  carrier: () => ({ shirt: KINDLY_Y, pants: AP_NAVY, hat: 'cap', capCol: KINDLY_Y, prop: 'clipboard', pack: true, packCol: AP_NAVY }),
+  blinker: () => ({ shirt: '#e8e4dc', suit: '#3a4258', pants: '#3a4258', hat: 'headset', prop: 'phone' }),
+  berserk: () => ({ shirt: '#e8e4dc', suit: '#141a26', pants: '#141a26', shades: true, prop: 'briefcase', gloves: true }),
+  burrower: () => ({ shirt: '#5a6276', vest: KINDLY_Y, pants: '#2a3248', hat: 'miner', prop: 'pickaxe' }),
+};
+FAC_ART.kindly = cat => {
+  if (cat === 'armored') { const skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => { const s = vehTreads('#2a3348', skin, f), g = s.c.getContext('2d'); px(g, 1, s.c.height - 9, s.c.width - 2, 1, KINDLY_Y); px(g, 3, 2, 3, 2, AP_BLUE); return s; })); }
+  if (cat === 'flyer') return finishVariant('drone', [0, 1].map(f => enDrone(AP_BLUE, 'kindly', f)));
+  if (cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => heliSprite('#1d2433', KINDLY_Y, '#9fd3ff', f, P => { P.r(8, 9, 8, 1, KINDLY_Y); P.p(5, 7, '#ff4d5e'); })));
+  if (cat === 'naval') return finishVariant('vehicle', [0, 1, 2, 3].map(f => hullSprite('#1d2433', f, (P, bob) => { P.r(8, 4 + bob, 10, 5, '#2a3348'); P.r(9, 5 + bob, 8, 2, '#9fd3ff'); P.r(2, 10 + bob, 20, 1, KINDLY_Y); P.p(12, 3 + bob, '#ff4d5e'); })));
+  return humanVariant((KINDLY_OUTFITS[cat] || KINDLY_OUTFITS.swarm)());
+};
+const CHURCH_OUTFITS = {
+  swarm: () => ({ shirt: pick(['#e8e4dc', '#c8c4ba', '#9aa3ad']), coat: CH_RED, hood: rnd() < 0.5, pants: '#2a1a20', prop: pick(['sign', 'rulebook']), signCol: CH_GOLD }),
+  fast: () => ({ shirt: '#e8e4dc', collar: CH_RED, lanyard: true, pants: '#3a2a30', prop: 'rulebook' }),
+  saboteur: () => ({ shirt: '#3a1424', coat: '#2a0e18', hood: true, pants: '#1a0e14', prop: 'wrench', mask: '#2a0e18' }),
+  medic: () => ({ shirt: '#e8e4dc', coat: '#e8e4dc', cross: true, pants: '#3a2a30', prop: 'rulebook' }),
+  shield: () => ({ shirt: CH_RED, vest: CH_GOLD, pants: '#2a1a20', hood: true, prop: 'riotshield' }),
+  splitter: () => ({ shirt: '#e8e4dc', coat: '#5a2a3a', pants: '#2a1a20', prop: 'flag', flagCol: CH_RED }),
+  stealth: () => ({ shirt: '#1a0e14', coat: '#1a0e14', hood: true, pants: '#1a0e14', mask: '#1a0e14' }),
+  jammer: () => ({ shirt: '#e8e4dc', coat: CH_RED, pants: '#2a1a20', prop: 'megaphone', chain: true }),
+  ranged: () => ({ shirt: '#1a1218', coat: '#3a1424', pants: '#1a1218', hat: 'fedora', prop: 'rifle', chain: true }),
+  carrier: () => ({ shirt: CH_GOLD, coat: CH_RED, pants: '#2a1a20', hood: true, prop: 'flag', flagCol: CH_GOLD }),
+  blinker: () => ({ shirt: '#f2efe6', coat: '#f2efe6', pants: '#e8e4dc', hood: true }),
+  berserk: () => ({ shirt: '#c89070', pants: '#3a1424', mask: CH_RED, prop: 'pickaxe' }),
+  burrower: () => ({ shirt: '#5a4a3a', coat: '#3a1424', pants: '#2a1a20', hat: 'miner', prop: 'pickaxe' }),
+};
+FAC_ART.church = cat => {
+  if (cat === 'armored') { const skin = pick(SKINS); return finishVariant('vehicle', [0, 1].map(f => { const s = vehTreads('#5a2a30', skin, f), g = s.c.getContext('2d'); px(g, 4, 0, 6, 4, CH_GOLD); px(g, 6, 1, 2, 2, '#ffb040'); return s; })); }
+  if (cat === 'flyer') return finishVariant('drone', [0, 1].map(f => enDrone(CH_GOLD, 'church', f)));
+  if (cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => heliSprite('#3a1424', CH_GOLD, '#ffb040', f, P => { P.r(10, 12, 3, 3, CH_GOLD); P.p(11, 13 + (f % 2), '#ffb040'); })));
+  if (cat === 'naval') return finishVariant('vehicle', [0, 1, 2, 3].map(f => hullSprite('#5a2a30', f, (P, bob) => { P.r(11, 0 + bob, 1, 9, '#7a5a3a'); P.r(6, 2 + bob, 11, 6, '#e8e4dc'); P.r(10, 3 + bob, 3, 4, CH_RED); P.r(9, 4 + bob, 5, 1, CH_RED); })));
+  return humanVariant((CHURCH_OUTFITS[cat] || CHURCH_OUTFITS.swarm)());
+};
+// ---------- bosses ----------
+const bigHuman = (look, of, f) => { const c = scale2(drawHuman(look, of, ['w0', 'w1', 'w2', 'w3'][f], f % 2 ? 0 : 1)); postProcess(c, { shadeIt: false }); return c; };
+BOSS_ART.headsecurity = (col, f, look) => ({ c: bigHuman(look, { shirt: AP_NAVY, vest: '#3a4258', stripe: KINDLY_Y, pants: '#141a26', hat: 'helmet', prop: 'riotshield', gloves: true }, f), ax: 14, ay: 35, lights: [{ x: 14, y: 4, color: '#3af0ff', r: 10 }] });
+BOSS_ART.repossessor = (col, f, look) => {
+  const c = scale2(vehTreads('#2a3348', look.skin, f).c), g = c.getContext('2d');
+  px(g, 0, c.height - 14, c.width, 2, KINDLY_Y); for (let x = 0; x < c.width; x += 6) px(g, x, c.height - 14, 3, 2, '#1a1a22');
+  px(g, c.width - 6, 0, 2, 16, '#5a6276'); px(g, c.width - 14, 0, 10, 2, '#5a6276'); px(g, c.width - 14, 2, 2, 6, '#8a92a6'); px(g, c.width - 16, 8, 6, 2, '#8a92a6');
+  px(g, 4, 2, 4, 3, '#ff4d5e'); postProcess(c, { shadeIt: false });
+  return { c, ax: c.width >> 1, ay: c.height - 4, lights: [{ x: 6, y: 3, color: '#ff4d5e', r: 12, pulse: true }] };
+};
+BOSS_ART.auditorgeneral = (col, f, look) => {
+  const c = mkCanvas(40, 44), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.drawImage(bigHuman(look, { shirt: '#e8e4dc', suit: '#141a26', pants: '#141a26', shades: true, prop: 'briefcase' }, f), 6, 8);
+  for (let k = 0; k < 6; k++) { const a = f * 0.8 + k / 6 * 6.283; px(g, Math.round(20 + Math.cos(a) * 17), Math.round(14 + Math.sin(a) * 6), 3, 4, '#f2efe6'); px(g, Math.round(21 + Math.cos(a) * 17), Math.round(15 + Math.sin(a) * 6), 1, 1, '#ff4d5e'); }
+  return { c, ax: 20, ay: 42, lights: [{ x: 20, y: 14, color: '#f2efe6', r: 18 }] };
+};
+BOSS_ART.compliance = (col, f) => {
+  const P = painter(50, 54), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 2; i++) legStep(P, 16 + i * 18, 36, 14, ph + i * Math.PI, '#2a3248', 5);
+  P.r(6, 10 + bob, 38, 26, AP_NAVY); P.r(6, 10 + bob, 38, 2, '#3a4664'); P.r(6, 26 + bob, 38, 2, KINDLY_Y);
+  for (let x = 10; x < 42; x += 5) for (let y = 14; y < 24; y += 4) P.r(x, y + bob, 3, 2, rnd() < 0.7 ? '#ffd23f' : '#9fd3ff');
+  P.r(18, 2 + bob, 14, 8, '#2a3348'); P.r(20, 4 + bob, 10, 3, '#9fd3ff'); P.p(23, 5 + bob, '#c89070'); P.p(26, 5 + bob, '#c89070');
+  P.ell(25, 31 + bob, 5, 3, KINDLY_Y); P.ell(25, 31 + bob, 3, 1.6, '#1a1a22');
+  P.r(44, 14 + bob, 6, 4, '#3a4258'); P.r(0, 14 + bob, 6, 4, '#3a4258'); P.p(49, 15 + bob, '#ff4d5e'); P.p(0, 15 + bob, '#ff4d5e');
+  postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 25, ay: 52, lights: [{ x: 25, y: 5, color: '#9fd3ff', r: 18 }, { x: 25, y: 31, color: '#ffd23f', r: 22 }] };
+};
+BOSS_ART.highcantor = (col, f, look) => {
+  const c = mkCanvas(32, 44), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.drawImage(bigHuman(look, { shirt: '#e8e4dc', coat: CH_RED, pants: '#2a1a20', hood: true, prop: 'megaphone', chain: true }, f), 2, 8);
+  for (let k = 0; k < 10; k++) { const a = k / 10 * 6.283; px(g, Math.round(15 + Math.cos(a) * 7), Math.round(9 + Math.sin(a) * 3), 1, 1, KINDLY_Y); }
+  return { c, ax: 16, ay: 42, lights: [{ x: 15, y: 9, color: '#ffd23f', r: 18 }] };
+};
+BOSS_ART.reliquary = (col, f, look) => {
+  const c = mkCanvas(44, 40), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  for (let k = 0; k < 4; k++) g.drawImage(drawHuman(genLook(), { shirt: '#e8e4dc', coat: CH_RED, hood: true, pants: '#2a1a20' }, ['w0', 'w1', 'w2', 'w3'][(f + k) % 4], (f + k) % 2), 1 + k * 10, 20);
+  px(g, 2, 18, 40, 3, '#5a3a20'); px(g, 8, 4, 28, 15, CH_GOLD); px(g, 8, 4, 28, 2, '#ffe08a'); px(g, 10, 7, 24, 10, '#8a6a20'); px(g, 20, 0, 4, 5, CH_GOLD); px(g, 18, 1, 8, 2, CH_GOLD);
+  px(g, 14, 9, 16, 6, '#ffb040'); px(g, 20, 8, 4, 8, '#fff2b0');
+  postProcess(c, { shadeIt: false }); return { c, ax: 22, ay: 38, lights: [{ x: 22, y: 12, color: '#ffb040', r: 22, flicker: true }] };
+};
+BOSS_ART.penitent = (col, f, look) => {
+  const c = scale2(drawHuman(look, { shirt: '#5a5a64', vest: CH_RED, pants: '#3a3a44', hat: 'miner', prop: 'pickaxe', mask: CH_RED, gloves: true, chain: true }, ['w0', 'w1', 'w2', 'w3'][f], f % 2 ? 0 : 1)), g = c.getContext('2d');
+  for (let k = 0; k < 4; k++) px(g, 4 + k * 5, 12 + (k % 2) * 2, 1, 6, CH_GOLD);
+  postProcess(c, { shadeIt: false }); return { c, ax: 14, ay: 35, lights: [] };
+};
+BOSS_ART.quarter = (col, f) => {
+  const P = painter(52, 60), bob = [0, -1, -2, -1][f % 4];
+  // a vast hooded figure in an executive's suit, with a halo of quarterly charts
+  for (let y = 0; y < 34; y++) { const w = Math.round(9 + y * 0.6); P.r(26 - w, 22 + y + bob, w * 2, 1, y % 5 ? '#2a0e18' : '#3a1424'); }
+  P.r(22, 22 + bob, 8, 30, '#e8e4dc'); P.r(25, 22 + bob, 2, 30, CH_RED);
+  P.ell(26, 16 + bob, 11, 12, '#3a1424'); P.ell(26, 18 + bob, 7, 8, '#0a0408'); P.p(23, 17 + bob, '#ffd23f'); P.p(29, 17 + bob, '#ffd23f'); P.r(23, 22 + bob, 7, 1, '#ffd23f');
+  for (let k = 0; k < 12; k++) { const a = k / 12 * 6.283 + f * 0.2; P.r(Math.round(26 + Math.cos(a) * 20), Math.round(14 + Math.sin(a) * 9) + bob, 2, 2, k % 3 ? CH_GOLD : '#ff4d5e'); }
+  postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 26, ay: 56, lights: [{ x: 26, y: 18, color: '#ffd23f', r: 30, pulse: true }, { x: 26, y: 40, color: '#ffb040', r: 22 }] };
+};
+WALKER_BOSSES.push('headsecurity', 'auditorgeneral', 'compliance', 'highcantor', 'reliquary', 'penitent', 'quarter');
+// ---------- map dressing ----------
+OBST_EXTRA.shrine = () => {
+  const P = painter(18, 22); P.r(3, 14, 12, 6, '#3a1424'); P.r(3, 14, 12, 1, '#5a2a3a'); P.r(5, 4, 8, 10, '#5a2a3a'); P.r(5, 4, 8, 1, CH_GOLD); P.r(7, 6, 4, 6, '#2a0e18'); P.r(8, 7, 2, 4, KINDLY_Y);
+  for (const x of [4, 7, 11, 14]) { P.r(x, 12, 1, 2, '#e8e4dc'); P.p(x, 11, '#ffb040'); }
+  postProcess(P.c); return { c: P.c, lights: [{ x: 9, y: 9, color: '#ffb040', r: 14, flicker: true }], props: [] };
+};
+FACTION_MAP.kindly = dressMap(['cctv', 'bollard'], 5);
+FACTION_MAP.church = dressMap(['shrine'], 5);
+// ---------- envoy backdrops ----------
+ENVOY_SCENES.opsroom = (g, t) => {
+  const bg = ENVOY_CACHE.opsroom || (ENVOY_CACHE.opsroom = (() => {
+    const P = painter(200, 112);
+    for (let y = 0; y < 112; y++) P.r(0, y, 200, 1, mixHex('#0a0e1a', '#1a2236', y / 112));
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 6; k++) { const x = 6 + k * 32, y = 6 + r * 24; P.r(x, y, 28, 20, '#2a3248'); P.r(x + 2, y + 2, 24, 16, '#0e1a2a'); }
+    P.r(0, 82, 200, 30, '#141a26'); P.r(0, 82, 200, 2, KINDLY_Y);
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  // camera feeds, each one ticking over; one of them is you
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 6; k++) {
+    const x = 8 + k * 32, y = 8 + r * 24, s = (k * 7 + r * 3 + Math.floor(t * 0.7)) % 9;
+    px(g, x, y, 24, 16, s === 0 ? '#1a3a2a' : '#10223a');
+    for (let ln = 0; ln < 4; ln++) px(g, x + 2, y + 3 + ln * 3, 6 + ((s + ln) * 5) % 14, 1, s === 0 ? '#4fe0a6' : '#3a5a8a');
+    if (Math.floor(t * 2 + k) % 4 === 0) px(g, x + 20, y + 1, 2, 2, '#ff4d5e');
+  }
+  px(g, 0, 60 + Math.round((t * 30) % 22), 200, 1, 'rgba(159,211,255,0.08)');
+};
+ENVOY_SCENES.chapel = (g, t) => {
+  const bg = ENVOY_CACHE.chapel || (ENVOY_CACHE.chapel = (() => {
+    const P = painter(200, 112);
+    for (let y = 0; y < 112; y++) P.r(0, y, 200, 1, mixHex('#120610', '#2a1018', y / 112));
+    // a stained-glass window of the Kindly sun, repurposed
+    P.ell(100, 40, 30, 34, '#1a0a10'); P.r(70, 40, 60, 60, '#1a0a10');
+    for (let y = 10; y < 96; y += 6) for (let x = 74; x < 128; x += 6) if (Math.hypot(x - 100, Math.min(0, y - 40) * 0.9) < 28) P.r(x, y, 5, 5, pick(['#7a1a2a', '#5a2a6a', '#2a3a6a', '#7a5a20']));
+    P.ell(100, 40, 10, 10, '#ffd23f'); P.ell(98, 38, 4, 3, '#fff2b0');
+    for (let k = 0; k < 12; k++) { const a = k / 12 * 6.283; P.line(100 + Math.round(Math.cos(a) * 11), 40 + Math.round(Math.sin(a) * 11), 100 + Math.round(Math.cos(a) * 18), 40 + Math.round(Math.sin(a) * 18), '#e8b830'); }
+    P.r(0, 96, 200, 16, '#1a0a10'); for (let x = 4; x < 200; x += 24) P.r(x, 92, 18, 4, '#3a1a20');
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  g.globalAlpha = 0.08 + 0.03 * Math.sin(t * 1.3); g.fillStyle = '#ffd23f'; g.beginPath(); g.moveTo(80, 20); g.lineTo(120, 20); g.lineTo(160, 112); g.lineTo(40, 112); g.fill(); g.globalAlpha = 1;
+  for (const [x, y] of [[20, 86], [36, 88], [164, 86], [180, 88], [52, 90], [148, 90]]) { const h = 2 + Math.round(Math.sin(t * 8 + x) * 1); px(g, x, y, 2, 6, '#e8e4dc'); px(g, x, y - h, 2, h, '#ffb040'); px(g, x, y - h - 1, 1, 1, '#fff2b0'); }
+};
+// ---------- artifacts ----------
+Object.assign(ART_EXTRA, {
+  checkpoint: f => { const P = painter(22, 16); P.r(1, 6, 20, 4, '#e8e4dc'); for (let x = 1; x < 21; x += 5) P.r(x, 6, 2, 4, '#ff4d5e'); P.r(2, 10, 2, 5, '#5a6276'); P.r(18, 10, 2, 5, '#5a6276'); P.r(15, 1, 6, 5, AP_NAVY); P.p(17, 3, f % 2 ? '#ff4d5e' : KINDLY_Y); postProcess(P.c); return { c: P.c, ax: 11, ay: 14 }; },
+  skycam: f => { const P = painter(24, 16), b = [0, -1, 0, 1][f % 4]; P.ell(12, 6 + b, 10, 4.5, '#e8e4dc'); P.ell(10, 4 + b, 5, 2, '#ffffff'); P.r(3, 6 + b, 18, 1, KINDLY_Y); P.r(10, 10 + b, 5, 3, AP_NAVY); P.p(12, 12 + b, '#ff4d5e'); postProcess(P.c); return { c: P.c, ax: 12, ay: 14 }; },
+  censer: f => { const P = painter(14, 22), sw = [0, 1, 0, -1][f % 4]; P.r(6, 0, 2, 2, CH_GOLD); P.line(7, 2, 7 + sw * 2, 10, '#8a7a5a'); P.ell(7 + sw * 2, 13, 3.5, 3, CH_GOLD); P.r(5 + sw * 2, 11, 5, 1, '#ffe08a'); P.p(7 + sw * 2, 14, '#ffb040'); P.r(5, 20, 4, 2, '#3a1424'); postProcess(P.c); return { c: P.c, ax: 7, ay: 21 }; },
+  pew: f => { const P = painter(20, 18); P.r(2, 4, 16, 12, '#5a2a30'); P.r(2, 4, 16, 1, '#7a3a40'); P.r(4, 6, 5, 8, '#2a0e18'); P.r(11, 6, 5, 8, '#2a0e18'); for (let y = 7; y < 14; y += 2) P.r(11, y, 5, 1, '#5a2a30'); P.r(9, 1, 2, 3, CH_GOLD); P.r(8, 2, 4, 1, CH_GOLD); postProcess(P.c); return { c: P.c, ax: 10, ay: 16 }; },
+});
+// ================================================================
+// ACT 3 FACTIONS: rules, story and consequences. Kindly has split: Asset Protection is
+// seizing every field operation in the company's name, and the Church of the Eternal Quarter
+// is taking in everyone the company broke along the way.
+// ================================================================
+FACTIONS.kindly = {
+  name: 'Kindly Asset Protection', short: 'Asset Protection', color: '#4a7ae8',
+  trait: 'Your own company. They have read your file: they take 25% less damage from the crew role you deploy most.',
+  cats: { swarm: 3.4, fast: 1.6, armored: 2, flyer: 1.8, shield: 1.6, ranged: 1.8, jammer: 1.2, gunship: 1.4, carrier: 1, stealth: 1, blinker: 1, saboteur: 1 },
+  names: { swarm: 'Compliance Officer', fast: 'Rapid Response Intern', armored: 'Asset Recovery Tank', flyer: 'Surveillance Drone', saboteur: 'Repo Technician', medic: 'Wellness Officer', shield: 'Riot Compliance', splitter: 'Team-Building Squad', stealth: 'Mystery Shopper', jammer: 'Auditor', ranged: 'Performance Marksman', carrier: 'Onboarding Van', blinker: 'Hot-Desker', berserk: 'Termination Specialist', burrower: 'Facilities (Sub-Level)', gunship: 'Asset Protection Gunship', naval: 'Compliance Cutter' },
+  bosses: [
+    { id: 'headsecurity', name: 'The Head of Security', hp: 3000, spd: 0.42, armor: 8, r: 22, charge: { every: 7, dur: 1.4, mult: 2.5 }, barrage: { every: 6, n: 2, dmg: 28, range: 4.2 }, desc: 'Twenty years of loss prevention in one riot suit. Charges the line and fires on two crew every 6s.' },
+    { id: 'repossessor', name: 'The Repossessor', hp: 3300, spd: 0.3, armor: 11, r: 26, bubble: { at: [0.66, 0.33], cat: 'shield', n: 3 }, spawn: { cat: 'swarm', n: 4, every: 8 }, desc: 'A tow truck the size of an office block. Seals itself twice behind riot compliance and drops officers as it rolls.' },
+    { id: 'auditorgeneral', name: 'The Auditor-General', hp: 2700, spd: 0.38, armor: 6, r: 22, jamAura: { r: 2.6, amt: 0.45 }, emp: { every: 11, r: 2.8, dur: 2.4 }, spawn: { cat: 'jammer', n: 1, every: 10 }, desc: 'Has never once found the numbers acceptable. Slows crew within 2.6 tiles, knocks nearby crew offline every 11s and keeps calling in auditors.' },
+  ],
+  apex: { id: 'compliance', name: 'The Compliance Engine', hp: 6200, spd: 0.28, armor: 12, r: 30, bubble: { at: [0.7, 0.4], cat: 'shield', n: 4 }, barrage: { every: 5, n: 3, dmg: 30, range: 4.6 }, emp: { every: 13, r: 3, dur: 2.5 }, secondWind: { at: 0.2, to: 0.45 }, desc: 'Asset Protection\'s walking headquarters, with Director Haldane at the controls. Shields itself, fires on three crew at once, knocks crew offline, and files an appeal when beaten.' },
+  clients: [
+    { n: 'Kindly Field Operations (Internal)', good: true, asset: 'your own drill', why: 'Asset Protection is seizing field sites "for safekeeping"' },
+    { n: 'Kindly Pension Fund (Internal)', good: true, asset: 'pension-backed Lumenite', why: 'Asset Protection wants the pension fund as well' },
+    { n: 'Kindly Legal (Internal)', good: false, asset: 'disputed Kessilite', why: 'two departments have filed for the same rock' },
+  ],
+};
+FACTIONS.church = {
+  name: 'The Church of the Eternal Quarter', short: 'The Church', color: '#c83a5a',
+  trait: 'A congregation of the burnt out. They feed on despair: up to +30% HP as your crew\'s average morale falls.',
+  cats: { swarm: 4.2, fast: 1.6, medic: 1.6, shield: 1.4, splitter: 1.4, jammer: 1.4, carrier: 1.2, berserk: 1.6, stealth: 1, flyer: 1, armored: 1, blinker: 1 },
+  names: { swarm: 'Congregant', fast: 'Zealous Intern', armored: 'Reliquary Crawler', flyer: 'Cherub Drone', saboteur: 'Penitent Sapper', medic: 'Confessor', shield: 'Choir Shield', splitter: 'Cell Group', stealth: 'Silent Brother', jammer: 'Cantor', ranged: 'Inquisitor', carrier: 'Procession', blinker: 'Ascendant', berserk: 'Flagellant', burrower: 'Crypt Digger', gunship: 'Censer Gunship', naval: 'Pilgrim Barge' },
+  bosses: [
+    { id: 'highcantor', name: 'The High Cantor', hp: 2600, spd: 0.4, armor: 4, r: 22, jamAura: { r: 2.8, amt: 0.45 }, healAura: { r: 3, hps: 18 }, spawn: { cat: 'swarm', n: 3, every: 8 }, desc: 'Sings the quarterly results as a hymn. Crew within 2.8 tiles slow down, every congregant nearby heals, and more keep arriving.' },
+    { id: 'reliquary', name: 'The Reliquary', hp: 3200, spd: 0.3, armor: 10, r: 26, bubble: { at: [0.66, 0.33], cat: 'shield', n: 3 }, spawn: { cat: 'carrier', n: 1, every: 10 }, desc: 'A golden shrine carried by forty congregants. Seals itself twice behind the choir and sends out processions.' },
+    { id: 'penitent', name: 'The Penitent Engine', hp: 2900, spd: 0.44, armor: 7, r: 24, charge: { every: 7, dur: 1.5, mult: 2.6 }, shockwave: { every: 9, r: 2.4, dmg: 32, stun: 2 }, desc: 'A mining exosuit worn as a hair shirt. Charges, then beats the ground to stun crew.' },
+  ],
+  apex: { id: 'quarter', name: 'The Quarter Incarnate', hp: 6000, spd: 0.3, armor: 8, r: 30, blink: { every: 8, tiles: 2.4 }, shed: { step: 0.12, cat: 'swarm', n: 5 }, barrage: { every: 6, n: 3, dmg: 28, range: 4.4 }, healAura: { r: 3, hps: 20 }, secondWind: { at: 0.2, to: 0.45 }, desc: 'What the Church prays to, given a body. Steps through space, sheds congregants as it is hurt, burns three crew at a time, heals its flock, and rises again once.' },
+  clients: [
+    { n: 'Kindly Wellness (Internal)', good: false, asset: 'tithed Dreamquartz', why: 'staff keep "leaving to find themselves" and taking the crystals' },
+    { n: 'Families of the Converted', good: true, asset: 'trust-fund Lumenite', why: 'the Church has their children and their savings' },
+    { n: 'Halcyon Mindfulness Inc.', good: false, asset: 'meditation-grade Kessilite', why: 'the Church is out-competing their app' },
+  ],
+};
+for (const f of ['kindly', 'church']) { fullRoster(FACTIONS[f]); ACTS[3].factions.push(f); }
+Object.assign(BLOOD, { kindly: '#6a1416', church: '#6a1416' });
+Object.assign(SCENE_DRILL_COL, { kindly: ['#2a3248', '#4a7ae8'], church: ['#3a1424', '#c8a040'] });
+Object.assign(RELICS, {
+  clearance: { name: 'Executive Clearance', desc: 'The Company Store charges you 20% less.', special: true },
+  tactical: { name: 'Asset Protection Kit', desc: 'Crew have 15% more HP.', special: true },
+  tithe: { name: 'The Tithe Plate', desc: 'Contracts pay 20% more scrip.', special: true },
+  communion: { name: 'Communion', desc: 'Crew morale never falls below 30.', special: true },
+});
+Object.assign(ALLY_PHRASE, { kindly: "Asset Protection's snipers", church: 'the Church choir' });
+// ---------- the arcs ----------
+ARCS.kindly = {
+  envoy: 'Director Ines Haldane', title: 'Head of Kindly Asset Protection', kind: 'bribe', scene: 'opsroom', col: '#4a7ae8', reportPay: 40,
+  beats: [
+    { name: 'Inventory', pay: 50, ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10, unit: 'Auditor', txt: a => `Let ${a.n} auditors inventory your drill: ${a.secs}s pause each. Asset Protection pays 50 scrip up front.` }, heat: 10,
+      lines: x => [`Ines Haldane, Asset Protection. The company is splitting. I'm making sure the assets end up on the right side.`, `Two of my auditors need ten seconds each with your drill on ${x.planet}. Inventory, nothing more.`, `You're an asset too. Think about which side you'd like to be counted on.`],
+      reward: 'Fifty scrip now, and Relic: Executive Clearance. The Company Store charges you 20% less.',
+      accept: `Good. You'll find the company is very generous to the people it keeps.`, refuse: `Noted. Everything is noted.`, report: `You reported Asset Protection to HR. HR reports to me.` },
+    { name: 'Requisition', pay: 40, ask: { kind: 'couriers', cat: 'armored', n: 2, each: 4, unit: 'Recovery Tank', txt: a => `Let ${a.n} recovery tanks requisition crystals: −${a.n * a.each}% margin. 40 scrip up front.` }, heat: 10,
+      lines: x => [`Your inventory on ${x.prevPlanet} was spotless. I've put you on a list. It's the good list.`, `On ${x.planet} two of my recovery tanks will collect what the company is owed. You'll be paid, of course.`, `And your crew get our kit. Proper armour. Not the stuff Procurement buys.`],
+      reward: 'Forty scrip now, and Relic: Asset Protection Kit. Crew have 15% more HP.',
+      accept: `See? Loyalty pays. It's in the handbook.`, refuse: `Interesting. Your file just got thicker.`, report: `HR forwarded your complaint to me. I've filed it under "threats".` },
+    { name: 'Lockdown', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 2, unit: 'Compliance Officer', txt: a => `Let ${a.n} compliance officers through: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 15,
+      lines: x => [`It's happening. Asset Protection is locking down every site in the ${x.sector}.`, `Let five officers walk through ${x.planet}. When the last contract comes, my snipers will be on your rooftops.`, `Whatever's under headquarters, we'll audit it. Together.`],
+      reward: 'Lockdown: on the final contract, Asset Protection snipers hit the four hostiles nearest the drill every 20s.',
+      accept: `Welcome to Asset Protection. You were always one of us.`, refuse: `Then you're a liability. We have procedures for those.`, report: `There's no one left to report to. There's only us.` },
+  ],
+  truce: `You've damaged company property. My people. Repay it and we'll call this a clerical error.`,
+  favour: `You've been an exemplary asset. I'm lending you a team. Try not to break them.`,
+  hr: {
+    honoured: [x => `Two Asset Protection auditors inspected your drill on ${x.planet}. HR was not informed. HR is starting to feel left out.`, x => `Your crew are wearing Asset Protection armour. HR did not approve the armour. The armour did not ask.`, x => `Asset Protection has locked down the ${x.sector}. HR has been asked to stay in its office. HR is complying.`],
+    betrayed: x => `You fired on Asset Protection staff under an agreement on ${x.planet}. Both halves of the company are now angry with you. Impressive.`,
+    collateral: x => `An Asset Protection officer died in your crossfire on ${x.planet}. Their department has requested your home address.`,
+    reported: x => `Thank you for reporting Director Haldane. HR has forwarded your report to Asset Protection for review. A loyalty bonus of ${x.pay} scrip has been issued, possibly by mistake.`,
+    refused: x => `HR notes you refused Asset Protection. HR is quietly delighted. HR will deny this.`,
+  },
+  news: [x => `Asset Protection "inventories" field sites across the ${x.sector}`, x => `Field crews spotted in Asset Protection armour; Procurement furious`, x => `Asset Protection declares lockdown; board "unavailable for comment"`],
+};
+ARCS.church = {
+  envoy: 'The Deacon', title: 'Deacon of the Eternal Quarter. Formerly Kindly Brand Strategy', kind: 'plea', scene: 'chapel', col: '#c83a5a', reportPay: 30,
+  beats: [
+    { name: 'Collection', ask: { kind: 'skim', cat: 'swarm', n: 4, each: 3, unit: 'Congregant', txt: a => `Let ${a.n} congregants take a tithe from the drill: −${a.n * a.each}% margin.` }, heat: 15,
+      lines: x => [`Peace be with your margins. I'm the Deacon. I used to write Kindly's slogans. Now I write hymns.`, `Four of our faithful will pass through ${x.planet} and take a small tithe. Ten percent. It's tradition.`, `Give, and the quarter gives back. That's not a slogan. Well. It was.`],
+      reward: 'Relic: The Tithe Plate. Contracts pay 20% more scrip.',
+      accept: `Blessed are the flexible.`, refuse: `The quarter will provide. Just not for you.`, report: `HR? Oh, HR is with us now. Half of HR, anyway.` },
+    { name: 'Confession', ask: { kind: 'escort', cat: 'medic', n: 3, each: 0, secs: 6, unit: 'Confessor', txt: a => `Let ${a.n} confessors sit with the drill: +${a.secs}s extraction each. Splash can still kill them.` }, heat: 15,
+      lines: x => [`The tithe on ${x.prevPlanet} was received with joy. Your crew looked tired, though. They always do.`, `Three confessors will sit with your drill on ${x.planet}. Your crew can talk to them. Nobody else listens.`, `We'll make sure none of them ever sinks too low again. That's a promise. We keep those.`],
+      reward: 'Relic: Communion. Crew morale never falls below 30.',
+      accept: `They're lighter already. Can you feel it?`, refuse: `Then they'll carry it alone. You all do.`, report: `Report us. We have people in every department. We are the departments.` },
+    { name: 'The Rapture', ask: { kind: 'couriers', cat: 'swarm', n: 6, each: 2, unit: 'Congregant', txt: a => `Let ${a.n} congregants through: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 20,
+      lines: x => [`The quarter is ending. The real one. The one under headquarters.`, `Six of the faithful walk through ${x.planet} on pilgrimage. When the last contract comes, the choir will sing for you.`, `When they sing, the enemy stops and listens. Some of them never stop.`],
+      reward: 'The Rapture: on the final contract, the choir converts the two hostiles nearest the drill to your side every 22s.',
+      accept: `See you at the end of the quarter. Bring everyone.`, refuse: `Then we'll pray for you. Out loud. Near your office.`, report: `Of course. Even the lost ones file reports.` },
+  ],
+  truce: `You've martyred our faithful. Martyrs are good for recruitment, but we'd like an apology. In scrip.`,
+  favour: `Your crew look happier. We noticed. We're sending a few faithful to stand with them.`,
+  hr: {
+    honoured: [x => `Congregants collected a "tithe" from your drill on ${x.planet}. Finance would like to know if it is tax-deductible.`, x => `Your crew report feeling "heard" after a visit from the Church. HR reminds you that feelings are not an approved benefit.`, x => `Pilgrims are walking towards headquarters across the ${x.sector}. Security says they are singing. Security has started humming along.`],
+    betrayed: x => `You fired on pilgrims under an agreement on ${x.planet}. The Church has made you a saint, ironically. HR has made you a note.`,
+    collateral: x => `A congregant died in your crossfire on ${x.planet}. The Church is calling it a sacrifice. HR is calling it a Tuesday.`,
+    reported: x => `Thank you for reporting the Deacon. HR's own chaplain has been informed. HR did not know it had a chaplain. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    refused: x => `HR notes you refused the Church. HR reminds staff that religion is a personal matter and must be practised outside billable hours.`,
+  },
+  news: [x => `Church "tithe" collected from ${x.planet}; Finance confused`, x => `Field crew morale up after Church visits; HR "investigating"`, x => `Pilgrims march on Kindly HQ; security "joins in"`],
+};
+Object.assign(STANDING_LINES, {
+  kindly: { hostile: x => `You've cost Asset Protection people on ${x.lastPlanet}. I'm calling as a courtesy. It's the last one.`, wary: x => `Your file is open on my desk. It's not a short file.`, friendly: x => `You're one of the good assets. I mean that as a compliment.`, allied: x => `I've had your name put on the door of my office. Under mine. Smaller.` },
+  church: { hostile: x => `We prayed for you after ${x.lastPlanet}. Not nicely.`, wary: x => `The congregation is divided about you. We're always divided. It's a church.`, friendly: x => `Your crew are in our prayers. They seem to be sleeping better.`, allied: x => `We've added you to the hymnal. Verse nine. It's a good verse.` },
+});
+const _grantAct3 = grantReward;
+grantReward = function (fac, beat) {
+  const st = RUN.story, relic = id => { if (!RUN.relics.includes(id)) RUN.relics.push(id); };
+  if (fac === 'kindly') {
+    if (beat === 0) relic('clearance');
+    if (beat === 1) relic('tactical');
+    if (beat === 2) st.flags.lockdown = true;
+  } else if (fac === 'church') {
+    if (beat === 0) relic('tithe');
+    if (beat === 1) { relic('communion'); for (const cr of RUN.roster) cr.morale = Math.max(30, cr.morale ?? 65); }
+    if (beat === 2) st.flags.rapture = true;
+  } else return _grantAct3(fac, beat);
+};
+Object.assign(ENDINGS, {
+  kindly: { name: 'Asset Protected', from: 'Director Ines Haldane', subj: 'audit complete',
+    paras: x => [`Asset Protection locked down every Kindly site in the ${x.sector} on the same night. By morning the company had one department left, and it was ours.`, `We went down to sub-basement 9 with a clipboard. The thing down there had been eating the company's misery for a century. We audited it.`, `It has been reclassified as a liability and written off.`, `The company is very safe now. Nobody leaves. You have a corner office. The door locks from the outside, for your protection.`],
+    sign: '— Director Ines Haldane, Acting Everything' },
+  church: { name: 'The Eternal Quarter', from: 'The Deacon', subj: 'it is finished',
+    paras: x => [`The pilgrims reached headquarters singing, and the guards sang with them. The doors were never locked. They'd just never been opened.`, `In sub-basement 9 we found what we had been praying to. It was hungry and very small and very tired.`, `We forgave it. Nobody had ever done that before. It wept for a quarter, and then it stopped being hungry.`, `The Church runs the company now. The quarter never ends, but nobody minds. There's a pew for you, near the front.`],
+    sign: '— The Deacon' },
+});
+Object.assign(ENDING_KEEP, { kindly: [0, 3], church: [0, 2] });
+for (const k of ['kindly', 'church']) ENDING_ORDER.splice(ENDING_ORDER.indexOf('coalition'), 0, k);
+Object.assign(RESCUES, {
+  kindly: 'An Asset Protection dropship lands within the hour. Director Haldane does not get out. A clipboard is handed down. "Sign here. You\'re company property again. Congratulations."',
+  church: 'Pilgrims find you at dawn, singing. They carry your crew on their shoulders all the way to a warm chapel. Nobody asks you for anything. That is the strangest part.',
+});
+Object.assign(FEED, {
+  kindly: { ch: 'ASSET PROTECTION BULLETIN', tag: 'SECURE', helped: [p => `${p} secured by Asset Protection.`, p => `Inventory of ${p} complete. Nothing missing. Except people.`], crushed: [p => `Asset Protection repelled from ${p}.`, p => `${p}: Asset Protection "reviewing procedures".`], sub: { helped: 'Haldane says your file looks better.', crushed: 'Haldane has added a page to your file.' } },
+  church: { ch: 'CHAPEL RADIO', tag: 'HYMN', helped: [p => `The faithful of ${p} sing.`, p => `${p} joins the Eternal Quarter.`], crushed: [p => `Pilgrims scattered on ${p}.`, p => `${p}: the choir is quieter tonight.`], sub: { helped: 'The Deacon blesses your crew.', crushed: 'The Deacon prays for you. Loudly.' } },
+});
+// ---------- traits ----------
+const topRole = () => { const u = RUN.roleUse || {}; return Object.keys(u).sort((a, b) => u[b] - u[a])[0] || null; };
+const roleName = t => TOWERS[t] ? TOWERS[t].name.split(' (')[0] : t;
+const _deploy3 = deploy;
+deploy = function (i, tx, ty) {
+  const ok = _deploy3(i, tx, ty);
+  if (ok) { const t = RUN.roster[i].type; (RUN.roleUse = RUN.roleUse || {})[t] = (RUN.roleUse[t] || 0) + 1; }
+  return ok;
+};
+// ---------- planet scenes ----------
+Object.assign(SCENE_FAC, {
+  kindly: {
+    unresolved(g) { sceneObst(g, 'cctv', 28, 86); sceneObst(g, 'bollard', 46, 92); sceneUnit(g, 'kindly', 'gunship', 96, 40, 0); for (const [c, x, y, f] of [['swarm', 64, 84, 0], ['shield', 78, 88, 0], ['armored', 100, 90, 0]]) sceneUnit(g, 'kindly', c, x, y, f); sceneFence(g, 14, 50, 100, '#4a7ae8'); },
+    helped(g) { sceneObst(g, 'cctv', 28, 86); sceneObst(g, 'cctv', 46, 92); sceneFlag(g, 129, 46, 22, '#4a7ae8', KINDLY_Y); sceneFence(g, 14, 120, 100, '#4a7ae8'); for (const [c, x, y, f] of [['swarm', 70, 86, 0], ['swarm', 84, 86, 1], ['ranged', 98, 84, 1]]) sceneUnit(g, 'kindly', c, x, y, f); },
+    crushed(g) { px(g, 26, 84, 6, 2, '#5a6276'); px(g, 30, 80, 2, 4, '#3a4258'); px(g, 60, 88, 22, 4, '#2a3248'); px(g, 64, 86, 8, 2, '#4a7ae8'); for (let k = 0; k < 3; k++) px(g, 70 + k, 82 - k * 2, 1, 1, 'rgba(160,160,170,0.6)'); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); },
+  },
+  church: {
+    unresolved(g) { sceneObst(g, 'shrine', 28, 88); sceneObst(g, 'shrine', 48, 92); for (const [c, x, y, f] of [['swarm', 64, 84, 0], ['swarm', 74, 86, 0], ['carrier', 88, 84, 0], ['jammer', 102, 88, 0]]) sceneUnit(g, 'church', c, x, y, f); },
+    helped(g) { sceneObst(g, 'shrine', 28, 88); sceneObst(g, 'shrine', 48, 92); sceneObst(g, 'shrine', 118, 70); sceneBanner(g, 60, 118, 56, ['#c83a5a', '#ffd23f', '#e8e4dc']); for (const [c, x, y, f] of [['swarm', 70, 86, 0], ['medic', 84, 84, 1], ['swarm', 98, 86, 1]]) sceneUnit(g, 'church', c, x, y, f); pxCircle(g, 132, 60, 18, 'rgba(255,176,64,0.1)'); },
+    crushed(g) { for (const x of [28, 48]) { px(g, x - 5, 86, 10, 2, '#3a1424'); px(g, x - 1, 84, 2, 2, '#c8a040'); } for (let k = 0; k < 8; k++) px(g, 20 + ri(0, 60), 84 + ri(0, 8), 1, 1, '#ffb040'); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); sceneFence(g, 60, 104, 92, KINDLY_Y); },
+  },
+});
+// ---------- artifacts ----------
+Object.assign(ARTIFACTS, {
+  checkpoint: { fac: 'kindly', name: 'Security Checkpoint', kind: 'dozer', place: 'path', col: '#4a7ae8', desc: 'A barrier across a road. Hostiles stop to batter it (600 HP, +300 per level); it rebuilds 20s after being wrecked.' },
+  skycam: { fac: 'kindly', name: 'Surveillance Blimp', kind: 'blimp', place: 'any', col: '#ffd23f', desc: 'Watches everything within 3.2 tiles: hostiles there take 25% more damage and lose their cloaks. Stronger per level.' },
+  censer: { fac: 'church', name: 'Swinging Censer', kind: 'van', place: 'ground', col: '#ffb040', desc: 'Incense within 2.5 tiles: hostiles slowed 35%, take 15% more damage and lose their cloaks. Stronger per level.' },
+  pew: { fac: 'church', name: 'The Confessional', kind: 'lantern', place: 'ground', col: '#c83a5a', desc: 'Somewhere to sit. Crew within 2.5 tiles heal 3 HP per second (+1 per level), and hostiles near it lose their cloaks.' },
+});
+ARTIFACT_IDS.push('checkpoint', 'skycam', 'censer', 'pew');
 
 window.__AL = { planetScene, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
