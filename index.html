@@ -350,6 +350,73 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .tprio .tnote b{color:var(--ok)}
 @media (max-width:560px){.crew{min-width:150px;grid-template-columns:36px auto}.crew .pt{width:36px;height:36px}.crewpeek{font-size:12px}}
 @media (prefers-reduced-motion:reduce){.crewpeek{transition:none}}
+
+/* the desk debrief: a monitor with the company intranet and the faction's channel, on your desk */
+.screen.desk{background:radial-gradient(ellipse at 50% 28%,rgba(70,90,160,.28),rgba(4,5,10,.93) 72%)}
+.deskwrap{width:min(1100px,calc(100% - 24px));display:flex;flex-direction:column;align-items:center;margin:auto 0}
+.monitor{width:100%;background:#1c1e27;padding:12px 12px 20px;box-shadow:0 0 0 3px #0b0c12,0 0 70px rgba(120,160,255,.16);clip-path:var(--notch);position:relative}
+.monitor::after{content:'';position:absolute;left:50%;bottom:7px;width:8px;height:3px;margin-left:-4px;background:#4fe0a6;box-shadow:0 0 6px #4fe0a6}
+.glass{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:10px;background:#090b12;padding:10px;box-shadow:inset 0 0 40px rgba(0,0,0,.7)}
+.stand{width:90px;height:16px;background:linear-gradient(#2a2c36,#14151c);clip-path:polygon(18% 0,82% 0,100% 100%,0 100%)}
+.win{--pad:14px;background:var(--panel);box-shadow:var(--frame);display:flex;flex-direction:column;min-width:0}
+.win .titlebar{margin:0}
+.win .wbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.intranet .quip{margin:0;font-size:16px;line-height:1.35}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.kpis>div{background:var(--panel2);padding:7px 9px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.kpis b{font:400 24px/1 var(--f-mono);font-weight:400;white-space:nowrap}
+.kpis b.neg{color:var(--danger)}
+.kpis small{color:var(--muted);font-size:12px}
+.kpis .stars{color:var(--brand);font-size:19px;letter-spacing:-1px}
+.kpis .stars i{font-style:normal;color:var(--line-hi)}
+.paybox{position:relative}
+.paybox.stamped::after{content:'PAID*';position:absolute;right:4px;top:6px;font:700 12px/1 var(--f-label);color:var(--danger);border:2px solid var(--danger);padding:2px 5px;transform:rotate(-12deg);animation:stampin .3s cubic-bezier(.3,1.6,.5,1) both;opacity:.85}
+.cnews{margin-top:auto;border-top:2px dashed var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.cnews p{margin:0;font-size:13px;line-height:1.35;color:var(--muted)}
+.cnews p b{color:var(--fg);font-weight:400;font-size:15px}
+.intranet .wbody{flex:1}
+.slip.mini{font-size:17px}
+.slip.mini td{padding:3px 0}
+.notes{margin:0;padding:0 0 0 16px;font-size:13px;line-height:1.35;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.feed .titlebar{background:var(--fc);color:#0b0c12}
+.feed .titlebar i{background:repeating-linear-gradient(180deg,rgba(0,0,0,.35) 0 1px,transparent 1px 3px)}
+.live{font:400 10px/1 var(--f-label);font-style:normal;color:#b0101e;animation:liveblink 1.4s steps(2) infinite}
+@keyframes liveblink{50%{opacity:.35}}
+.scenebox{margin:0;position:relative}
+.scenebox img.scene{width:100%;height:auto;aspect-ratio:2/1;image-rendering:pixelated;display:block;box-shadow:0 0 0 2px #0b0c12}
+.scenebox figcaption{position:absolute;left:6px;bottom:6px;font:400 14px/1 var(--f-mono);background:rgba(5,7,10,.78);padding:3px 7px;color:var(--fg)}
+.feed .headline{margin:0;font:400 26px/1 var(--f-display);color:var(--fc)}
+.feed.crushed .headline{color:var(--fg)}
+.feed .sub{margin:0;color:var(--muted);font-size:14px}
+.wstrip{display:flex;flex-direction:column;gap:5px}
+.wstrip .wrow{display:flex;gap:6px;overflow-x:auto;padding:2px}
+.wstrip figure{margin:0;flex:0 0 auto;width:92px;display:flex;flex-direction:column;gap:3px}
+.wstrip img.thumb{width:92px;height:46px;image-rendering:pixelated;box-shadow:0 0 0 2px var(--brand)}
+.wstrip figure.helped img.thumb{box-shadow:0 0 0 2px var(--ok)}
+.wstrip figcaption{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.desktop{width:calc(100% + 48px);max-width:calc(100vw - 8px);display:flex;align-items:flex-end;justify-content:center;gap:clamp(14px,4vw,36px);padding:10px 20px 10px;background:linear-gradient(#5e3e24,#3a2414);box-shadow:inset 0 3px 0 #7e5634,0 8px 0 #24160c}
+.desktop .prop{image-rendering:pixelated;height:48px}
+.desktop .plant{height:72px}
+.nameplate{font:400 13px/1 var(--f-mono);background:#c8a040;color:#2a1a08;padding:5px 9px;box-shadow:inset 0 -2px 0 #8a6a20}
+.deskbtns{margin-top:16px;width:100%;justify-content:center;flex-wrap:wrap}
+.card .scenebox img.scene{max-height:190px;object-fit:cover}
+.intel.recall{display:flex;gap:10px;align-items:center}
+.intel.recall img.thumb{width:72px;height:36px;image-rendering:pixelated;flex:none;box-shadow:0 0 0 2px var(--line)}
+@media (max-width:760px){.glass{grid-template-columns:1fr}.feed{order:-1}.kpis b{font-size:20px}.desktop{gap:12px}}
+
+.lede{margin:0;font-size:16px;line-height:1.4}
+.lede.dim{color:var(--muted);font-size:14px}
+.montage{display:flex;flex-direction:column;gap:6px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.mgrid figure{margin:0;display:flex;flex-direction:column;gap:3px}
+.mgrid img.thumb{width:100%;height:auto;aspect-ratio:2/1;image-rendering:pixelated;box-shadow:0 0 0 2px var(--brand)}
+.mgrid figure.helped img.thumb{box-shadow:0 0 0 2px var(--ok)}
+.mgrid figcaption{display:flex;flex-direction:column;font-size:12px;line-height:1.2}
+.mgrid figcaption b{font-weight:400;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mgrid figcaption span{color:var(--muted)}
+.statline{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px}
+.statline>div{background:var(--panel2);padding:7px 9px;display:flex;flex-direction:column;gap:3px}
+.statline b{font:400 22px/1 var(--f-mono);font-weight:400}
 </style>
 
 <div id="app">
@@ -4581,12 +4648,12 @@ function showMessenger(i) {
   S.screen = 'envoy'; S.envoy = { i, fac, beat, t0: performance.now(), done: false };
   clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
   const ask = B.ask, total = ask.n * ask.each;
-  const splash = 'Your crew will hold fire on them, but splash, fire and foam can still kill them.';
+  const splash = 'Splash can still kill them.';
   const askTxt = {
-    couriers: `Let ${ask.n} marked ${A.oneOff ? 'hostiles' : 'couriers'} walk to the drill and leave with crystals: ${ask.each}% margin each, ${total}% in total. ${splash}`,
-    skim: `Let ${ask.n} marked drones skim the drill: ${ask.each}% margin each, ${total}% in total. Your crew will hold fire on them.`,
-    escort: `Let ${ask.n} marked brood sacs roll to the drill and nest. They take no crystals, but each one adds ${ask.secs}s to the extraction. ${splash}`,
-    uplink: `Let ${ask.n} marked ${ask.n > 1 ? 'hackers' : 'hacker'} reach the drill and upload for ${ask.secs}s each. The drill pauses while they work. ${splash}`,
+    couriers: `Let ${ask.n} marked ${A.oneOff ? 'hostiles' : 'couriers'} through: −${total}% margin. ${splash}`,
+    skim: `Let ${ask.n} marked drones skim the drill: −${total}% margin.`,
+    escort: `Let ${ask.n} brood sacs nest at the drill: +${ask.secs}s extraction each. ${splash}`,
+    uplink: `Let ${ask.n} ${ask.n > 1 ? 'hackers' : 'hacker'} upload at the drill: ${ask.secs}s pause each. ${splash}`,
   }[ask.kind];
   const heat = has('shredder') ? Math.ceil(B.heat / 2) : B.heat;
   $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
@@ -4599,7 +4666,7 @@ function showMessenger(i) {
       <div class="envoy-offer">
         <div class="deal ask"><div class="lbl">The ask</div><p>${esc(askTxt)}</p></div>
         <div class="deal reward"><div class="lbl">The reward</div><p>${esc(B.reward)}</p></div>
-        <div class="deal risk"><div class="lbl">The risk</div><p>Heat +${heat} (HR suspicion, now ${RUN.story.heat}). Break the deal, by accident or on purpose, and ${A.envoy} remembers.</p></div>
+        <div class="deal risk"><div class="lbl">The risk</div><p>HR suspicion +${heat} (now ${RUN.story.heat}). Break the deal and ${esc(A.envoy)} remembers.</p></div>
         <div class="row" id="envBtns"><button class="btn" data-act="envoy" data-v="accept">Accept</button><button class="btn ghost" data-act="envoy" data-v="refuse">Refuse</button><button class="btn ghost" data-act="envoy" data-v="report">Report to HR (+${A.reportPay} scrip)</button></div>
       </div>
     </div>
@@ -5161,6 +5228,8 @@ const ENDINGS = {
       `Your margin of ${x.margin}% is acceptable. Your losses were acceptable. You are acceptable. Report to Sector 3. There is no Sector 3. Report anyway. Do not look directly at the CEO.`,
     ], sign: '— Q.' },
 };
+// the two paragraphs each ending keeps on screen: the setup and the punchline
+const ENDING_KEEP = { doubledealer: [0, 2], coalition: [0, 3], union: [0, 3], rival: [0, 2], fauna: [0, 2], activists: [0, 3], loyalist: [0, 2], default: [0, 2] };
 const ENDING_ORDER = ['default', 'loyalist', 'union', 'rival', 'fauna', 'activists', 'coalition', 'doubledealer'];
 function pickEnding() {
   const st = RUN.story, done = Object.keys(st.arcs).filter(f => !ARCS[f].oneOff && st.arcs[f].state === 'done');
@@ -5458,18 +5527,14 @@ function showSectorComplete(c, net) {
   RUN.margin += loan;
   RUN.sectorName = pick(SECTOR_NAMES[sector] || ['The Outer Dark']);
   RUN.offers = genOffers();
+  const ws = (RUN.worlds || []).filter(w => sectorOf(w.idx) === sector - 1);
   $('#overlay').innerHTML = `<div class="screen"><div class="paper sector-paper">
     ${titlebar('Promotion_Notice.msg')}
     <div class="lbl" style="color:var(--brand)">${esc(c.bossDef.name)} neutralised</div>
     <h2>Sector ${sector - 1} cleared</h2>
-    <div class="mailbody">
-      <p>Congratulations, Employee #${RUN.empId}. Your reward for clearing a sector is another sector.</p>
-      <p>You have been reassigned to <b>Sector ${sector} · ${esc(RUN.sectorName)}</b>: Cloud Cities, Precursor Tombs, larger clients, larger hostiles, and the faction leaders you have been annoying all quarter.</p>
-      <p>The board has advanced <b>${loan}%</b> margin against your future earnings. Interest is "a surprise". Your crew, relics and debts transfer with you.</p>
-    </div>
-    <div class="memo">SECTOR ${sector - 1} REVIEW
-Contracts: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Margin: ${RUN.margin}% · Bonus: +${net} scrip
-Crew: ${RUN.roster.map(r => `${esc(r.name)} (Lv${r.level})`).join(', ')}</div>
+    <p class="lede">Your reward for clearing a sector is another sector: <b>${esc(RUN.sectorName)}</b>. The board advanced ${loan}% margin. Interest is "a surprise".</p>
+    ${worldMontage(ws, `Sector ${sector - 1}, as you left it`)}
+    ${statLine([['Contracts', RUN.history.length], ['Pacified', RUN.kills], ['Margin', RUN.margin + '%'], ['Bonus', '+' + net]])}
     <div class="row"><button class="btn" data-act="tostore">Proceed to Sector ${sector}</button></div>
   </div></div>`;
   juiceScreen(); confetti(null, null, 90); banner(`Sector ${sector - 1} cleared`, `Next: Sector ${sector} · ${RUN.sectorName}`, '#ffd23f');
@@ -5484,8 +5549,8 @@ showGameOver = juiced(showGameOver);
 showMessenger = juiced(showMessenger);
 showVictory = juiced(showVictory, () => { confetti(null, null, 120); setTimeout(() => confetti(null, null, 80), 500); });
 showDebrief = juiced(showDebrief, d => {
-  const tot = $('.slip tr.tot td:last-child'); if (tot) countUp(tot, 0, d.net, 900);
-  const slip = $('.slip'); if (slip && !RM) setTimeout(() => { slip.classList.add('stamped'); sfx('stamp'); }, 1000);
+  const tot = $('.paybox b'); if (tot) countUp(tot, 0, d.net, 900);
+  const box = $('.paybox'); if (box && !RM) setTimeout(() => { box.classList.add('stamped'); sfx('stamp'); }, 1000);
 });
 showStore = juiced(showStore, () => { const el = $('.scrip.mono'); if (el && S.lastScrip != null && S.lastScrip !== RUN.scrip) countUp(el, S.lastScrip, RUN.scrip, 600); S.lastScrip = RUN.scrip; });
 buy = (f => function (i) {
@@ -5889,6 +5954,9 @@ function finishMission(success) {
   RUN.lastDowned = m.downed.slice();
   RUN.history.push({ planet: c.planet, faction: c.facKey, client: c.client.n, good: c.client.good, lost: m.lost, kills: m.kills, idx: c.idx });
   RUN.factionCount[c.facKey] = (RUN.factionCount[c.facKey] || 0) + 1;
+  // the planet keeps what happened to it: theirs if you honoured their deal, the company's otherwise
+  const d0 = m.deal, wstate = d0 && !d0.broken && d0.fac === c.facKey ? 'helped' : 'crushed';
+  (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
   // payslip
   const gross = Math.round((50 + 12 * c.idx) * c.pay);
   const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
@@ -5977,8 +6045,8 @@ function showContractCard(i) {
     ${titlebar(`Contract_${String(o.idx + 1).padStart(2, '0')}.doc`, 'mapback')}
     <div class="sub">${o.boss ? (sectorOf(o.idx) >= MAX_SECTOR ? 'Board priority contract' : 'Executive priority contract') : `Contract ${o.idx + 1} · ${esc(o.diffLabel)}`}</div>
     <h2>${esc(o.planet)}</h2>
-    <p style="margin:0">${esc(o.client.n)} needs its ${esc(o.client.asset)} protected because ${esc(o.client.why)}.</p>
-    <p class="colony" style="margin:0">${esc(planetStyle(o).name)}. ${esc(TROPES[o.biomeKey])}</p>
+    <figure class="scenebox">${sceneImg(o.biomeKey, o.facKey, 'unresolved', Math.floor(o.seed * 3))}<figcaption>Live: ${esc(o.fac.short)} on site. Status: unresolved.</figcaption></figure>
+    <p style="margin:0">${esc(o.client.n)} wants its ${esc(o.client.asset)} protected.</p>
     <dl class="kv">
       <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
       <dt>Ethics review</dt><dd>Waived</dd>
@@ -5990,37 +6058,305 @@ function showContractCard(i) {
     ${o.boss ? `<div class="intel">Target: ${esc(o.bossDef.name)}. ${esc(o.bossDef.desc)} You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
     ${o.envoy ? `<div class="intel" style="--brand:${ARCS[o.envoy.fac].col};color:${ARCS[o.envoy.fac].col}">Encrypted chatter on this planet. ${RUN.story.arcs[o.envoy.fac] && RUN.story.arcs[o.envoy.fac].state === 'active' ? esc(ARCS[o.envoy.fac].envoy) + ' wants to talk again.' : 'Someone wants to talk before you land.'}</div>` : ''}
     ${RUN.story.grudge[o.facKey] ? `<div class="intel" style="color:var(--danger)">The ${esc(o.fac.short)} know what you did. Expect them to be tougher (+${Math.round((RUN.story.grudge[o.facKey] - 1) * 100)}% HP).</div>` : ''}
-    ${o.grudge ? `<div class="intel">Intel: these ${esc(o.fac.short)} include survivors of your operation on ${esc(o.grudge)}. Expect them to be tougher (+10% HP).</div>` : ''}
+    ${o.grudge ? (() => { const w = [...(RUN.worlds || [])].reverse().find(w => w.fac === o.facKey); return `<div class="intel recall">${w ? sceneImg(w.bk, w.fac, w.state, w.v, 'thumb') : ''}<span>Survivors of ${esc(o.grudge)} are among them${w ? ` (you left it ${w.state === 'helped' ? 'in their hands' : 'under company flags'})` : ''}. +10% HP.</span></div>`; })() : ''}
     <div class="row"><button class="btn" data-act="accept" data-i="${i}">Accept deployment</button><button class="btn ghost" data-act="mapback">Back</button></div>
   </div>`;
 }
+// ================================================================
+// PLANET SCENES. A pixel-art postcard of every world, for every faction that can invade it, in
+// three states: unresolved (the faction is there and the drill is contested), helped (you sided
+// with them and the planet is theirs now) and crushed (Kindly won). Built from each biome's own
+// ground, props, buildings, landmark and weather, so every scene matches the map you played.
+// ================================================================
+const SCENE_W = 200, SCENE_H = 100, SCENE_HZ = 44;
+const SCENES = new Map();
+const KINDLY_Y = '#ffd23f';
+// the sky: a dithered gradient from each biome's colour grade, plus what hangs in it
+function sceneSky(g, bk) {
+  const A = BIOME_ART[bk], top = shade(A.grade[1], -0.55), bot = mixHex(A.grade[1], A.grade[0], 0.5), steps = 6;
+  for (let y = 0; y < SCENE_HZ; y++) {
+    const k = y / (SCENE_HZ - 1) * (steps - 1), b = Math.floor(k), f = k - b;
+    const c0 = mixHex(top, bot, b / (steps - 1)), c1 = mixHex(top, bot, Math.min(1, (b + 1) / (steps - 1)));
+    for (let x = 0; x < SCENE_W; x++) px(g, x, y, 1, 1, (f > 0.5 ? ((x + y) % 2 === 0 || f > 0.8) : (f > 0.25 && (x + y) % 4 === 0)) ? c1 : c0);
+  }
+  const star = n => { for (let i = 0; i < n; i++) px(g, ri(0, SCENE_W - 1), ri(0, SCENE_HZ - 12), 1, 1, rnd() < 0.3 ? '#ffffff' : 'rgba(255,255,255,0.55)'); };
+  const sil = (base, amp, col, step = 1) => { let h = amp / 2; for (let x = 0; x < SCENE_W; x += step) { h = clamp(h + (rnd() - 0.5) * amp * 0.5, 2, amp); px(g, x, SCENE_HZ - Math.round(h) - base, step, Math.round(h) + base, col); } };
+  switch (bk) {
+    case 'frozen': star(10); sil(0, 16, '#a8c4dc', 2); for (let x = 0; x < SCENE_W; x += 2) px(g, x, SCENE_HZ - 3, 2, 3, '#7a98b4'); break;
+    case 'toxic': for (let x = 0; x < SCENE_W; x += 3) { const h = ri(6, 18); px(g, x, SCENE_HZ - h, 3, h, '#14301a'); if (rnd() < 0.3) pxCircle(g, x + 1, SCENE_HZ - h, 3, '#1c3e22'); } pxCircle(g, 150, 12, 5, '#c8ff8a'); break;
+    case 'dust': pxCircle(g, 140, 13, 7, '#fff2c0'); pxCircle(g, 162, 20, 4, '#ffd090'); sil(0, 10, '#a8784c', 3); break;
+    case 'lowgrav': star(40); pxCircle(g, 46, 14, 10, '#6a5aa8'); pxCircle(g, 43, 11, 6, '#8a7ac8'); px(g, 28, 15, 37, 1, '#c8b8ff'); px(g, 32, 14, 29, 1, 'rgba(200,184,255,0.5)'); sil(0, 8, '#1e1a32', 2); break;
+    case 'cyber': star(8);
+      for (let x = 0; x < SCENE_W; x += ri(6, 12)) { const w = ri(5, 10), h = ri(12, 34); px(g, x, SCENE_HZ - h, w, h, '#10111c'); for (let wy = SCENE_HZ - h + 2; wy < SCENE_HZ - 2; wy += 3) for (let wx = x + 1; wx < x + w - 1; wx += 2) if (rnd() < 0.35) px(g, wx, wy, 1, 1, pick(['#ff3ad6', '#3af0ff', '#ffd23f', '#5a5e7a'])); }
+      break;
+    case 'solar': pxCircle(g, 30, 12, 6, '#fff6c8'); for (let i = 0; i < 3; i++) { const x = ri(10, 190), y = ri(6, 22); px(g, x, y, 14, 2, '#ffffff'); px(g, x + 3, y - 1, 7, 1, '#ffffff'); } sil(0, 9, '#3a7a3a', 2); break;
+    case 'volcanic': star(4); for (let x = 120; x < 190; x++) { const h = 26 - Math.abs(x - 155) * 0.7; if (h > 0) px(g, x, SCENE_HZ - Math.round(h), 1, Math.round(h), '#2a1210'); } px(g, 151, SCENE_HZ - 26, 8, 2, '#ff8a3a'); px(g, 153, SCENE_HZ - 30, 4, 4, 'rgba(255,138,58,0.5)'); sil(0, 8, '#241010', 2); break;
+    case 'cloud': for (let i = 0; i < 6; i++) { const x = ri(-10, 190), y = ri(8, 36), w = ri(18, 36); px(g, x, y, w, 4, '#eef0ff'); px(g, x + 4, y - 2, w - 10, 2, '#ffffff'); px(g, x + 2, y + 4, w - 4, 1, '#c8cce8'); } break;
+    case 'tomb': star(24); for (const x of [40, 90, 150]) { const h = ri(16, 26); px(g, x, SCENE_HZ - h, 6, h, '#0c1618'); px(g, x + 2, SCENE_HZ - h + 4, 2, 2, '#ff5ad1'); } break;
+  }
+}
+// the ground: noisy biome tiles, a road running in to the drill, a pool of the local liquid
+function sceneGround(g, bk) {
+  const A = BIOME_ART[bk];
+  for (let y = SCENE_HZ; y < SCENE_H; y++) for (let x = 0; x < SCENE_W; x++) px(g, x, y, 1, 1, rnd() < 0.08 ? A.g[2] : rnd() < 0.5 ? A.g[0] : A.g[1]);
+  px(g, 0, SCENE_HZ, SCENE_W, 1, A.edge);
+  // road from the left edge to the drill
+  for (let x = 0; x < 112; x++) { const y = Math.round(78 - Math.sin(x / 30) * 6 - Math.max(0, x - 70) * 0.25); for (let k = -4; k <= 4; k++) px(g, x, y + k, 1, 1, rnd() < 0.2 ? A.p[2] : A.p[k < 0 ? 1 : 0]); px(g, x, y - 5, 1, 1, shade(A.p[2], -0.3)); }
+  const L = LIQUIDS[A.liquid.kind];
+  if (L) { const cx = 168, cy = 86; for (let y = -6; y <= 6; y++) for (let x = -22; x <= 22; x++) { const d = (x / 22) ** 2 + (y / 6) ** 2; if (d <= 1) px(g, cx + x, cy + y, 1, 1, d > 0.8 ? L.shore : (x + y * 3) % 7 === 0 ? L.hi : y < 0 ? L.a : L.b); } if (L.glow) px(g, cx - 10, cy - 1, 20, 1, rgba(L.glow, 0.5)); }
+}
+const sceneSprite = (g, s, x, y, flip) => { const c = s.c || s; if (flip) { g.save(); g.translate(2 * x + c.width, 0); g.scale(-1, 1); g.drawImage(c, x, y); g.restore(); } else g.drawImage(c, x, y); };
+// a unit from the faction's own sprite set, standing with its feet at (x, y)
+function sceneUnit(g, facKey, cat, x, y, flip, tint) {
+  let v; try { v = makeVariant(facKey, cat); } catch (e) { v = makeVariant(facKey, 'swarm'); }
+  const im = tint ? silhouette(v.frames[0], tint) : v.frames[0];
+  px(g, x - 4, y, 9, 1, 'rgba(0,0,0,0.3)');
+  sceneSprite(g, im, x - v.ax, y - v.ay - 1, flip);
+}
+function sceneFlag(g, x, y, h, col, emblem) {
+  px(g, x, y - h, 1, h, '#9aa3ad'); px(g, x + 1, y - h, 9, 6, col); px(g, x + 1, y - h + 6, 9, 1, shade(col, -0.35));
+  if (emblem) px(g, x + 4, y - h + 2, 3, 2, emblem);
+}
+function sceneSign(g, x, y, col) { px(g, x, y - 12, 1, 12, '#7a5a3a'); px(g, x - 4, y - 16, 9, 6, '#f2efe6'); px(g, x - 3, y - 15, 7, 2, col); px(g, x - 2, y - 12, 5, 1, '#2b2f36'); }
+function sceneBarrel(g, x, y, lit) {
+  px(g, x - 3, y - 7, 7, 7, '#5a4a3a'); px(g, x - 3, y - 5, 7, 1, '#3a2e24'); px(g, x - 3, y - 2, 7, 1, '#3a2e24');
+  if (lit) { px(g, x - 2, y - 10, 5, 3, '#ff8a2a'); px(g, x - 1, y - 12, 3, 2, '#ffd23f'); px(g, x, y - 13, 1, 1, '#fff2a0'); pxCircle(g, x, y - 9, 7, 'rgba(255,160,60,0.12)'); }
+  else for (let k = 0; k < 4; k++) px(g, x - 1 + (k % 2), y - 10 - k * 2, 2, 1, 'rgba(160,160,170,0.6)');
+}
+function sceneTent(g, x, y, col, down) {
+  if (down) { px(g, x - 7, y - 2, 15, 2, shade(col, -0.2)); px(g, x - 5, y - 3, 6, 1, col); return; }
+  for (let r = 0; r < 9; r++) px(g, x - r, y - 9 + r, r * 2 + 1, 1, r === 8 ? shade(col, -0.35) : col);
+  px(g, x, y - 5, 1, 5, '#1a1a22');
+}
+function sceneBanner(g, x0, x1, y, cols) { pxLine(g, x0, y, x1, y + 2, '#3a3e4a'); for (let x = x0 + 2, i = 0; x < x1; x += 4, i++) { const yy = y + Math.round((x - x0) / (x1 - x0) * 2); px(g, x, yy + 1, 2, 3, cols[i % cols.length]); } }
+function sceneFence(g, x0, x1, y, col) { for (let x = x0; x <= x1; x++) { if ((x - x0) % 6 === 0) px(g, x, y - 9, 1, 9, '#5a606a'); if ((x + y) % 2 === 0) { px(g, x, y - 8, 1, 1, '#8a929c'); px(g, x, y - 4, 1, 1, '#8a929c'); } } px(g, x0, y - 9, x1 - x0, 1, col); }
+function sceneNest(g, x, y, burnt) {
+  const c = burnt ? '#2a2422' : '#7a4a6a', d = burnt ? '#14100e' : '#5a3a4a';
+  for (let k = 0; k < 5; k++) pxCircle(g, x - 6 + k * 3, y - 2 - (k % 2), 3, k % 2 ? c : d);
+  if (!burnt) for (const [ex, ey] of [[-4, -5], [0, -6], [4, -5]]) { pxCircle(g, x + ex, y + ey, 1.5, '#e8f0c8'); px(g, x + ex, y + ey - 1, 1, 1, '#ffffff'); }
+  else for (let k = 0; k < 3; k++) px(g, x - 2 + k * 2, y - 8 - k * 2, 1, 1, 'rgba(160,160,170,0.6)');
+}
+// Kindly's drill rig over the crystal seam; sold or reclaimed rigs get repainted
+function sceneDrill(g, x, y, state, facKey) {
+  const n = state === 'crushed' ? DEP_CRYSTALS.length : state === 'helped' ? 7 : 10;
+  for (const i of DEP_KEEP.slice(0, n).slice().sort((a, b) => DEP_CRYSTALS[a][4] - DEP_CRYSTALS[b][4])) {
+    const [dx, h, w, lean, bo] = DEP_CRYSTALS[i], s = crystalSprite(Math.round(h * 0.8), Math.max(2, w - 1), lean);
+    g.drawImage(s.c, x + Math.round(dx * 0.8) - s.ox - (w >> 1), y + bo - s.c.height + 2);
+  }
+  pxCircle(g, x, y - 8, 14, 'rgba(185,140,255,0.08)');
+  const frame = state === 'helped' ? (facKey === 'rival' ? '#2a2e38' : facKey === 'activists' ? '#ff7a1a' : facKey === 'union' ? '#b8582a' : '#4a6a3a') : '#9aa3ad';
+  const stripe = state === 'helped' ? (facKey === 'rival' ? '#ff4d6d' : facKey === 'activists' ? '#ff3ad6' : facKey === 'union' ? '#d23c3c' : '#9be564') : KINDLY_Y;
+  // tower legs and a gantry
+  pxLine(g, x - 14, y + 2, x - 4, y - 30, frame); pxLine(g, x + 14, y + 2, x + 4, y - 30, frame); px(g, x - 6, y - 32, 13, 3, frame);
+  for (let k = 0; k < 13; k += 2) px(g, x - 6 + k, y - 32, 1, 1, stripe);
+  px(g, x - 1, y - 30, 3, 16, '#6a707a'); px(g, x, y - 14, 1, 4, '#c8ccd4');
+  if (state === 'crushed') { for (let k = 0; k < 5; k++) px(g, x + 2 + k, y - 36 - k * 2, 2, 2, rgba('#c8ccd4', 0.6 - k * 0.1)); px(g, x + 18, y - 2, 12, 6, '#5a3a22'); px(g, x + 19, y - 4, 10, 2, '#b98cff'); px(g, x + 20, y + 4, 2, 2, '#1a1a22'); px(g, x + 26, y + 4, 2, 2, '#1a1a22'); }
+  // the company sign on the rig, defaced when the planet changed hands
+  px(g, x - 9, y - 26, 18, 6, state === 'helped' ? '#1a1a22' : KINDLY_Y); px(g, x - 7, y - 24, 14, 2, state === 'helped' ? stripe : '#1a1a22');
+  if (state === 'helped') pxLine(g, x - 9, y - 26, x + 8, y - 21, '#d23c3c');
+}
+// Kindly security on site: one guard while the planet is contested, a patrol once the company owns it
+let SCENE_GUARDS = null;
+function sceneGuard(g, k, x, y, flip) {
+  if (!SCENE_GUARDS) SCENE_GUARDS = ['gunner', 'taser', 'marksman'].map(t => mkCrew(t, 'Guard', genLook(), pickQuirk()));
+  const f = crewSprites(SCENE_GUARDS[k % 3]).f[0];
+  px(g, x - 4, y, 9, 1, 'rgba(0,0,0,0.3)'); sceneSprite(g, f, x - (f.width >> 1), y - f.height + 1, flip);
+}
+// what each faction leaves on a planet, by state
+const SCENE_FAC = {
+  union: {
+    unresolved(g, bk) { for (const [x, f] of [[54, 0], [66, 0], [78, 1], [92, 0]]) sceneUnit(g, 'union', 'swarm', x, 82 - (x - 54) * 0.1, f); for (const x of [58, 74, 88]) sceneSign(g, x, 76, '#d23c3c'); sceneBarrel(g, 46, 86, true); sceneBarrel(g, 100, 84, true); sceneUnit(g, 'union', 'armored', 24, 90, 0); },
+    helped(g) { sceneFlag(g, 129, 46, 22, '#d23c3c', KINDLY_Y); sceneBanner(g, 60, 120, 54, ['#d23c3c', '#ffd23f', '#f2efe6']); for (const [x, f] of [[62, 0], [76, 1], [92, 0], [106, 1]]) sceneUnit(g, 'union', 'swarm', x, 82, f); sceneBarrel(g, 48, 86, true); px(g, 146, 70, 14, 8, '#b8582a'); px(g, 147, 68, 12, 2, '#b98cff'); },
+    crushed(g) { sceneFlag(g, 56, 74, 18, KINDLY_Y, '#1a1a22'); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); for (const x of [70, 84]) { px(g, x - 5, 84, 11, 2, '#f2efe6'); px(g, x - 3, 84, 5, 1, '#d23c3c'); px(g, x - 7, 85, 8, 1, '#7a5a3a'); } sceneBarrel(g, 96, 86, false); },
+  },
+  rival: {
+    unresolved(g) { sceneFence(g, 104, 160, 74, '#ff4d6d'); sceneUnit(g, 'rival', 'flyer', 90, 50, 0); sceneUnit(g, 'rival', 'flyer', 150, 44, 1); sceneUnit(g, 'rival', 'armored', 72, 84, 0); sceneUnit(g, 'rival', 'swarm', 58, 82, 0); sceneUnit(g, 'rival', 'swarm', 100, 84, 1); px(g, 20, 50, 22, 14, '#1e2229'); px(g, 22, 52, 18, 3, '#ff4d6d'); px(g, 30, 64, 2, 14, '#3a3e4a'); },
+    helped(g) { const x = 160; px(g, x, 14, 20, 64, '#1e2229'); px(g, x + 2, 16, 16, 60, '#2a2e38'); for (let y = 20; y < 74; y += 4) for (let k = 0; k < 4; k++) if (rnd() < 0.7) px(g, x + 4 + k * 4, y, 2, 2, '#ff8a9a'); px(g, x + 4, 22, 12, 4, '#ff4d6d'); px(g, x + 9, 8, 2, 6, '#9aa3ad'); px(g, x + 9, 7, 2, 1, '#ff4d6d'); sceneUnit(g, 'rival', 'flyer', 110, 46, 1); sceneUnit(g, 'rival', 'swarm', 80, 82, 0); sceneUnit(g, 'rival', 'swarm', 94, 83, 1); },
+    crushed(g) { sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); px(g, 64, 84, 14, 4, '#3a3e4a'); px(g, 66, 82, 6, 2, '#2a2e38'); px(g, 72, 83, 1, 1, '#ff4d6d'); for (let k = 0; k < 3; k++) px(g, 70 + k, 79 - k * 2, 1, 1, 'rgba(160,160,170,0.6)'); px(g, 20, 66, 22, 12, '#1e2229'); pxLine(g, 20, 66, 41, 77, KINDLY_Y); px(g, 26, 68, 10, 4, KINDLY_Y); px(g, 30, 78, 2, 6, '#3a3e4a'); },
+  },
+  activists: {
+    unresolved(g) { sceneTent(g, 30, 86, '#2c8a4a'); sceneTent(g, 48, 90, '#ff7a1a'); sceneBanner(g, 56, 104, 58, ['#ff3ad6', '#3af0ff', '#ffd23f', '#7bdc6a']); for (const [x, f] of [[62, 0], [72, 0], [84, 1], [96, 0]]) sceneUnit(g, 'activists', 'swarm', x, 83, f); sceneUnit(g, 'activists', 'armored', 112, 88, 1); },
+    helped(g) { for (let r = 0; r < 3; r++) for (let x = 20; x < 60; x += 2) { px(g, x, 84 + r * 4, 1, 2, '#3f7a3a'); if (rnd() < 0.3) px(g, x, 83 + r * 4, 1, 1, pick(['#ff6fae', '#ffd23f', '#ffffff'])); } px(g, 150, 54, 30, 20, '#7a76a0'); for (let k = 0; k < 40; k++) px(g, 151 + ri(0, 27), 55 + ri(0, 17), 2, 2, pick(['#ff3ad6', '#3af0ff', '#ffd23f', '#7bdc6a', '#ff7a1a'])); sceneBanner(g, 66, 112, 56, ['#ff3ad6', '#3af0ff', '#ffd23f']); for (const [x, f] of [[72, 0], [86, 1], [100, 0]]) sceneUnit(g, 'activists', 'swarm', x, 84, f); },
+    crushed(g) { sceneTent(g, 30, 88, '#2c8a4a', true); sceneTent(g, 48, 90, '#ff7a1a', true); px(g, 60, 86, 12, 2, '#ff3ad6'); px(g, 62, 87, 4, 1, '#3af0ff'); sceneFlag(g, 140, 70, 18, KINDLY_Y, '#1a1a22'); px(g, 150, 56, 22, 14, '#d8dce2'); px(g, 152, 58, 18, 4, KINDLY_Y); px(g, 152, 64, 12, 1, '#1a1a22'); px(g, 152, 66, 15, 1, '#1a1a22'); },
+  },
+  fauna: {
+    unresolved(g) { sceneNest(g, 116, 70); sceneNest(g, 30, 88); for (const [cat, x, y, f] of [['swarm', 60, 84, 0], ['swarm', 72, 80, 0], ['fast', 88, 86, 1], ['armored', 44, 80, 0], ['flyer', 100, 50, 0]]) sceneUnit(g, 'fauna', cat, x, y, f); for (let k = 0; k < 14; k++) px(g, 118 + ri(-10, 10), 46 + ri(0, 22), 2, 1, '#7a4a6a'); },
+    helped(g) { sceneNest(g, 40, 86); sceneNest(g, 116, 68); for (let k = 0; k < 24; k++) px(g, ri(10, 190), ri(60, 96), 1, 1, pick(['#ff6fae', '#ffd23f', '#9be564'])); for (let k = 0; k < 16; k++) px(g, 118 + ri(-12, 12), 40 + ri(0, 30), 1, 2, '#5aa04a'); for (const [cat, x, y, f] of [['armored', 64, 84, 0], ['armored', 84, 88, 1], ['swarm', 98, 82, 0], ['flyer', 70, 48, 1]]) sceneUnit(g, 'fauna', cat, x, y, f); },
+    crushed(g) { sceneNest(g, 40, 88, true); sceneNest(g, 70, 84, true); for (let k = 0; k < 18; k++) px(g, 30 + ri(0, 60), 80 + ri(0, 12), 2, 1, '#1a1412'); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); sceneFence(g, 96, 128, 90, KINDLY_Y); },
+  },
+};
+// a weather pass over everything
+function sceneWeather(g, bk) {
+  const w = BIOME_ART[bk].weather, N = 70;
+  for (let i = 0; i < N; i++) {
+    const x = ri(0, SCENE_W - 1), y = ri(0, SCENE_H - 1);
+    switch (w) {
+      case 'snow': px(g, x, y, 1, 1, '#ffffff'); break;
+      case 'rain': px(g, x, y, 1, 3, 'rgba(160,200,255,0.45)'); break;
+      case 'spores': px(g, x, y, 1, 1, i % 2 ? '#c8ff8a' : '#ff8aff'); break;
+      case 'dust': px(g, x, y, 4, 1, 'rgba(255,220,160,0.35)'); break;
+      case 'motes': if (i % 2) px(g, x, y, 1, 1, '#d8c8ff'); break;
+      case 'pollen': if (i % 2) px(g, x, y, 1, 1, '#fff2a0'); break;
+      case 'embers': if (y > 30) px(g, x, y, 1, 1, i % 3 ? '#ff8a3a' : '#ffd23f'); break;
+      case 'clouds': if (i < 10) px(g, x, y, 8, 1, 'rgba(255,255,255,0.35)'); break;
+      case 'whispers': if (i % 3 === 0) px(g, x, y, 1, 1, '#ff5ad1'); break;
+    }
+  }
+}
+// biome props: two from the open ground, one landmark at the back and a small building
+function sceneProps(g, bk) {
+  const A = BIOME_ART[bk], st = BUILD_STYLE[bk];
+  try { const L = landmarkSprite(pick(A.land)); g.drawImage(L.c, 172 - (L.c.width >> 1), SCENE_HZ + 10 - L.c.height); } catch (e) { }
+  if (st) { const b = buildingSprite(bk, { x: 0, y: 0, w: 2, h: 2 }, []); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(4, SCENE_HZ + 26, b.c.width, 3); g.drawImage(b.c, 2, SCENE_HZ - 8); }
+  const kinds = (A.obst.open || A.obst.grove || A.obst.road || []).concat(A.obst.building || []);
+  for (const [x, y] of [[132, 62], [190, 72], [8, 96]]) { if (!kinds.length) break; const o = obstacleSprite(pick(kinds)); g.drawImage(o.c, x - 9, y - o.c.height); }
+}
+function planetScene(bk, facKey, state = 'unresolved', variant = 0) {
+  const key = [bk, facKey, state, variant].join('|');
+  if (SCENES.has(key)) return SCENES.get(key);
+  const c = mkCanvas(SCENE_W, SCENE_H), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  sceneSky(g, bk); sceneGround(g, bk); sceneProps(g, bk);
+  sceneDrill(g, 132, 80, state, facKey);
+  SCENE_FAC[facKey][state](g, bk);
+  if (state === 'unresolved') sceneGuard(g, 0, 114, 86, true);
+  if (state === 'crushed') { sceneGuard(g, 0, 112, 86, true); sceneGuard(g, 1, 154, 90, false); sceneGuard(g, 2, 86, 92, true); }
+  sceneWeather(g, bk);
+  // a soft vignette, warmer when the faction won, colder when the company did
+  const vg = g.createRadialGradient(SCENE_W / 2, SCENE_H / 2, 30, SCENE_W / 2, SCENE_H / 2, 120);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, state === 'crushed' ? 'rgba(10,14,30,0.45)' : state === 'helped' ? 'rgba(40,20,0,0.25)' : 'rgba(0,0,0,0.35)');
+  g.fillStyle = vg; g.fillRect(0, 0, SCENE_W, SCENE_H);
+  const url = c.toDataURL();
+  SCENES.set(key, url);
+  return url;
+}
+const sceneImg = (bk, facKey, state, variant, cls = 'scene') => `<img class="${cls}" src="${planetScene(bk, facKey, state, variant)}" alt="" width="${SCENE_W}" height="${SCENE_H}">`;
+
+// ================================================================
+// THE DESK. After each contract you are back at your workstation: Kindly's intranet on the left,
+// the faction's own channel on the right, showing the planet as you left it.
+// ================================================================
+const FEED = {
+  union: { ch: 'LOCAL 404 RADIO', tag: 'ON AIR',
+    helped: [p => `Miners of ${p} vote to keep the drill.`, p => `Strike fund full on ${p}. Lunchboxes everywhere.`],
+    crushed: [p => `Picket broken on ${p}. Kindly cites "dialogue".`, p => `${p} back to work. The barrels are still warm.`],
+    sub: { helped: 'Solidarity holds. Someone in a lanyard looked away.', crushed: 'Dot is asking who held the line against them.' } },
+  rival: { ch: 'VECTORCORP MARKETS', tag: 'TICKER',
+    helped: [p => `VectorCorp opens tower on ${p}. Shares up 12%.`, p => `${p} acquired. Kindly logo found in a skip.`],
+    crushed: [p => `VectorCorp repo team withdraws from ${p}.`, p => `${p} deal collapses. Shareholders "disappointed".`],
+    sub: { helped: 'Mr. Sable thanks an anonymous insider.', crushed: 'Legal is "exploring options". Legal is always exploring options.' } },
+  activists: { ch: 'GLITCH.LIVE', tag: 'LIVE',
+    helped: [p => `The ${p} mural is trending. Kindly turned off comments.`, p => `${p} commune plants a garden on the drill pad.`],
+    crushed: [p => `Camp on ${p} cleared. Stream ended. Viewers: 3.`, p => `Banners torn down on ${p}. Hashtag still going.`],
+    sub: { helped: 'Chat is spamming a lanyard emoji. It means you.', crushed: 'Glitch says they recognised one of the guards.' } },
+  fauna: { ch: 'WREN-7 WILDLIFE CAM', tag: 'REC',
+    helped: [p => `Herds return to ${p}. The drill is part of the nest now.`, p => `${p} hatchlings doing well. One is eating a hard hat.`],
+    crushed: [p => `Nests on ${p} "relocated". The camera shows nothing.`, p => `${p} is quiet tonight. Too quiet. Forever quiet.`],
+    sub: { helped: 'WREN-7 has logged you as "not a predator".', crushed: 'WREN-7 has added you to the predator list.' } },
+};
+const QUIPS = [
+  [0, p => `Zero losses on ${p}. Your quota has been raised to match.`],
+  [10, p => `Minor shrinkage on ${p}. Deducted from the margin and your dignity.`],
+  [25, p => `Losses on ${p} noted. Your manager has been asked to be disappointed.`],
+  [101, p => `Heavy losses on ${p}. At 0% margin, your shuttle seat goes to a crate.`],
+];
+// the company's version of events
+function corpHeadline(c, d, w) {
+  const p = c.planet;
+  if (w.state === 'helped') return pick([`Kindly™ denies losing ${p}. Calls it "a strategic gift".`, `${p} handover "always the plan", says Kindly™.`]);
+  if (d.lost === 0) return `Flawless quarter on ${p}. Bonus pool allocated to executives.`;
+  if (d.lost >= 25) return `Kindly™ shares dip after a costly win on ${p}.`;
+  return `Kindly™ secures ${p}. Stock up ${ri(2, 9)}%.`;
+}
+const perfStars = lost => lost === 0 ? 5 : lost < 10 ? 4 : lost < 20 ? 3 : lost < 35 ? 2 : 1;
+// one short line per story beat, instead of HR's full letters
+function shortEcho(ev) {
+  const A = ARCS[ev.fac], who = A ? A.envoy : 'The envoy';
+  switch (ev.kind) {
+    case 'honoured': return `Deal with ${who} kept. Some crystals walked off in lunchboxes.`;
+    case 'betrayed': return `You broke ${who}'s deal. Initiative Score up. Friends down.`;
+    case 'collateral': return `An "accident" with one of ${who}'s people has been logged.`;
+    case 'reported': return `${who} reported to HR. Loyalty bonus: ${ev.pay} scrip.`;
+    case 'refused': return `You turned ${who} away. They will remember the lanyard.`;
+    default: return '';
+  }
+}
+// small pixel props on the desk: a mug, a sticky note, and a plant that wilts as the margin falls
+function deskPropUrl(kind, k = 0) {
+  const key = 'desk_' + kind + k; if (ART_ICONS[key]) return ART_ICONS[key];
+  let P;
+  if (kind === 'mug') { P = painter(16, 16); P.r(2, 4, 10, 11, '#eef2f5'); P.r(2, 4, 10, 2, '#5a3a22'); P.r(12, 7, 3, 1, '#eef2f5'); P.r(14, 7, 1, 5, '#eef2f5'); P.r(12, 11, 3, 1, '#eef2f5'); P.r(5, 8, 4, 3, '#ffd23f'); P.p(7, 9, '#1a1a22'); P.p(5, 1, 'rgba(255,255,255,0.5)'); P.p(8, 0, 'rgba(255,255,255,0.4)'); P.p(6, 2, 'rgba(255,255,255,0.5)'); }
+  else if (kind === 'note') { P = painter(16, 16); P.r(1, 2, 14, 13, '#ffe27a'); P.r(1, 2, 14, 2, '#f0cc4a'); P.r(3, 6, 9, 1, '#8a6a20'); P.r(3, 9, 6, 1, '#8a6a20'); P.r(3, 12, 8, 1, '#d23c3c'); }
+  else { // plant: k = 0 healthy, 1 wilting, 2 dead
+    P = painter(18, 24); P.r(4, 16, 10, 7, '#b8582a'); P.r(4, 16, 10, 2, '#d8784a');
+    const leaf = k === 0 ? '#4fbf5a' : k === 1 ? '#a8a040' : '#6a5a3a', stem = k === 2 ? '#5a4a30' : '#2e7a3a';
+    P.r(8, k === 2 ? 10 : 5, 1, k === 2 ? 6 : 11, stem);
+    if (k === 0) { P.ell(5, 7, 3, 2, leaf); P.ell(12, 5, 3, 2, leaf); P.ell(6, 12, 3, 2, leaf); P.ell(12, 11, 3, 2, leaf); P.ell(9, 3, 2, 2, '#7be08a'); }
+    else if (k === 1) { P.ell(5, 10, 3, 1.6, leaf); P.ell(12, 9, 3, 1.6, leaf); P.r(3, 12, 2, 3, leaf); P.r(13, 11, 2, 4, leaf); }
+    else { P.r(5, 14, 3, 1, leaf); P.r(10, 15, 4, 1, leaf); P.r(8, 9, 2, 1, leaf); }
+  }
+  postProcess(P.c);
+  const c = mkCanvas(P.c.width * 3, P.c.height * 3), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(P.c, 0, 0, c.width, c.height);
+  return (ART_ICONS[key] = c.toDataURL());
+}
+function worldStrip() {
+  const ws = (RUN.worlds || []).slice(-6);
+  if (ws.length < 2) return '';
+  return `<div class="wstrip"><div class="lbl">Your planets</div><div class="wrow">${ws.map(w => `<figure class="${w.state}" title="${esc(w.planet)}: ${w.state === 'helped' ? FACTIONS[w.fac].short + ' hold it' : 'company flags'}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb')}<figcaption>${esc(w.planet.replace(/^Earth · /, ''))}</figcaption></figure>`).join('')}</div></div>`;
+}
+// every planet you touched, as you left it: for sector reviews, terminations and endings
+function worldMontage(ws, title = 'Your planets') {
+  if (!ws || !ws.length) return '';
+  return `<div class="montage"><div class="lbl">${esc(title)}</div><div class="mgrid">${ws.map(w => `<figure class="${w.state}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb')}<figcaption><b>${esc(w.planet.replace(/^Earth · /, ''))}</b><span>${w.state === 'helped' ? esc(FACTIONS[w.fac].short) + ' hold it' : 'Company flags'}</span></figcaption></figure>`).join('')}</div></div>`;
+}
+const statLine = items => `<div class="statline">${items.map(([k, v]) => `<div><span class="lbl">${esc(k)}</span><b>${v}</b></div>`).join('')}</div>`;
 function showDebrief(d) {
   S.screen = 'debrief'; M = null; clearMissionUi(); backdropView(); setMusic('menu');
-  const { c } = d;
-  const subj = pick(['Re: Your performance', 'Congratulations on surviving*', 'Action required: none (you have no rights)', 'Quarterly feedback (automated)', 'FW: FW: FW: client feedback']);
-  const paras = [];
-  if (d.lost === 0) paras.push(`Zero crystals lost on ${esc(c.planet)}. Management has noticed and will be raising your quota accordingly.`);
-  else if (d.lost < 15) paras.push(`${esc(c.client.n)} has filed a complaint about ${d.lost}% of their ${esc(c.client.asset)} going missing. This has been deducted from the company's margin, and from your dignity.`);
-  else paras.push(`You lost ${d.lost}% margin on ${esc(c.planet)}. Company profit margin now stands at <b>${RUN.margin}%</b>. A reminder: at 0%, your seat on the return shuttle is reallocated to someone more profitable, such as a crate.`);
-  if (c.client.good) paras.push(pick([`${esc(c.client.n)} would like to thank you personally. We declined on your behalf. Gratitude is billable.`, `The client has sent a handwritten card. It has been shredded for confidentiality reasons.`]));
-  else paras.push(pick([`A reminder that the ${esc(c.fac.short)} were not "people with legitimate grievances." They were "operational friction."`, `Any feelings of guilt can be logged with the Wellness Portal, which is currently offline.`]));
-  for (const line of storyEcho(d.story || [])) paras.push(esc(line));
-  if (d.audited) paras.push('As part of the audit, 25 scrip has been deducted for the time HR spent suspecting you. Heat has been reduced. Trust has not.');
-  if (d.promos.length) paras.push('Promotions: ' + d.promos.map(p => `${esc(p.name)} is now ${esc(p.rank)}`).join('; ') + '. Promotions come with a new title and no change in pay.');
-  if (d.replacements.length) paras.push(d.replacements.map(r => `${esc(r.old)} was killed on the job and has been replaced by ${esc(r.name)}`).join('. ') + '. New hires inherit the kit, the locker and any outstanding debts. Condolences have been auto-generated and sent to the wrong address.');
-  paras.push('No breaks have been scheduled. Proceed to the Company Store, then to your next deployment.');
-  const ps = rnd() < 0.55 ? pick(PS_LINES) : '';
-  $('#overlay').innerHTML = `<div class="screen"><div class="paper">
-    ${titlebar('Kindly Mail · Inbox (1 unread, forever)')}
-    <div class="mailhead"><span>From</span><b>HR-BOT &lt;noreply@kindly.sec&gt;</b><span>To</span><b>Employee #${RUN.empId}</b><span>Subject</span><b>${esc(subj)}</b></div>
-    <div class="mailbody"><p>Dear Employee #${RUN.empId},</p>${paras.map(p => `<p>${p}</p>`).join('')}${ps ? `<p style="color:var(--muted);font-size:14px">${esc(ps)}</p>` : ''}</div>
-    <h3>Payslip · Contract ${c.idx + 1}</h3>
-    <table class="slip"><tbody>${d.slip.map(([k, v]) => `<tr class="${v < 0 ? 'neg' : ''}"><td>${esc(k)}</td><td>${v < 0 ? '−' : '+'}${Math.abs(v)}</td></tr>`).join('')}
-    <tr class="tot"><td>Net scrip (company store only)</td><td>${d.net}</td></tr></tbody></table>
-    <div class="row"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip · Margin ${RUN.margin}%</span></div>
+  const { c } = d, w = (RUN.worlds || []).slice(-1)[0] || { bk: c.biomeKey, fac: c.facKey, state: 'crushed', v: 0 };
+  const F = FEED[c.facKey], stars = perfStars(d.lost);
+  const quip = QUIPS.find(([lim]) => d.lost <= lim)[1](c.planet);
+  const notes = [];
+  for (const ev of d.story || []) { const t = shortEcho(ev); if (t) notes.push(t); }
+  if (d.audited) notes.push('Audited: 25 scrip for the time HR spent suspecting you.');
+  if (d.promos.length) notes.push('Promoted (no raise): ' + d.promos.map(p => `${p.name}, ${p.rank}`).join('; ') + '.');
+  if (d.replacements.length) notes.push(d.replacements.map(r => `${r.old} replaced by ${r.name}`).join('; ') + '. Same kit, new face.');
+  if (RUN.story.heat >= 50) notes.push('Your Loyalty Score is under review.');
+  // a compact payslip: earnings line by line, the deductions as one total
+  const earn = d.slip.filter(([, v]) => v > 0), dedTot = d.slip.filter(([, v]) => v < 0).reduce((s, [, v]) => s + v, 0), nDed = d.slip.filter(([, v]) => v < 0).length;
+  const slip = earn.map(([k, v]) => [k.replace(/ \(.*\)/, ''), v]).concat(nDed ? [[`Deductions (${nDed}, non-negotiable)`, dedTot]] : []);
+  const plant = RUN.margin >= 65 ? 0 : RUN.margin >= 35 ? 1 : 2;
+  $('#overlay').innerHTML = `<div class="screen desk"><div class="deskwrap">
+    <div class="monitor"><div class="glass">
+      <section class="win intranet" aria-label="Kindly Intranet">
+        ${titlebar('Kindly Intranet · Employee #' + RUN.empId)}
+        <div class="wbody">
+          <p class="quip">${esc(quip)}</p>
+          <div class="kpis">
+            <div><span class="lbl">Rating</span><b class="stars" aria-label="${stars} of 5">${'★'.repeat(stars)}<i>${'★'.repeat(5 - stars)}</i></b></div>
+            <div><span class="lbl">Margin</span><b class="${d.lost ? 'neg' : ''}">${RUN.margin}%</b><small>${d.lost ? '−' + d.lost + '%' : 'no loss'}</small></div>
+            <div class="paybox"><span class="lbl">Net pay</span><b>${d.net}</b><small>scrip</small></div>
+          </div>
+          <table class="slip mini"><tbody>${slip.map(([k, v]) => `<tr class="${v < 0 ? 'neg' : ''}"><td>${esc(k)}</td><td>${v < 0 ? '−' : '+'}${Math.abs(v)}</td></tr>`).join('')}</tbody></table>
+          ${notes.length ? `<ul class="notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+          <div class="cnews"><div class="lbl">Kindly News</div><p><b>${esc(corpHeadline(c, d, w))}</b></p><p>${esc(pick(TICKER))}</p></div>
+        </div>
+      </section>
+      <section class="win feed ${w.state}" style="--fc:${FACTIONS[c.facKey].color}" aria-label="${esc(F.ch)}">
+        <div class="titlebar"><span>${esc(F.ch)}</span><i></i><em class="live">● ${esc(F.tag)}</em></div>
+        <div class="wbody">
+          <figure class="scenebox big">${sceneImg(w.bk, w.fac, w.state, w.v)}<figcaption>${esc(c.planet)} · ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}</figcaption></figure>
+          <h3 class="headline">${esc(F[w.state][w.v % 2](c.planet))}</h3>
+          <p class="sub">${esc(F.sub[w.state])}</p>
+          ${worldStrip()}
+        </div>
+      </section>
+    </div></div>
+    <div class="stand" aria-hidden="true"></div>
+    <div class="desktop" aria-hidden="true"><img class="prop plant" src="${deskPropUrl('plant', plant)}" alt=""><span class="nameplate">EMPLOYEE #${RUN.empId}</span><img class="prop" src="${deskPropUrl('note')}" alt=""><img class="prop" src="${deskPropUrl('mug')}" alt=""></div>
+    <div class="row deskbtns"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip</span></div>
   </div></div>`;
   RUN.offers = genOffers();
 }
+
 function genOffers() {
   const offers = [];
   const types = shuffle(Object.keys(TOWERS));
@@ -6087,19 +6423,11 @@ function showGameOver() {
     ${titlebar('Termination_Notice.txt')}
     <div class="lbl" style="color:var(--danger)">Notice of contract termination</div>
     <h2>${saved ? 'Rescued from' : 'Stranded on'} ${esc(where)}</h2>
-    <div class="memo">Dear Employee #${RUN.empId},
-
-Your performance on ${esc(c ? c.planet : 'assignment')} has pushed company profit margin below the profitability threshold.
-Your seat on the return shuttle has been reallocated to <b>3 crates of ${esc(c ? c.client.asset : 'crystals')}</b>.
-
-You have been relocated to ${esc(where)}: atmosphere unbreathable, temperature unreasonable, rent still due.
-Your crew (${RUN.roster.map(r => esc(r.name)).join(', ')}) ${RUN.roster.length > 1 ? 'have' : 'has'} been included free of charge.
-
-Thank you for choosing Kindly™.                                         — HR-BOT</div>
-    ${saved ? `<div class="intel" style="--brand:${ARCS[saved].col};color:${ARCS[saved].col}">${esc(RESCUES[saved])}</div><p>Word of your rescue reaches the <b>Colony of the Abandoned</b>, who are thrilled for you and only a little bitter. Survivors: <b>${colony}</b>. Each one gives future new hires +5 starting scrip, up to 50.</p>` : `<p>You join the <b>Colony of the Abandoned</b>, a settlement of former employees who were also not profitable enough. Survivors: <b>${colony}</b>. Each one gives future new hires +5 starting scrip, up to 50.</p>`}
-    ${RUN.story.log.length ? `<div class="memo">YOUR STORY
-${esc(storyRecap())}</div>` : ''}
-    <div class="mono" style="color:var(--muted);font-size:19px">Contracts completed: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Margin lost: ${RUN.lostTotal}%</div>
+    <p class="lede">Margin hit 0% on ${esc(c ? c.planet : 'assignment')}. Your shuttle seat went to 3 crates of ${esc(c ? c.client.asset : 'crystals')}. Rent is still due. — HR-BOT</p>
+    ${saved ? `<div class="intel" style="--brand:${ARCS[saved].col};color:${ARCS[saved].col}">${esc(RESCUES[saved])}</div>` : ''}
+    <p class="lede dim">${saved ? 'The' : 'You join the'} <b>Colony of the Abandoned</b>${saved ? ' hears of it and is only a little bitter' : ''}. Survivors: <b>${colony}</b>, each worth +5 starting scrip to future hires (up to 50).</p>
+    ${worldMontage(RUN.worlds)}
+    ${statLine([['Contracts', RUN.history.length], ['Pacified', RUN.kills], ['Margin lost', RUN.lostTotal + '%']])}
     <div class="row"><button class="btn" data-act="newrun">Clock in again</button><button class="btn ghost" data-act="title">Main menu</button></div>
   </div></div>`;
 }
@@ -6118,17 +6446,12 @@ function showVictory() {
   };
   $('#overlay').innerHTML = `<div class="screen"><div class="paper">
     ${titlebar('Final_Transmission.msg')}
-    <div class="mailhead"><span>From</span><b>${esc(E.from)}</b><span>To</span><b>Employee #${RUN.empId}</b><span>Subject</span><b>${esc(E.subj)}</b></div>
-    <div class="lbl" style="color:var(--brand)">${esc(c.bossDef.name)} neutralised</div>
+    <div class="lbl" style="color:var(--brand)">${esc(c.bossDef.name)} neutralised · Ending ${ENDING_ORDER.indexOf(key) + 1}/${ENDING_ORDER.length} · found ${found.length}</div>
     <h2>${esc(E.name)}</h2>
-    <div class="mailbody">${E.paras(x).map(p => `<p>${esc(p)}</p>`).join('')}<p style="color:var(--muted);font-size:14px">${esc(E.sign)}</p></div>
-    <div class="memo">ENDING ${ENDING_ORDER.indexOf(key) + 1}/${ENDING_ORDER.length}: ${esc(E.name.toUpperCase())} · ENDINGS FOUND ${found.length}/${ENDING_ORDER.length}
-Contracts completed: ${RUN.history.length} · Hostiles pacified: ${RUN.kills} · Final margin: ${RUN.margin}% · Heat: ${st.heat}
-
-YOUR STORY
-${esc(storyRecap())}
-
-Crew: ${RUN.roster.map(r => `${esc(r.name)} (Lv${r.level})`).join(', ')}${RUN.fallen && RUN.fallen.length ? `\n\nIN MEMORIAM\n${RUN.fallen.map(f => `${esc(f.name)}, ${esc(f.rank)} ${esc(f.role)}, ${esc(f.planet)}`).join('\n')}` : ''}</div>
+    <div class="mailbody">${(ENDING_KEEP[key] || [0, 1]).map(k => E.paras(x)[k]).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join('')}<p style="color:var(--muted);font-size:14px">${esc(E.sign)}</p></div>
+    ${worldMontage(RUN.worlds)}
+    ${statLine([['Contracts', RUN.history.length], ['Pacified', RUN.kills], ['Final margin', RUN.margin + '%'], ['Crew', RUN.roster.length]])}
+    ${RUN.fallen && RUN.fallen.length ? `<p class="lede dim">In memoriam: ${esc(RUN.fallen.map(f => f.name).join(', '))}.</p>` : ''}
     <div class="row"><button class="btn" data-act="newrun">Clock in again</button><button class="btn ghost" data-act="title">Main menu</button></div>
   </div></div>`;
 }
@@ -6241,7 +6564,7 @@ function frame(now) {
 }
 
 // test hook for automated playtesting
-window.__AL = { crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };

@@ -233,6 +233,15 @@ Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parac
 
 The auto-play bot does not use artifacts.
 
+## Planet scenes and the desk
+- **Planet scenes:** each of the 9 worlds has a pixel-art postcard for each of the 4 factions, in 3 states: unresolved (the faction is on site and the drill is contested), helped (you honoured their deal, so the site is theirs and the rig is repainted) and crushed (Kindly flags, guards and the faction's wreckage). That is 108 scenes, built in code from each biome's own sky, ground, road, liquid, building, landmark, props and weather, plus the faction's real unit sprites (`planetScene`, `SCENE_FAC`).
+- **Continuity:** every finished contract is stored in `RUN.worlds` with its outcome. Contract cards show the planet live and unresolved. A faction you've fought before shows a thumbnail of how you left their last planet. Sector reviews, game over and endings show a montage of your planets.
+- **The desk:** the debrief is now a first-person view of your desk.
+  - **Kindly Intranet (left):** a one-line HR quip, a performance rating, margin and net pay, a compact payslip, one line per story event, and Kindly News.
+  - **Faction channel (right):** Local 404 Radio, VectorCorp Markets, Glitch.Live or the WREN-7 Wildlife Cam. It shows the planet as you left it, with a headline and the strip of your planets.
+  - **The desk itself:** a mug, a sticky note, a nameplate, and a plant that wilts as the margin falls.
+- **Less reading:** HR letters became one-liners. Endings keep two paragraphs (the setup and the punchline). Termination, sector review and envoy deal terms are each down to a sentence or two.
+
 ## Line of sight, cover and targeting
 - **Line of sight:** buildings block what crew on the ground can see. Crew on rooftops or the sky ray see over them, drones fly over them, and mortars lob over them. Flyers are always visible. Hostiles can only shoot crew who can see them. When you place or select crew, blind spots inside the range ring are shaded and red-hatched (`sightMap`, `canSee`).
 - **Cover:** props near buildings now sit on the corners, so the walls are free. Crew on a tile next to a building wall are in cover and take 20% less damage. So are crew on a building's bottom row: that is its front wall, so they stand in front of it at street level, with no rooftop range bonus and ground-level line of sight. The placement ghost shows a shield on cover tiles (`coverAt`, `facadeAt`, `COVER_DR`).
