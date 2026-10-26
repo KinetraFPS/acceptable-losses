@@ -409,6 +409,16 @@ Difficulty is tuned to rise through the run rather than flatten out as your crew
 - `spawnEnemy`: HP scaling `(1 + 0.2*idx + 0.026*idx²)`
 - Sector 1 bosses have 82% HP and Sector 2 bosses full HP. Understudies have `25% × (1 + 0.2*idx)`. Naval craft arrive from contract 4, and the nastier behaviours ramp in from contract 3. Sector 2 difficulty uses `diffLevel = 4 + (idx - 4) * 0.56`.
 - `startMission`: starting budget `120 + 12*idx`
+- **Three acts, by envoy policy** (bot always takes the envoy contract and gives the same answer; 30–45 runs each). Before the loyalty combat perks, refusing and reporting trailed badly (full wins 2% and 0% vs 7% for accepting). After Company Sidearms and Corporate Air Support:
+
+  | Policy | Clear Sector 1 | Clear Sector 2 | Win the run |
+  |---|---|---|---|
+  | Accept | 33% | 23% | 7% |
+  | Refuse | 33% | 17% | 7% |
+  | Report | 44% | 16% | 7% |
+
+  Reporting front-loads power (scrip, early perks) but makes enemies tougher; accepting pays off late through final-contract allies. Most bot losses still come at contracts 2–4.
+- Sector 3 difficulty: `diffLevel = 6.8 + (idx - 9) * 0.32` after contract 10; extraction time stops growing after contract 11.
 - With all eight factions, standing and the new architecture, the bot clears Sector 1 in 29% of runs and finishes both sectors in 9% (90 runs). It ignores favours, allies and artifacts.
 - After line of sight and the retune, the auto-play bot (line-of-sight-aware greedy placement, no artifacts, default targeting) clears Sector 1 in 29% of runs and finishes both sectors in 13% (90 runs), up from 7% and 2%.
 - Before Sector 2, the bot won about 28% of runs, down from 67% before this pass (80 runs each). Average margin lost per contract:
