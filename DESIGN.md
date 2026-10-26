@@ -231,7 +231,15 @@ Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parac
 | Fauna | Tamed Sky Ray | Anywhere | A flying platform for one crew member, with +15% range |
 | Fauna | Brood Nest | Ground | Hatches allied hunters that chase enemies |
 
-The auto-play bot does not use artifacts. It wins about 2–7% of two-sector runs (60 runs).
+The auto-play bot does not use artifacts.
+
+## Line of sight, cover and targeting
+- **Line of sight:** buildings block what crew on the ground can see. Crew on rooftops or the sky ray see over them, drones fly over them, and mortars lob over them. Flyers are always visible. Hostiles can only shoot crew who can see them. When you place or select crew, blind spots inside the range ring are shaded and red-hatched (`sightMap`, `canSee`).
+- **Cover:** props near buildings now sit on the corners, so the walls are free. Crew standing on the ground right against a building wall are in cover and take 30% less damage. The placement ghost shows a shield on cover tiles (`coverAt`, `COVER_DR`).
+- **Preferred targets:** every crew member has a targeting mode: First, Last, Strongest, Weakest, Closest, Flyers (anti-air crew only) or Elites. It is set from the info panel, and kept for the rest of the run (`PRIO`, `crew.prio`). Marksmen default to Strongest; everyone else defaults to First.
+- **Crew bar:** cards are bigger, and show role and status. Hovering or focusing a card extends it upward into a stat sheet: DPS, range, HP, what the crew member hits, what they're good against, their targeting mode, quirk and perks. On touch screens, the selected card keeps its sheet open.
+- **Helicopter patrol:** once its pad is down, the Executive Helicopter flies after whichever hostile its own targeting mode prefers, and the door gunner fires at anything close. With nothing on the map, it circles the pad. The card opens its orders panel, which holds the targeting chips and the Airlift button.
+- **Battle damage:** hostiles and bosses degrade as they lose health. Below 75% they show scorch marks and a crack, below 50% more of both, and below 25% chunks are blown out with glowing rims; badly hurt units also trail smoke and sparks. The marks are seeded per sprite, so they stay put across animation frames (`damagedFrame`).
 
 ## Crew progression: performance reviews
 Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per rank) and a **performance review** in which you pick a card. Reviews can be held mid-contract (click the highlighted crew card, or press R; the game pauses) or between contracts ("Hold performance reviews").
@@ -264,13 +272,14 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 
 ## Balance tuning knobs (in index.html)
 Difficulty is tuned to rise through the run rather than flatten out as your crew levels up.
-- `genWave`: wave threat budget `(5.5 + idx*3.0 + idx²*0.3) * (1 + prog*1.8) * diff.mod`
+- `genWave`: wave threat budget `(5 + idx*2.7 + idx²*0.26) * (1 + prog*1.8) * diff.mod`
 - `genWave`: veteran rate `-0.04 + idx*0.14 + prog*0.3` (max 68%), elite rate `-0.2 + idx*0.08 + prog*0.16` (max 34%)
 - Wave interval: 13s, tightening from contract 4 by 0.9s per contract and up to 2.4s as the drill fills (minimum 8.5s)
-- `spawnEnemy`: HP scaling `(1 + 0.22*idx + 0.03*idx²)`
-- Bosses have +10% HP. Understudies have `30% × (1 + 0.2*idx)`.
-- `startMission`: starting budget `110 + 10*idx`
-- The auto-play bot (greedy placement, random contracts, random review picks) wins about 28% of runs, down from 67% before this pass (80 runs each). Average margin lost per contract:
+- `spawnEnemy`: HP scaling `(1 + 0.2*idx + 0.026*idx²)`
+- Sector 1 bosses have 82% HP and Sector 2 bosses full HP. Understudies have `25% × (1 + 0.2*idx)`. Naval craft arrive from contract 4, and the nastier behaviours ramp in from contract 3. Sector 2 difficulty uses `diffLevel = 4 + (idx - 4) * 0.56`.
+- `startMission`: starting budget `120 + 12*idx`
+- After line of sight and the retune, the auto-play bot (line-of-sight-aware greedy placement, no artifacts, default targeting) clears Sector 1 in 29% of runs and finishes both sectors in 13% (90 runs), up from 7% and 2%.
+- Before Sector 2, the bot won about 28% of runs, down from 67% before this pass (80 runs each). Average margin lost per contract:
   - Before: 11 / 21 / 26 / 15 / 5% (it got easier as crew levelled).
   - Now: 12 / 18 / 33 / 25 / 24%.
 

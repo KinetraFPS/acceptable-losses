@@ -310,6 +310,41 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .trait.q{color:var(--ok)}
 .trait.sp{color:var(--crystal)}
 @media (prefers-reduced-motion:reduce){.perk:hover{transform:none}}
+
+/* crew bar: bigger cards that extend upwards into a stat sheet */
+.roster{gap:8px;padding-top:4px}
+.crew{grid-template-columns:44px auto;gap:2px 10px;padding:9px 14px 9px 9px;min-width:184px;position:relative}
+.crew .pt{width:44px;height:44px;grid-row:span 3}
+.crew .nm{font-size:16px}
+.crew .role{font:400 12px/1 var(--f-body);color:var(--muted);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
+.crew .meta{font-size:17px}
+.crew.peeking{transform:translateY(-4px);box-shadow:inset 0 0 0 var(--b) var(--rc,var(--ac)),0 -2px 0 0 var(--rc,var(--ac))}
+.crewpeek{position:fixed;z-index:60;pointer-events:none;background:var(--panel);box-shadow:var(--frame),inset 0 3px 0 0 var(--pc);clip-path:var(--notch);padding:12px 13px 10px;display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.25;color:var(--fg);opacity:0;transform:translateY(10px) scaleY(.85);transform-origin:bottom;transition:opacity .14s,transform .18s cubic-bezier(.3,1.4,.5,1);visibility:hidden}
+.crewpeek.open{opacity:1;transform:none;visibility:visible}
+.crewpeek .pk-head{display:flex;flex-direction:column;gap:2px}
+.crewpeek .pk-head b{font:400 22px/.95 var(--f-display);color:var(--pc)}
+.crewpeek .pk-head span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.crewpeek .pk-stats{display:grid;grid-template-columns:auto auto 1fr;gap:4px 8px;align-items:center;padding:4px 0;border-block:1px solid var(--line)}
+.crewpeek .pk-stats span{color:var(--muted);font-size:12px;text-transform:uppercase}
+.crewpeek .pk-stats em{font:400 17px/1 var(--f-mono);font-style:normal;white-space:nowrap}
+.crewpeek .pk-bar{display:block;height:6px;background:var(--panel2);min-width:50px}
+.crewpeek .pk-bar b{display:block;height:100%}
+.crewpeek .pk-row{display:grid;grid-template-columns:64px 1fr;gap:6px;align-items:baseline}
+.crewpeek .pk-row.dim{display:block}
+.crewpeek .pk-row span{color:var(--muted);font-size:12px;text-transform:uppercase}
+.crewpeek .pk-row.dim{color:var(--muted)}
+.crewpeek .pk-traits{display:flex;flex-wrap:wrap;gap:4px}
+.crewpeek .pk-traits i{font-style:normal;font-size:12px;padding:2px 6px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line)}
+.crewpeek .pk-traits i.sp{box-shadow:inset 0 0 0 1px #b98cff;color:#d8c4ff}
+.crewpeek .pk-foot{font:400 16px/1 var(--f-mono);color:var(--pc)}
+.tprio{display:flex;flex-direction:column;gap:5px}
+.tprio .chips{display:flex;flex-wrap:wrap;gap:4px}
+.tprio .chip{border:0;cursor:pointer;font:400 12px/1 var(--f-body);padding:5px 7px;background:var(--panel2);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.tprio .chip.on{background:var(--brand);color:var(--brand-ink);box-shadow:none}
+.tprio .tnote{color:var(--muted);font-size:12px;line-height:1.3}
+.tprio .tnote b{color:var(--ok)}
+@media (max-width:560px){.crew{min-width:150px;grid-template-columns:36px auto}.crew .pt{width:36px;height:36px}.crewpeek{font-size:12px}}
+@media (prefers-reduced-motion:reduce){.crewpeek{transition:none}}
 </style>
 
 <div id="app">
@@ -1551,7 +1586,7 @@ function bossFrameMore(id, col, f, look) {
 // ---------- behaviour ----------
 function hurtTower(tw, dmg) {
   if (tw.down) return;
-  tw.hp -= dmg * (1 - (tw.bDr || 0)); tw.flash = 0.12;
+  tw.hp -= dmg * (1 - (tw.bDr || 0)) * (coverAt(tw.tx, tw.ty) ? 1 - COVER_DR : 1); tw.flash = 0.12;
   if (tw.hp <= 0) killCrew(tw);
 }
 // jump forward along the path (or straight at the drill for flyers)
@@ -1573,7 +1608,7 @@ function stepThreats(e, dt) {
   const hidden = e.inTunnel || e.burrowed;
   e.aimSlow = 1;
   if (e.shoot && !hidden && !(e.stunT > 0)) {
-    const near = crewNear(e, e.shoot.range);
+    const near = crewNear(e, e.shoot.range).filter(tw => canSee(tw, e));
     if (near.length) {
       e.aimSlow = 0.55;
       if ((e.shootCd = (e.shootCd ?? e.shoot.every * 0.5) - dt) <= 0) {
@@ -2666,7 +2701,8 @@ function genMap(nSpawns, biomeKey) {
       for (const [x, y] of shuffle(tiles.slice())) { if (count <= 0) break; if (free(x, y) && !crowded(x, y) && test(x, y)) { put(x, y, rule); count--; } }
     };
     place('road', ri(5, 8), (x, y) => touches(x, y, v => v === 1));
-    place('building', buildings.length * 2, (x, y) => touches(x, y, v => v === 6 || v === 7));
+    // building props sit on the corners, leaving the walls free for crew to take cover against
+    place('building', buildings.length * 2, (x, y) => !touches(x, y, v => v === 6 || v === 7) && N8.some(([dx, dy]) => { const v = at(x + dx, y + dy); return v === 6 || v === 7; }));
     const liq = tiles.filter(([x, y]) => at(x, y) === 5).length;
     place('shore', Math.ceil(liq / 4), (x, y) => touches(x, y, v => v === 5));
     if (A.obst.grove) for (let g = ri(2, 3); g > 0; g--) {
@@ -2883,7 +2919,7 @@ function startMission(contract) {
     c: contract, biome: contract.biome, map, grid: map.grid, paths: map.paths,
     dep: { x: map.dep.x * TILE + TILE / 2, y: map.dep.y * TILE + TILE / 2 },
     ground: null, towers: [], enemies: [], shots: [], fx: [], queue: [],
-    budget: Math.round((110 + 10 * contract.idx + (has('takeover') ? 40 : 0)) * (contract.biome.mod.budget || 1)),
+    budget: Math.round((120 + 12 * contract.idx + (has('takeover') ? 40 : 0)) * (contract.biome.mod.budget || 1)),
     t: 0, T: contract.T * (has('overtime') ? 0.85 : 1), phase: 'prep', waveTimer: 2, waveInterval: 13, waveNum: 0,
     lost: 0, insured: has('insurance') ? 6 : 0, kills: 0, promos: [], downed: [], bossSpawned: false, boss: null,
     incomeAcc: 0, speed: 1, paused: false, endTimer: 0, deployedIds: new Set(),
@@ -2912,6 +2948,150 @@ function deployRefusal(tx, ty) {
   if (v === 1 && (M.map.bridges || []).some(b => b.x === tx && b.y === ty)) return 'Bridge is load-rated for hostiles only.';
   if (v === 1 || v === 4) return 'Crew cannot stand on the path. Union rules (ours).';
   return 'Cannot deploy there';
+}
+// ---------- line of sight and cover ----------
+// Buildings block what crew on the ground can see. Crew on rooftops or the sky ray see over them,
+// drones fly over them and mortars lob over them. Hostiles can only shoot crew who can see them,
+// and crew standing against a building wall are in cover.
+const blocksSight = v => v === 6 || v === 7;
+function lineClear(ax, ay, bx, by) {
+  const n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
+  for (let i = 1; i < n; i++) {
+    const k = i / n, x = Math.floor(ax + (bx - ax) * k), y = Math.floor(ay + (by - ay) * k);
+    if (M.grid[y] && blocksSight(M.grid[y][x])) return false;
+  }
+  return true;
+}
+const SIGHT_PTS = [[0.5, 0.5], [0.15, 0.15], [0.85, 0.15], [0.15, 0.85], [0.85, 0.85]];
+// which tiles a crew member on the ground at (tx, ty) can see into, even partly
+function sightMap(tx, ty) {
+  const out = new Uint8Array(GW * GH), ox = tx + 0.5, oy = ty + 0.5;
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) out[y * GW + x] = SIGHT_PTS.some(([u, v]) => lineClear(ox, oy, x + u, y + v)) ? 1 : 0;
+  return out;
+}
+const seesOverAt = (type, tx, ty) => M.grid[ty][tx] >= 6 || type === 'drone' || type === 'mortar' || (platformAt(tx, ty) && ARTIFACTS[platformAt(tx, ty).id].kind === 'ray');
+function towerSight(tw) {
+  if (seesOverAt(tw.crew.type, tw.tx, tw.ty)) return null;
+  const key = tw.tx + ',' + tw.ty;
+  if (tw.sightKey !== key) { tw.sightKey = key; tw.sight = sightMap(tw.tx, tw.ty); }
+  return tw.sight;
+}
+function canSee(tw, e) {
+  if (e.fly) return true;
+  const s = towerSight(tw); if (!s) return true;
+  const x = Math.floor(e.x / TILE), y = Math.floor(e.y / TILE);
+  return x < 0 || y < 0 || x >= GW || y >= GH || !!s[y * GW + x];
+}
+// on the ground with a building wall right beside you
+const coverAt = (tx, ty) => M.grid[ty][tx] === 0 && DIRS.some(([dx, dy]) => M.grid[ty + dy] && blocksSight(M.grid[ty + dy][tx + dx]));
+const COVER_DR = 0.3;
+// darken the tiles inside a range ring that buildings hide
+function drawSightShade(ctx, tx, ty, type, range) {
+  if (seesOverAt(type, tx, ty)) return;
+  const key = tx + ',' + ty;
+  let s;
+  if (S.sightCache && S.sightCache.key === key && S.sightCache.m === M) s = S.sightCache.s; else { s = sightMap(tx, ty); S.sightCache = { key, m: M, s }; }
+  // dark, red-hatched tiles inside the ring: the blind spots
+  ctx.save(); ctx.beginPath(); ctx.arc((tx + 0.5) * TILE, (ty + 0.5) * TILE, range * TILE, 0, 7); ctx.clip();
+  ctx.beginPath();
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+    if (s[y * GW + x] || blocksSight(M.grid[y][x])) continue;
+    if (Math.hypot(x - tx, y - ty) > range + 1) continue;
+    ctx.rect(x * TILE, y * TILE, TILE, TILE);
+  }
+  ctx.fillStyle = 'rgba(4,6,12,0.58)'; ctx.fill(); ctx.clip();
+  ctx.strokeStyle = 'rgba(255,77,94,0.32)'; ctx.lineWidth = 1.5; ctx.beginPath();
+  const x0 = (tx - range - 1) * TILE, y0 = (ty - range - 1) * TILE, span = (range + 1) * 2 * TILE;
+  for (let k = -span; k < span; k += 9) { ctx.moveTo(x0 + k, y0); ctx.lineTo(x0 + k + span, y0 + span); }
+  ctx.stroke(); ctx.restore();
+}
+
+// ---------- target priority ----------
+const PRIO = {
+  first:  { name: 'First',     desc: 'Closest to the drill', key: e => e.dist },
+  last:   { name: 'Last',      desc: 'Furthest from the drill', key: e => -e.dist },
+  strong: { name: 'Strongest', desc: 'Most HP left', key: e => e.hp },
+  weak:   { name: 'Weakest',   desc: 'Least HP left, for finishing off', key: e => -e.hp },
+  close:  { name: 'Closest',   desc: 'Nearest to this crew member', key: (e, tw) => -Math.hypot(e.x - tw.x, e.y - tw.y) },
+  air:    { name: 'Flyers',    desc: 'Flyers and gunships first', key: e => (e.fly ? 1e6 : 0) + e.dist, air: true },
+  elite:  { name: 'Elites',    desc: 'Bosses, then elites, then veterans', key: e => (e.boss ? 3 : e.tier) * 1e6 + e.dist },
+};
+const prioOf = cr => cr.prio || (TOWERS[cr.type].strong ? 'strong' : 'first');
+const GOOD_VS = {
+  gunner: 'Swarms, flyers and anything mid-sized',
+  taser: 'Packs and rushers; slows everything in the pulse',
+  mortar: 'Clumped ground packs and armour',
+  marksman: 'Bosses, elites and heavy armour',
+  drone: 'Flyers and gunships (triple damage)',
+};
+const crewDps = (cr, st) => st.dmg * st.rate * (cr.type === 'drone' ? st.drones : st.multi);
+
+// ---------- crew card preview ----------
+// hovering, focusing or selecting a card in the roster bar extends it upwards into a stat sheet
+function crewPeekHtml(cr) {
+  const tw = M.towers.find(t => t.crew === cr), st = tw && tw.st ? tw.st : towerStats(cr, tw), T = TOWERS[cr.type];
+  const dps = crewDps(cr, st), bar = (v, max, col) => `<i class="pk-bar"><b style="width:${Math.round(clamp(v / max, 0.04, 1) * 100)}%;background:${col}"></b></i>`;
+  const perks = perkSummary(cr), pr = PRIO[prioOf(cr)];
+  const what = T.aoe ? ' per target' : T.splash ? ' per blast' : '';
+  return `<div class="pk-head"><b>${esc(cr.name)}</b><span>${esc(RANKS[cr.level - 1])} · ${esc(T.name)}</span></div>
+    <div class="pk-stats">
+      <span>DPS</span><em>${dps.toFixed(1)}${what}</em>${bar(dps, 40, T.color)}
+      <span>Range</span><em>${st.range.toFixed(1)} tiles</em>${bar(st.range, 6, '#5ab8ff')}
+      <span>HP</span><em>${Math.round(tw ? tw.hp : st.maxhp)}/${Math.round(st.maxhp)}</em>${bar(tw ? tw.hp : st.maxhp, 200, '#4fe0a6')}
+    </div>
+    <div class="pk-row"><span>Hits</span><div>${T.air ? 'Ground and air' : 'Ground only'}${cr.type === 'mortar' ? ' · lobs over buildings' : cr.type === 'drone' ? ' · flies over buildings' : ''}</div></div>
+    <div class="pk-row"><span>Good vs</span><div>${esc(GOOD_VS[cr.type])}</div></div>
+    <div class="pk-row"><span>Targets</span><div>${esc(pr.name)}: ${esc(pr.desc.toLowerCase())}</div></div>
+    <div class="pk-row"><span>Quirk</span><div><b>${esc(QUIRKS[cr.quirk].name)}</b>: ${esc(QUIRKS[cr.quirk].desc)}</div></div>
+    ${perks.length ? `<div class="pk-traits">${perks.map((n, k) => `<i class="${k === 0 && cr.spec ? 'sp' : ''}">${esc(n)}</i>`).join('')}</div>` : '<div class="pk-row dim">No perks yet. Reviews unlock them.</div>'}
+    <div class="pk-foot">${cr.dead ? `KIA · replacement $${replaceCost(cr)}` : tw ? 'Deployed · tap them on the map for orders' : `Fee $${crewFee(cr)} · ${cr.kills} kills`}</div>`;
+}
+function artPeekHtml(a) {
+  const A = ARTIFACTS[a.id];
+  return `<div class="pk-head"><b>${esc(A.name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</b><span>${esc(FACTIONS[A.fac].name)} artifact</span></div>
+    <div class="pk-row">${esc(A.desc)}</div>
+    <div class="pk-foot">${A.place === 'none' ? 'No placement: tap to aim' : a.deployed ? 'Deployed' : 'Tap, then pick a spot · free'}</div>`;
+}
+function showPeek(btn) {
+  if (!btn || !M || S.screen !== 'mission') return hidePeek();
+  let el = document.getElementById('crewpeek');
+  if (!el) { el = document.createElement('div'); el.id = 'crewpeek'; el.className = 'crewpeek'; el.setAttribute('aria-hidden', 'true'); document.body.appendChild(el); }
+  const isArt = btn.dataset.act === 'art', key = isArt ? 'a' + btn.dataset.id : 'c' + btn.dataset.i;
+  let html;
+  if (isArt) { const a = (M.arts || []).find(x => x.id === btn.dataset.id); if (!a) return hidePeek(); html = artPeekHtml(a); el.style.setProperty('--pc', ARTIFACTS[a.id].col); }
+  else { const cr = RUN.roster[+btn.dataset.i]; if (!cr) return hidePeek(); html = crewPeekHtml(cr); el.style.setProperty('--pc', TOWERS[cr.type].color); }
+  if (el.dataset.k !== key || el.innerHTML !== html) { const fresh = el.dataset.k !== key; el.innerHTML = html; el.dataset.k = key; if (fresh) { el.classList.remove('open'); void el.offsetWidth; } }
+  const r = btn.getBoundingClientRect(), w = Math.max(r.width, 270);
+  el.style.width = w + 'px';
+  el.style.left = clamp(r.left, 6, window.innerWidth - w - 6) + 'px';
+  el.style.bottom = (window.innerHeight - r.top - 3) + 'px';
+  el.classList.add('open');
+  document.querySelectorAll('#bar .peeking').forEach(b => b !== btn && b.classList.remove('peeking'));
+  btn.classList.add('peeking'); S.peekBtn = key;
+}
+function hidePeek() {
+  const el = document.getElementById('crewpeek'); if (el) { el.classList.remove('open'); el.dataset.k = ''; }
+  document.querySelectorAll('#bar .peeking').forEach(b => b.classList.remove('peeking')); S.peekBtn = null;
+}
+// the sheet follows the pointer and keyboard focus; on touch screens the selected card keeps it open
+function peekFallback() {
+  const b = S.selCrew >= 0 && S.touchUi ? document.querySelector(`#bar .crew[data-act="crew"][data-i="${S.selCrew}"]`) : null;
+  if (b) showPeek(b); else hidePeek();
+}
+function refreshPeek() {
+  if (!S.peekHover || !S.peekBtn) return peekFallback();
+  const b = S.peekBtn[0] === 'a' ? document.querySelector(`#bar .crew[data-act="art"][data-id="${S.peekBtn.slice(1)}"]`) : document.querySelector(`#bar .crew[data-act="crew"][data-i="${S.peekBtn.slice(1)}"]`);
+  if (b) showPeek(b); else peekFallback();
+}
+function initPeek() {
+  const bar = $('#bar'); if (!bar || bar.dataset.peek) return; bar.dataset.peek = '1';
+  window.addEventListener('pointerdown', ev => { S.touchUi = ev.pointerType === 'touch'; }, true);
+  bar.addEventListener('pointerover', ev => { if (ev.pointerType === 'touch') return; const b = ev.target.closest('.crew'); if (b) { S.peekHover = true; showPeek(b); } });
+  bar.addEventListener('pointerleave', () => { S.peekHover = false; peekFallback(); });
+  bar.addEventListener('focusin', ev => { const b = ev.target.closest('.crew'); if (b && b.matches(':focus-visible')) { S.peekHover = true; showPeek(b); } });
+  bar.addEventListener('focusout', () => setTimeout(() => { if (!bar.contains(document.activeElement)) { S.peekHover = false; peekFallback(); } }, 0));
+  bar.addEventListener('scroll', () => refreshPeek(), true);
+  window.addEventListener('resize', () => refreshPeek());
 }
 function canBuild(tx, ty) { const v = M.grid[ty][tx]; return (v === 0 || v === 6 || v === 7 || !!platformAt(tx, ty)) && !towerAtTile(tx, ty) && !artBlocks(tx, ty); }
 
@@ -3060,7 +3240,7 @@ function reassign(tw) {
 
 function genWave() {
   const m = M, c = m.c, idx = diffLevel(c.idx), prog = m.t / m.T;
-  let budget = (5.5 + idx * 3.0 + idx * idx * 0.3) * (1 + prog * 1.8) * c.mod;
+  let budget = (5 + idx * 2.7 + idx * idx * 0.26) * (1 + prog * 1.8) * c.mod;
   m.waveNum++;
   const vet = clamp(-0.04 + idx * 0.14 + prog * 0.3, 0, 0.68), eli = clamp(-0.2 + idx * 0.08 + prog * 0.16, 0, 0.34);
   const weights = { ...c.fac.cats };
@@ -3070,8 +3250,8 @@ function genWave() {
   if (idx === 0) { delete weights.saboteur; if (weights.armored) weights.armored *= 0.5; }
   for (const k of SPECIALS) if (weights[k]) { if (idx === 0) delete weights[k]; else weights[k] *= Math.min(1, idx / 2.5); }
   // the nastier behaviours (ranged, carriers, blinkers, berserkers, burrowers) arrive from contract 3
-  if (weights.naval && (idx < 2 || !m.waterPath)) delete weights.naval;
-  for (const k of ['ranged', 'carrier', 'blinker', 'berserk', 'burrower', 'gunship']) if (weights[k]) { if (idx < 2) delete weights[k]; else weights[k] *= Math.min(1, (idx - 1) / 3); }
+  if (weights.naval && (idx < 3 || !m.waterPath)) delete weights.naval;
+  for (const k of ['ranged', 'carrier', 'blinker', 'berserk', 'burrower', 'gunship']) if (weights[k]) { if (idx < 2) delete weights[k]; else weights[k] *= Math.min(1, (idx - 1.4) / 2.6); }
   const list = []; let guard = 0;
   while (budget > 0.5 && guard++ < 40) {
     const cat = wpick(weights);
@@ -3092,7 +3272,7 @@ function genWave() {
 }
 function spawnEnemy(q) {
   const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = C.naval && M.waterPath ? M.waterPath : M.paths[q.sp];
-  const hp = C.hp * Tt.hp * (1 + 0.22 * diffLevel(c.idx) + 0.03 * diffLevel(c.idx) ** 2) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
+  const hp = C.hp * Tt.hp * (1 + 0.2 * diffLevel(c.idx) + 0.026 * diffLevel(c.idx) ** 2) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
   const armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3));
   const e = {
     cat: q.cat, tier: q.tier, name: c.fac.names[q.cat], color: c.fac.color,
@@ -3131,8 +3311,8 @@ function spawnEnemy(q) {
   return e;
 }
 function spawnBoss(B, mini, child) {
-  const path = M.paths[0], k = mini ? 0.3 : 1;
-  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : 1.1);
+  const path = M.paths[0], k = mini ? 0.25 : 1;
+  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : sectorOf(M.c.idx) === 1 ? 0.82 : 1);
   const slow = mini ? 1.5 : 1, iv = o => o && { ...o, every: o.every * slow };
   const e = {
     cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
@@ -3350,11 +3530,12 @@ function stepMission(dt) {
     for (const e of m.enemies) {
       if (e.dead || e.invuln || e.deal) continue; if (e.fly && !s.air) continue;
       const d = Math.hypot(e.x - tw.x, e.y - tw.y); if (d > R2 + e.r * 0.5) continue;
+      if (!canSee(tw, e)) continue;
       inAll.push(e);
       // cloaked hostiles are only visible up close or once marked
       if (!e.cloaked || e.vulnT > 0 || d < 1.3 * TILE || leaked) inRange.push(e);
     }
-    const better = (a, b) => s.strong ? a.hp > b.hp : a.dist > b.dist;
+    const P = PRIO[prioOf(tw.crew)], better = (a, b) => P.key(a, tw) > P.key(b, tw);
     let tgt = null;
     for (const e of inRange) if (!tgt || better(e, tgt)) tgt = e;
     tw.aim = tgt;
@@ -3565,7 +3746,9 @@ function renderMission(now) {
       const ok = canBuild(tl.tx, tl.ty) && m.budget >= TOWERS[sc.type].fee, x0 = tl.tx * ATILE, y0 = tl.ty * ATILE, c = ok ? '#ffd23f' : '#ff4d5e';
       for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [17, 0, -1, 1], [0, 17, 1, -1], [17, 17, -1, -1]]) { px(g, x0 + cx + (sx < 0 ? -3 : 0), y0 + cy, 4, 1, c); px(g, x0 + cx, y0 + cy + (sy < 0 ? -3 : 0), 1, 4, c); }
       if (canBuild(tl.tx, tl.ty)) { g.globalAlpha = ok ? 0.7 : 0.35; g.drawImage(palletSprite(), x0 + 1, y0 + 12); g.drawImage(crewSprites(sc).f[0], x0 + 2, y0 - 2); g.globalAlpha = 1; }
-      preview = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2, r: towerStats(sc).range * TILE * (m.grid[tl.ty][tl.tx] >= 6 ? 1.15 : 1), ok };
+      const prange = towerStats(sc).range * (m.grid[tl.ty][tl.tx] >= 6 ? 1.15 : 1);
+      preview = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2, r: prange * TILE, ok, tx: tl.tx, ty: tl.ty, type: sc.type, range: prange, build: canBuild(tl.tx, tl.ty) };
+      if (preview.build && coverAt(tl.tx, tl.ty)) { const sx = x0 + 13, sy = y0 + 1; px(g, sx, sy, 5, 4, '#0c0e14'); px(g, sx + 1, sy + 1, 3, 3, '#9fd3ff'); px(g, sx + 2, sy + 4, 1, 1, '#9fd3ff'); }
     }
   }
   // pixel particles
@@ -3674,6 +3857,8 @@ function renderMission(now) {
   }
   // ranges
   const ring = (x, y, r, col, fill) => { ctx.setLineDash([4, 4]); ctx.strokeStyle = col; ctx.fillStyle = fill; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); };
+  if (preview && preview.build) drawSightShade(ctx, preview.tx, preview.ty, preview.type, preview.range);
+  if (S.selTower && m.towers.includes(S.selTower)) drawSightShade(ctx, S.selTower.tx, S.selTower.ty, S.selTower.crew.type, (S.selTower.st || towerStats(S.selTower.crew)).range);
   if (preview) ring(preview.x, preview.y, preview.r, preview.ok ? 'rgba(255,210,63,0.7)' : 'rgba(255,77,94,0.7)', preview.ok ? 'rgba(255,210,63,0.07)' : 'rgba(255,77,94,0.07)');
   if (S.selTower && m.towers.includes(S.selTower)) ring(S.selTower.x, S.selTower.y, (S.selTower.st || towerStats(S.selTower.crew)).range * TILE, 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0.05)');
   // floating text
@@ -3894,6 +4079,47 @@ function drawTowerPx(g, tw, t) {
   g.restore();
   px(g, Math.floor(pvx), Math.floor(pvy), 1, 1, CREW_OUTFITS[type].gloves || tw.crew.look.skin);
 }
+
+// ---------- battle damage ----------
+// Hostiles look more beaten up as they lose health: scorch and a first crack below 75%, more of both
+// below 50%, and chunks blown out of the silhouette below 25%. Each kind of mark has its own seed per sprite,
+// so the marks stay put from one animation frame (and one damage stage) to the next.
+const dmgStage = e => { const k = e.hp / e.maxhp; return k < 0.25 ? 3 : k < 0.5 ? 2 : k < 0.75 ? 1 : 0; };
+function damagedFrame(v, fi, stage) {
+  v.dmg = v.dmg || [];
+  const key = stage * 32 + fi;
+  if (v.dmg[key]) return v.dmg[key];
+  const src = v.frames[fi], w = src.width, h = src.height, c = mkCanvas(w, h), g = c.getContext('2d');
+  g.drawImage(src, 0, 0);
+  const id = g.getImageData(0, 0, w, h), d = id.data, area = w * h;
+  const base = v.seed || (v.seed = ((w * 73856093) ^ (h * 19349663) ^ ((v.ax + 7) * 83492791)) >>> 0 || 1);
+  const rng = salt => { let s = (base ^ salt) >>> 0 || 1; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; };
+  const op = (x, y) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] > 40;
+  const dark = (x, y, f) => { const i = (y * w + x) * 4; d[i] *= f; d[i + 1] *= f; d[i + 2] *= f; };
+  const set = (x, y, r, gg, b) => { const i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; };
+  // scorch: speckles that spread as health drops
+  { const r = rng(0x51); for (let n = Math.round(area * 0.08 * stage); n > 0; n--) { const x = r() * w | 0, y = r() * h | 0; if (op(x, y)) { dark(x, y, 0.42); if (r() < 0.5 && op(x + 1, y)) dark(x + 1, y, 0.6); } } }
+  // cracks: short jagged dark lines with a lighter edge
+  { const r = rng(0xc4); for (let n = Math.max(1, Math.round(area / 140)) * stage; n > 0; n--) {
+    let x = r() * w | 0, y = r() * h | 0; const len = 4 + (r() * 7 | 0);
+    for (let s = 0; s < len; s++) { if (op(x, y)) { set(x, y, 24, 16, 18); if (op(x + 1, y)) dark(x + 1, y, 1.25); } x += r() < 0.5 ? -1 : 1; y += r() < 0.65 ? 1 : r() < 0.5 ? -1 : 0; }
+  } }
+  // chunks: bites out of the edge, with charred, glowing rims
+  if (stage >= 3) { const r = rng(0x9e); for (let n = 2 + Math.round(area / 200); n > 0; n--) {
+    for (let tries = 0; tries < 40; tries++) {
+      const x = r() * w | 0, y = r() * h | 0;
+      if (!op(x, y) || (op(x - 1, y) && op(x + 1, y) && op(x, y - 1) && op(x, y + 1))) continue;
+      const rad = area > 900 ? 2 : 1;
+      for (let yy = -rad - 1; yy <= rad + 1; yy++) for (let xx = -rad - 1; xx <= rad + 1; xx++) {
+        const px2 = x + xx, py2 = y + yy, dd = Math.hypot(xx, yy); if (!op(px2, py2)) continue;
+        if (dd <= rad) d[(py2 * w + px2) * 4 + 3] = 0; else if (dd <= rad + 1.5) { if (r() < 0.55) set(px2, py2, 255, 120, 40); else dark(px2, py2, 0.35); }
+      }
+      break;
+    }
+  } }
+  g.putImageData(id, 0, 0);
+  return (v.dmg[key] = c);
+}
 function drawEnemyPx(g, e, t) {
   if (e.inTunnel) { e._sx = null; e._bx = null; return; }
   if (e.burrowed) {
@@ -3909,13 +4135,20 @@ function drawEnemyPx(g, e, t) {
   else if (e.target) fi = Math.floor(t * 8) % nf;
   else if (v.kind === 'human') fi = Math.floor(e.dist / 5) % nf;
   else fi = Math.floor(e.dist / (nf > 2 ? 4 : 6)) % nf;
-  const img = e.hitT > 0 ? v.white[fi] : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
+  const stage = e.maxhp ? dmgStage(e) : 0;
+  const img = e.hitT > 0 ? v.white[fi] : stage ? damagedFrame(v, fi, stage) : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
   if (e.beamT > 0) { drawBeamIn(g, e, t, v, fi % v.slow.length, ax, sx, sy, flip); return; }
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
   if (e.tier === 1 || e.tier === 2) { const ol = e.tier === 2 ? v.elite[fi] : v.vet[fi]; for (const [dx, dy] of OFF4) blit(ol, dx, dy); }
   if (e.deal) { const ol = v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6'))); for (const [dx, dy] of OFF4) blit(ol[fi], dx, dy); }
   if (e.slowT > 0) { g.globalAlpha = 0.5; for (const [dx, dy] of OFF4) blit(v.slow[fi], dx, dy); g.globalAlpha = 1; }
   blit(img, 0, 0);
+  // badly hurt hostiles trail smoke and sparks
+  if (stage >= 2 && !M.paused && rnd() < (stage === 3 ? 0.1 : 0.04) * (e.boss ? 2.5 : 1)) {
+    const h = v.frames[0].height, px0 = e.x + (rnd() - 0.5) * e.r, py0 = e.y - (h * AP) * (0.3 + rnd() * 0.4) + (e.fly ? -12 : 8);
+    if (rnd() < 0.6) addPart({ x: px0, y: py0, vx: (rnd() - 0.5) * 10, vy: -16 - rnd() * 10, r: 0.5 + rnd() * 0.6, grow: 2, life: 0.7, max: 0.7, col: rnd() < 0.5 ? '#3a3a42' : '#55555e', layer: 'px', alpha: 0.7 });
+    else addPart({ x: px0, y: py0, vx: (rnd() - 0.5) * 50, vy: -30 - rnd() * 30, g: 220, floor: e.y + 8, life: 0.4, max: 0.4, col: rnd() < 0.5 ? '#ffb040' : '#ffe08a', size: 1, layer: 'px' });
+  }
   if (e.stunT > 0) for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(g, Math.round(ax + Math.cos(a) * 4), Math.round(sy - 2 + Math.sin(a) * 1.5), 1, 1, '#ffd23f'); }
   if (e.vulnT > 0) { const w = v.frames[0].width, h = v.frames[0].height, x0 = ax - (flip ? w - v.ax : v.ax) - 1, y0 = sy - 1;
     for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x0 + w + 1, y0, -1, 1], [x0, y0 + h + 1, 1, -1], [x0 + w + 1, y0 + h + 1, -1, -1]]) { px(g, dx > 0 ? cx : cx - 1, cy, 2, 1, '#ff3b5c'); px(g, cx, dy > 0 ? cy : cy - 1, 1, 2, '#ff3b5c'); } }
@@ -3962,6 +4195,8 @@ function updateHud() {
   if (has('schedule')) set('hWave', 't', m.waveTxt || 'Awaiting first wave');
   // keep roster affordability fresh
   if (hudCache.budgetSeen !== m.budget) { hudCache.budgetSeen = m.budget; refreshRosterAfford(); }
+  if (S.heliPanel && !S.selTower && performance.now() - (hudCache.heliAt || 0) > 500) { hudCache.heliAt = performance.now(); const h = M.arts.find(x => x.id === 'heli'), k = h ? (h.cd > 0 ? Math.ceil(h.cd) : 0) + (h.lift ? 'L' : '') : ''; if (hudCache.heliK !== k) { hudCache.heliK = k; renderTowerInfo(); } }
+  if (S.peekBtn && performance.now() - (hudCache.peekAt || 0) > 400) { hudCache.peekAt = performance.now(); refreshPeek(); }
 }
 function buildRosterBar() {
   if (S.screen !== 'mission') return;
@@ -3970,8 +4205,8 @@ function buildRosterBar() {
     const used = M.deployedIds.has(cr.id), down = !!cr.dead;
     const fee = crewFee(cr), rev = cr.reviews.length;
     const status = down ? `KIA · Replace $${replaceCost(cr)}` : rev ? '★ Review' : used ? 'Deployed' : '$' + fee;
-    return `<button class="crew${S.selCrew === i ? ' sel' : ''}${used ? ' used' : ''}${down ? ' down' : ''}${rev ? ' rev' : ''}" data-act="crew" data-i="${i}" data-fee="${fee}" aria-pressed="${S.selCrew === i}" title="${esc(TOWERS[cr.type].name)}: ${esc(TOWERS[cr.type].desc)} Quirk: ${esc(QUIRKS[cr.quirk].name)}. ${esc(QUIRKS[cr.quirk].desc)}">
-      ${portraitImg(cr)}<span class="nm">${esc(cr.name)}</span><span class="meta">Lv${cr.level} · ${status}</span></button>`;
+    return `<button class="crew${S.selCrew === i ? ' sel' : ''}${used ? ' used' : ''}${down ? ' down' : ''}${rev ? ' rev' : ''}" data-act="crew" data-i="${i}" data-fee="${fee}" aria-pressed="${S.selCrew === i}" aria-label="${esc(cr.name)}, ${esc(TOWERS[cr.type].name)}, level ${cr.level}, ${esc(status)}" style="--rc:${TOWERS[cr.type].color}">
+      ${portraitImg(cr)}<span class="nm">${esc(cr.name)}</span><span class="role">${esc(TOWERS[cr.type].name.replace(/ \(.*\)/, ''))}</span><span class="meta">Lv${cr.level} · ${status}</span></button>`;
   }).join('');
   let roster = $('#bar .roster');
   if (!roster) {
@@ -3980,6 +4215,7 @@ function buildRosterBar() {
   }
   roster.innerHTML = html + artCardsHtml();
   refreshRosterAfford();
+  initPeek(); refreshPeek();
 }
 function refreshRosterAfford() {
   document.querySelectorAll('#bar .crew').forEach(b => {
@@ -3991,14 +4227,18 @@ function refreshRosterAfford() {
 function renderTowerInfo() {
   const ov = $('#overlay');
   const old = ov.querySelector('.tinfo'); if (old) old.remove();
+  if (S.selTower) S.heliPanel = false; else if (S.heliPanel) { renderHeliInfo(); return; }
   const tw = S.selTower; if (!tw || !M.towers.includes(tw)) return;
   const st = tw.st || towerStats(tw.crew, tw), cr = tw.crew;
   const next = cr.level < MAXL ? `${Math.floor(cr.xp)}/${XP_TH[cr.level]} xp to next review` : 'Max rank. Still no raise.';
   const traits = `<span class="trait q" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}</span>` + perkSummary(cr).map((n, k) => `<span class="trait${k === 0 && cr.spec ? ' sp' : ''}">${esc(n)}</span>`).join('');
   const div = document.createElement('div'); div.className = 'tinfo';
   div.innerHTML = `<div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
-    <div class="mono" style="color:var(--muted)">DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s · RNG ${st.range.toFixed(1)}${tw.roof ? ' <span style="color:var(--accent)">(rooftop +15%)</span>' : ''}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Killed in action. Claim denied.</span>' : ''}</div>
+    <div class="mono" style="color:var(--muted)">DPS ${crewDps(cr, st).toFixed(1)} · DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s<br>RNG ${st.range.toFixed(1)}${tw.roof ? ' <span style="color:var(--brand)">(rooftop +15%)</span>' : ''} · HP ${Math.max(0, Math.round(tw.hp))}/${Math.round(tw.maxhp)}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Killed in action. Claim denied.</span>' : ''}</div>
     <div class="traits">${traits}</div>
+    <div class="tprio"><div class="lbl">Preferred targets</div><div class="chips">${Object.entries(PRIO).filter(([k, p]) => !p.air || st.air).map(([k, p]) => `<button class="chip${prioOf(cr) === k ? ' on' : ''}" data-act="prio" data-v="${k}" title="${esc(p.desc)}" aria-pressed="${prioOf(cr) === k}">${esc(p.name)}</button>`).join('')}</div>
+      <div class="tnote">${esc(PRIO[prioOf(cr)].desc)}. Good against ${esc(GOOD_VS[cr.type].toLowerCase())}.</div>
+      <div class="tnote">${seesOverAt(cr.type, tw.tx, tw.ty) ? (cr.type === 'mortar' ? 'Lobs shells over buildings.' : cr.type === 'drone' ? 'Drone flies over buildings.' : 'Up high: sees over buildings.') : 'Buildings block line of sight (shaded).'}${coverAt(tw.tx, tw.ty) ? ' <b>In cover</b>: 30% less damage.' : ''}</div></div>
     <div class="row">${tw.down ? `<button class="btn sm" data-act="replace" ${M.budget < replaceCost(cr) ? 'disabled' : ''}>Hire replacement ($${replaceCost(cr)})</button>` : ''}${cr.reviews.length && !tw.down ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Hold review</button>` : ''}<button class="btn sm ghost" data-act="reassign" ${st.noReassign && !tw.down ? 'disabled' : ''}>${tw.down ? 'Remove' : st.noReassign ? 'Bound by contract' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
   ov.appendChild(div);
 }
@@ -5018,7 +5258,7 @@ const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 2;
 const sectorOf = idx => Math.floor(idx / SECTOR_LEN) + 1;
 const sectorPos = idx => idx % SECTOR_LEN;
 // how hard a contract is: full steps through sector 1, then gentler ones so sector 2 stays beatable
-const diffLevel = idx => idx <= 4 ? idx : 4 + (idx - 4) * 0.55;
+const diffLevel = idx => idx <= 4 ? idx : 4 + (idx - 4) * 0.56;
 const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
 Object.assign(BIOMES, {
   cloud: { name: 'Cloud City', mod: { flyers: 1.8, range: 1.1, espd: 1.05 }, hazard: 'High-altitude winds: far more flyers, enemies 5% faster, crew range +10%.' },
@@ -5352,7 +5592,7 @@ function stepCrates(dt) {
 const newMissionArt = a => ({ id: a.id, level: a.level, deployed: false, cd: 0, hp: 0, down: 0, t: 0 });
 function startArtifacts(m) {
   m.arts = (RUN.artifacts || []).map(newMissionArt);
-  m.strikes = []; m.crates = [];
+  m.strikes = []; m.crates = []; S.heliPanel = false;
 }
 const artAt = (tx, ty) => M.arts && M.arts.find(a => a.deployed && a.tx === tx && a.ty === ty && ARTIFACTS[a.id].place !== 'none');
 // platforms (barge, sky ray) make their tile buildable; pads, vans, nests and dozers block it
@@ -5424,7 +5664,9 @@ function stepArtifacts(dt) {
   }
   m.strikes = m.strikes.filter(s => !s.hit);
 }
-// the helicopter hovers over its pad shooting, or flies an airlift: pad -> crew -> destination -> pad
+// the helicopter patrols from its pad, chasing whatever its targeting mode prefers, or flies an airlift:
+// pad -> crew -> destination -> pad
+const heliPrio = () => RUN.heliPrio || 'first';
 function stepHeli(a, dt) {
   const m = M, fl = a.lift;
   if (fl) {
@@ -5442,12 +5684,25 @@ function stepHeli(a, dt) {
     } else { a.hx += dx / d * sp; a.hy += dy / d * sp; }
     return;
   }
-  a.hx = a.x + Math.sin(a.t * 1.3) * 4; a.hy = a.y - 30 + Math.sin(a.t * 2.1) * 2;
+  // patrol: chase the hostile the targeting mode prefers, or circle the pad when the map is clear
+  const P = PRIO[heliPrio()], me = { x: a.hx, y: a.hy + 30 };
+  let chase = null;
+  for (const e of m.enemies) { if (e.dead || e.invuln || e.deal || e.beamT > 0) continue; if (!chase || P.key(e, me) > P.key(chase, me)) chase = e; }
+  a.chase = chase;
+  let gx, gy;
+  if (chase) { const side = Math.sin(a.t * 0.9) > 0 ? 1 : -1; gx = chase.x - side * 22; gy = chase.y - 52; }
+  else { gx = a.x + Math.cos(a.t * 0.7) * 1.6 * TILE; gy = a.y - 34 + Math.sin(a.t * 0.7) * 0.9 * TILE; }
+  gx = clamp(gx, 10, GW * TILE - 10); gy = clamp(gy, 4, GH * TILE - 30);
+  const dx = gx - a.hx, dy = gy - a.hy, dd = Math.hypot(dx, dy), sp = Math.min(dd, (110 + 15 * (a.level - 1)) * dt);
+  if (dd > 0.5) { a.hx += dx / dd * sp; a.hy += dy / dd * sp; }
+  if (Math.abs(dx) > 4) a.face = dx < 0 ? -1 : 1;
+  a.hy += Math.sin(a.t * 2.1) * 0.15;
   // door gunner
   a.gunCd = (a.gunCd || 0) - dt;
   if (a.gunCd <= 0) {
-    let best = null, bd = 3 * TILE;
-    for (const e of m.enemies) { if (e.dead || e.invuln || e.deal) continue; const d = Math.hypot(e.x - a.hx, e.y - a.hy); if (d < bd) { bd = d; best = e; } }
+    let best = null, bd = 2.6 * TILE;
+    if (chase && Math.hypot(chase.x - me.x, chase.y - me.y) < bd) best = chase;
+    else for (const e of m.enemies) { if (e.dead || e.invuln || e.deal) continue; const d = Math.hypot(e.x - me.x, e.y - me.y); if (d < bd) { bd = d; best = e; } }
     if (best) {
       a.gunCd = 0.35;
       m.fx.push({ k: 'tracer', x1: a.hx, y1: a.hy + 6, x2: best.x, y2: ecy(best), life: 0.06, max: 0.06, color: '#ff8a9a', w: 1 });
@@ -5475,13 +5730,23 @@ function artPointer(tl, p) {
   art.lift = { tw: mode.tw, dest: { tx: tl.tx, ty: tl.ty, x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2 }, stage: 0 };
   art.cd = artCooldown(art); S.artMode = null; sfx('start', art.hx); buildRosterBar(); return true;
 }
+// the helicopter's orders: who to chase, and the airlift button
+function renderHeliInfo() {
+  const a = M.arts.find(x => x.id === 'heli'); if (!a || !a.deployed) { S.heliPanel = false; return; }
+  const A = ARTIFACTS.heli, div = document.createElement('div'); div.className = 'tinfo';
+  div.innerHTML = `<div class="row" style="gap:8px"><img class="pt big" src="${artIconUrl('heli')}" alt="" style="--rc:${A.col}"><div><h4>${esc(A.name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</h4><div class="lbl">Patrol and door gunner</div></div></div>
+    <div class="tprio"><div class="lbl">Chase</div><div class="chips">${Object.entries(PRIO).map(([k, p]) => `<button class="chip${heliPrio() === k ? ' on' : ''}" data-act="heliprio" data-v="${k}" title="${esc(p.desc)}" aria-pressed="${heliPrio() === k}">${esc(p.name)}</button>`).join('')}</div>
+      <div class="tnote">${esc(PRIO[heliPrio()].desc)}. The helicopter flies after it and its door gunner fires at anything close. With nothing on the map, it circles the pad.</div></div>
+    <div class="row"><button class="btn sm" data-act="airlift" ${a.cd > 0 || a.lift ? 'disabled' : ''}>${a.lift ? 'Airlift under way' : a.cd > 0 ? `Airlift in ${Math.ceil(a.cd)}s` : 'Airlift a crew member'}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
+  $('#overlay').appendChild(div);
+}
 function artCardClick(id) {
   const a = M.arts.find(x => x.id === id), A = ARTIFACTS[id]; if (!a) return;
   S.selCrew = -1; S.selTower = null; renderTowerInfo();
   if (A.place !== 'none' && !a.deployed) { S.selArt = S.selArt === id ? null : id; S.artMode = null; toast(S.selArt ? `Place the ${A.name}.` : 'Cancelled.', 1300); }
-  else if (A.kind === 'heli' || A.kind === 'orbital') {
+  else if (A.kind === 'heli') { S.artMode = null; S.selArt = null; S.heliPanel = !S.heliPanel; renderTowerInfo(); }
+  else if (A.kind === 'orbital') {
     if (a.cd > 0) { toast(`${A.name} is recharging: ${Math.ceil(a.cd)}s.`, 1200); sfx('deny'); return; }
-    if (A.kind === 'heli' && a.lift) return;
     S.artMode = S.artMode && S.artMode.id === id ? null : { id }; S.selArt = null;
     toast(S.artMode ? (A.kind === 'heli' ? 'Pick a crew member to airlift.' : 'Click where the laser should land.') : 'Cancelled.', 1500);
   } else toast(`${A.name} is deployed.`, 1000);
@@ -5490,17 +5755,17 @@ function artCardClick(id) {
 function artCardsHtml() {
   return (M.arts || []).map(a => {
     const A = ARTIFACTS[a.id], active = A.kind === 'heli' || A.kind === 'orbital';
-    const status = A.place !== 'none' && !a.deployed ? 'Deploy · free' : active ? (a.cd > 0 ? `${Math.ceil(a.cd)}s` : A.kind === 'heli' ? 'Airlift ready' : 'Strike ready') : a.down > 0 ? 'Rebuilding' : 'Deployed';
+    const status = A.place !== 'none' && !a.deployed ? 'Deploy · free' : active ? (a.cd > 0 ? (A.kind === 'heli' ? `${PRIO[heliPrio()].name} · ${Math.ceil(a.cd)}s` : `${Math.ceil(a.cd)}s`) : A.kind === 'heli' ? `${PRIO[heliPrio()].name} · lift ready` : 'Strike ready') : a.down > 0 ? 'Rebuilding' : 'Deployed';
     const sel = S.selArt === a.id || (S.artMode && S.artMode.id === a.id);
-    return `<button class="crew art${sel ? ' sel' : ''}${active && a.cd <= 0 && (a.deployed || A.place === 'none') ? ' ready' : ''}" data-act="art" data-id="${a.id}" style="--ac:${A.col}" title="${esc(A.name)}: ${esc(A.desc)}">
-      <img class="pt" src="${artIconUrl(a.id)}" alt="" style="--rc:${A.col}"><span class="nm">${esc(A.name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span><span class="meta" data-artmeta="${a.id}">${status}</span></button>`;
+    return `<button class="crew art${sel ? ' sel' : ''}${active && a.cd <= 0 && (a.deployed || A.place === 'none') ? ' ready' : ''}" data-act="art" data-id="${a.id}" style="--ac:${A.col}" aria-label="${esc(A.name)}: ${esc(A.desc)}">
+      <img class="pt" src="${artIconUrl(a.id)}" alt="" style="--rc:${A.col}"><span class="nm">${esc(A.name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span><span class="role">${esc(FACTIONS[A.fac].short)}</span><span class="meta" data-artmeta="${a.id}">${status}</span></button>`;
   }).join('');
 }
 function updateArtCards() {
   for (const a of (M && M.arts) || []) {
     const el = document.querySelector(`[data-artmeta="${a.id}"]`); if (!el) continue;
     const A = ARTIFACTS[a.id], active = A.kind === 'heli' || A.kind === 'orbital';
-    if (active && (a.deployed || A.place === 'none')) { const txt = a.cd > 0 ? `${Math.ceil(a.cd)}s` : A.kind === 'heli' ? 'Airlift ready' : 'Strike ready'; if (el.textContent !== txt) { el.textContent = txt; el.parentElement.classList.toggle('ready', a.cd <= 0); } }
+    if (active && (a.deployed || A.place === 'none')) { const txt = a.cd > 0 ? (A.kind === 'heli' ? `${PRIO[heliPrio()].name} · ${Math.ceil(a.cd)}s` : `${Math.ceil(a.cd)}s`) : A.kind === 'heli' ? `${PRIO[heliPrio()].name} · lift ready` : 'Strike ready'; if (el.textContent !== txt) { el.textContent = txt; el.parentElement.classList.toggle('ready', a.cd <= 0); } }
     else if (A.kind === 'dozer' && a.deployed) { const txt = a.down > 0 ? `Rebuilding ${Math.ceil(a.down)}s` : `${Math.max(0, Math.round(a.hp))} HP`; if (el.textContent !== txt) el.textContent = txt; }
   }
 }
@@ -5551,7 +5816,7 @@ function drawArtAir(g, t) {
     if (A.kind === 'heli') {
       const s = artSprite('heli', Math.floor(t * 20) % 4), hx = Math.round(a.hx / AP), hy = Math.round(a.hy / AP);
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(hx - 8, hy + 18, 16, 2);
-      const fl = a.lift, flip = fl && fl.stage < 2 && (fl.stage === 0 ? fl.tw.x : fl.dest.x) < a.hx;
+      const fl = a.lift, flip = fl && fl.stage < 2 ? (fl.stage === 0 ? fl.tw.x : fl.dest.x) < a.hx : a.face < 0;
       if (flip) { g.save(); g.translate(2 * hx, 0); g.scale(-1, 1); g.drawImage(s.c, hx - s.ax, hy - s.ay); g.restore(); } else g.drawImage(s.c, hx - s.ax, hy - s.ay);
       if (fl && fl.stage === 1) { const sp = crewSprites(fl.tw.crew).f[0]; px(g, hx, hy + 4, 1, 4, '#9aa3ad'); g.drawImage(sp, hx - 7, hy + 6); }
     }
@@ -5604,7 +5869,7 @@ function finishMission(success) {
 
 // ---------- screens ----------
 const titlebar = (title, close) => `<div class="titlebar"><span>${title}</span><i></i>${close ? `<button class="xbtn" data-act="${close}" aria-label="Close">x</button>` : ''}</div>`;
-function clearMissionUi() { $('#hud').innerHTML = ''; $('#bar').innerHTML = ''; hudCache = {}; const bn = $('#stage > .banner'); if (bn) bn.classList.remove('show'); const t = $('#stage .toast'); if (t) t.classList.add('hide'); }
+function clearMissionUi() { hidePeek(); $('#hud').innerHTML = ''; $('#bar').innerHTML = ''; hudCache = {}; const bn = $('#stage > .banner'); if (bn) bn.classList.remove('show'); const t = $('#stage .toast'); if (t) t.classList.add('hide'); }
 function showTitle() {
   S.screen = 'title'; M = null; clearMissionUi(); backdropView(); setMusic('menu');
   const colony = store.get('al_colony', 0);
@@ -5855,9 +6120,12 @@ document.addEventListener('click', ev => {
     else { S.selCrew = S.selCrew === i ? -1 : i; S.selTower = null; renderTowerInfo(); }
     buildRosterBar();
   }
+  else if (act === 'prio') { if (S.selTower) { S.selTower.crew.prio = b.dataset.v; sfx('click'); renderTowerInfo(); } }
   else if (act === 'reassign') { if (S.selTower) reassign(S.selTower); }
   else if (act === 'replace') { if (S.selTower) replaceCrew(S.selTower.crew); }
-  else if (act === 'closeinfo') { S.selTower = null; renderTowerInfo(); }
+  else if (act === 'closeinfo') { S.selTower = null; S.heliPanel = false; renderTowerInfo(); }
+  else if (act === 'heliprio') { RUN.heliPrio = b.dataset.v; sfx('click'); renderTowerInfo(); }
+  else if (act === 'airlift') { const a = M.arts.find(x => x.id === 'heli'); if (a && a.cd <= 0 && !a.lift) { S.heliPanel = false; S.artMode = { id: 'heli' }; renderTowerInfo(); buildRosterBar(); toast('Pick a crew member to airlift.', 1500); } }
   else if (act === 'tostore') { if (!startReviewFlow()) showStore(); }
   else if (act === 'review') showReview(RUN.roster.find(c => c.id === b.dataset.id));
   else if (act === 'pickperk') resolveReview(b.dataset.id);
@@ -5932,7 +6200,7 @@ function frame(now) {
 }
 
 // test hook for automated playtesting
-window.__AL = {
+window.__AL = { damagedFrame, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
