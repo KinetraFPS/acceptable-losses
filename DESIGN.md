@@ -259,6 +259,35 @@ Eight factions. Every one fields its own version of all 17 hostile kinds, with i
 - **The rest of each new faction:** each has 3 bosses plus an Act 2 apex boss, 2 artifacts, a news channel for the desk, planet scenes, a rescue and an ending.
 - **Art plugs in through registries:** units, bosses, envoy portraits and backdrops, obstacles, map dressing and artifact sprites (`FAC_ART`, `BOSS_ART`, `ENVOY_ART`, `ENVOY_SCENES`, `OBST_EXTRA`, `FACTION_MAP`, `ART_EXTRA`).
 
+## Crew conscience
+Every crew member holds a **value**, shown on their stat sheet and in Conditions. Their **morale** (0–100) is a thin bar along the bottom of their crew card (`giveConscience`, `MORALE_RULES`).
+
+| Value | Likes | Dislikes |
+|---|---|---|
+| Idealist | Deals kept, truces, helped planets | Betrayals, reports, collateral |
+| Company Man | Reports, betrayals, boss kills, clean contracts | Deals, helped planets |
+| Mercenary | Bribes, clean contracts, boss kills | Bloodbaths, betrayals (bad for business) |
+| Sympathiser (one faction) | Helping that faction (+15 for a kept deal) | Betraying (−25) or reporting (−20) them, killing their boss, fighting them (−0.4 per kill) |
+
+- **Everyone:** loses morale when a colleague dies (grief) or a contract goes badly (25%+ margin lost). Morale drifts back towards 62 by up to 5 points per contract.
+- **Effects:**
+
+| Morale | Tier | Effect |
+|---|---|---|
+| 80+ | Inspired | +8% damage and fire rate |
+| 60–79 | Content | — |
+| 35–59 | Disgruntled | Deploy fee +15% |
+| 15–34 | Miserable | Deploy fee +30%, 4% slower |
+| Below 15 | About to quit | Deploy fee +45%, 8% slower |
+
+- **Quitting:** anyone below 8 at the end of a contract quits (`crewQuits`). Sympathisers join their faction; everyone else joins the Abandoned.
+- **Defectors return:** a third of the way into a later contract against that faction, they come back as a named elite in their own face and outfit, with extra HP and armour. Your crew react ("Is that... Quinn?"), and killing them hits everyone's morale except the Company Men (`spawnDefector`).
+- **Corporate rewards offset the cost:**
+  - **Loyalty Dividend:** reports (+$25), betrayals (+$15) and refusals (+$10) bank a dividend that is added to your next contract's budget, to cover the fee surcharges.
+  - **Loyalty perks:** at loyalty 2, Mandatory Fun Budget (+10 morale now, and morale settles higher). At loyalty 4, Retention Bonus (the first quitter each sector is talked round).
+- **Speech bubbles:** short lines pop up over crew on real events: kills, deal units passing, betrayals, low HP, a boss arriving, and unprompted grumbling or cheer depending on morale. Each line is written for the speaker's value, and a coloured stripe marks it. They are rate-limited (14s per crew member, 3.5s globally), stack instead of overlapping, and flip below crew standing near the top edge (`barkAs`, `drawBarks`).
+- **The desk:** shows crew morale, quits, the dividend, and HR's response to low engagement ("A mandatory fun event (unpaid) has been scheduled"). The desk plant now follows crew morale.
+
 ## Faction standing
 Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on contract cards, envoy screens, the desk feed and act transitions (`shiftStanding`).
 

@@ -452,6 +452,14 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .standrow em{font-style:normal;font:400 13px/1 var(--f-mono)}
 .standrow em.up{color:var(--ok)}.standrow em.down{color:var(--danger)}
 .deal.standing .stand{margin-top:2px}
+
+/* morale */
+.mbar{display:inline-block;width:60px;height:5px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line);vertical-align:middle}
+.mbar b{display:block;height:100%}
+.crew .mbar{position:absolute;left:9px;right:9px;bottom:3px;width:auto;height:3px;box-shadow:none;background:rgba(255,255,255,.06)}
+.pk-row small{color:var(--muted);font-size:11px}
+.moodline{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.moodline b{color:var(--fg);font-weight:400;font:400 16px/1 var(--f-mono)}
 </style>
 
 <div id="app">
@@ -606,6 +614,8 @@ const DIFFS = [
 ];
 
 const RELICS = {
+  funbudget: { name: 'Mandatory Fun Budget', desc: 'Corporate perk for loyalty. Crew morale settles higher between contracts.', special: true },
+  retention: { name: 'Retention Bonus', desc: 'Corporate perk for loyalty. The first crew member who tries to quit each sector is talked round.', special: true },
   coffee:    { name: 'Broken Coffee Machine',            desc: 'Only dispenses hot water. Crew fire 15% faster out of spite.' },
   poster:    { name: '"Hang In There" Poster',           desc: 'All crew deal 12% more damage.' },
   scope:     { name: 'Slightly Larger Scopes',           desc: 'All crew gain 12% range.' },
@@ -1697,6 +1707,7 @@ function bossFrameMore(id, col, f, look) {
 function hurtTower(tw, dmg) {
   if (tw.down) return;
   tw.hp -= dmg * (1 - (tw.bDr || 0)) * (coverAt(tw.tx, tw.ty) ? 1 - COVER_DR : 1); tw.flash = 0.12; tw.hitAt = M.t;
+  if (tw.hp < tw.maxhp * 0.3 && tw.hp > 0 && !tw.hurtBark) { tw.hurtBark = true; barkAs(tw, 'hurt'); }
   if (tw.hp <= 0) killCrew(tw);
 }
 // jump forward along the path (or straight at the drill for flyers)
@@ -2591,7 +2602,7 @@ function newRun() {
   RUN.options = genOptions();
 }
 const pickQuirk = () => pick(Object.keys(QUIRKS).filter(k => !QUIRKS[k].special));
-function mkCrew(type, name, look = genLook(), quirk = pickQuirk()) { return { id: Math.random().toString(36).slice(2, 8), type, name, look, quirk, level: 1, xp: 0, kills: 0, perks: [], spec: null, reviews: [] }; }
+function mkCrew(type, name, look = genLook(), quirk = pickQuirk()) { return giveConscience({ id: Math.random().toString(36).slice(2, 8), type, name, look, quirk, level: 1, xp: 0, kills: 0, perks: [], spec: null, reviews: [] }); }
 function freshName() { let n, g = 0; do { n = pick(CREW_NAMES); } while (RUN.usedNames.has(n) && g++ < 60); if (RUN.usedNames.has(n)) n += ' ' + ri(2, 9); RUN.usedNames.add(n); return n; }
 function planetName() { return pick(SYL_A) + pick(SYL_B) + pick(SYL_C); }
 
@@ -3311,6 +3322,8 @@ function startMission(contract) {
     deal: S.pendingDeal ? makeDeal(S.pendingDeal, contract) : null, allies: null,
   };
   S.pendingDeal = null;
+  const dividend = RUN.dividend || 0; RUN.dividend = 0;
+  if (dividend) { M.budget += dividend; M.dividendPaid = dividend; setTimeout(() => toast(`Loyalty Dividend: +$${dividend} budget, to cover your crew's attitude.`, 2600), 900); }
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
   if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map);
   const gr = renderGround(map, contract.biomeKey);
@@ -3436,6 +3449,7 @@ function crewConditions(cr, tw) {
     if (tw.bDr > 0) add(`Protected: -${Math.round(tw.bDr * 100)}% damage taken`, 'good');
   }
   if (cr.reviews && cr.reviews.length) add('Performance review waiting', 'good');
+  { giveConscience(cr); const mt = moraleTier(cr); if (mt.min >= 80) add(`${mt.name}: +8% damage and fire rate`, 'good'); else if (mt.min < 60) add(`${mt.name}: deploy fee +${Math.round((mt.fee - 1) * 100)}%${mt.rate < 1 ? `, ${Math.round((1 - mt.rate) * 100)}% slower` : ''}${mt.min < 15 ? '. Will quit after this contract' : ''}`, 'bad'); }
   return out;
 }
 const conditionsHtml = list => list.length ? `<div class="conds">${list.map(c => `<i class="${c.k}">${esc(c.t)}</i>`).join('')}</div>` : '';
@@ -3457,6 +3471,7 @@ function crewPeekHtml(cr) {
     <div class="pk-row"><span>Good vs</span><div>${esc(GOOD_VS[cr.type])}</div></div>
     <div class="pk-row"><span>Targets</span><div>${esc(pr.name)}: ${esc(pr.desc.toLowerCase())}</div></div>
     <div class="pk-row"><span>Quirk</span><div><b>${esc(QUIRKS[cr.quirk].name)}</b>: ${esc(QUIRKS[cr.quirk].desc)}</div></div>
+    <div class="pk-row"><span>Morale</span><div>${moraleBar(cr)} <b style="color:${moraleTier(cr).col}">${cr.morale} · ${moraleTier(cr).name}</b>${moraleFeeMult(cr) > 1 ? ` <small>(fee +${Math.round((moraleFeeMult(cr) - 1) * 100)}%)</small>` : ''}<br><small>${esc(valueName(cr))}: ${esc(VALUES[cr.value].desc)}</small></div></div>
     <div class="pk-row"><span>Status</span>${conditionsHtml(crewConditions(cr, tw))}</div>
     ${perks.length ? `<div class="pk-traits">${perks.map((n, k) => `<i class="${k === 0 && cr.spec ? 'sp' : ''}">${esc(n)}</i>`).join('')}</div>` : '<div class="pk-row dim">No perks yet. Reviews unlock them.</div>'}
     <div class="pk-foot">${cr.dead ? `KIA · replacement $${replaceCost(cr)}` : tw ? 'Deployed · tap them on the map for orders' : `Fee $${crewFee(cr)} · ${cr.kills} kills`}</div>`;
@@ -3528,6 +3543,7 @@ function towerStats(crew, tw) {
   if (has('poster')) s.dmg *= 1.12;
   if (has('scope')) s.range *= 1.12;
   if (has('patience')) s.xpMult *= 1.2;
+  { const mt = moraleTier(crew); s.dmg *= mt.dmg; s.rate *= mt.rate; }
   if (has('archivemem')) s.eliteBonus += 0.2;
   if (tw && tw.roof) s.range *= 1.15;
   if (tw && tw.plat && M) { const pa = platformAt(tw.tx, tw.ty); s.range *= 1 + (tw.plat === 'boat' ? 0.2 : 0.15) + 0.05 * (((pa && pa.level) || 1) - 1); }
@@ -3542,7 +3558,7 @@ function towerStats(crew, tw) {
   if (has('waiver')) s.maxhp *= 1.6;
   return s;
 }
-const crewFee = cr => Math.round(TOWERS[cr.type].fee * towerStats(cr).feeMult);
+const crewFee = cr => Math.round(TOWERS[cr.type].fee * towerStats(cr).feeMult * moraleFeeMult(cr));
 
 function applySlow(e, v, dur) { if (e.boss) v *= 0.5; e.slowAmt = e.slowT > 0 ? Math.max(e.slowAmt, v) : v; e.slowT = Math.max(e.slowT, dur); }
 function stunE(e, dur) { e.stunT = Math.max(e.stunT || 0, e.boss ? dur * 0.3 : dur); }
@@ -3607,6 +3623,7 @@ function damage(e, dmg, pierce, tw, quiet) {
     M.kills++; RUN.kills++;
     if (e.volatile) volatileBlast(e);
     if (e.splitDeath) splitBoss(e);
+    if (e.defector) { e.defector.dead = true; moraleEvent('traitor', null); toast(`${e.defector.name} is dead. They used to sit two desks down.`, 3000); }
     if (e.split) for (let k = 0; k < e.split; k++) {
       const c = spawnEnemy({ cat: 'swarm', tier: Math.max(0, e.tier - 1), sp: e.sp });
       c.x = e.x + (rnd() - 0.5) * 16; c.y = e.y + (rnd() - 0.5) * 16; c.wi = e.wi; c.dist = e.dist;
@@ -3619,6 +3636,8 @@ function damage(e, dmg, pierce, tw, quiet) {
       M.budget += s.bountyAdd; if (s.scripKill) RUN.scrip += s.scripKill;
       tw.mkills = (tw.mkills || 0) + 1;
       cr.kills++; cr.xp += e.bounty * s.xpMult;
+      if (cr.value === 'sympath' && cr.sym === M.c.facKey) cr.morale = Math.max(0, (cr.morale ?? 65) - 0.4);
+      barkAs(tw, 'kill', e.boss ? 1 : 0.08);
       while (cr.level < MAXL && cr.xp >= XP_TH[cr.level]) {
         cr.level++; cr.reviews.push(cr.level);
         M.promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); sfx('promote', tw.x);
@@ -3763,6 +3782,7 @@ function spawnBoss(B, mini, child) {
   if (RUN.story.flags.stream) cancelBoss(e);
   M.boss = e; M.bossSpawned = true; setMusic('boss');
   toast(`${B.name} has entered the area`, 2600); banner('Warning', B.name, '#ff4d6d', true);
+  barkAs(pick(M.towers.filter(t => !t.down)), 'boss');
   return e;
 }
 
@@ -3805,7 +3825,8 @@ function stepMission(dt) {
       if (!m.c.boss && m.c.idx >= 2 && !m.miniSpawned && m.t >= m.T * 0.65) { m.miniSpawned = true; spawnBoss(pick(m.c.fac.bosses), true); }
     }
   }
-  stepDeal(dt); stepAllies(dt); stepArtifacts(dt);
+  stepDeal(dt); stepAllies(dt); stepArtifacts(dt); stepBarks(dt);
+  if (M.phase === 'drill' && !M.defectorOut && M.t > M.T * 0.3) { const d = defectorFor(M.c); if (d) spawnDefector(d); else M.defectorOut = true; }
   if (m.queue.length) {
     m.queue.sort((a, b) => a.at - b.at);
     while (m.queue.length && m.queue[0].at <= m.t) portalSpawn(spawnEnemy(m.queue.shift()));
@@ -4303,6 +4324,8 @@ function renderMission(now) {
     ctx.fillStyle = '#0c0e14'; ctx.fillText(f.txt, f.x + 1, y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, y);
   }
   ctx.globalAlpha = 1;
+  drawBarks(ctx, LW);
+  ctx.font = '700 12px Silkscreen, VT323, monospace'; ctx.textAlign = 'center';
   for (const b of m.enemies) if (b.boss && !b.dead) {
     // keep the name on screen when the boss is near an edge
     const txt = b.name.toUpperCase(), hw = ctx.measureText(txt).width / 2 + 4, x = clamp(b.x, hw, LW - hw), y = Math.max(14, b.y - (b.mini ? 50 : 64));
@@ -4642,7 +4665,7 @@ function buildRosterBar() {
     const fee = crewFee(cr), rev = cr.reviews.length;
     const status = down ? `KIA · Replace $${replaceCost(cr)}` : rev ? '★ Review' : used ? 'Deployed' : '$' + fee;
     return `<button class="crew${S.selCrew === i ? ' sel' : ''}${used ? ' used' : ''}${down ? ' down' : ''}${rev ? ' rev' : ''}" data-act="crew" data-i="${i}" data-fee="${fee}" aria-pressed="${S.selCrew === i}" aria-label="${esc(cr.name)}, ${esc(TOWERS[cr.type].name)}, level ${cr.level}, ${esc(status)}" style="--rc:${TOWERS[cr.type].color}">
-      ${portraitImg(cr)}<span class="nm">${esc(cr.name)}</span><span class="role">${esc(TOWERS[cr.type].name.replace(/ \(.*\)/, ''))}</span><span class="meta">Lv${cr.level} · ${status}</span></button>`;
+      ${portraitImg(cr)}<span class="nm">${esc(cr.name)}</span><span class="role">${esc(TOWERS[cr.type].name.replace(/ \(.*\)/, ''))}</span><span class="meta">Lv${cr.level} · ${status}</span>${moraleBar(cr)}</button>`;
   }).join('');
   let roster = $('#bar .roster');
   if (!roster) {
@@ -4686,6 +4709,160 @@ function toast(msg, ms = 2000) {
   el.textContent = msg; el.classList.remove('hide');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hide'), ms);
 }
+
+// ================================================================
+// CREW CONSCIENCE. Every crew member holds a value: Idealist, Company Man, Mercenary, or
+// Sympathiser with one faction. Your choices move their morale. Happy crew fight better; unhappy
+// crew cost more to deploy, mutter about it, and at rock bottom they quit, joining the faction
+// they sympathise with (or the Colony of the Abandoned) and coming back at you with their old kit.
+// Kindly offsets all this with corporate rewards: a Loyalty Dividend and perks for loyalists.
+// ================================================================
+const VALUES = {
+  idealist: { name: 'Idealist', desc: 'Signed up to protect people. Wants deals kept, hates betrayals and reports.', col: '#4fe0a6' },
+  company: { name: 'Company Man', desc: 'Believes in Kindly. Likes reports and loyalty, dislikes deals.', col: '#ffd23f' },
+  merc: { name: 'Mercenary', desc: 'Here for the pay. Likes bonuses, bribes and clean contracts.', col: '#c8a040' },
+  sympath: { name: 'Sympathiser', desc: 'Has a soft spot for one faction. Fighting them hurts; helping them heals.', col: '#b98cff' },
+};
+const RECRUIT_SYMPATHY = { 'Rafa Okonkwo': 'union', 'Ilo Threefold': 'lumen', 'Dee Okafor': 'abandoned' };
+function giveConscience(cr) {
+  if (cr.value) return cr;
+  const sym = RECRUIT_SYMPATHY[cr.name];
+  cr.value = sym ? 'sympath' : wpick({ idealist: 1, company: 1, merc: 1, sympath: 0.8 });
+  if (cr.value === 'sympath') cr.sym = sym || pick(Object.keys(FACTIONS));
+  cr.morale = sym ? 78 : ri(55, 75);
+  return cr;
+}
+const valueName = cr => cr.value === 'sympath' ? `Sympathises with ${FACTIONS[cr.sym] ? FACTIONS[cr.sym].short : 'them'}` : VALUES[cr.value].name;
+const MORALE_TIERS = [
+  { min: 80, name: 'Inspired', col: '#3af0ff', fee: 1, dmg: 1.08, rate: 1.08 },
+  { min: 60, name: 'Content', col: '#4fe0a6', fee: 1, dmg: 1, rate: 1 },
+  { min: 35, name: 'Disgruntled', col: '#ffd23f', fee: 1.15, dmg: 1, rate: 1 },
+  { min: 15, name: 'Miserable', col: '#ff9a5a', fee: 1.3, dmg: 1, rate: 0.96 },
+  { min: 0, name: 'About to quit', col: '#ff4d5e', fee: 1.45, dmg: 1, rate: 0.92 },
+];
+const moraleTier = cr => MORALE_TIERS.find(t => (cr.morale ?? 65) >= t.min) || MORALE_TIERS[4];
+const moraleFeeMult = cr => moraleTier(cr).fee;
+// how each value reacts to each kind of event (fac is the faction involved)
+const MORALE_RULES = {
+  honoured:   { idealist: 12, company: -10, merc: 2, sym: 15, other: 3 },
+  betrayed:   { idealist: -18, company: 8, merc: -4, sym: -25, other: -4 },
+  collateral: { idealist: -8, company: 0, merc: 0, sym: -12, other: -2 },
+  reported:   { idealist: -10, company: 12, merc: 6, sym: -20, other: -3 },
+  refused:    { idealist: -3, company: 3, merc: 0, sym: -5, other: 0 },
+  truce:      { idealist: 8, company: -4, merc: 0, sym: 10, other: 2 },
+  bribe:      { idealist: -4, company: -6, merc: 10, sym: 0, other: 0 },
+  boss:       { idealist: 0, company: 5, merc: 5, sym: -10, other: 0 },
+  crushed:    { idealist: -2, company: 2, merc: 0, sym: -6, other: 0 },
+  helped:     { idealist: 4, company: -3, merc: 0, sym: 6, other: 0 },
+  clean:      { idealist: 2, company: 4, merc: 4, sym: 0, other: 0 },
+  bloodbath:  { idealist: -3, company: -2, merc: -3, sym: -3, other: -3 },
+  grief:      { idealist: -4, company: -3, merc: -2, sym: -4, other: -4 },
+  traitor:    { idealist: -6, company: 6, merc: 0, sym: -4, other: -4 },
+};
+function moraleEvent(kind, fac, mult = 1) {
+  const R = MORALE_RULES[kind]; if (!R || !RUN) return;
+  for (const cr of RUN.roster) {
+    giveConscience(cr);
+    let d = cr.value === 'sympath' ? (cr.sym === fac ? R.sym : R.other) : R[cr.value];
+    if (!d) continue;
+    d *= mult;
+    cr.morale = clamp(Math.round((cr.morale ?? 65) + d), 0, 100);
+    (cr.moodLog = cr.moodLog || []).push({ kind, d: Math.round(d), idx: RUN.idx });
+  }
+}
+// time softens most things: a little drift back towards content after each contract
+function moraleDrift() {
+  for (const cr of RUN.roster) { giveConscience(cr); const tgt = has('funbudget') ? 66 : 62; cr.morale = clamp(cr.morale + Math.sign(tgt - cr.morale) * Math.min(5, Math.abs(tgt - cr.morale)), 0, 100); }
+}
+// at the end of a contract, anyone at rock bottom hands in their badge (one is kept per sector by a Retention Bonus)
+function crewQuits() {
+  const out = [];
+  for (const cr of RUN.roster.slice()) {
+    if (cr.dead || (cr.morale ?? 65) >= 8 || RUN.roster.length <= 2) continue;
+    if (has('retention') && RUN.retainedSector !== sectorOf(RUN.idx)) { RUN.retainedSector = sectorOf(RUN.idx); cr.morale = 30; out.push({ name: cr.name, kept: true }); continue; }
+    const fac = cr.value === 'sympath' && FACTIONS[cr.sym] ? cr.sym : 'abandoned';
+    RUN.roster = RUN.roster.filter(c => c !== cr);
+    (RUN.defectors = RUN.defectors || []).push({ name: cr.name, type: cr.type, level: cr.level, look: cr.look, spec: cr.spec, perks: cr.perks, quirk: cr.quirk, id: cr.id, fac, returned: false, dead: false });
+    out.push({ name: cr.name, fac });
+  }
+  return out;
+}
+// a defector on the other side: their own face and kit, an elite of their old role
+const DEFECTOR_CAT = { gunner: 'ranged', taser: 'jammer', mortar: 'ranged', marksman: 'ranged', drone: 'ranged' };
+function defectorFor(c) {
+  if (!RUN.defectors || M.defectorOut) return null;
+  return RUN.defectors.find(d => !d.dead && d.fac === c.facKey && !d.returned) || null;
+}
+function spawnDefector(d) {
+  M.defectorOut = true; d.returned = true;
+  const e = spawnEnemy({ cat: DEFECTOR_CAT[d.type] || 'ranged', tier: 2, sp: ri(0, M.paths.length - 1) });
+  const cr = { id: 'def-' + d.id, type: d.type, name: d.name, look: d.look, level: d.level, spec: d.spec, perks: d.perks || [], quirk: d.quirk, reviews: [] };
+  const sp = crewSprites(cr);
+  e.v = finishVariant('human', [{ ax: 7, ay: 17, lights: [] }], [sp.f[0], sp.f[1], sp.f[0], sp.f[1]]);
+  e.maxhp = e.hp = e.hp * (1.4 + 0.15 * d.level); e.armor += 2; e.defector = d;
+  e.name = `${d.name} (ex-crew)`;
+  toast(`${d.name} is on the other side now, and still wearing your kit.`, 3200); sfx('sabo', e.x);
+  for (const tw of M.towers) if (!tw.down) bark(tw, pick([`Is that... ${d.name.split(' ')[0]}?`, `${d.name.split(' ')[0]}?! They took the good locker!`, `Don't make me do this, ${d.name.split(' ')[0]}.`]), true);
+  return e;
+}
+// corporate rewards: loyalty to Kindly pays a dividend into your next budget, and unlocks perks
+function loyaltyReward(amount, why) {
+  RUN.dividend = (RUN.dividend || 0) + amount;
+  const st = RUN.story;
+  if (st.loyalty >= 2 && !RUN.relics.includes('funbudget')) { RUN.relics.push('funbudget'); for (const cr of RUN.roster) cr.morale = clamp((cr.morale ?? 65) + 10, 0, 100); toast('Corporate perk: Mandatory Fun Budget. Morale is now compulsory.', 2600); }
+  if (st.loyalty >= 4 && !RUN.relics.includes('retention')) { RUN.relics.push('retention'); toast('Corporate perk: Retention Bonus. One quitter per sector will be talked round.', 2600); }
+}
+// ---------- speech bubbles ----------
+const BARKS = {
+  kill: { idealist: ['Sorry.', 'They had families, probably.', 'I hate this part.'], company: ['Another one for the quarterly.', 'For the shareholders.', 'Synergy!'], merc: ['Ka-ching.', 'That one was worth $3.', 'Billable.'], sym: ['...I knew people like them.', 'This is wrong.', 'Forgive me.'] },
+  dealPass: { idealist: ['Let them through. It\'s fine.', 'Good. Go home.'], company: ['We are just... letting them?', 'I am writing this down.'], merc: ['Not my crystals.', 'Whatever pays.'], sym: ['Go on. Quickly.', 'Safe travels.'] },
+  betray: { idealist: ['We PROMISED them!', 'What are we doing?!'], company: ['Orders are orders.', 'Good. No deals.'], merc: ['Bad for business, boss.', 'Word gets around, you know.'], sym: ['You monster.', 'I can\'t believe you.'] },
+  hurt: { idealist: ['Medic!', 'I\'m fine. I\'m not fine.'], company: ['I\'ll be back at my desk Monday.', 'Is this covered?'], merc: ['HAZARD PAY.', 'Not paid enough for this.'], sym: ['Maybe I deserve this.', 'Ow.'] },
+  boss: { idealist: ['Oh no.', 'That is very big.'], company: ['For Kindly!', 'Quarterly targets, people!'], merc: ['Bonus target!', 'That one\'s worth a raise.'], sym: ['That\'s their leader...', 'We don\'t have to do this.'] },
+  low: { idealist: ['Why are we even here?', 'I could be a nurse.'], company: ['Still believe. Mostly.', 'HR will sort it out.'], merc: ['Colony pays better, I hear.', 'Thinking about my options.'], sym: ['They\'d take me in, you know.', 'Thinking about the Colony lately.'] },
+  happy: { idealist: ['We did good today.', 'This is why I signed up.'], company: ['Proud to be Kindly!', 'Best job ever.'], merc: ['Good pay, good day.', 'Love a clean job.'], sym: ['Felt right, that.', 'They\'ll remember this.'] },
+};
+function bark(tw, text, force) {
+  if (!M || !tw || tw.down) return;
+  const now = M.t;
+  if (!force && ((tw.barkAt != null && now - tw.barkAt < 14) || (M.lastBark != null && now - M.lastBark < 3.5))) return;
+  tw.barkAt = now; M.lastBark = now;
+  (M.barks = M.barks || []).push({ tw, text, t: 0, life: 2.8 });
+}
+function barkAs(tw, kind, chance = 1) {
+  if (!tw || tw.down || rnd() > chance) return;
+  const cr = tw.crew; giveConscience(cr);
+  const L = BARKS[kind]; if (!L) return;
+  const pool = L[cr.value === 'sympath' ? 'sym' : cr.value]; if (pool) bark(tw, pick(pool));
+}
+function stepBarks(dt) {
+  if (!M.barks) return;
+  for (const b of M.barks) b.t += dt;
+  M.barks = M.barks.filter(b => b.t < b.life && !b.tw.down && M.towers.includes(b.tw));
+  // the odd unprompted remark, depending on how they feel
+  if (M.phase === 'drill' && rnd() < dt * 0.05) { const tw = pick(M.towers.filter(t => !t.down)); if (tw) { const mo = tw.crew.morale ?? 65; if (mo < 35) barkAs(tw, 'low'); else if (mo >= 70) barkAs(tw, 'happy'); } }
+}
+function drawBarks(ctx, LW) {
+  if (!M.barks) return;
+  ctx.font = '400 15px VT323, "Courier New", monospace'; ctx.textAlign = 'center';
+  const placed = [];
+  for (const b of M.barks) {
+    const a = Math.min(1, (b.life - b.t) * 3), w = Math.min(190, ctx.measureText(b.text).width + 14), x = clamp(b.tw.x, w / 2 + 2, LW - w / 2 - 2);
+    // above the crew member if there's room, otherwise below them; stacked so bubbles never overlap
+    const below = b.tw.y < 64; let y = below ? b.tw.y + 36 : b.tw.y - 50;
+    while (placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < 19)) y += below ? 19 : -19;
+    placed.push({ x, y, w });
+    const col = VALUES[b.tw.crew.value] ? (b.tw.crew.value === 'sympath' && FACTIONS[b.tw.crew.sym] ? FACTIONS[b.tw.crew.sym].color : VALUES[b.tw.crew.value].col) : '#ffffff';
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(12,14,20,0.94)'; ctx.fillRect(x - w / 2, y - 12, w, 17);
+    ctx.fillStyle = col; ctx.fillRect(x - w / 2, y - 12, 3, 17);
+    ctx.beginPath(); if (below) { ctx.moveTo(b.tw.x - 4, y - 11); ctx.lineTo(b.tw.x + 4, y - 11); ctx.lineTo(b.tw.x, y - 16); } else { ctx.moveTo(b.tw.x - 4, y + 5); ctx.lineTo(b.tw.x + 4, y + 5); ctx.lineTo(b.tw.x, y + 10); } ctx.fillStyle = 'rgba(12,14,20,0.92)'; ctx.fill();
+    ctx.fillStyle = '#eef2f5'; ctx.fillText(b.text, x + 1, y + 1);
+  }
+  ctx.globalAlpha = 1;
+}
+const moraleBar = cr => { giveConscience(cr); const t = moraleTier(cr); return `<i class="mbar" title="Morale ${cr.morale}: ${t.name}"><b style="width:${cr.morale}%;background:${t.col}"></b></i>`; };
+const avgMorale = () => { const r = RUN.roster.filter(c => !c.dead); return r.length ? Math.round(r.reduce((s, c) => s + (giveConscience(c), c.morale), 0) / r.length) : 65; };
 
 // ================================================================
 // ENVOYS AND DEALS. Before some deployments a faction's envoy gets onto your
@@ -5149,6 +5326,9 @@ function envoyChoice(v) {
   const log = { fac: E.fac, beat: E.beat, planet: o.planet, choice: v, idx: o.idx };
   if (sp === 'truce') a.truceAt = RUN.idx;
   if (sp === 'favour') a.favourAt = RUN.idx;
+  if (v === 'accept' && B.pay) moraleEvent('bribe', E.fac);
+  if (v === 'refuse') { moraleEvent('refused', E.fac); loyaltyReward(10); }
+  if (v === 'report') { moraleEvent('reported', E.fac); loyaltyReward(25); }
   if (v === 'accept' && sp === 'favour') {
     S.pendingFavour = E.fac;
     st.heat = Math.min(100, st.heat + B.heat);
@@ -5445,6 +5625,8 @@ function breakDeal(how) {
   d.broken = how;
   for (const e of M.enemies) if (e.deal) { e.deal = null; e.bounty = 2; e.uploading = null; }
   const a = arcOf(d.fac), st = RUN.story;
+  moraleEvent(how, d.fac); if (how === 'betrayed') { st.loyalty += 1; loyaltyReward(15); }
+  for (const tw of M.towers) barkAs(tw, 'betray', how === 'betrayed' ? 0.6 : 0.2);
   a.state = 'hostile'; if (!d.A.oneOff) shiftStanding(d.fac, how === 'betrayed' ? -2 : -1, how); st.flags.betrayed = (st.flags.betrayed || 0) + 1;
   if (d.B.pay) RUN.scrip = Math.max(0, RUN.scrip - d.B.pay);
   st.log.push({ fac: d.fac, beat: d.beat, planet: M.c.planet, choice: how, idx: M.c.idx });
@@ -5472,6 +5654,7 @@ function stepUpload(e, dt) {
 function dealThrough(e) {
   const d = M.deal; if (!d) return;
   d.through++;
+  barkAs(pick(M.towers.filter(t => !t.down)), 'dealPass', 0.7);
   fxText(e.x, e.y - 18, { skim: 'skimmed', escort: 'safe', uplink: 'leaked' }[d.ask.kind] || (d.A.oneOff ? 'claimed' : 'strike fund'), '#4fe0a6');
   if (d.through >= d.ask.n && !d.broken) { d.done = true; toast(`${d.A.envoy}'s deal honoured.`, 2400); banner('Deal honoured', d.A.envoy, d.A.col); }
 }
@@ -5493,9 +5676,9 @@ function resolveDeal(m) {
       if (standingOf(d.fac) < 0) shiftStanding(d.fac, -standingOf(d.fac), 'truce');
       a.state = a.beat >= 3 ? 'done' : 'open'; a.refusals = 0;
       st.log.push({ fac: d.fac, beat: 'truce', planet: m.c.planet, choice: 'honoured', idx: m.c.idx });
-      ev.push({ fac: d.fac, kind: 'truce', x });
+      ev.push({ fac: d.fac, kind: 'truce', x }); moraleEvent('truce', d.fac);
     } else {
-      shiftStanding(d.fac, 1, 'honoured');
+      shiftStanding(d.fac, 1, 'honoured'); moraleEvent('honoured', d.fac);
       a.beat = d.beat + 1; a.through = d.through; a.planet = m.c.planet;
       if (a.beat >= 3) { a.state = 'done'; st.lastDone = d.fac; }
       grantReward(d.fac, d.beat);
@@ -6533,10 +6716,15 @@ function finishMission(success) {
   RUN.lastDowned = m.downed.slice();
   RUN.history.push({ planet: c.planet, faction: c.facKey, client: c.client.n, good: c.client.good, lost: m.lost, kills: m.kills, idx: c.idx });
   RUN.factionCount[c.facKey] = (RUN.factionCount[c.facKey] || 0) + 1;
-  if (c.boss) shiftStanding(c.facKey, -1, 'boss');
+  if (c.boss) { shiftStanding(c.facKey, -1, 'boss'); moraleEvent('boss', c.facKey); }
   // the planet keeps what happened to it: theirs if you honoured their deal, the company's otherwise
   const d0 = m.deal, wstate = d0 && !d0.broken && d0.fac === c.facKey ? 'helped' : 'crushed';
   (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, kills: m.kills, act: actOf(c.idx), boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
+  moraleEvent(wstate, c.facKey);
+  if (m.lost === 0) moraleEvent('clean'); else if (m.lost >= 25) moraleEvent('bloodbath');
+  if (m.downed.length) moraleEvent('grief', null, Math.min(2, m.downed.length));
+  moraleDrift();
+  const quits = crewQuits();
   // payslip
   const gross = Math.round((50 + 12 * c.idx) * c.pay);
   const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
@@ -6553,7 +6741,7 @@ function finishMission(success) {
   RUN.scrip += net;
   if (c.boss) { if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; showSectorComplete(c, net); } else showVictory(); return; }
   RUN.idx++;
-  showDebrief({ c, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
+  showDebrief({ c, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], quits, dividend: m.dividendPaid || 0, slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
 }
 
 // ---------- screens ----------
@@ -6946,7 +7134,10 @@ function showDebrief(d) {
   // a compact payslip: earnings line by line, the deductions as one total
   const earn = d.slip.filter(([, v]) => v > 0), dedTot = d.slip.filter(([, v]) => v < 0).reduce((s, [, v]) => s + v, 0), nDed = d.slip.filter(([, v]) => v < 0).length;
   const slip = earn.map(([k, v]) => [k.replace(/ \(.*\)/, ''), v]).concat(nDed ? [[`Deductions (${nDed}, non-negotiable)`, dedTot]] : []);
-  const plant = RUN.margin >= 65 ? 0 : RUN.margin >= 35 ? 1 : 2;
+  const am = avgMorale(), plant = am >= 60 ? 0 : am >= 35 ? 1 : 2;
+  for (const q of d.quits || []) notes.push(q.kept ? `${q.name} tried to quit. The Retention Bonus talked them round.` : `${q.name} quit and joined ${FACTIONS[q.fac] ? FACTIONS[q.fac].short : 'the Colony'}. Their kit went with them.`);
+  if (d.dividend) notes.push(`Loyalty Dividend paid: +$${d.dividend} budget.`);
+  if (am < 40) notes.push('Engagement scores are low. A mandatory fun event (unpaid) has been scheduled.');
   const act = actOf(c.idx);
   $('#overlay').innerHTML = `<div class="screen desk" data-act="${act}"><div class="deskwrap">
     <div class="monitor"><div class="glass">
@@ -6959,6 +7150,7 @@ function showDebrief(d) {
             <div><span class="lbl">Margin</span><b class="${d.lost ? 'neg' : ''}">${RUN.margin}%</b><small>${d.lost ? '−' + d.lost + '%' : 'no loss'}</small></div>
             <div class="paybox"><span class="lbl">Net pay</span><b>${d.net}</b><small>scrip</small></div>
           </div>
+          <div class="moodline">Crew morale ${moraleBar({ morale: am, value: 'company' })} <b>${am}</b> · ${esc((MORALE_TIERS.find(t => am >= t.min) || MORALE_TIERS[4]).name)}${RUN.dividend ? ` · Dividend banked $${RUN.dividend}` : ''}</div>
           <table class="slip mini"><tbody>${slip.map(([k, v]) => `<tr class="${v < 0 ? 'neg' : ''}"><td>${esc(k)}</td><td>${v < 0 ? '−' : '+'}${Math.abs(v)}</td></tr>`).join('')}</tbody></table>
           ${notes.length ? `<ul class="notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
           <div class="cnews"><div class="lbl">Kindly News</div><p><b>${esc(corpHeadline(c, d, w))}</b></p><p>${esc(pick(TICKER))}</p></div>
@@ -7932,7 +8124,7 @@ Object.assign(ART_EXTRA, {
   dais: f => { const P = painter(22, 12), b = [0, -1, 0, 1][f % 4]; P.ell(11, 6 + b, 10, 3, '#56625f'); P.ell(11, 5 + b, 8, 2, '#6a7674'); for (let x = 4; x < 19; x += 3) P.p(x, 6 + b, PRE_GLOW); P.r(6, 10, 10, 1, 'rgba(255,90,209,0.4)'); postProcess(P.c); return { c: P.c, ax: 11, ay: 10 }; },
 });
 
-window.__AL = { planetScene, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };

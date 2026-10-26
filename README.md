@@ -19,6 +19,7 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 - Eight factions across two acts, each fielding its own version of all 17 hostile kinds: Lumen Kin villages lit by the crystal seam, ex-Kindly staff carrying the names of your fallen crew, smugglers and waking Precursor constructs
 - Faction standing from Vendetta to Allied: truces after betrayals, favours between friends, defectors and allied squads
 - Bespoke architecture for every world in planned rows, with plazas, yards and street lamps
+- Crew conscience: Idealists, Company Men, Mercenaries and Sympathisers react to your choices; morale changes fees and fighting spirit, crew speak up in speech bubbles, quitters defect and come back wearing your kit, and Kindly pays a Loyalty Dividend to keep you compliant
 - Randomly generated crew with quirks who keep their look through the run and can be injured
 - Roguelike performance reviews: perk cards each rank, a permanent specialisation at rank 4, capstones at rank 5, and executive perks beyond, with rerolls (appeals) and declines
 - Faction envoys who interrupt deployments with pleas and bribes: accept a deal and your crew must let marked enemies through, betray it, or report it to HR. Each faction has a three-beat arc with unique rewards, and HR's emails, the news ticker, eight endings and even who rescues you when you're abandoned follow your choices
