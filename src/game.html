@@ -324,6 +324,11 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .crewpeek .pk-traits i{font-style:normal;font-size:12px;padding:2px 6px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line)}
 .crewpeek .pk-traits i.sp{box-shadow:inset 0 0 0 1px #b98cff;color:#d8c4ff}
 .crewpeek .pk-foot{font:400 16px/1 var(--f-mono);color:var(--pc)}
+/* conditions */
+.conds{display:flex;flex-wrap:wrap;gap:4px}
+.conds i{font-style:normal;font-size:12px;line-height:1.2;padding:2px 6px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line)}
+.conds i.good{box-shadow:inset 0 0 0 1px var(--ok);color:var(--ok)}
+.conds i.bad{box-shadow:inset 0 0 0 1px var(--danger);color:var(--danger)}
 .tprio{display:flex;flex-direction:column;gap:5px}
 .tprio .chips{display:flex;flex-wrap:wrap;gap:4px}
 .tprio .chip{border:0;cursor:pointer;font:400 12px/1 var(--f-body);padding:5px 7px;background:var(--panel2);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
@@ -1108,13 +1113,6 @@ function droneSprites(acc = '#9be564') {
     if (f === 0) { P.r(0, 2, 4, 1, '#d6dde5'); P.r(9, 2, 4, 1, '#d6dde5'); } else { P.r(1, 2, 2, 1, '#9aa3ad'); P.r(10, 2, 2, 1, '#9aa3ad'); }
     return postProcess(P.c, { shadeIt: false });
   }));
-}
-let PALLET = null;
-function palletSprite() {
-  if (PALLET) return PALLET;
-  const P = painter(16, 6);
-  P.r(1, 1, 14, 1, '#a07a4c'); P.r(1, 3, 14, 1, '#8a6840'); P.r(1, 2, 2, 2, '#6b5030'); P.r(7, 2, 2, 2, '#6b5030'); P.r(13, 2, 2, 2, '#6b5030'); P.p(4, 1, '#b8905c'); P.p(10, 1, '#b8905c');
-  return (PALLET = postProcess(P.c, { shadeIt: false }));
 }
 const SPR = new Map();
 function crewSprites(cr) {
@@ -3016,6 +3014,32 @@ const GOOD_VS = {
 };
 const crewDps = (cr, st) => st.dmg * st.rate * (cr.type === 'drone' ? st.drones : st.multi);
 
+// ---------- conditions ----------
+// what is currently true of a crew member, shown as text on their sheets rather than drawn on the map
+function crewConditions(cr, tw) {
+  const out = [], st = tw && tw.st ? tw.st : towerStats(cr, tw), add = (t, k = 'info') => out.push({ t, k });
+  if (cr.dead) { add('Killed in action', 'bad'); return out; }
+  if (st.noReassign) add('Golden Handcuffs: can never be reassigned', 'bad');
+  if (!tw) { add(st.noReassign ? 'Holds position once deployed' : 'Holds position once deployed: move by reassigning or airlift'); }
+  else {
+    if (!st.noReassign) add('Holds position: move by reassigning or airlift');
+    if (tw.lifted) add('Being airlifted');
+    if (tw.offline > 0) add(`Stunned / offline: ${tw.offline.toFixed(1)}s`, 'bad');
+    if (tw.jam > 0) add(`Jammed: -${Math.round(tw.jam * 100)}% fire rate`, 'bad');
+    if (tw.hp < tw.maxhp * 0.35) add('Badly hurt', 'bad');
+    if (tw.roof) add('On a rooftop: +15% range, sees over buildings', 'good');
+    if (tw.plat) add(tw.plat === 'boat' ? 'On the barge deck: extra range' : 'On the sky ray: extra range, sees over buildings', 'good');
+    if (coverAt(tw.tx, tw.ty)) add('In cover: 20% less damage', 'good');
+    if (tw.bHeal > 0) add('Being healed', 'good');
+    if (tw.bRate > 0) add(`Boosted: +${Math.round(tw.bRate * 100)}% fire rate`, 'good');
+    if (tw.bDmg > 0) add(`Boosted: +${Math.round(tw.bDmg * 100)}% damage`, 'good');
+    if (tw.bDr > 0) add(`Protected: -${Math.round(tw.bDr * 100)}% damage taken`, 'good');
+  }
+  if (cr.reviews && cr.reviews.length) add('Performance review waiting', 'good');
+  return out;
+}
+const conditionsHtml = list => list.length ? `<div class="conds">${list.map(c => `<i class="${c.k}">${esc(c.t)}</i>`).join('')}</div>` : '';
+
 // ---------- crew card preview ----------
 // hovering, focusing or selecting a card in the roster bar extends it upwards into a stat sheet
 function crewPeekHtml(cr) {
@@ -3033,6 +3057,7 @@ function crewPeekHtml(cr) {
     <div class="pk-row"><span>Good vs</span><div>${esc(GOOD_VS[cr.type])}</div></div>
     <div class="pk-row"><span>Targets</span><div>${esc(pr.name)}: ${esc(pr.desc.toLowerCase())}</div></div>
     <div class="pk-row"><span>Quirk</span><div><b>${esc(QUIRKS[cr.quirk].name)}</b>: ${esc(QUIRKS[cr.quirk].desc)}</div></div>
+    <div class="pk-row"><span>Status</span>${conditionsHtml(crewConditions(cr, tw))}</div>
     ${perks.length ? `<div class="pk-traits">${perks.map((n, k) => `<i class="${k === 0 && cr.spec ? 'sp' : ''}">${esc(n)}</i>`).join('')}</div>` : '<div class="pk-row dim">No perks yet. Reviews unlock them.</div>'}
     <div class="pk-foot">${cr.dead ? `KIA · replacement $${replaceCost(cr)}` : tw ? 'Deployed · tap them on the map for orders' : `Fee $${crewFee(cr)} · ${cr.kills} kills`}</div>`;
 }
@@ -3737,7 +3762,7 @@ function renderMission(now) {
     if (tl) {
       const ok = canBuild(tl.tx, tl.ty) && m.budget >= TOWERS[sc.type].fee, x0 = tl.tx * ATILE, y0 = tl.ty * ATILE, c = ok ? '#ffd23f' : '#ff4d5e';
       for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [17, 0, -1, 1], [0, 17, 1, -1], [17, 17, -1, -1]]) { px(g, x0 + cx + (sx < 0 ? -3 : 0), y0 + cy, 4, 1, c); px(g, x0 + cx, y0 + cy + (sy < 0 ? -3 : 0), 1, 4, c); }
-      if (canBuild(tl.tx, tl.ty)) { g.globalAlpha = ok ? 0.7 : 0.35; g.drawImage(palletSprite(), x0 + 1, y0 + 12); g.drawImage(crewSprites(sc).f[0], x0 + 2, y0 - 2); g.globalAlpha = 1; }
+      if (canBuild(tl.tx, tl.ty)) { g.globalAlpha = ok ? 0.7 : 0.35; g.drawImage(crewSprites(sc).f[0], x0 + 2, y0 - 2); g.globalAlpha = 1; }
       const prange = towerStats(sc).range * (onRoof(tl.tx, tl.ty) ? 1.15 : 1);
       preview = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2, r: prange * TILE, ok, tx: tl.tx, ty: tl.ty, type: sc.type, range: prange, build: canBuild(tl.tx, tl.ty) };
       if (preview.build && coverAt(tl.tx, tl.ty)) { const sx = x0 + 13, sy = y0 + 1; px(g, sx, sy, 5, 4, '#0c0e14'); px(g, sx + 1, sy + 1, 3, 3, '#9fd3ff'); px(g, sx + 2, sy + 4, 1, 1, '#9fd3ff'); }
@@ -4039,7 +4064,7 @@ function drawDepositPx(g, t) {
 
 function drawTowerPx(g, tw, t) {
   const sp = crewSprites(tw.crew), ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6, type = tw.crew.type;
-  g.drawImage(palletSprite(), ax - 8, ay - 3);
+  g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(ax - 6, ay - 1, 12, 2); g.fillRect(ax - 4, ay + 1, 8, 1);
   if (tw.down) {
     // under a sheet, with a marker flag; the crew card offers a replacement
     px(g, ax - 8, ay - 7, 15, 5, '#c8ccd4'); px(g, ax - 8, ay - 7, 15, 1, '#f2f4f8'); px(g, ax - 9, ay - 3, 17, 1, '#8a8e96'); px(g, ax - 7, ay - 8, 4, 1, '#d8dce2');
@@ -4187,6 +4212,7 @@ function updateHud() {
   if (has('schedule')) set('hWave', 't', m.waveTxt || 'Awaiting first wave');
   // keep roster affordability fresh
   if (hudCache.budgetSeen !== m.budget) { hudCache.budgetSeen = m.budget; refreshRosterAfford(); }
+  if (S.selTower && m.towers.includes(S.selTower) && performance.now() - (hudCache.condAt || 0) > 400) { hudCache.condAt = performance.now(); const tw = S.selTower, k = crewConditions(tw.crew, tw).map(c => c.t.replace(/[\d.]+s$/, '')).join('|') + Math.ceil(tw.hp / tw.maxhp * 10); if (hudCache.condK !== k) { hudCache.condK = k; renderTowerInfo(); } }
   if (S.heliPanel && !S.selTower && performance.now() - (hudCache.heliAt || 0) > 500) { hudCache.heliAt = performance.now(); const h = M.arts.find(x => x.id === 'heli'), k = h ? (h.cd > 0 ? Math.ceil(h.cd) : 0) + (h.lift ? 'L' : '') + (S.artMode ? (S.artMode.tw ? 'D' : 'P') : '') : ''; if (hudCache.heliK !== k) { hudCache.heliK = k; renderTowerInfo(); } }
   if (S.peekBtn && performance.now() - (hudCache.peekAt || 0) > 400) { hudCache.peekAt = performance.now(); refreshPeek(); }
 }
@@ -4228,9 +4254,10 @@ function renderTowerInfo() {
   div.innerHTML = `<div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
     <div class="mono" style="color:var(--muted)">DPS ${crewDps(cr, st).toFixed(1)} · DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s<br>RNG ${st.range.toFixed(1)}${tw.roof ? ' <span style="color:var(--brand)">(rooftop +15%)</span>' : ''} · HP ${Math.max(0, Math.round(tw.hp))}/${Math.round(tw.maxhp)}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Killed in action. Claim denied.</span>' : ''}</div>
     <div class="traits">${traits}</div>
+    <div class="lbl">Conditions</div>${conditionsHtml(crewConditions(cr, tw))}
     <div class="tprio"><div class="lbl">Preferred targets</div><div class="chips">${Object.entries(PRIO).filter(([k, p]) => !p.air || st.air).map(([k, p]) => `<button class="chip${prioOf(cr) === k ? ' on' : ''}" data-act="prio" data-v="${k}" title="${esc(p.desc)}" aria-pressed="${prioOf(cr) === k}">${esc(p.name)}</button>`).join('')}</div>
       <div class="tnote">${esc(PRIO[prioOf(cr)].desc)}. Good against ${esc(GOOD_VS[cr.type].toLowerCase())}.</div>
-      <div class="tnote">${seesOverAt(cr.type, tw.tx, tw.ty) ? (cr.type === 'mortar' ? 'Lobs shells over buildings.' : cr.type === 'drone' ? 'Drone flies over buildings.' : 'Up high: sees over buildings.') : 'Buildings block line of sight (shaded).'}${coverAt(tw.tx, tw.ty) ? ' <b>In cover</b>: 20% less damage.' : ''}</div></div>
+      <div class="tnote">${seesOverAt(cr.type, tw.tx, tw.ty) ? (cr.type === 'mortar' ? 'Lobs shells over buildings.' : cr.type === 'drone' ? 'Drone flies over buildings.' : 'Up high: sees over buildings.') : 'Buildings block line of sight (shaded).'}</div></div>
     <div class="row">${tw.down ? `<button class="btn sm" data-act="replace" ${M.budget < replaceCost(cr) ? 'disabled' : ''}>Hire replacement ($${replaceCost(cr)})</button>` : ''}${cr.reviews.length && !tw.down ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Hold review</button>` : ''}<button class="btn sm ghost" data-act="reassign" ${st.noReassign && !tw.down ? 'disabled' : ''}>${tw.down ? 'Remove' : st.noReassign ? 'Bound by contract' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
   ov.appendChild(div);
 }
@@ -6201,7 +6228,7 @@ function frame(now) {
 }
 
 // test hook for automated playtesting
-window.__AL = { damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
