@@ -233,6 +233,21 @@ Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parac
 
 The auto-play bot does not use artifacts.
 
+## Acts
+Each sector is an act, with its own cast and its own light (`ACTS`).
+
+| Act | Name | Factions | Look |
+|---|---|---|---|
+| 1 (Sector 1) | Onboarding: local grievances | Union, Activists, Wildlife (Lumen Kin to come) | Bright daylight |
+| 2 (Sector 2) | Restructuring: competition and fallout | VectorCorp (the Abandoned, Free Haulers and Precursors to come) | Dusk and smog: warm skies over purple shadow, drifting smog, rusting abandoned Kindly rigs on the map and in scenes, a red nebula on the star map, a flickering lamp on the desk |
+| 3 (planned) | The Endless Quarter: reckoning | Kindly Asset Protection, the Church of the Eternal Quarter | Corporate night (palette defined, not yet used) |
+
+- **Unlocking:** a faction first appears when its act arrives. VectorCorp no longer shows up in Act 1.
+- **Weighting:** the act's own factions get weight 3. Factions from earlier acts start at 0.3 and gain weight from your history with them: +1.4 for an unfinished envoy arc, +1 for a grudge, +0.6 for a finished arc, and a little per planet you helped or crushed. A fresh Act 2 is about 80% VectorCorp; a run with unfinished business sees old factions much more (`factionWeights`).
+- **Bosses:** an act's boss comes from the faction you fought most in that act (`actBossFaction`).
+- **Showing it:** contract cards mark factions as "New this act" or give a reason they're back ("Unfinished business", "They remember you", "Old friends", "Back for more"). The sector-cleared screen introduces the next act's cast. The star map opens with an "Act 2: Restructuring" banner.
+- **Palette:** `actGrade` lays a soft-light gradient, a multiply tint, a light haze and slow smog bands over the mission, the star map and planet scenes. Planet scenes also swap to the act's sky. Each planet remembers the act it was played in, so the montages show the run's change of light.
+
 ## Planet scenes and the desk
 - **Planet scenes:** each of the 9 worlds has a pixel-art postcard for each of the 4 factions, in 3 states: unresolved (the faction is on site and the drill is contested), helped (you honoured their deal, so the site is theirs and the rig is repainted) and crushed (Kindly flags, guards and the faction's wreckage). That is 108 scenes, built in code from each biome's own sky, ground, road, liquid, building, landmark, props and weather, plus the faction's real unit sprites (`planetScene`, `SCENE_FAC`).
 - **The fallen:** resolved scenes show the bodies of the faction's units you killed there, two for every ten kills, up to 12. People and creatures lie on their side in a pool of blood (green ichor for wildlife); machines are dark, smoking wrecks (`sceneFallen`).

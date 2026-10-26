@@ -404,6 +404,26 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .statline{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px}
 .statline>div{background:var(--panel2);padding:7px 9px;display:flex;flex-direction:column;gap:3px}
 .statline b{font:400 22px/1 var(--f-mono);font-weight:400}
+
+/* acts */
+.screen.desk[data-act="2"]{background:radial-gradient(ellipse at 50% 28%,rgba(170,80,90,.26),rgba(8,4,10,.94) 72%)}
+.screen.desk[data-act="2"] .desktop{background:linear-gradient(#4a2c1e,#2a170e);box-shadow:inset 0 3px 0 #6a4228,0 8px 0 #1a0e08}
+.screen.desk[data-act="2"] .monitor{box-shadow:0 0 0 3px #0b0c12,0 0 70px rgba(255,140,90,.14)}
+.screen.desk[data-act="3"]{background:radial-gradient(ellipse at 50% 28%,rgba(40,60,160,.3),rgba(2,3,8,.96) 72%)}
+.desktop .lamp{width:30px;height:46px;position:relative;align-self:flex-end;background:linear-gradient(90deg,#5a5e66,#3a3e46) 13px 14px/4px 30px no-repeat,linear-gradient(#2a2e36,#2a2e36) 4px 42px/22px 4px no-repeat}
+.desktop .lamp::before{content:'';position:absolute;left:2px;top:0;width:26px;height:14px;background:#c8a040;clip-path:polygon(20% 0,80% 0,100% 100%,0 100%)}
+.desktop .lamp::after{content:'';position:absolute;left:-30px;top:12px;width:90px;height:60px;background:radial-gradient(ellipse at 50% 0,rgba(255,220,140,.35),transparent 70%);animation:lampflick 4.5s steps(1) infinite;pointer-events:none}
+@keyframes lampflick{0%,62%,66%,100%{opacity:1}63%,65%{opacity:.2}64%{opacity:.7}}
+.pill.new{color:#ff9a5a}.pill.back{color:var(--fg)}
+.actintro{display:flex;flex-direction:column;gap:8px;border-top:2px dashed var(--line);padding-top:12px}
+.actintro h3{margin:0;font:400 30px/1 var(--f-display);color:#ff9a5a}
+.facrow{display:flex;flex-wrap:wrap;gap:8px}
+.facrow .fac{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;gap:0 8px;align-items:center;background:var(--panel2);padding:6px 10px 6px 6px;box-shadow:inset 3px 0 0 var(--fc);min-width:200px}
+.facrow .fac.new{box-shadow:inset 3px 0 0 var(--fc),0 0 0 1px var(--fc)}
+.facrow .facicon{grid-row:span 2;width:36px;height:36px;object-fit:contain;image-rendering:pixelated}
+.facrow .fac b{font-weight:400;font-size:14px}
+.facrow .fac span{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.desktop .lamp::after{animation:none}}
 </style>
 
 <div id="app">
@@ -638,10 +658,12 @@ const bayer = (x, y) => BAYER[(y & 3) * 4 + (x & 3)];
 let PARALLAX = { x: 0, y: 0 }, SPACE = null;
 function spaceBuf() {
   const w = Math.ceil(VIEW.w / MAP_AP), h = Math.ceil(VIEW.h / MAP_AP);
-  if (SPACE && SPACE.w === w && SPACE.h === h) return SPACE;
+  const act = curAct();
+  if (SPACE && SPACE.w === w && SPACE.h === h && SPACE.act === act) return SPACE;
   const c = mkCanvas(w, h), nb = mkCanvas(w + 16, h + 16), ng = nb.getContext('2d'), img = ng.createImageData(nb.width, nb.height), d = img.data;
   const n1 = makeNoise(nb.width, nb.height, 28), n2 = makeNoise(nb.width, nb.height, 9), n3 = makeNoise(nb.width, nb.height, 44);
-  const base = hex2rgb('#070912'), cols = ['#120e2a', '#211744', '#361d58', '#0f3442'].map(hex2rgb);
+  const AS = (typeof ACTS !== 'undefined' && ACTS[act] || {}).space || { base: '#070912', cols: ['#120e2a', '#211744', '#361d58', '#0f3442'] };
+  const base = hex2rgb(AS.base), cols = AS.cols.map(hex2rgb);
   for (let y = 0; y < nb.height; y++) for (let x = 0; x < nb.width; x++) {
     const v = n1(x, y) * 0.68 + n2(x, y) * 0.32 + (bayer(x, y) - 0.5) * 0.1, teal = n3(x, y) > 0.58;
     const col = v > 0.74 ? (teal ? cols[3] : cols[2]) : v > 0.63 ? cols[1] : v > 0.53 ? cols[0] : base;
@@ -652,7 +674,7 @@ function spaceBuf() {
     const z = rnd();
     return { x: rnd() * w, y: rnd() * h, z, big: z > 0.985, sp: 0.6 + rnd() * 2.4, ph: rnd() * 7, col: pick(['#5a6390', '#7a84b8', '#9aa6d8', '#c8d0f0']) };
   });
-  return (SPACE = { w, h, c, g: c.getContext('2d'), nb, stars, comet: null });
+  return (SPACE = { act, w, h, c, g: c.getContext('2d'), nb, stars, comet: null });
 }
 function drawSpace(sp, t) {
   const g = sp.g; g.imageSmoothingEnabled = false;
@@ -672,7 +694,7 @@ function drawSpace(sp, t) {
     if (x > sp.w + 20 || y > sp.h + 20) sp.comet = null;
   }
 }
-function presentSpace(sp) { beginDraw(); ctx.imageSmoothingEnabled = false; ctx.drawImage(sp.c, 0, 0, sp.w * MAP_AP, sp.h * MAP_AP); }
+function presentSpace(sp) { beginDraw(); ctx.imageSmoothingEnabled = false; ctx.drawImage(sp.c, 0, 0, sp.w * MAP_AP, sp.h * MAP_AP); if (sp.act > 1 && typeof actGrade === 'function') actGrade(ctx, sp.w * MAP_AP, sp.h * MAP_AP, sp.act, performance.now() / 1000); }
 function drawStars(t) { const sp = spaceBuf(); drawSpace(sp, t); presentSpace(sp); }
 function pxText(txt, x, y, col, size = 12, align = 'center') {
   ctx.font = `700 ${size}px Silkscreen, "Courier New", monospace`; ctx.textAlign = align;
@@ -1819,6 +1841,7 @@ const BIOME_ART = {
 };
 // obstacles are 18 wide, up to 24 tall, bottom-aligned on their tile
 function obstacleSprite(kind) {
+  if (kind === 'derelict') return derelictSprite();
   let H = 18; if (['vaporator', 'beacon', 'spire', 'vending', 'neonpost', 'fruittree', 'holokiosk', 'sign', 'neonsign', 'woodsign', 'mast', 'balloon', 'monolith', 'statue', 'glyph'].includes(kind)) H = 24;
   const P = painter(18, H), L = [], props = [], o = H - 18;
   if (obstacleSector2(P, kind, o, L, props)) { postProcess(P.c); return { c: P.c, lights: L, props }; }
@@ -2528,15 +2551,102 @@ function mkCrew(type, name, look = genLook(), quirk = pickQuirk()) { return { id
 function freshName() { let n, g = 0; do { n = pick(CREW_NAMES); } while (RUN.usedNames.has(n) && g++ < 60); if (RUN.usedNames.has(n)) n += ' ' + ri(2, 9); RUN.usedNames.add(n); return n; }
 function planetName() { return pick(SYL_A) + pick(SYL_B) + pick(SYL_C); }
 
+// ================================================================
+// ACTS. Each sector is an act with its own cast and its own light. A faction is unlocked when the
+// act it belongs to arrives. After that it can come back in later acts, more often the more
+// unfinished business you have with it, but the new act's factions always get priority.
+// ================================================================
+const ACTS = {
+  1: { name: 'Onboarding', sub: 'Local grievances', factions: ['union', 'activists', 'fauna'],
+    space: { base: '#070912', cols: ['#120e2a', '#211744', '#361d58', '#0f3442'] } },
+  2: { name: 'Restructuring', sub: 'Competition and fallout', factions: ['rival'],
+    // dusk and smog: a warm sky over purple haze
+    grade: ['#ff9a48', '#5a2290', 0.3], mult: '#e8b0a8', haze: '#6a3a5a', hazeA: 0.04, smog: 0.12, derelict: true,
+    sky: ['#2a1238', '#ff9a5a'],
+    space: { base: '#0c0710', cols: ['#24101e', '#3e1832', '#6a2836', '#4a3218'] } },
+  3: { name: 'The Endless Quarter', sub: 'Reckoning', factions: [],
+    // corporate night: blue-black, company yellow and alarm red
+    grade: ['#ffd23f', '#06102e', 0.3], mult: '#8a98c8', haze: '#0a1430', hazeA: 0.06, smog: 0.1, derelict: true,
+    sky: ['#02040e', '#1a2a5a'],
+    space: { base: '#04060e', cols: ['#0a1030', '#121c48', '#3a3410', '#3a0a14'] } },
+};
+const actOf = idx => clamp(sectorOf(idx), 1, 3);
+const curAct = () => RUN ? actOf(RUN.idx) : 1;
+const actOfFaction = f => +Object.keys(ACTS).find(a => ACTS[a].factions.includes(f)) || 1;
+// why an older faction is back on the books (null if it isn't)
+function returnReason(f) {
+  const st = RUN.story, arc = st.arcs[f];
+  if (arc && arc.state === 'active') return 'Unfinished business';
+  if (st.grudge[f]) return 'They remember you';
+  if (arc && arc.state === 'done') return 'Old friends';
+  if ((RUN.worlds || []).some(w => w.fac === f && w.state === 'crushed')) return 'Back for more';
+  return null;
+}
+// how likely each faction is to be on a contract in this act
+function factionWeights(idx) {
+  const act = actOf(idx), w = {};
+  for (let a = 1; a <= act; a++) for (const f of ACTS[a].factions) {
+    if (!FACTIONS[f]) continue;
+    if (a === act) { w[f] = 3; continue; }
+    const st = RUN.story, arc = st.arcs[f];
+    let k = 0.3;
+    if (arc && arc.state === 'active') k += 1.4;
+    if (st.grudge[f]) k += 1;
+    if (arc && arc.state === 'done') k += 0.6;
+    const ws = (RUN.worlds || []).filter(x => x.fac === f);
+    k += 0.2 * ws.filter(x => x.state === 'helped').length + 0.1 * ws.filter(x => x.state === 'crushed').length;
+    w[f] = k;
+  }
+  return w;
+}
+// the boss of an act comes from whoever you fought most in it
+function actBossFaction(idx) {
+  const sec = sectorOf(idx), cnt = {};
+  for (const h of RUN.history) if (sectorOf(h.idx) === sec) cnt[h.faction] = (cnt[h.faction] || 0) + 1;
+  const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+  return best || ACTS[actOf(idx)].factions.find(f => FACTIONS[f]) || pick(Object.keys(FACTIONS));
+}
+// the act's light over a finished frame: a soft-light grade, a haze, and slow bands of smog
+function actGrade(g, W, H, act, t = 0) {
+  const A = ACTS[act]; if (!A || !A.grade) return;
+  const [c1, c2, a] = A.grade, gg = g.createLinearGradient(0, 0, 0, H);
+  gg.addColorStop(0, c1); gg.addColorStop(1, c2);
+  g.save(); g.globalCompositeOperation = 'soft-light'; g.globalAlpha = Math.min(1, a * 2.4); g.fillStyle = gg; g.fillRect(0, 0, W, H); g.restore();
+  if (A.mult) { g.save(); g.globalCompositeOperation = 'multiply'; g.fillStyle = A.mult; g.fillRect(0, 0, W, H); g.restore(); }
+  if (A.haze) { g.save(); g.globalAlpha = A.hazeA || 0.1; g.fillStyle = A.haze; g.fillRect(0, 0, W, H); g.restore(); }
+  if (A.smog) for (let k = 0; k < 3; k++) {
+    const y = ((k * 0.37 + t * 0.012 * (k + 1)) % 1.2 - 0.1) * H, h = H * 0.16, sg = g.createLinearGradient(0, y - h, 0, y + h);
+    sg.addColorStop(0, rgba(A.haze, 0)); sg.addColorStop(0.5, rgba(A.haze, A.smog)); sg.addColorStop(1, rgba(A.haze, 0));
+    g.fillStyle = sg; g.fillRect(0, y - h, W, h * 2);
+  }
+}
+// a rusting Kindly rig left behind after the last quarter's cuts
+function derelictSprite() {
+  const P = painter(18, 24);
+  P.line(3, 23, 7, 6, '#7a6a3a'); P.line(14, 23, 10, 6, '#6a5a32'); P.r(6, 4, 6, 2, '#8a7a40');
+  for (let k = 6; k < 12; k += 2) P.p(k, 4, '#c8a030');
+  P.r(8, 6, 2, 9, '#5a5e66'); P.r(4, 9, 10, 4, '#2a2620'); P.r(5, 10, 8, 2, '#a88a28'); P.line(4, 9, 13, 12, '#8a2a2a');
+  P.p(6, 17, '#8a4a2a'); P.p(12, 19, '#8a4a2a'); P.r(2, 22, 14, 2, '#3a3428');
+  postProcess(P.c); return { c: P.c, lights: [], props: [] };
+}
+function actIntroHtml(act) {
+  const A = ACTS[act]; if (!A) return '';
+  const fresh = A.factions.filter(f => FACTIONS[f]);
+  const back = [];
+  for (let a = 1; a < act; a++) for (const f of ACTS[a].factions) { const r = FACTIONS[f] && returnReason(f); if (r) back.push([f, r]); }
+  const icon = f => { try { return `<img class="facicon" src="${makeVariant(f, 'swarm').frames[0].toDataURL()}" alt="">`; } catch (e) { return ''; } };
+  return `<div class="actintro">
+    <div class="lbl">Act ${act} · ${esc(A.sub)}</div><h3>${esc(A.name)}</h3>
+    ${fresh.length ? `<div class="facrow">${fresh.map(f => `<div class="fac new" style="--fc:${FACTIONS[f].color}">${icon(f)}<b>${esc(FACTIONS[f].name)}</b><span>New on the books</span></div>`).join('')}</div>` : ''}
+    ${back.length ? `<div class="facrow">${back.map(([f, r]) => `<div class="fac" style="--fc:${FACTIONS[f].color}">${icon(f)}<b>${esc(FACTIONS[f].short)}</b><span>${esc(r)}</span></div>`).join('')}</div>` : ''}
+  </div>`;
+}
 function genContract(idx, diff, boss, forceFac) {
   const biomeKey = pick(SECTOR_BIOMES[sectorOf(idx)] || SECTOR_BIOMES[1]), sector = sectorOf(idx);
   let facKey;
   if (forceFac) facKey = forceFac;
-  else if (boss) {
-    let best = -1;
-    for (const h of RUN.history) { const c = RUN.factionCount[h.faction]; if (c >= best) { best = c; facKey = h.faction; } }
-    if (!facKey) facKey = pick(Object.keys(FACTIONS));
-  } else facKey = pick(Object.keys(FACTIONS));
+  else if (boss) facKey = actBossFaction(idx);
+  else facKey = wpick(factionWeights(idx));
   const fac = FACTIONS[facKey];
   const client = pick(fac.clients);
   const D = DIFFS[diff];
@@ -2767,6 +2877,8 @@ function genMap(nSpawns, biomeKey) {
       }
     }
     place('open', ri(2, 4), (x, y) => !nearPath(x, y));
+    // from Act 2 the company's own abandoned rigs rust on the open ground
+    if (RUN && ACTS[actOf(RUN.idx)].derelict) for (let n = ri(1, 2), k = 0; n > 0 && k < 200; k++) { const [x, y] = pick(tiles); if (free(x, y) && !crowded(x, y) && !nearPath(x, y)) { grid[y][x] = 2; obstacles.push({ x, y, kind: 'derelict' }); n--; } }
     return { grid, dep, spawns, buildings, bridges, obstacles, landmarks, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
   }
   throw new Error('map generation failed');
@@ -2982,7 +3094,7 @@ function startMission(contract) {
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
-  M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade;
+  M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade; M.act = actOf(contract.idx);
   S.selCrew = -1; S.selTower = null;
   RUN.roster.forEach(c => { c.snooze = false; });
   buildMissionHud(); buildRosterBar();
@@ -3965,6 +4077,8 @@ function renderMission(now) {
   ctx.restore();
   // colour grade per world
   if (m.grade) { const [c1, c2, a] = m.grade, gg = ctx.createLinearGradient(0, 0, 0, LH); gg.addColorStop(0, c1); gg.addColorStop(1, c2); ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = a * 2.4; ctx.fillStyle = gg; ctx.fillRect(0, 0, LW, LH); ctx.restore(); }
+  // the act's light on top of the world's
+  if (m.act > 1) actGrade(ctx, LW, LH, m.act, performance.now() / 1000);
   // vignette
   const vg = ctx.createRadialGradient(LW / 2, LH / 2, Math.min(LW, LH) * 0.35, LW / 2, LH / 2, Math.max(LW, LH) * 0.75);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.4)');
@@ -5521,6 +5635,7 @@ function showSectorComplete(c, net) {
     <h2>Sector ${sector - 1} cleared</h2>
     <p class="lede">Your reward for clearing a sector is another sector: <b>${esc(RUN.sectorName)}</b>. The board advanced ${loan}% margin. Interest is "a surprise".</p>
     ${worldMontage(ws, `Sector ${sector - 1}, as you left it`)}
+    ${actIntroHtml(actOf(RUN.idx))}
     ${statLine([['Contracts', RUN.history.length], ['Pacified', RUN.kills], ['Margin', RUN.margin + '%'], ['Bonus', '+' + net]])}
     <div class="row"><button class="btn" data-act="tostore">Proceed to Sector ${sector}</button></div>
   </div></div>`;
@@ -5531,7 +5646,7 @@ function showSectorComplete(c, net) {
 // every screen arrives with a wipe and staggered content
 const juiced = (f, after) => function (...a) { const r = f.apply(this, a); try { if (!S.noJuice) juiceScreen(); if (after) after(...a); } catch (e) { } return r; };
 showTitle = juiced(showTitle);
-showMap = juiced(showMap, () => { const n = sectorOf(RUN.idx); if (S.sectorSeen !== n) { S.sectorSeen = n; banner(`Sector ${n}`, RUN.sectorName, '#ffd23f'); } });
+showMap = juiced(showMap, () => { const n = sectorOf(RUN.idx); if (S.sectorSeen !== n) { S.sectorSeen = n; const A = ACTS[actOf(RUN.idx)]; banner(`Act ${actOf(RUN.idx)}: ${A.name}`, `Sector ${n} · ${RUN.sectorName}`, n > 1 ? '#ff9a5a' : '#ffd23f'); } });
 showGameOver = juiced(showGameOver);
 showMessenger = juiced(showMessenger);
 showVictory = juiced(showVictory, () => { confetti(null, null, 120); setTimeout(() => confetti(null, null, 80), 500); });
@@ -5943,7 +6058,7 @@ function finishMission(success) {
   RUN.factionCount[c.facKey] = (RUN.factionCount[c.facKey] || 0) + 1;
   // the planet keeps what happened to it: theirs if you honoured their deal, the company's otherwise
   const d0 = m.deal, wstate = d0 && !d0.broken && d0.fac === c.facKey ? 'helped' : 'crushed';
-  (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, kills: m.kills, boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
+  (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, kills: m.kills, act: actOf(c.idx), boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
   // payslip
   const gross = Math.round((50 + 12 * c.idx) * c.pay);
   const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
@@ -6032,12 +6147,12 @@ function showContractCard(i) {
     ${titlebar(`Contract_${String(o.idx + 1).padStart(2, '0')}.doc`, 'mapback')}
     <div class="sub">${o.boss ? (sectorOf(o.idx) >= MAX_SECTOR ? 'Board priority contract' : 'Executive priority contract') : `Contract ${o.idx + 1} · ${esc(o.diffLabel)}`}</div>
     <h2>${esc(o.planet)}</h2>
-    <figure class="scenebox">${sceneImg(o.biomeKey, o.facKey, 'unresolved', Math.floor(o.seed * 3))}<figcaption>Live: ${esc(o.fac.short)} on site. Status: unresolved.</figcaption></figure>
+    <figure class="scenebox">${sceneImg(o.biomeKey, o.facKey, 'unresolved', Math.floor(o.seed * 3), 'scene', 0, actOf(o.idx))}<figcaption>Live: ${esc(o.fac.short)} on site. Status: unresolved.</figcaption></figure>
     <p style="margin:0">${esc(o.client.n)} wants its ${esc(o.client.asset)} protected.</p>
     <dl class="kv">
       <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
       <dt>Ethics review</dt><dd>Waived</dd>
-      <dt>Hostiles</dt><dd>${esc(o.fac.name)}<br><span style="color:var(--muted)">${cats.join(', ')}</span></dd>
+      <dt>Hostiles</dt><dd>${esc(o.fac.name)} ${actOfFaction(o.facKey) === actOf(o.idx) && actOf(o.idx) > 1 ? '<span class="pill new">New this act</span>' : actOfFaction(o.facKey) < actOf(o.idx) && returnReason(o.facKey) ? `<span class="pill back">${esc(returnReason(o.facKey))}</span>` : ''}<br><span style="color:var(--muted)">${cats.join(', ')}</span></dd>
       <dt>Biome</dt><dd>${esc(o.biome.name)}. ${esc(o.biome.hazard)}</dd>
       <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
       <dt>Pay</dt><dd class="mono">${o.pay.toFixed(2)}× base rate</dd>
@@ -6045,7 +6160,7 @@ function showContractCard(i) {
     ${o.boss ? `<div class="intel">Target: ${esc(o.bossDef.name)}. ${esc(o.bossDef.desc)} You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
     ${o.envoy ? `<div class="intel" style="--brand:${ARCS[o.envoy.fac].col};color:${ARCS[o.envoy.fac].col}">Encrypted chatter on this planet. ${RUN.story.arcs[o.envoy.fac] && RUN.story.arcs[o.envoy.fac].state === 'active' ? esc(ARCS[o.envoy.fac].envoy) + ' wants to talk again.' : 'Someone wants to talk before you land.'}</div>` : ''}
     ${RUN.story.grudge[o.facKey] ? `<div class="intel" style="color:var(--danger)">The ${esc(o.fac.short)} know what you did. Expect them to be tougher (+${Math.round((RUN.story.grudge[o.facKey] - 1) * 100)}% HP).</div>` : ''}
-    ${o.grudge ? (() => { const w = [...(RUN.worlds || [])].reverse().find(w => w.fac === o.facKey); return `<div class="intel recall">${w ? sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills)) : ''}<span>Survivors of ${esc(o.grudge)} are among them${w ? ` (you left it ${w.state === 'helped' ? 'in their hands' : 'under company flags'})` : ''}. +10% HP.</span></div>`; })() : ''}
+    ${o.grudge ? (() => { const w = [...(RUN.worlds || [])].reverse().find(w => w.fac === o.facKey); return `<div class="intel recall">${w ? sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills), w.act || 1) : ''}<span>Survivors of ${esc(o.grudge)} are among them${w ? ` (you left it ${w.state === 'helped' ? 'in their hands' : 'under company flags'})` : ''}. +10% HP.</span></div>`; })() : ''}
     <div class="row"><button class="btn" data-act="accept" data-i="${i}">Accept deployment</button><button class="btn ghost" data-act="mapback">Back</button></div>
   </div>`;
 }
@@ -6059,8 +6174,10 @@ const SCENE_W = 200, SCENE_H = 100, SCENE_HZ = 44;
 const SCENES = new Map();
 const KINDLY_Y = '#ffd23f';
 // the sky: a dithered gradient from each biome's colour grade, plus what hangs in it
-function sceneSky(g, bk) {
-  const A = BIOME_ART[bk], top = shade(A.grade[1], -0.55), bot = mixHex(A.grade[1], A.grade[0], 0.5), steps = 6;
+function sceneSky(g, bk, act = 1) {
+  const A = BIOME_ART[bk], AS = ACTS[act] && ACTS[act].sky, steps = 6;
+  let top = shade(A.grade[1], -0.55), bot = mixHex(A.grade[1], A.grade[0], 0.5);
+  if (AS) { top = mixHex(top, AS[0], 0.6); bot = mixHex(bot, AS[1], 0.55); }
   for (let y = 0; y < SCENE_HZ; y++) {
     const k = y / (SCENE_HZ - 1) * (steps - 1), b = Math.floor(k), f = k - b;
     const c0 = mixHex(top, bot, b / (steps - 1)), c1 = mixHex(top, bot, Math.min(1, (b + 1) / (steps - 1)));
@@ -6230,17 +6347,19 @@ function sceneProps(g, bk) {
   const kinds = (A.obst.open || A.obst.grove || A.obst.road || []).concat(A.obst.building || []);
   for (const [x, y] of [[132, 62], [190, 72], [8, 96]]) { if (!kinds.length) break; const o = obstacleSprite(pick(kinds)); g.drawImage(o.c, x - 9, y - o.c.height); }
 }
-function planetScene(bk, facKey, state = 'unresolved', variant = 0, dead = 0) {
-  const key = [bk, facKey, state, variant, dead].join('|');
+function planetScene(bk, facKey, state = 'unresolved', variant = 0, dead = 0, act = 1) {
+  const key = [bk, facKey, state, variant, dead, act].join('|');
   if (SCENES.has(key)) return SCENES.get(key);
   const c = mkCanvas(SCENE_W, SCENE_H), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  sceneSky(g, bk); sceneGround(g, bk); sceneProps(g, bk);
+  sceneSky(g, bk, act); sceneGround(g, bk); sceneProps(g, bk);
+  if (ACTS[act] && ACTS[act].derelict) { const d = derelictSprite(); g.drawImage(d.c, 56, SCENE_HZ - 18); g.drawImage(d.c, 104, SCENE_HZ - 16); }
   sceneDrill(g, 132, 80, state, facKey);
   if (dead) sceneFallen(g, facKey, dead);
   SCENE_FAC[facKey][state](g, bk);
   if (state === 'unresolved') sceneGuard(g, 0, 114, 86, true);
   if (state === 'crushed') { sceneGuard(g, 0, 112, 86, true); sceneGuard(g, 1, 154, 90, false); sceneGuard(g, 2, 86, 92, true); }
   sceneWeather(g, bk);
+  actGrade(g, SCENE_W, SCENE_H, act, 3);
   // a soft vignette, warmer when the faction won, colder when the company did
   const vg = g.createRadialGradient(SCENE_W / 2, SCENE_H / 2, 30, SCENE_W / 2, SCENE_H / 2, 120);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, state === 'crushed' ? 'rgba(10,14,30,0.45)' : state === 'helped' ? 'rgba(40,20,0,0.25)' : 'rgba(0,0,0,0.35)');
@@ -6251,7 +6370,7 @@ function planetScene(bk, facKey, state = 'unresolved', variant = 0, dead = 0) {
 }
 // how many bodies a planet shows, from how many you killed there (bucketed so scenes cache well)
 const deadShown = kills => kills ? clamp(Math.round(kills / 10) * 2, 2, 12) : 0;
-const sceneImg = (bk, facKey, state, variant, cls = 'scene', dead = 0) => `<img class="${cls}" src="${planetScene(bk, facKey, state, variant, dead)}" alt="" width="${SCENE_W}" height="${SCENE_H}">`;
+const sceneImg = (bk, facKey, state, variant, cls = 'scene', dead = 0, act = 1) => `<img class="${cls}" src="${planetScene(bk, facKey, state, variant, dead, act)}" alt="" width="${SCENE_W}" height="${SCENE_H}">`;
 
 // ================================================================
 // THE DESK. After each contract you are back at your workstation: Kindly's intranet on the left,
@@ -6323,12 +6442,12 @@ function deskPropUrl(kind, k = 0) {
 function worldStrip() {
   const ws = (RUN.worlds || []).slice(-6);
   if (ws.length < 2) return '';
-  return `<div class="wstrip"><div class="lbl">Your planets</div><div class="wrow">${ws.map(w => `<figure class="${w.state}" title="${esc(w.planet)}: ${w.state === 'helped' ? FACTIONS[w.fac].short + ' hold it' : 'company flags'}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills))}<figcaption>${esc(w.planet.replace(/^Earth · /, ''))}</figcaption></figure>`).join('')}</div></div>`;
+  return `<div class="wstrip"><div class="lbl">Your planets</div><div class="wrow">${ws.map(w => `<figure class="${w.state}" title="${esc(w.planet)}: ${w.state === 'helped' ? FACTIONS[w.fac].short + ' hold it' : 'company flags'}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills), w.act || 1)}<figcaption>${esc(w.planet.replace(/^Earth · /, ''))}</figcaption></figure>`).join('')}</div></div>`;
 }
 // every planet you touched, as you left it: for sector reviews, terminations and endings
 function worldMontage(ws, title = 'Your planets') {
   if (!ws || !ws.length) return '';
-  return `<div class="montage"><div class="lbl">${esc(title)}</div><div class="mgrid">${ws.map(w => `<figure class="${w.state}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills))}<figcaption><b>${esc(w.planet.replace(/^Earth · /, ''))}</b><span>${w.state === 'helped' ? esc(FACTIONS[w.fac].short) + ' hold it' : 'Company flags'}</span></figcaption></figure>`).join('')}</div></div>`;
+  return `<div class="montage"><div class="lbl">${esc(title)}</div><div class="mgrid">${ws.map(w => `<figure class="${w.state}">${sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills), w.act || 1)}<figcaption><b>${esc(w.planet.replace(/^Earth · /, ''))}</b><span>${w.state === 'helped' ? esc(FACTIONS[w.fac].short) + ' hold it' : 'Company flags'}</span></figcaption></figure>`).join('')}</div></div>`;
 }
 const statLine = items => `<div class="statline">${items.map(([k, v]) => `<div><span class="lbl">${esc(k)}</span><b>${v}</b></div>`).join('')}</div>`;
 function showDebrief(d) {
@@ -6346,7 +6465,8 @@ function showDebrief(d) {
   const earn = d.slip.filter(([, v]) => v > 0), dedTot = d.slip.filter(([, v]) => v < 0).reduce((s, [, v]) => s + v, 0), nDed = d.slip.filter(([, v]) => v < 0).length;
   const slip = earn.map(([k, v]) => [k.replace(/ \(.*\)/, ''), v]).concat(nDed ? [[`Deductions (${nDed}, non-negotiable)`, dedTot]] : []);
   const plant = RUN.margin >= 65 ? 0 : RUN.margin >= 35 ? 1 : 2;
-  $('#overlay').innerHTML = `<div class="screen desk"><div class="deskwrap">
+  const act = actOf(c.idx);
+  $('#overlay').innerHTML = `<div class="screen desk" data-act="${act}"><div class="deskwrap">
     <div class="monitor"><div class="glass">
       <section class="win intranet" aria-label="Kindly Intranet">
         ${titlebar('Kindly Intranet · Employee #' + RUN.empId)}
@@ -6365,7 +6485,7 @@ function showDebrief(d) {
       <section class="win feed ${w.state}" style="--fc:${FACTIONS[c.facKey].color}" aria-label="${esc(F.ch)}">
         <div class="titlebar"><span>${esc(F.ch)}</span><i></i><em class="live">● ${esc(F.tag)}</em></div>
         <div class="wbody">
-          <figure class="scenebox big">${sceneImg(w.bk, w.fac, w.state, w.v, 'scene', deadShown(w.kills))}<figcaption>${esc(c.planet)} · ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}</figcaption></figure>
+          <figure class="scenebox big">${sceneImg(w.bk, w.fac, w.state, w.v, 'scene', deadShown(w.kills), w.act || 1)}<figcaption>${esc(c.planet)} · ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}</figcaption></figure>
           <h3 class="headline">${esc(F[w.state][w.v % 2](c.planet))}</h3>
           <p class="sub">${esc(F.sub[w.state])}</p>
           ${worldStrip()}
@@ -6373,7 +6493,7 @@ function showDebrief(d) {
       </section>
     </div></div>
     <div class="stand" aria-hidden="true"></div>
-    <div class="desktop" aria-hidden="true"><img class="prop plant" src="${deskPropUrl('plant', plant)}" alt=""><span class="nameplate">EMPLOYEE #${RUN.empId}</span><img class="prop" src="${deskPropUrl('note')}" alt=""><img class="prop" src="${deskPropUrl('mug')}" alt=""></div>
+    <div class="desktop" aria-hidden="true">${act >= 2 ? '<i class="lamp"></i>' : ''}<img class="prop plant" src="${deskPropUrl('plant', plant)}" alt=""><span class="nameplate">EMPLOYEE #${RUN.empId}</span><img class="prop" src="${deskPropUrl('note')}" alt=""><img class="prop" src="${deskPropUrl('mug')}" alt=""></div>
     <div class="row deskbtns"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip</span></div>
   </div></div>`;
   RUN.offers = genOffers();
@@ -6586,7 +6706,7 @@ function frame(now) {
 }
 
 // test hook for automated playtesting
-window.__AL = { planetScene, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
