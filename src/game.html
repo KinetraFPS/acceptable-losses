@@ -5307,7 +5307,7 @@ function typeLines(lines, done) {
 }
 function envoyChoice(v) {
   const E = S.envoy; if (!E || E.done) return;
-  E.done = true;
+  E.done = true; E.react = { kind: v, t0: (performance.now() - E.t0) / 1000 };
   const o = RUN.options[E.i], A = ARCS[E.fac], B = beatDef(E.fac, E.beat), a = arcOf(E.fac), st = RUN.story, sp = B.special;
   st.met++;
   const log = { fac: E.fac, beat: E.beat, planet: o.planet, choice: v, idx: o.idx };
@@ -5341,17 +5341,442 @@ function envoyChoice(v) {
   typeLines([B[v]]);
 }
 // the envoy's video feed, redrawn every frame while the screen is open
+// ================================================================
+// ENVOY PORTRAITS. Each envoy is a small rig: a body, a head and an optional prop layer, each
+// sculpted from lit, dithered volumes (ellipsoids, cylinders, a rounded torso) so they read as
+// solid forms. The head is redrawn per expression: idle breathing and blinking, a moving mouth
+// while their lines type out, and a reaction when you accept, refuse or report them.
+// ================================================================
+const RIG_LIGHT = (() => { const l = [-0.55, -0.62, 0.56], n = Math.hypot(...l); return l.map(v => v / n); })();
+const toneRamp = base => [-0.48, -0.27, -0.08, 0.1, 0.28].map(k => shade(base, k));
+const litValue = (nx, ny, nz) => clamp(0.5 + 0.62 * (nx * RIG_LIGHT[0] + ny * RIG_LIGHT[1] + nz * RIG_LIGHT[2]), 0, 1);
+const rampPick = (R, v, x, y) => R[clamp(Math.floor(v * (R.length - 1) + (bayer(x, y) - 0.5) * 0.85 + 0.5), 0, R.length - 1)];
+// an ellipsoid lit from the upper left, with an optional cool rim light on its shadow side
+function sculptBall(P, cx, cy, rx, ry, base, o = {}) {
+  const R = o.ramp || toneRamp(base);
+  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+    const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry, d = nx * nx + ny * ny; if (d > 1 || (o.clip && !o.clip(x, y))) continue;
+    let c = rampPick(R, litValue(nx, ny, Math.sqrt(1 - d)) * (o.k || 1) + (o.lift || 0), x, y);
+    if (o.rim && d > 0.7 && nx > 0.3) c = mixHex(c, o.rim, 0.5);
+    P.p(x, y, c);
+  }
+}
+// a cylinder standing upright (necks), lit across its width and darker towards the bottom
+function sculptCyl(P, x0, y0, w, h, base, fall = 0.3) {
+  const R = toneRamp(base);
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const nx = ((x + 0.5 - x0) / w) * 2 - 1; P.p(x, y, rampPick(R, clamp(litValue(nx, 0.1, Math.sqrt(Math.max(0, 1 - nx * nx))) - (y - y0) / h * fall, 0, 1), x, y)); }
+}
+// shoulders and chest: rounded across, rounding off at the top, falling into shadow lower down
+function sculptTorso(P, cx, top, wTop, wBot, h, base, o = {}) {
+  const R = o.ramp || toneRamp(base);
+  for (let y = top; y < top + h; y++) {
+    const k = (y - top) / h, w = Math.round(wTop + (wBot - wTop) * Math.min(1, k * 2.4)), x0 = Math.round(cx - w / 2), sh = k < 0.16 ? Math.round((0.16 - k) / 0.16 * w * 0.14) : 0;
+    for (let x = x0 + sh; x < x0 + w - sh; x++) {
+      if (o.clip && !o.clip(x, y)) continue;
+      const nx = ((x + 0.5 - x0) / w) * 2 - 1; let c = rampPick(R, clamp(litValue(nx, -0.35 + k * 0.5, Math.sqrt(Math.max(0, 1 - nx * nx * 0.9))) - k * (o.fall ?? 0.2), 0, 1), x, y);
+      if (o.rim && nx > 0.82) c = mixHex(c, o.rim, 0.45);
+      P.p(x, y, c);
+    }
+  }
+}
+// eyes, brows, nose and mouth on a human head, driven by the expression state
+function faceFeatures(P, F, st) {
+  const { cx, eyeY, gap = 6, skin, mouthY } = F, sk = toneRamp(skin), ex = st.expr;
+  const white = F.white || '#f2ece4', iris = F.iris || '#2a1a14', brow = F.brow || '#2a1a12', mouthDark = F.mouthDark || '#3a1414', lip = F.lip || shade(skin, -0.32);
+  const eyes = [cx - gap, cx + gap - 1], look = st.look || 0;
+  // sockets catch a little shadow; the far one more
+  P.r(eyes[0] - 2, eyeY - 1, 5, 3, sk[1]); P.r(eyes[1] - 2, eyeY - 1, 5, 3, sk[0]);
+  for (const x of eyes) {
+    if (st.blink || F.closed) { P.r(x - 1, eyeY + 1, 3, 1, sk[0]); continue; }
+    const tall = ex === 'shock' ? 3 : ex === 'smile' ? 1 : 2, y0 = ex === 'smile' ? eyeY + 1 : eyeY;
+    P.r(x - 1, y0, 3, tall, white); P.p(x + clamp(look, -1, 1), y0 + (tall > 2 ? 1 : 0), iris); if (tall > 1) P.p(x + clamp(look, -1, 1), y0 + 1, shade(iris, -0.3));
+    if (F.lid !== false) P.r(x - 1, y0 - 1, 3, 1, ex === 'angry' ? brow : sk[0]);
+  }
+  // brows: angry dips inward, sad and frowning lift inward, shock lifts both
+  const lift = ex === 'shock' ? -1 : 0, by = eyeY - 3 + lift, inner = ex === 'angry' ? 1 : ex === 'sad' || ex === 'frown' ? -1 : 0;
+  P.r(eyes[0] - 2, by, 3, 1, brow); P.p(eyes[0] + 1, by + inner, brow);
+  P.r(eyes[1], by, 3, 1, brow); P.p(eyes[1] - 1, by + inner, brow);
+  // nose: a lit ridge and a shadowed side
+  P.r(cx, eyeY + 2, 1, 4, sk[1]); P.p(cx - 1, eyeY + 3, sk[4]); P.p(cx, eyeY + 6, sk[0]); P.p(cx + 1, eyeY + 6, sk[0]);
+  // mouth
+  const m = st.mouth || 0, my = mouthY;
+  if (m > 0) {
+    const w = m === 1 ? 4 : 5, h = m === 1 ? 2 : 3; P.r(cx - (w >> 1), my, w, h, mouthDark); P.r(cx - (w >> 1), my, w, 1, '#e8e0d8');
+    if (ex === 'smile') { P.p(cx - (w >> 1) - 1, my - 1, lip); P.p(cx + (w >> 1) + 1, my - 1, lip); }
+  } else if (ex === 'smile') { P.r(cx - 3, my, 7, 1, lip); P.p(cx - 4, my - 1, lip); P.p(cx + 4, my - 1, lip); P.r(cx - 2, my + 1, 5, 1, sk[1]); }
+  else if (ex === 'sad' || ex === 'frown') { P.r(cx - 2, my, 5, 1, lip); P.p(cx - 3, my + 1, lip); P.p(cx + 3, my + 1, lip); }
+  else if (ex === 'angry') { P.r(cx - 3, my, 7, 2, mouthDark); P.r(cx - 3, my, 7, 1, '#e8e0d8'); }
+  else if (ex === 'shock') { P.ell(cx, my + 1, 1.6, 2, mouthDark); }
+  else { P.r(cx - 3, my, 7, 1, lip); P.r(cx - 2, my + 1, 5, 1, sk[3]); }
+  if (ex === 'smile' && F.blush) { P.r(eyes[0] - 2, eyeY + 4, 2, 1, F.blush); P.r(eyes[1] + 1, eyeY + 4, 2, 1, F.blush); }
+}
+// a human head: skull, jaw, ears, neck shadow, then the face
+function humanHead(P, F, st) {
+  const { cx, cy, rx, ry, skin } = F, sk = toneRamp(skin);
+  sculptBall(P, cx - rx + 1, cy + 2, 2.2, 3.4, skin); // far ear (left, lit)
+  sculptBall(P, cx, cy, rx, ry, skin, { rim: F.rim });
+  // jaw narrows slightly, chin catches light
+  sculptBall(P, cx, cy + ry * 0.45, rx * 0.78, ry * 0.6, skin, { clip: (x, y) => y > cy + 2 });
+  sculptBall(P, cx + rx - 1, cy + 2, 2, 3.2, skin, { k: 0.8 }); // near ear (right, in shade)
+  P.r(cx - 2, cy + ry - 1, 5, 1, sk[1]);
+  faceFeatures(P, F, st);
+}
+// ---------- the rigs ----------
+const RIG_W = 84, RIG_H = 96;
+const RIGS = {
+  union: {
+    react: { accept: 'smile', refuse: 'sad', report: 'angry' },
+    body(P) {
+      // flannel shirt under denim overalls, a red bandana
+      sculptTorso(P, 42, 62, 46, 76, 34, '#a8322a', { rim: '#ffb080' });
+      for (let y = 66; y < 96; y += 4) for (let x = 6; x < 80; x++) if (P.g.getImageData(x, y, 1, 1).data[3]) P.p(x, y, '#6a1e1a');
+      sculptTorso(P, 42, 74, 30, 38, 22, '#3b4a6b'); P.r(25, 64, 5, 14, '#2e3a56'); P.r(55, 64, 5, 14, '#2e3a56'); P.r(26, 74, 3, 3, '#e0b040'); P.r(56, 74, 3, 3, '#e0b040');
+      sculptCyl(P, 36, 52, 12, 10, '#7e523a', 0.5);
+      sculptBall(P, 42, 62, 12, 3.4, '#d23c3c'); P.p(36, 61, '#f2efe6'); P.p(46, 63, '#f2efe6');
+      // her grey braid over the shoulder
+      for (let k = 0; k < 6; k++) sculptBall(P, 56 + k * 1.1, 50 + k * 5, 3, 3, '#c8c4bc');
+    },
+    head(P, st) {
+      humanHead(P, { cx: 42, cy: 38, rx: 14, ry: 16, skin: '#8a5a3c', eyeY: 37, gap: 6, mouthY: 47, brow: '#c8c4bc', rim: '#ffd890', blush: '#a8584a' }, st);
+      const sk = toneRamp('#8a5a3c'); P.p(31, 39, sk[1]); P.p(31, 41, sk[1]); P.p(52, 39, sk[0]); P.p(52, 41, sk[0]); P.r(36, 31, 4, 1, sk[1]);
+      // hard hat with a working headlamp
+      sculptBall(P, 42, 24, 17, 10, '#e8b830', { clip: (x, y) => y < 28 }); P.r(24, 27, 36, 3, '#b88a18'); P.r(24, 27, 36, 1, '#ffe890');
+      P.r(37, 18, 10, 6, '#3a3a40'); sculptBall(P, 42, 21, 3, 2.4, '#fff2b0', { lift: 0.3 });
+    },
+    front(P, st) {
+      // the strike fund: a battered lunchbox
+      const y = st.react === 'accept' ? 74 : 78; sculptTorso(P, 30, y, 22, 22, 14, '#7a8a9a', { fall: 0.1 }); P.r(26, y - 4, 8, 4, '#5a6a7a'); P.r(21, y + 4, 16, 5, '#ffd23f'); P.r(22, y + 5, 12, 1, '#2a2418'); P.r(22, y + 7, 8, 1, '#2a2418');
+    },
+    glow(g, t, st, ox, oy) { g.globalAlpha = 0.35 + 0.15 * Math.sin(t * 7); pxCircle(g, ox + 42, oy + 21, 6, '#fff6c8'); g.globalAlpha = 1; },
+  },
+  rival: {
+    react: { accept: 'smile', refuse: 'angry', report: 'shock' },
+    body(P) {
+      // a well-cut dark suit, white shirt, a slim tie
+      sculptTorso(P, 42, 62, 44, 72, 34, '#1c1e28', { rim: '#5a8aff' });
+      for (let y = 62; y < 96; y++) { const w = Math.max(0, 8 - Math.round((y - 62) / 4)); P.r(42 - w, y, w * 2, 1, '#e8eef4'); }
+      P.line(36, 63, 30, 95, '#2e3240'); P.line(48, 63, 54, 95, '#2e3240');
+      P.r(41, 63, 3, 32, '#2a8ab0'); P.r(41, 63, 3, 2, '#5ab8e0'); P.p(42, 70, '#9fe8ff');
+      sculptCyl(P, 37, 52, 10, 11, '#e0bc98', 0.45); P.r(37, 61, 10, 2, '#f2f6fa');
+      P.p(57, 74, '#3af0ff');
+    },
+    head(P, st) {
+      humanHead(P, { cx: 42, cy: 37, rx: 13, ry: 16, skin: '#e8c4a0', eyeY: 36, gap: 6, mouthY: 46, brow: '#1a1a1e', rim: '#9ab8ff' }, st);
+      // slicked-back hair with a silver streak
+      sculptBall(P, 42, 25, 14, 8, '#1a1a20', { clip: (x, y) => y < 29 || x < 30 }); P.r(45, 19, 3, 9, '#a8aeb8');
+      // visor glasses, tinted: the eyes still show through faintly
+      P.g.globalAlpha = 0.72; P.r(29, 34, 26, 5, '#0a1a24'); P.g.globalAlpha = 1; P.r(29, 34, 26, 1, '#3af0ff');
+      if (st.expr === 'shock') P.r(29, 33, 26, 1, '#9ff8ff');
+    },
+    glow(g, t, st, ox, oy) { g.globalAlpha = 0.5 + 0.3 * Math.sin(t * 3); px(g, ox + 31 + Math.round(((t * 18) % 22)), oy + 34, 3, 1, '#9ff8ff'); g.globalAlpha = 1; },
+  },
+  fauna: {
+    react: { accept: 'smile', refuse: 'sad', report: 'shock' },
+    body(P) {
+      // the battered survey drone the hive adopted
+      sculptBall(P, 42, 50, 27, 23, '#8a929c', { rim: '#9be564' }); P.r(16, 52, 52, 3, '#5a626e');
+      P.line(24, 34, 32, 44, '#4a4e56'); P.line(32, 44, 29, 51, '#4a4e56'); P.line(56, 58, 62, 64, '#4a4e56');
+      for (const [x, y] of [[21, 60], [24, 64], [60, 40], [63, 44], [26, 38]]) { sculptBall(P, x, y, 2.6, 2.2, '#5aa04a'); P.p(x, y - 1, '#b8f07a'); }
+      P.r(14, 70, 8, 3, '#5a626e'); P.r(62, 70, 8, 3, '#5a626e'); P.r(12, 72, 4, 8, '#3a3e46'); P.r(68, 72, 4, 8, '#3a3e46');
+      P.r(41, 16, 2, 12, '#5a626e');
+      for (let x = 20; x < 64; x += 6) sculptBall(P, x, 90, 3.4, 2.4, '#7a4a9a');
+    },
+    head(P, st) {
+      // the lens is the face: the iris narrows to show emotion, an LED bar below talks
+      const ex = st.expr, r = ex === 'shock' ? 9 : ex === 'angry' ? 5 : 7;
+      sculptBall(P, 42, 50, 13, 13, '#1a1e26'); sculptBall(P, 42, 50, 10.5, 10.5, '#2a5a6a');
+      if (st.blink) P.r(32, 50, 21, 2, '#6ff0ff');
+      else { sculptBall(P, 42 + (st.look || 0), 50, r, r, '#4fd8f0', { lift: 0.15 }); P.ell(42 + (st.look || 0), 50, r * 0.4, r * 0.4, '#0a1a20'); P.p(38, 46, '#e8ffff'); P.p(39, 46, '#e8ffff'); }
+      if (ex === 'sad') { P.line(32, 40, 38, 42, '#5a626e'); P.line(52, 40, 46, 42, '#5a626e'); }
+      if (ex === 'angry') { P.line(32, 42, 38, 40, '#5a626e'); P.line(52, 42, 46, 40, '#5a626e'); }
+      // LED speaker grille
+      const bars = st.mouth ? [2, 4, 3, 5, 2] : ex === 'smile' ? [1, 2, 3, 2, 1] : [1, 1, 1, 1, 1];
+      for (let k = 0; k < 5; k++) P.r(37 + k * 2, 68 - bars[k], 1, bars[k], ex === 'smile' ? '#9be564' : '#6ff0ff');
+      // the hatchling riding on top: hops when happy, hides when not
+      const hy = ex === 'smile' ? 22 : ex === 'sad' || ex === 'angry' ? 30 : 26;
+      sculptBall(P, 56, hy, 6, 4, '#7bdc6a'); sculptBall(P, 60, hy - 2, 3, 3, '#7bdc6a'); P.p(61, hy - 3, '#ffd23f');
+      P.ell(41, 13, 2, 2, ex === 'angry' ? '#ff4d6d' : '#ffd23f');
+    },
+    glow(g, t, st, ox, oy) { g.globalAlpha = 0.22; pxCircle(g, ox + 42, oy + 50, 14, '#6ff0ff'); g.globalAlpha = 1; },
+  },
+  activists: {
+    react: { accept: 'smile', refuse: 'sad', report: 'angry' },
+    body(P) {
+      // a purple hoodie, drawstrings, headphones round the neck
+      sculptTorso(P, 42, 60, 48, 76, 36, '#6a3a9a', { rim: '#ff7ae0' });
+      P.r(36, 66, 2, 16, '#e8e0f0'); P.r(48, 66, 2, 16, '#e8e0f0');
+      sculptBall(P, 42, 36, 23, 27, '#6a3a9a', { clip: (x, y) => y < 62 }); sculptBall(P, 42, 39, 18, 22, '#2a1a3a');
+    },
+    head(P, st) {
+      // an LED mask in the hood: the face is a little display
+      sculptBall(P, 42, 42, 14, 16, '#1a1622');
+      const ex = st.expr, on = '#ff3ad6', c2 = '#3af0ff';
+      const eye = (x) => {
+        if (st.blink) { P.r(x, 38, 5, 1, on); return; }
+        if (ex === 'smile') { P.p(x, 38, on); P.p(x + 1, 37, on); P.p(x + 2, 36, on); P.p(x + 3, 37, on); P.p(x + 4, 38, on); }
+        else if (ex === 'angry') { P.line(x, 36, x + 4, 39, on); }
+        else if (ex === 'sad') { P.r(x, 37, 5, 1, on); P.p(x + 1, 39, c2); P.p(x + 1, 41, c2); }
+        else if (ex === 'shock') { P.r(x, 35, 5, 5, on); P.r(x + 1, 36, 3, 3, '#1a1622'); }
+        else P.r(x, 36, 4, 3, on);
+      };
+      eye(31); eye(46);
+      const my = 47;
+      if (st.mouth) for (let x = 33; x < 52; x += 2) P.p(x, my + ((x + st.mouth) % 4 < 2 ? 0 : 1), c2);
+      else if (ex === 'smile') for (let x = 33; x < 52; x += 2) P.p(x, my + (x > 36 && x < 49 ? 1 : 0), c2);
+      else if (ex === 'sad' || ex === 'angry') for (let x = 33; x < 52; x += 2) P.p(x, my + (x > 36 && x < 49 ? 0 : 1), c2);
+      else for (let x = 33; x < 52; x += 2) P.p(x, my, c2);
+      // headphones over the hood
+      sculptBall(P, 20, 40, 5, 7, '#22222c'); sculptBall(P, 64, 40, 5, 7, '#22222c'); P.r(21, 16, 42, 3, '#22222c');
+    },
+    front(P, st) {
+      // the phone filming you: the screen shows a heart when you say yes
+      const y = st.react === 'accept' ? 58 : 62; P.r(52, y, 17, 25, '#1a1a22'); P.r(54, y + 2, 13, 19, '#3af0ff');
+      if (st.react === 'accept') { P.r(57, y + 8, 3, 3, '#ff3ad6'); P.r(61, y + 8, 3, 3, '#ff3ad6'); P.r(58, y + 11, 5, 2, '#ff3ad6'); P.p(60, y + 13, '#ff3ad6'); }
+      else { P.r(56, y + 4, 4, 4, '#ff3ad6'); P.r(60, y + 10, 4, 3, '#ffd23f'); P.r(55, y + 15, 7, 2, '#7bdc6a'); }
+      sculptCyl(P, 47, y + 9, 6, 13, '#c89c7a');
+    },
+    glow(g, t, st, ox, oy) { g.globalAlpha = 0.18; pxCircle(g, ox + 42, oy + 42, 16, '#ff3ad6'); g.globalAlpha = 1; },
+  },
+  fraud: {
+    react: { accept: 'smile', refuse: 'sad', report: 'shock' },
+    body(P) {
+      // a short-sleeved shirt, a loud tie, a claim form
+      sculptTorso(P, 42, 62, 42, 70, 34, '#e8eef4', { rim: '#9ab8ff' });
+      P.r(40, 62, 5, 26, '#ffd23f'); for (let y = 64; y < 88; y += 4) P.r(40, y, 5, 1, '#d23c3c'); P.r(39, 62, 7, 3, '#e8b820');
+      sculptCyl(P, 37, 53, 10, 10, '#d8a888', 0.5);
+      P.r(36, 61, 13, 2, '#f2f6fa');
+    },
+    head(P, st) {
+      humanHead(P, { cx: 42, cy: 38, rx: 14, ry: 16, skin: '#f0c8a8', eyeY: 37, gap: 6, mouthY: 47, brow: '#6a5a4a', rim: '#cfe0ff', blush: '#e88a8a' }, st);
+      // thinning hair, combed across with care
+      sculptBall(P, 42, 25, 13, 6, '#7a6a58', { clip: (x, y) => y < 27 }); for (let x = 30; x < 52; x += 3) P.p(x, 22 + (x % 2), '#5a4a3a');
+      // round glasses
+      for (const x of [36, 47]) { P.r(x - 3, 35, 7, 1, '#4a4a52'); P.r(x - 3, 40, 7, 1, '#4a4a52'); P.p(x - 3, 37, '#4a4a52'); P.p(x + 3, 37, '#4a4a52'); }
+      P.r(39, 36, 6, 1, '#4a4a52');
+      // a bead of sweat when things go wrong
+      if (st.expr === 'sad' || st.expr === 'shock') { P.p(55, 30, '#9fd0f0'); P.p(55, 31, '#9fd0f0'); P.p(56, 32, '#e8f6ff'); }
+    },
+    front(P, st) { const y = st.react === 'accept' ? 66 : 70; P.r(54, y, 22, 22, '#c8a878'); P.r(56, y + 3, 18, 17, '#f2efe6'); P.r(58, y + 5, 12, 1, '#3a3a40'); P.r(58, y + 8, 9, 1, '#3a3a40'); P.r(58, y + 12, 11, 1, '#d23c3c'); sculptCyl(P, 49, y + 8, 6, 12, '#f0c8a8'); },
+  },
+};
+// ---------- the rest of the envoys ----------
+const chinShadow = (P, cx = 42, y = 56) => { P.g.globalAlpha = 0.28; P.ell(cx + 1, y, 10, 3, '#000000'); P.g.globalAlpha = 1; };
+Object.assign(RIGS, {
+  lumen: {
+    react: { accept: 'smile', refuse: 'sad', report: 'angry' },
+    body(P) {
+      // a mantle of woven glass thread, beaded at the hem
+      sculptTorso(P, 42, 60, 44, 78, 36, '#6a7aa8', { rim: '#7fe8ff' });
+      for (let x = 10; x < 76; x += 4) for (let y = 66; y < 96; y += 6) P.p(x + (y % 12 ? 2 : 0), y, '#5ab8c8');
+      for (let x = 14; x < 72; x += 6) { P.p(x, 64, KIN_HOT); P.p(x + 1, 64, '#7fe8ff'); }
+      sculptCyl(P, 38, 46, 9, 16, '#33306a', 0.4); chinShadow(P, 42, 54);
+      P.line(39, 50, 42, 60, '#7fe8ff'); P.line(46, 50, 44, 60, '#5ab8c8');
+    },
+    head(P, st) {
+      const cx = 42, cy = 30, skin = '#33306a', ex = st.expr;
+      sculptBall(P, cx, cy, 11, 18, skin, { rim: '#7fe8ff' });
+      // the crown is part of them: crystal growths, brighter when they are moved
+      const lit = ex === 'smile' ? KIN_HOT : ex === 'sad' ? '#3a7a8a' : '#7fe8ff';
+      for (const [dx, h] of [[-8, 7], [-4, 11], [0, 14], [4, 11], [8, 7]]) { P.r(cx + dx - 1, cy - 16 - h + 6, 3, h, lit); P.r(cx + dx, cy - 16 - h + 6, 1, h, '#ffffff'); }
+      // eyes are lamps: their shape is the expression
+      const ey = cy + 1, eyeCol = ex === 'angry' ? '#b8f4ff' : '#e8ffff';
+      for (const x of [cx - 5, cx + 3]) {
+        if (st.blink) { P.r(x, ey + 1, 4, 1, '#5ab8c8'); continue; }
+        if (ex === 'smile') { P.p(x, ey + 1, eyeCol); P.r(x + 1, ey, 2, 1, eyeCol); P.p(x + 3, ey + 1, eyeCol); }
+        else if (ex === 'sad') { P.r(x, ey + 1, 4, 1, '#7fc8d8'); P.p(x + (x < cx ? 3 : 0), ey, '#7fc8d8'); }
+        else if (ex === 'angry') { P.r(x, ey + 1, 4, 1, eyeCol); P.p(x + (x < cx ? 3 : 0), ey + 2, eyeCol); }
+        else if (ex === 'shock') { P.r(x, ey - 1, 4, 3, eyeCol); }
+        else P.r(x, ey, 4, 2, eyeCol);
+      }
+      // veins of light on the cheeks, a slight ridge for a nose, a thin mouth
+      P.line(cx - 8, cy + 5, cx - 5, cy + 12, '#7fe8ff'); P.line(cx + 8, cy + 5, cx + 6, cy + 11, '#5ab8c8');
+      P.r(cx, cy + 4, 1, 4, shade(skin, -0.3));
+      const my = cy + 11, mc = shade(skin, -0.45);
+      if (st.mouth) P.r(cx - 2, my, 4 + st.mouth, st.mouth, '#0e0c20'); else if (ex === 'smile') { P.r(cx - 2, my, 5, 1, mc); P.p(cx - 3, my - 1, mc); P.p(cx + 3, my - 1, mc); } else if (ex === 'sad' || ex === 'angry') { P.r(cx - 2, my, 5, 1, mc); P.p(cx - 3, my + 1, mc); P.p(cx + 3, my + 1, mc); } else P.r(cx - 2, my, 5, 1, mc);
+    },
+    front(P, st) {
+      const y = st.react === 'accept' ? 62 : 66, lamp = st.react === 'refuse' || st.react === 'report' ? '#3a6a7a' : st.react === 'accept' ? '#ffffff' : '#7fe8ff';
+      P.r(62, y - 6, 1, 7, '#8a7a6a'); P.r(58, y, 9, 11, '#3a3a4a'); P.r(60, y + 2, 5, 7, lamp); P.r(61, y + 3, 3, 4, KIN_HOT); sculptBall(P, 56, y + 9, 4, 3, '#33306a');
+    },
+    glow(g, t, st, ox, oy) { g.globalAlpha = st.react === 'refuse' ? 0.08 : 0.25 + 0.08 * Math.sin(t * 2); pxCircle(g, ox + 62, oy + 70, 12, '#7fe8ff'); pxCircle(g, ox + 42, oy + 14, 10, '#7fe8ff'); g.globalAlpha = 1; },
+  },
+  abandoned: {
+    react: { accept: 'smile', refuse: 'sad', report: 'angry' },
+    body(P) {
+      // a faded company cardigan over a navy blouse, three Employee of the Month pins
+      sculptTorso(P, 42, 62, 44, 72, 34, '#3a4a5c');
+      sculptTorso(P, 42, 62, 44, 72, 34, '#b89a4a', { clip: (x, y) => Math.abs(x - 42) > 6 + (y - 62) * 0.15, rim: '#ffe8a0' });
+      for (const [x, y] of [[26, 70], [29, 73], [32, 70]]) { P.r(x, y, 3, 3, '#ffd23f'); P.p(x + 1, y + 1, '#ffffff'); }
+      sculptCyl(P, 37, 52, 10, 11, '#d8b08c', 0.45); chinShadow(P);
+      // reading glasses hang on a chain
+      P.line(32, 56, 38, 66, '#c8a040'); P.line(52, 56, 46, 66, '#c8a040');
+    },
+    head(P, st) {
+      // a grey bob first, so the face sits inside it
+      sculptBall(P, 42, 34, 18, 17, '#a8a8aa', { rim: '#e8eef4', clip: (x, y) => y < 49 });
+      humanHead(P, { cx: 42, cy: 38, rx: 13, ry: 15, skin: '#e8c0a0', eyeY: 37, gap: 6, mouthY: 47, brow: '#8a8a8c', iris: '#3a5a7a', blush: '#e88a8a' }, st);
+      sculptBall(P, 42, 25, 15, 7, '#b8b8ba', { clip: (x, y) => y < 28 });
+      const sk = toneRamp('#e8c0a0'); P.p(31, 39, sk[1]); P.p(31, 41, sk[1]); P.p(52, 39, sk[0]); P.p(52, 41, sk[0]); P.r(37, 51, 9, 1, sk[1]);
+    },
+    front(P, st) { const y = st.react === 'accept' ? 68 : 72; P.r(52, y, 20, 24, '#7a5a3a'); P.r(54, y + 3, 16, 19, '#f2efe6'); P.r(58, y, 8, 3, '#9aa3ad'); P.r(56, y + 6, 11, 1, '#3a3a40'); P.r(56, y + 9, 8, 1, '#3a3a40'); P.r(56, y + 13, 10, 1, '#c8a040'); sculptCyl(P, 47, y + 8, 6, 12, '#e8c0a0'); },
+  },
+  haulers: {
+    react: { accept: 'smile', refuse: 'angry', report: 'angry' },
+    body(P) {
+      // a high-collared leather coat over a teal undershirt
+      sculptTorso(P, 42, 60, 46, 78, 36, '#5a3a2a', { rim: '#3ab8a0' });
+      P.r(36, 62, 12, 34, '#2a8a78'); P.line(36, 62, 30, 95, '#3a2418'); P.line(48, 62, 54, 95, '#3a2418');
+      sculptBall(P, 30, 60, 6, 6, '#6a4a32', { clip: (x, y) => y > 56 }); sculptBall(P, 54, 60, 6, 6, '#4a2a1e', { clip: (x, y) => y > 56 });
+      sculptCyl(P, 37, 52, 10, 10, '#7a4e34', 0.5); chinShadow(P);
+      P.r(26, 76, 8, 2, '#c8a040'); P.r(27, 78, 6, 4, '#8a6a30');
+    },
+    head(P, st) {
+      humanHead(P, { cx: 42, cy: 38, rx: 13, ry: 16, skin: '#8a5a3c', eyeY: 37, gap: 6, mouthY: 47, brow: '#1a1210', iris: '#3a2a1a' }, st);
+      // a teal bandana, knotted at the back, a scar and a gold earring
+      sculptBall(P, 42, 26, 15, 8, '#2a9a86', { clip: (x, y) => y < 30 }); P.r(27, 28, 31, 2, '#1e7a6a'); sculptBall(P, 58, 30, 3, 4, '#2a9a86');
+      P.line(48, 34, 52, 44, '#b87a5a'); P.p(55, 44, '#ffd23f');
+      if (st.expr === 'smile' && !st.mouth) P.p(43, 47, '#ffd23f');
+    },
+    glow(g, t, st, ox, oy) { if (st.react === 'accept') { g.globalAlpha = 0.6; px(g, ox + 43, oy + 47, 1, 1, '#fff6c8'); g.globalAlpha = 1; } },
+  },
+  precursors: {
+    react: { accept: 'smile', refuse: 'sad', report: 'angry' },
+    body(P) {
+      // a robe of stone plates that do not quite touch
+      for (const [x, y, w, h] of [[12, 70, 18, 26], [30, 66, 24, 30], [54, 70, 18, 26], [24, 60, 36, 8]]) sculptTorso(P, x + w / 2, y, w, w, h, '#4a5658', { fall: 0.3, rim: '#ff5ad1' });
+      for (let k = 0; k < 6; k++) P.p(18 + k * 9, 76 + (k % 2) * 6, PRE_GLOW);
+    },
+    head(P, st) {
+      const cx = 42, cy = 34, ex = st.expr;
+      sculptBall(P, cx, cy, 15, 22, '#56625f', { rim: '#ff9ae8' }); P.r(cx - 7, cy - 22, 14, 3, '#6a7674');
+      // three eyes of light; their shape is the mood
+      const bright = ex === 'angry' ? '#ff4d8d' : ex === 'sad' ? '#a85a98' : PRE_GLOW;
+      for (const [x, y] of [[cx - 6, cy], [cx + 6, cy], [cx, cy - 9]]) {
+        sculptBall(P, x, y, 3.4, 2.6, '#1a1e20');
+        if (st.blink) { P.r(x - 2, y, 5, 1, bright); continue; }
+        if (ex === 'smile') { P.p(x - 2, y + 1, bright); P.r(x - 1, y, 3, 1, bright); P.p(x + 2, y + 1, bright); }
+        else if (ex === 'angry') { P.r(x - 2, y, 5, 1, bright); P.p(x, y - 1, '#ffffff'); }
+        else if (ex === 'shock') { P.r(x - 2, y - 1, 5, 3, bright); P.p(x, y, '#ffffff'); }
+        else { P.r(x - 2, y, 5, 1, bright); P.p(x, y, PRE_HOT); }
+      }
+      // where a mouth would be: carved lines that light up as it speaks
+      for (let k = 0; k < 4; k++) P.r(cx - 6, cy + 9 + k * 3, 12, 1, st.mouth && (k + st.mouth) % 2 ? bright : '#3e4a4c');
+    },
+    glow(g, t, st, ox, oy) {
+      for (let k = 0; k < 7; k++) { const a = t * 0.8 + k / 7 * 6.283, r = 30; g.globalAlpha = 0.7; px(g, ox + Math.round(42 + Math.cos(a) * r), oy + Math.round(40 + Math.sin(a) * r * 0.5), 2, 2, k % 2 ? PRE_GLOW : '#8a929a'); }
+      g.globalAlpha = 0.2; pxCircle(g, ox + 42, oy + 30, 18, st.expr === 'angry' ? '#ff4d8d' : PRE_GLOW); g.globalAlpha = 1;
+    },
+  },
+  kindly: {
+    react: { accept: 'smile', refuse: 'angry', report: 'smile' },
+    body(P) {
+      // Kindly tactical: navy jacket, yellow piping, shoulder plates, a badge
+      sculptTorso(P, 42, 60, 48, 78, 36, '#1d2433', { rim: '#ffd23f' });
+      P.r(10, 70, 64, 2, '#ffd23f'); sculptBall(P, 20, 64, 9, 6, '#2a3348'); sculptBall(P, 64, 64, 9, 6, '#232a3c');
+      P.r(26, 76, 7, 8, '#ffd23f'); P.r(27, 77, 5, 2, '#1a1a22'); P.r(28, 80, 3, 3, '#1a1a22');
+      sculptCyl(P, 37, 52, 10, 10, '#b88466', 0.45); chinShadow(P); P.r(36, 60, 12, 3, '#1d2433');
+    },
+    head(P, st) {
+      humanHead(P, { cx: 42, cy: 38, rx: 13, ry: 16, skin: '#c89070', eyeY: 37, gap: 6, mouthY: 47, brow: '#1a1210', iris: '#3a2a1a' }, st);
+      // close-cropped hair, a headset with a mic
+      sculptBall(P, 42, 26, 14, 7, '#1a1416', { clip: (x, y) => y < 29 || x < 30 });
+      P.r(27, 26, 2, 14, '#2a2e36'); sculptBall(P, 28, 40, 3, 4, '#2a2e36'); P.line(29, 43, 36, 48, '#2a2e36'); P.p(36, 48, '#ffd23f');
+    },
+    glow(g, t, st, ox, oy) { if (Math.floor(t * 2) % 2) px(g, ox + 28, oy + 37, 1, 1, '#4fe0a6'); },
+  },
+  church: {
+    react: { accept: 'smile', refuse: 'smile', report: 'smile' },
+    body(P) {
+      // a black-and-gold vestment over an executive's shirt and tie
+      sculptTorso(P, 42, 60, 50, 80, 36, '#1a1218', { rim: '#ffd23f' });
+      P.r(36, 62, 12, 34, '#e8e4dc'); P.r(41, 62, 3, 34, '#7a1a2a'); P.r(40, 62, 5, 2, '#5a1220');
+      for (let y = 62; y < 96; y++) { P.p(34 - Math.round((y - 62) * 0.3), y, '#c8a040'); P.p(50 + Math.round((y - 62) * 0.3), y, '#c8a040'); }
+      for (const [x, y] of [[24, 74], [60, 74]]) { P.r(x - 2, y, 5, 5, '#c8a040'); P.p(x, y + 2, '#1a1218'); }
+      sculptTorso(P, 42, 46, 38, 54, 16, '#3a1424', { rim: '#8a5a30' }); sculptCyl(P, 37, 50, 10, 12, '#e0d4c8', 0.4); chinShadow(P);
+    },
+    head(P, st) {
+      // a deep hood; inside it a pleasant face with a smile a little too wide
+      sculptBall(P, 42, 34, 20, 24, '#3a1424', { rim: '#8a5a30', clip: (x, y) => y < 54 }); for (let k = 0; k < 6; k++) P.r(42 - k, 8 + k, 1 + k * 2, 1, shade('#3a1424', 0.1 - k * 0.03));
+      humanHead(P, { cx: 42, cy: 39, rx: 12, ry: 15, skin: '#e8dcd0', eyeY: 38, gap: 6, mouthY: 47, brow: '#6a5a50', iris: '#c8a040', lid: false }, st);
+      if (st.expr === 'smile' && !st.mouth) { P.p(36, 46, shade('#e8dcd0', -0.4)); P.p(48, 46, shade('#e8dcd0', -0.4)); }
+      P.g.globalAlpha = 0.5; P.ell(42, 26, 14, 6, '#1a1016'); P.g.globalAlpha = 1;
+    },
+    front(P, st) { const y = st.react ? 70 : 72; P.r(52, y, 20, 24, '#3a1a20'); P.r(53, y + 1, 18, 22, '#5a2a30'); P.r(56, y + 4, 12, 1, '#c8a040'); P.r(56, y + 8, 10, 1, '#c8a040'); P.r(61, y + 12, 3, 6, '#c8a040'); P.r(59, y + 14, 7, 1, '#c8a040'); sculptCyl(P, 47, y + 8, 6, 12, '#e0d4c8'); },
+    glow(g, t, st, ox, oy) { const f = 0.16 + 0.05 * Math.sin(t * 9) + 0.03 * Math.sin(t * 23); g.globalAlpha = f; pxCircle(g, ox + 62, oy + 80, 10, '#ffb040'); g.globalAlpha = 1; for (const x of [38, 47]) { g.globalAlpha = 0.35; px(g, ox + x - 1, oy + 38, 2, 1, '#ffd23f'); } g.globalAlpha = 1; },
+  },
+});
+// the first rigs get the same soft shadow under the chin
+{
+  for (const f of ['union', 'rival', 'fraud']) { const b = RIGS[f].body; RIGS[f].body = P => { b(P); chinShadow(P); }; }
+}
+// ---------- driving the rig ----------
+const RIG_CACHE = new Map();
+function rigLayer(key, draw) {
+  if (RIG_CACHE.has(key)) return RIG_CACHE.get(key);
+  const P = painter(RIG_W, RIG_H); draw(P); postProcess(P.c, { shadeIt: false });
+  RIG_CACHE.set(key, P.c); return P.c;
+}
+// what the face is doing right now: breathing, blinking, talking, or reacting to your answer
+function rigState(R, t, E) {
+  const st = { expr: 'neutral', blink: (t + 1.3) % 3.7 < 0.13, mouth: 0, look: 0, hx: 0, hy: 0, bob: Math.sin(t * 1.7) > 0.35 ? 1 : 0, react: null };
+  if (S.envoyTalking) { st.mouth = [0, 1, 2, 1][Math.floor(t * 9) % 4]; st.hx = Math.round(Math.sin(t * 2.1) * 0.7); }
+  if (E && E.react) {
+    const dt = t - E.react.t0, kind = E.react.kind; st.react = kind;
+    st.expr = (R.react && R.react[kind]) || ({ accept: 'smile', refuse: 'sad', report: 'angry' })[kind];
+    if (kind === 'report' && dt < 0.7) st.expr = 'shock';
+    if (kind === 'accept' && dt < 0.9) st.hy = Math.round(Math.abs(Math.sin(dt * 9)) * 1.6);
+    if (kind === 'refuse' && dt < 0.8) st.hx = Math.round(Math.sin(dt * 16) * 1.6);
+    if (kind === 'refuse' && dt >= 0.8) st.look = -1;
+    if (kind === 'report' && dt < 0.25) st.hy = -1;
+  }
+  st.key = `${st.expr}|${st.blink ? 1 : 0}|${st.mouth}|${st.look}|${st.react || ''}`;
+  return st;
+}
+// the lit portrait for this frame; earlier beats keep the envoy half in shadow
+let RIG_WORK = null;
+function envoyPortrait(fac, t, beat) {
+  const R = RIGS[fac], E = S.envoy, st = rigState(R, t, E);
+  const body = rigLayer(fac + '|body', P => R.body(P));
+  const head = rigLayer(fac + '|head|' + st.key, P => R.head(P, st));
+  const front = R.front ? rigLayer(fac + '|front|' + (st.react || ''), P => R.front(P, st)) : null;
+  const c = RIG_WORK || (RIG_WORK = mkCanvas(RIG_W, RIG_H)), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, RIG_W, RIG_H);
+  g.drawImage(body, 0, st.bob); g.drawImage(head, st.hx, st.hy + st.bob); if (front) g.drawImage(front, 0, st.bob);
+  if (R.glow) R.glow(g, t, st, st.hx, st.hy + st.bob);
+  if (ARCS[fac] && ARCS[fac].oneOff) beat = 2;
+  const dark = [[0.12, 0.66], [0.04, 0.38], [0, 0]][clamp(beat, 0, 2)];
+  if (dark[1] > 0) { g.globalCompositeOperation = 'source-atop'; const gr = g.createLinearGradient(0, 0, RIG_W, 0); gr.addColorStop(0, `rgba(6,4,10,${dark[0]})`); gr.addColorStop(1, `rgba(6,4,10,${dark[1]})`); g.fillStyle = gr; g.fillRect(0, 0, RIG_W, RIG_H); g.globalCompositeOperation = 'source-over'; }
+  return c;
+}
+// reactions that play over the whole call: a warm shimmer, a cold dim, or the signal being cut
+function envoyReactionFx(g, t, E, col) {
+  if (!E || !E.react) return;
+  const dt = t - E.react.t0, k = E.react.kind;
+  if (k === 'accept' && dt < 1.6) for (let i = 0; i < 14; i++) { const a = i * 2.4 + dt * 2, r = 14 + dt * 30; g.globalAlpha = Math.max(0, 1 - dt / 1.6); px(g, Math.round(150 + Math.cos(a) * r), Math.round(56 + Math.sin(a) * r * 0.7), 1, 1, i % 2 ? col : '#ffffff'); }
+  if (k === 'refuse') { g.globalAlpha = Math.min(0.35, dt * 0.4); g.fillStyle = '#05060c'; g.fillRect(0, 0, 200, 112); }
+  if (k === 'report' && dt > 1.4) {
+    const n = Math.min(1, (dt - 1.4) / 0.8); g.globalAlpha = n;
+    for (let y = 0; y < 112; y += 2) for (let x = 0; x < 200; x += 2) if (rnd() < 0.5) px(g, x, y, 2, 1, rnd() < 0.5 ? '#2a2e38' : '#8a8e96');
+    g.globalAlpha = 1; g.fillStyle = '#05060c'; g.fillRect(52, 50, 96, 12); g.fillStyle = '#ff4d5e'; g.font = '8px monospace'; g.textAlign = 'center'; g.fillText('SIGNAL LOST', 100, 59);
+  }
+  g.globalAlpha = 1;
+}
+
 function drawEnvoyFrame(now) {
   const cvs = document.getElementById('envcv'); if (!cvs || !S.envoy) return;
   const g = cvs.getContext('2d'), t = (now - S.envoy.t0) / 1000;
   g.imageSmoothingEnabled = false;
   const A = ARCS[S.envoy.fac];
   (ENVOY_SCENES[A.scene] || { mine: sceneMine, penthouse: scenePenthouse, hive: sceneHive, alley: sceneAlley, boardroom: sceneBoardroom }[A.scene])(g, t);
-  const bust = envoyBust(S.envoy.fac, typeof S.envoy.beat === 'number' ? S.envoy.beat : Math.min(2, arcOf(S.envoy.fac).beat));
-  g.drawImage(bust.c, 112, 112 - bust.c.height);
-  // headlamp / shades glint through the shadow
-  for (const l of bust.glints) { const fl = 0.75 + 0.25 * Math.sin(t * 9 + l.x); g.globalAlpha = fl; px(g, 112 + l.x, 112 - bust.c.height + l.y, l.w || 1, l.h || 1, l.col); }
-  g.globalAlpha = 1;
+  const beatIdx = typeof S.envoy.beat === 'number' ? S.envoy.beat : Math.min(2, arcOf(S.envoy.fac).beat);
+  if (RIGS[S.envoy.fac]) { const pc = envoyPortrait(S.envoy.fac, t, beatIdx); g.drawImage(pc, 110, 112 - RIG_H); }
+  else {
+    const bust = envoyBust(S.envoy.fac, beatIdx);
+    g.drawImage(bust.c, 112, 112 - bust.c.height);
+    for (const l of bust.glints) { const fl = 0.75 + 0.25 * Math.sin(t * 9 + l.x); g.globalAlpha = fl; px(g, 112 + l.x, 112 - bust.c.height + l.y, l.w || 1, l.h || 1, l.col); }
+    g.globalAlpha = 1;
+  }
+  envoyReactionFx(g, t, S.envoy, A.col);
   // scanlines and a little signal noise
   g.fillStyle = 'rgba(0,0,0,0.18)'; for (let y = 0; y < 112; y += 2) g.fillRect(0, y, 200, 1);
   if (Math.sin(t * 1.7) > 0.97) { g.fillStyle = rgba(A.col, 0.35); g.fillRect(0, (t * 300) % 112, 200, 2); }
@@ -8111,7 +8536,7 @@ Object.assign(ART_EXTRA, {
   dais: f => { const P = painter(22, 12), b = [0, -1, 0, 1][f % 4]; P.ell(11, 6 + b, 10, 3, '#56625f'); P.ell(11, 5 + b, 8, 2, '#6a7674'); for (let x = 4; x < 19; x += 3) P.p(x, 6 + b, PRE_GLOW); P.r(6, 10, 10, 1, 'rgba(255,90,209,0.4)'); postProcess(P.c); return { c: P.c, ax: 11, ay: 10 }; },
 });
 
-window.__AL = { planetScene, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
