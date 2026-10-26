@@ -3708,8 +3708,8 @@ function spawnEnemy(q) {
   } else {
     if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
     if (c.facKey === 'lumen') e.spd *= 1 + 0.3 * clamp(M.t / M.T, 0, 1);
-    if (c.facKey === 'haulers') e.cost *= 1.5;
-    if (c.facKey === 'precursors' && q.tier >= 1 && !e.jamAura) e.jamAura = { r: 1.8, amt: 0.25 };
+    if (c.facKey === 'haulers') e.cost *= 1.3;
+    if (c.facKey === 'precursors' && q.tier >= 1 && !e.jamAura) e.jamAura = { r: 1.8, amt: 0.2 };
     if (has('doxx') && q.tier === 2) { e.vulnT = 1e9; e.vulnAmt = 0.15; }
     rollAffix(e, q, c.idx);
     // a faction that likes you loses a few of its people to conscience on the way in
@@ -7712,8 +7712,8 @@ FACTIONS.abandoned = {
 };
 FACTIONS.haulers = {
   name: 'The Free Haulers Guild', short: 'Free Haulers', color: '#3ab8a0',
-  trait: 'Smugglers. Their boats and gunships come far more often, and anything of theirs that reaches the drill steals 50% more.',
-  cats: { swarm: 3, fast: 2, naval: 3, gunship: 2.4, ranged: 1.6, armored: 1.4, stealth: 1.2, saboteur: 1.2, berserk: 1.2, carrier: 1, flyer: 1 },
+  trait: 'Smugglers. Their boats and gunships come far more often, and anything of theirs that reaches the drill steals 30% more.',
+  cats: { swarm: 3, fast: 2, naval: 2.2, gunship: 1.8, ranged: 1.6, armored: 1.4, stealth: 1.2, saboteur: 1.2, berserk: 1.2, carrier: 1, flyer: 1 },
   names: { swarm: 'Deckhand', fast: 'Runner', armored: 'Hauler Crawler', flyer: 'Smuggler Drone', saboteur: 'Cutter', medic: "Ship's Surgeon", shield: 'Bulkhead', splitter: 'Boarding Party', stealth: 'Stowaway', jammer: 'Signal Pirate', ranged: 'Harpooner', carrier: 'Quartermaster', blinker: 'Jump Jockey', berserk: 'Brawler', burrower: 'Hull Breacher', gunship: 'Corsair Gunship', naval: 'Hauler Barge' },
   bosses: [
     { id: 'captain', name: 'Captain Rook Halloran', hp: 2700, spd: 0.44, armor: 6, r: 22, charge: { every: 7, dur: 1.4, mult: 2.6 }, barrage: { every: 6, n: 2, dmg: 24, range: 4 }, desc: 'The Guild\'s most wanted. Charges the line and shoots two crew every 6s.' },
@@ -7729,7 +7729,7 @@ FACTIONS.haulers = {
 };
 FACTIONS.precursors = {
   name: 'The Precursor Archive', short: 'Precursors', color: '#ff5ad1',
-  trait: 'Psychic constructs. Their veterans and elites dull your crew: crew within 1.8 tiles of one fire 25% slower.',
+  trait: 'Psychic constructs. Their veterans and elites dull your crew: crew within 1.8 tiles of one fire 20% slower.',
   cats: { swarm: 3.5, fast: 2, armored: 1.8, flyer: 1.6, shield: 1.4, blinker: 1.6, jammer: 1.4, stealth: 1.2, splitter: 1.2, medic: 1, carrier: 1, burrower: 1 },
   names: { swarm: 'Shard Wisp', fast: 'Glyph Hound', armored: 'Monolith Walker', flyer: 'Watcher Eye', saboteur: 'Unraveller', medic: 'Restorer', shield: 'Aegis Obelisk', splitter: 'Fractal', stealth: 'Veilwalker', jammer: 'Whisper Spire', ranged: 'Beam Sentinel', carrier: 'Sarcophagus', blinker: 'Phase Shade', berserk: 'Fury Glyph', burrower: 'Tomb Wyrm', gunship: 'Sky Ark', naval: 'Psi Barge' },
   bosses: [

@@ -233,13 +233,72 @@ Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parac
 
 The auto-play bot does not use artifacts.
 
+## Factions
+Eight factions. Every one fields its own version of all 17 hostile kinds, with its own sprite and name. Each faction's identity comes from its spawn weights (the kinds it didn't field before come in at a low 0.5) and its own trait.
+
+| Faction | Act | Envoy | Trait |
+|---|---|---|---|
+| Free Miners' Union | 1 | Old Dot | Numbers and pickets |
+| Activists | 1 | Glitch | Crowds, cameras and vans |
+| Local Wildlife | 1 | WREN-7 | Swarms, broods and flyers |
+| **Lumen Kin** | 1 | Sefa Ninelights | The drill drains their villages, so they get up to 30% faster as extraction runs. Their maps have glass huts and lantern posts whose light fades as the seam drains. |
+| VectorCorp | 2 | Mr. Sable | Hardware and lawyers |
+| **The Abandoned** | 2 | Marguerite Vance | Ex-Kindly staff. Elites wear +3 salvaged armour and carry the names of crew you lost, in this run and earlier ones (stored across runs). |
+| **Free Haulers** | 2 | Bex Ironwake (bribes) | Smugglers: boats and gunships are common, and anything that reaches the drill steals 30% more |
+| **Precursors** | 2 | The Archivist | Psychic constructs: veterans and elites slow crew within 1.8 tiles by 20% |
+
+- **The Lumen Kin** are an alien people, deliberately not a real-world stereotype. They are tall and indigo, lit by crystal veins, with crowns of natural crystal growth, woven glass-thread robes, lanterns, glass shields, kites and long-legged striders.
+  - **Arc:** Dimming, Promise, Relighting.
+  - **Rewards:** the Kin Lantern relic (crew regenerate), Ilo Threefold (a Lightborn marksman) and the Relighting (on the final contract, the drill pulses light that stuns hostiles and heals crew).
+- **The Abandoned arc:** Severance, References, Walkout.
+  - **Rewards:** the Exit Package relic (replacement hires cost 40% less), Dee Okafor (a Tenured taser technician) and the Colony Marches (allied ex-employees on the final contract).
+- **The Free Haulers arc:** Cargo, Contraband, Free Port. They pay you.
+  - **Rewards:** the black market, a free artifact and Guild broadsides on the final contract.
+- **The Precursors arc:** Sleepers, Archive, Waking.
+  - **Rewards:** the Glyph of Patience relic (+20% XP), the Archive's Memory relic (+20% damage to bosses and elites) and the drill's precursor beam on the final contract.
+- **The rest of each new faction:** each has 3 bosses plus an Act 2 apex boss, 2 artifacts, a news channel for the desk, planet scenes, a rescue and an ending.
+- **Art plugs in through registries:** units, bosses, envoy portraits and backdrops, obstacles, map dressing and artifact sprites (`FAC_ART`, `BOSS_ART`, `ENVOY_ART`, `ENVOY_SCENES`, `OBST_EXTRA`, `FACTION_MAP`, `ART_EXTRA`).
+
+## Faction standing
+Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on contract cards, envoy screens, the desk feed and act transitions (`shiftStanding`).
+
+| What you do | Change |
+|---|---|
+| Honour a deal | +1 |
+| Report the envoy | −2 |
+| Betray a deal | −2 |
+| Break a deal by accident | −1 |
+| Kill their boss | −1 |
+| Refuse a truce | −1 |
+
+- **Below zero:** their fighters get tougher, +8% HP per point.
+- **At +2:** their waves are 10% smaller per point above 1, and up to 10% of their fighters defect mid-wave and fight for you.
+- **At +3:** they send a squad of allies on contracts against other factions.
+- **Relationships keep developing after a betrayal:**
+  - **Truce:** at Hostile or worse, their envoy can return with a Reparations offer: pay in margin, and standing resets to Neutral and the arc resumes.
+  - **Favour:** a Friendly faction can offer one on someone else's contract: a free squad of their fighters.
+  - **Openers:** every envoy opens with a line that fits your standing, from "Don't hang up" to "Every village on the seam knows your name".
+
+## Architecture
+- **Bespoke buildings:** each biome has its own design, and the rooftops stay walkable (`ARCH`).
+  - Polar research stations with red safety borders, portholes and an airlock.
+  - Glass greenhouses under purple grow-lights.
+  - Adobe with crenellations, arches and striped awnings.
+  - Linked habitat pods.
+  - Neon city blocks with water tanks and lit window grids.
+  - Eco terraces with green roofs, solar rows and timber.
+  - Riveted forge halls with furnace windows.
+  - Marble sky villas with gold trim.
+  - Precursor temples with glyph inlays.
+- **Planned layouts:** buildings come in a row of 2–3 matching buildings at even spacing, sometimes facing a second row across a two-tile street. The drill sits on a paved plaza, every building has a paved front yard, and street lamps stand at even intervals along every road, all on one side. There are fewer random props.
+
 ## Acts
 Each sector is an act, with its own cast and its own light (`ACTS`).
 
 | Act | Name | Factions | Look |
 |---|---|---|---|
-| 1 (Sector 1) | Onboarding: local grievances | Union, Activists, Wildlife (Lumen Kin to come) | Bright daylight |
-| 2 (Sector 2) | Restructuring: competition and fallout | VectorCorp (the Abandoned, Free Haulers and Precursors to come) | Dusk and smog: warm skies over purple shadow, drifting smog, rusting abandoned Kindly rigs on the map and in scenes, a red nebula on the star map, a flickering lamp on the desk |
+| 1 (Sector 1) | Onboarding: local grievances | Union, Activists, Wildlife, Lumen Kin | Bright daylight |
+| 2 (Sector 2) | Restructuring: competition and fallout | VectorCorp, the Abandoned, Free Haulers, Precursors | Dusk and smog: warm skies over purple shadow, drifting smog, rusting abandoned Kindly rigs on the map and in scenes, a red nebula on the star map, a flickering lamp on the desk |
 | 3 (planned) | The Endless Quarter: reckoning | Kindly Asset Protection, the Church of the Eternal Quarter | Corporate night (palette defined, not yet used) |
 
 - **Unlocking:** a faction first appears when its act arrives. VectorCorp no longer shows up in Act 1.
@@ -304,6 +363,7 @@ Difficulty is tuned to rise through the run rather than flatten out as your crew
 - `spawnEnemy`: HP scaling `(1 + 0.2*idx + 0.026*idx²)`
 - Sector 1 bosses have 82% HP and Sector 2 bosses full HP. Understudies have `25% × (1 + 0.2*idx)`. Naval craft arrive from contract 4, and the nastier behaviours ramp in from contract 3. Sector 2 difficulty uses `diffLevel = 4 + (idx - 4) * 0.56`.
 - `startMission`: starting budget `120 + 12*idx`
+- With all eight factions, standing and the new architecture, the bot clears Sector 1 in 29% of runs and finishes both sectors in 9% (90 runs). It ignores favours, allies and artifacts.
 - After line of sight and the retune, the auto-play bot (line-of-sight-aware greedy placement, no artifacts, default targeting) clears Sector 1 in 29% of runs and finishes both sectors in 13% (90 runs), up from 7% and 2%.
 - Before Sector 2, the bot won about 28% of runs, down from 67% before this pass (80 runs each). Average margin lost per contract:
   - Before: 11 / 21 / 26 / 15 / 5% (it got easier as crew levelled).
