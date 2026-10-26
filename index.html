@@ -357,7 +357,7 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .monitor{width:100%;background:#1c1e27;padding:12px 12px 20px;box-shadow:0 0 0 3px #0b0c12,0 0 70px rgba(120,160,255,.16);clip-path:var(--notch);position:relative}
 .monitor::after{content:'';position:absolute;left:50%;bottom:7px;width:8px;height:3px;margin-left:-4px;background:#4fe0a6;box-shadow:0 0 6px #4fe0a6}
 .glass{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:10px;background:#090b12;padding:10px;box-shadow:inset 0 0 40px rgba(0,0,0,.7)}
-.stand{width:90px;height:16px;background:linear-gradient(#2a2c36,#14151c);clip-path:polygon(18% 0,82% 0,100% 100%,0 100%)}
+.mstand{width:90px;height:16px;background:linear-gradient(#2a2c36,#14151c);clip-path:polygon(18% 0,82% 0,100% 100%,0 100%)}
 .win{--pad:14px;background:var(--panel);box-shadow:var(--frame);display:flex;flex-direction:column;min-width:0}
 .win .titlebar{margin:0}
 .win .wbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
@@ -437,6 +437,21 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .facrow .fac b{font-weight:400;font-size:14px}
 .facrow .fac span{font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.desktop .lamp::after{animation:none}}
+
+/* faction standing */
+.stand{display:inline-flex;align-items:center;gap:8px;color:var(--sc)}
+.stand b{font-weight:400;font-size:14px}
+.stand .pips{display:inline-flex;gap:2px}
+.stand .pips i{width:9px;height:9px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line-hi)}
+.stand .pips i.neg{box-shadow:inset 0 0 0 1px rgba(255,77,94,.45)}
+.stand .pips i.pos{box-shadow:inset 0 0 0 1px rgba(79,224,166,.45)}
+.stand .pips i.on{background:var(--sc);box-shadow:0 0 6px var(--sc)}
+.standrow{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px}
+.standrow>div{display:flex;align-items:center;gap:6px}
+.standrow>div>span{color:var(--muted)}
+.standrow em{font-style:normal;font:400 13px/1 var(--f-mono)}
+.standrow em.up{color:var(--ok)}.standrow em.down{color:var(--danger)}
+.deal.standing .stand{margin-top:2px}
 </style>
 
 <div id="app">
@@ -1692,6 +1707,12 @@ function enemyShot(e, tw, dmg, col) {
 }
 // per-step behaviour for the new hostile types, elite traits and boss mechanics
 function stepThreats(e, dt) {
+  if (e.defectAt && M.t >= e.defectAt && !e.dead && !e.inTunnel && !e.burrowed && e.path && e.wi > 0) {
+    e.gone = true; e.defectAt = null;
+    const a = newAlly('picket', e.v, e.path.slice(0, e.wi).concat([{ x: e.x, y: e.y }]), 110); a.col = M.c.fac.color; M.allies.push(a);
+    fxText(e.x, e.y - 20, 'DEFECTED', '#4fe0a6'); sparks(e.x, e.y - 8, '#4fe0a6', 6);
+    return;
+  }
   const hidden = e.inTunnel || e.burrowed;
   e.aimSlow = 1;
   if (e.shoot && !hidden && !(e.stunT > 0)) {
@@ -1808,7 +1829,7 @@ function makeVariant(facKey, cat) {
   if (cat === 'naval' || cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => (cat === 'naval' ? navalSprite : gunshipSprite)(facKey, col, f)));
   if (facKey === 'fauna') {
     const c = mixHex(col, pick(['#a8f06a', '#4fdc9a', '#d0e85a', '#6ad0c0']), rnd() * 0.5);
-    const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm, splitter: crSac, stealth: crLizard, medic: crNurse, ranged: crSpitter, burrower: crWyrm, berserk: crRavager }[cat];
+    const gen = { swarm: crBug, fast: crHound, armored: crBeetle, flyer: crJelly, saboteur: crWorm, splitter: crSac, stealth: crLizard, medic: crNurse, ranged: crSpitter, burrower: crWyrm, berserk: crRavager }[cat] || FAUNA_EXTRA[cat];
     return finishVariant('creature', [0, 1, 2, 3].map(f => gen(c, f)));
   }
   if (cat === 'armored') { const gen = { union: vehTreads, activists: vehVan, rival: vehWalker }[facKey], skin = pick(SKINS); return finishVariant('vehicle', (gen === vehWalker ? [0, 1, 2, 3] : [0, 1]).map(f => gen(col, skin, f))); }
@@ -2556,7 +2577,7 @@ function newRun() {
     history: [], factionCount: {}, parachuteUsed: false, story: newStory(), lastDowned: [], usedNames: used, kills: 0, lostTotal: 0,
     sectorName: SYL_A[ri(0, SYL_A.length - 1)] + SYL_B[ri(0, SYL_B.length - 1)] + ' Expanse',
   };
-  S.pendingDeal = null; S.pendingEcho = null; S.envoy = null;
+  S.pendingDeal = null; S.pendingEcho = null; S.envoy = null; S.pendingFavour = null;
   RUN.options = genOptions();
 }
 const pickQuirk = () => pick(Object.keys(QUIRKS).filter(k => !QUIRKS[k].special));
@@ -2651,7 +2672,7 @@ function actIntroHtml(act) {
   return `<div class="actintro">
     <div class="lbl">Act ${act} · ${esc(A.sub)}</div><h3>${esc(A.name)}</h3>
     ${fresh.length ? `<div class="facrow">${fresh.map(f => `<div class="fac new" style="--fc:${FACTIONS[f].color}">${icon(f)}<b>${esc(FACTIONS[f].name)}</b><span>New on the books</span></div>`).join('')}</div>` : ''}
-    ${back.length ? `<div class="facrow">${back.map(([f, r]) => `<div class="fac" style="--fc:${FACTIONS[f].color}">${icon(f)}<b>${esc(FACTIONS[f].short)}</b><span>${esc(r)}</span></div>`).join('')}</div>` : ''}
+    ${back.length ? `<div class="facrow">${back.map(([f, r]) => `<div class="fac" style="--fc:${FACTIONS[f].color}">${icon(f)}<b>${esc(FACTIONS[f].short)}</b><span>${esc(r)} · ${standingTier(f).name}</span></div>`).join('')}</div>` : ''}
   </div>`;
 }
 function genContract(idx, diff, boss, forceFac) {
@@ -3449,7 +3470,7 @@ function reassign(tw) {
 
 function genWave() {
   const m = M, c = m.c, idx = diffLevel(c.idx), prog = m.t / m.T;
-  let budget = (5 + idx * 2.7 + idx * idx * 0.26) * (1 + prog * 1.8) * c.mod;
+  let budget = (5 + idx * 2.7 + idx * idx * 0.26) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey);
   m.waveNum++;
   const vet = clamp(-0.04 + idx * 0.14 + prog * 0.3, 0, 0.68), eli = clamp(-0.2 + idx * 0.08 + prog * 0.16, 0, 0.34);
   const weights = { ...c.fac.cats };
@@ -3512,6 +3533,8 @@ function spawnEnemy(q) {
     if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
     if (has('doxx') && q.tier === 2) { e.vulnT = 1e9; e.vulnAmt = 0.15; }
     rollAffix(e, q, c.idx);
+    // a faction that likes you loses a few of its people to conscience on the way in
+    if (!e.fly && !e.naval && rnd() < defectChance(c.facKey)) e.defectAt = M.t + 3 + rnd() * 6;
   }
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e);
@@ -4719,7 +4742,7 @@ const ARCS = {
   },
 };
 const UNIT_NAMES = { couriers: 'Strike Courier', skim: 'Collections Drone', escort: 'Brood Sac', uplink: 'Hacker' };
-const newStory = () => ({ heat: 0, loyalty: 0, met: 0, arcs: {}, log: [], news: [], flags: {}, grudge: {} });
+const newStory = () => ({ heat: 0, loyalty: 0, met: 0, arcs: {}, log: [], news: [], flags: {}, grudge: {}, standing: {}, standLog: [] });
 function arcOf(fac) { const st = RUN.story; return st.arcs[fac] || (st.arcs[fac] = { beat: 0, state: 'open', refusals: 0, through: 0, planet: null }); }
 // can this faction's envoy approach you, and with which beat?
 function envoyBeat(fac, boss) {
@@ -4731,8 +4754,116 @@ function envoyBeat(fac, boss) {
   if (boss) return a.beat === 2 ? 2 : -1;
   return a.beat < 2 ? a.beat : -1;
 }
+// ================================================================
+// FACTION STANDING. Every faction has a standing with you from -3 (vendetta) to +3 (allied).
+// It moves with what you do, changes how their envoys speak to you and what they offer, and has
+// teeth in the field: friendly factions send smaller waves and some of their people defect
+// mid-fight, allies send help against other factions, hostile ones come back tougher.
+// ================================================================
+const STANDING_TIERS = [
+  { n: -3, name: 'Vendetta', col: '#ff2a3a', key: 'hostile' },
+  { n: -2, name: 'Hostile', col: '#ff4d5e', key: 'hostile' },
+  { n: -1, name: 'Wary', col: '#ff9a5a', key: 'wary' },
+  { n: 0, name: 'Neutral', col: '#9aa3ad', key: 'neutral' },
+  { n: 1, name: 'Cordial', col: '#9be564', key: 'friendly' },
+  { n: 2, name: 'Friendly', col: '#4fe0a6', key: 'friendly' },
+  { n: 3, name: 'Allied', col: '#3af0ff', key: 'allied' },
+];
+const standingOf = f => (RUN && RUN.story && RUN.story.standing && RUN.story.standing[f]) || 0;
+const standingTier = f => STANDING_TIERS[standingOf(f) + 3];
+function shiftStanding(f, d, why) {
+  if (!FACTIONS[f]) return 0;
+  const st = RUN.story; st.standing = st.standing || {};
+  const before = standingOf(f), after = clamp(before + d, -3, 3);
+  st.standing[f] = after;
+  // hostility makes their fighters tougher; any warmth wipes the grudge
+  if (after < 0) st.grudge[f] = 1 + 0.08 * -after; else delete st.grudge[f];
+  if (after !== before) (st.standLog = st.standLog || []).push({ f, d: after - before, why, idx: RUN.idx });
+  return after - before;
+}
+// seven pips from vendetta to allied, with the current one lit
+function standingHtml(f, label = true) {
+  const s = standingOf(f), T = standingTier(f);
+  return `<span class="stand" title="${esc(FACTIONS[f].short)}: ${T.name}" style="--sc:${T.col}">${label ? `<b>${T.name}</b>` : ''}<i class="pips">${STANDING_TIERS.map(t => `<i class="${t.n === s ? 'on' : ''}${t.n < 0 ? ' neg' : t.n > 0 ? ' pos' : ''}"></i>`).join('')}</i></span>`;
+}
+// in the field
+const standingWaveMult = f => { const s = standingOf(f); return s >= 2 ? 1 - 0.1 * (s - 1) : 1; };
+const defectChance = f => { const s = standingOf(f); return s >= 2 ? 0.05 * (s - 1) : 0; };
+function alliedHelper(contractFac) {
+  const friends = Object.keys(FACTIONS).filter(f => f !== contractFac && standingOf(f) >= 3);
+  return friends.length ? pick(friends) : null;
+}
+// how each faction's envoy greets you, by standing (neutral says nothing extra)
+const STANDING_LINES = {
+  union: {
+    hostile: x => `Don't hang up. I know what you did on ${x.lastPlanet}. I'm here anyway. That's what solidarity costs.`,
+    wary: x => `We're watching you, lanyard. Prove you're more than the badge.`,
+    friendly: x => `Kid! The lads still talk about ${x.lastPlanet}. Rafa made you a mug.`,
+    allied: x => `Local 404 stands with you. Say the word and the whole shaft walks out for you.`,
+  },
+  rival: {
+    hostile: x => `You cost VectorCorp a quarter. I admire that. My lawyers do not.`,
+    wary: x => `I'll keep this brief. Trust is a line item, and yours is in the red.`,
+    friendly: x => `My favourite insider. Your bonus is in the usual unmarked crate.`,
+    allied: x => `The board asks after you by name. That has never happened before. To anyone.`,
+  },
+  fauna: {
+    hostile: x => `[TRANSLATING] The Mother remembers the smell of ${x.lastPlanet}. She is choosing to talk anyway. Be grateful.`,
+    wary: x => `[TRANSLATING] The swarm circles. It has not decided what you are yet.`,
+    friendly: x => `[TRANSLATING] The hatchlings know your scent. They do not bite it. Much.`,
+    allied: x => `[TRANSLATING] The Mother calls you kin-of-the-nest. I have never translated that before.`,
+  },
+  activists: {
+    hostile: x => `Chat wanted me to block you. I'm streaming this instead. Say something redeemable.`,
+    wary: x => `Okay, you're on probation with the stream. Don't make it weird.`,
+    friendly: x => `Chat LOVES you. Someone made you fan art. It's mostly lanyard.`,
+    allied: x => `Two million people would riot for you. Gently. With snacks.`,
+  },
+};
+function standingOpener(fac, x) {
+  const T = standingTier(fac), L = STANDING_LINES[fac];
+  return L && L[T.key] ? L[T.key](x) : null;
+}
+// two offers that only exist because of standing: a truce after betrayal, and a favour between friends
+const SPECIAL_BEATS = {
+  truce: (fac, A) => {
+    const b0 = A.beats[0].ask;
+    return {
+      name: 'Reparations', special: 'truce', heat: 10,
+      ask: { ...b0, n: Math.max(2, b0.n - 1), each: Math.max(3, (b0.each || 0) + 2) },
+      reward: `Standing back to Neutral. The grudge is dropped and the ${FACTIONS[fac].short.toLowerCase()} stop sending their worst at you.`,
+      lines: x => [standingOpener(fac, x) || `It's ${A.envoy}. You know why I'm calling.`, A.truce || `There's a price for what happened. Pay it in crystals and we start again.`, `Refuse, and we stop calling. For good.`],
+      accept: `Fine. A clean slate. Don't make me regret it.`,
+      refuse: `Then we're done talking.`,
+      report: `Of course you did.`,
+    };
+  },
+  favour: (fac, A) => ({
+    name: 'A Favour', special: 'favour', heat: 6, free: true,
+    reward: `A squad of ${FACTIONS[fac].short.toLowerCase()} fights beside you on this contract. No strings. Well, one string.`,
+    lines: x => [standingOpener(fac, x) || `It's ${A.envoy}.`, A.favour || `You've been good to us. Let us return it.`, `We'll send people. They know which end of the drill to guard.`],
+    accept: `They're on their way.`,
+    refuse: `Suit yourself. The offer stands.`,
+    report: `...you reported a gift. HR must be so proud.`,
+  }),
+};
+function beatDef(fac, beat) { const A = ARCS[fac]; return typeof beat === 'number' ? A.beats[beat] : SPECIAL_BEATS[beat](fac, A); }
+const beatLabel = (A, beat) => typeof beat === 'number' ? (A.oneOff ? 'One-off' : `${BEAT_NAMES[beat]} ${beat + 1}/3`) : beat === 'truce' ? 'Truce offer' : 'Favour';
+// standing-only envoys: a truce from a faction that hates you, a favour from one that loves you
+function standingEnvoy(o) {
+  if (o.boss || o.idx < 1) return null;
+  const f = o.facKey, A = ARCS[f];
+  if (A && !A.oneOff) {
+    const a = arcOf(f);
+    if (standingOf(f) <= -2 && (a.truceAt == null || RUN.idx - a.truceAt >= 2) && rnd() < 0.5) return { fac: f, beat: 'truce' };
+  }
+  const friends = Object.keys(ARCS).filter(k => !ARCS[k].oneOff && k !== f && FACTIONS[k] && standingOf(k) >= 2 && arcOf(k).favourAt !== RUN.idx);
+  if (friends.length && rnd() < 0.12 * friends.length) return { fac: pick(friends), beat: 'favour' };
+  return null;
+}
 function rollEnvoy(o) {
   if (!RUN.story) return null;
+  const se = standingEnvoy(o); if (se) return se;
   if (o.boss) {
     if (sectorOf(o.idx) < MAX_SECTOR) return null;
     // the reckoning comes before the final contract, whoever the final target is
@@ -4758,10 +4889,11 @@ function envoyCtx(o, fac) {
 
 // ---------- the envoy screen ----------
 function showMessenger(i) {
-  const o = RUN.options[i], { fac, beat } = o.envoy, A = ARCS[fac], B = A.beats[beat], x = envoyCtx(o, fac);
+  const o = RUN.options[i], { fac, beat } = o.envoy, A = ARCS[fac], B = beatDef(fac, beat), x = envoyCtx(o, fac);
+  x.lastPlanet = ([...(RUN.worlds || [])].reverse().find(w => w.fac === fac) || {}).planet || x.prevPlanet;
   S.screen = 'envoy'; S.envoy = { i, fac, beat, t0: performance.now(), done: false };
   clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
-  const ask = B.ask, total = ask.n * ask.each;
+  const ask = B.ask || { kind: 'couriers', n: 0, each: 0 }, total = ask.n * ask.each;
   const splash = 'Splash can still kill them.';
   const askTxt = {
     couriers: `Let ${ask.n} marked ${A.oneOff ? 'hostiles' : 'couriers'} through: −${total}% margin. ${splash}`,
@@ -4774,18 +4906,20 @@ function showMessenger(i) {
     ${titlebar(`Encrypted_Channel · ${A.kind === 'bribe' ? 'origin: offshore' : 'origin: untraced'}`)}
     <div class="envoy-scene"><canvas id="envcv" width="200" height="112" aria-label="${esc(A.envoy)} on a video call"></canvas>
       <div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div>
-      <div class="envoy-beat">${A.kind === 'bribe' ? 'Bribe' : 'Plea'} · ${A.oneOff ? 'One-off' : `${BEAT_NAMES[beat]} ${beat + 1}/3`}</div></div>
+      <div class="envoy-beat">${A.kind === 'bribe' ? 'Bribe' : 'Plea'} · ${beatLabel(A, beat)}</div></div>
     <div class="envoy-grid">
       <div class="envoy-talk"><h3>${esc(B.name)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
       <div class="envoy-offer">
-        <div class="deal ask"><div class="lbl">The ask</div><p>${esc(askTxt)}</p></div>
+        ${FACTIONS[fac] ? `<div class="deal standing"><div class="lbl">Your standing with them</div>${standingHtml(fac)}</div>` : ''}
+        <div class="deal ask"><div class="lbl">The ask</div><p>${esc(B.free ? 'Nothing. That is what worries HR.' : askTxt)}</p></div>
         <div class="deal reward"><div class="lbl">The reward</div><p>${esc(B.reward)}</p></div>
         <div class="deal risk"><div class="lbl">The risk</div><p>HR suspicion +${heat} (now ${RUN.story.heat}). Break the deal and ${esc(A.envoy)} remembers.</p></div>
         <div class="row" id="envBtns"><button class="btn" data-act="envoy" data-v="accept">Accept</button><button class="btn ghost" data-act="envoy" data-v="refuse">Refuse</button><button class="btn ghost" data-act="envoy" data-v="report">Report to HR (+${A.reportPay} scrip)</button></div>
       </div>
     </div>
   </div></div>`;
-  typeLines(B.lines(x));
+  const opener = typeof beat === 'number' && FACTIONS[fac] ? standingOpener(fac, x) : null;
+  typeLines((opener ? [opener] : []).concat(B.lines(x)).filter(Boolean));
 }
 let typeTimer = 0;
 function typeLines(lines, done) {
@@ -4808,19 +4942,26 @@ function typeLines(lines, done) {
 function envoyChoice(v) {
   const E = S.envoy; if (!E || E.done) return;
   E.done = true;
-  const o = RUN.options[E.i], A = ARCS[E.fac], B = A.beats[E.beat], a = arcOf(E.fac), st = RUN.story;
+  const o = RUN.options[E.i], A = ARCS[E.fac], B = beatDef(E.fac, E.beat), a = arcOf(E.fac), st = RUN.story, sp = B.special;
   st.met++;
   const log = { fac: E.fac, beat: E.beat, planet: o.planet, choice: v, idx: o.idx };
-  if (v === 'accept') {
-    a.state = 'active';
+  if (sp === 'truce') a.truceAt = RUN.idx;
+  if (sp === 'favour') a.favourAt = RUN.idx;
+  if (v === 'accept' && sp === 'favour') {
+    S.pendingFavour = E.fac;
+    st.heat = Math.min(100, st.heat + B.heat);
+  } else if (v === 'accept') {
+    if (!sp) a.state = 'active';
     S.pendingDeal = { fac: E.fac, beat: E.beat };
     st.heat = Math.min(100, st.heat + (has('shredder') ? Math.ceil(B.heat / 2) : B.heat));
     if (B.pay) { RUN.scrip += B.pay; log.pay = B.pay; }
   } else if (v === 'refuse') {
-    a.refusals++; st.loyalty += 0.5;
+    if (sp === 'truce') shiftStanding(E.fac, -1, 'refused truce');
+    if (!sp) a.refusals++; st.loyalty += 0.5;
     S.pendingEcho = { fac: E.fac, kind: 'refused' };
   } else {
-    a.state = 'reported'; st.loyalty += 1; st.grudge[E.fac] = 1.15;
+    if (!sp) a.state = 'reported'; st.loyalty += 1;
+    if (FACTIONS[E.fac]) shiftStanding(E.fac, sp === 'favour' ? -2 : sp === 'truce' ? -1 : -2, 'reported'); else st.grudge[E.fac] = 1.15;
     RUN.scrip += A.reportPay;
     S.pendingEcho = { fac: E.fac, kind: 'reported', pay: A.reportPay };
   }
@@ -4837,7 +4978,7 @@ function drawEnvoyFrame(now) {
   g.imageSmoothingEnabled = false;
   const A = ARCS[S.envoy.fac];
   ({ mine: sceneMine, penthouse: scenePenthouse, hive: sceneHive, alley: sceneAlley, boardroom: sceneBoardroom })[A.scene](g, t);
-  const bust = envoyBust(S.envoy.fac, S.envoy.beat);
+  const bust = envoyBust(S.envoy.fac, typeof S.envoy.beat === 'number' ? S.envoy.beat : Math.min(2, arcOf(S.envoy.fac).beat));
   g.drawImage(bust.c, 112, 112 - bust.c.height);
   // headlamp / shades glint through the shadow
   for (const l of bust.glints) { const fl = 0.75 + 0.25 * Math.sin(t * 9 + l.x); g.globalAlpha = fl; px(g, 112 + l.x, 112 - bust.c.height + l.y, l.w || 1, l.h || 1, l.col); }
@@ -5081,7 +5222,7 @@ function envoyBust(fac, beat) {
 
 // ---------- the deal in the field ----------
 function makeDeal(pd, c) {
-  const A = ARCS[pd.fac], B = A.beats[pd.beat];
+  const A = ARCS[pd.fac], B = beatDef(pd.fac, pd.beat);
   // insurance fraud marks the contract's own hostiles; every other deal brings the envoy's people
   return { fac: pd.fac, unitFac: A.oneOff ? c.facKey : pd.fac, beat: pd.beat, ask: B.ask, A, B, spawned: 0, through: 0, broken: null, done: false, extra: 0, at: Array.from({ length: B.ask.n }, (_, k) => 0.12 + 0.62 * k / Math.max(1, B.ask.n - 1)) };
 }
@@ -5100,7 +5241,7 @@ function breakDeal(how) {
   d.broken = how;
   for (const e of M.enemies) if (e.deal) { e.deal = null; e.bounty = 2; e.uploading = null; }
   const a = arcOf(d.fac), st = RUN.story;
-  a.state = 'hostile'; if (!d.A.oneOff) st.grudge[d.fac] = 1.2; st.flags.betrayed = (st.flags.betrayed || 0) + 1;
+  a.state = 'hostile'; if (!d.A.oneOff) shiftStanding(d.fac, how === 'betrayed' ? -2 : -1, how); st.flags.betrayed = (st.flags.betrayed || 0) + 1;
   if (d.B.pay) RUN.scrip = Math.max(0, RUN.scrip - d.B.pay);
   st.log.push({ fac: d.fac, beat: d.beat, planet: M.c.planet, choice: how, idx: M.c.idx });
   sfx('fail'); shake(3);
@@ -5143,7 +5284,14 @@ function resolveDeal(m) {
       st.log.push({ fac: d.fac, beat: 0, planet: m.c.planet, choice: 'honoured', idx: m.c.idx });
       ev.push({ fac: d.fac, kind: 'honoured', beat: 0, x });
       st.news.push(d.A.news[0](x));
+    } else if (d.B.special === 'truce') {
+      // reparations paid: back to neutral, and their story can pick up where it left off
+      if (standingOf(d.fac) < 0) shiftStanding(d.fac, -standingOf(d.fac), 'truce');
+      a.state = a.beat >= 3 ? 'done' : 'open'; a.refusals = 0;
+      st.log.push({ fac: d.fac, beat: 'truce', planet: m.c.planet, choice: 'honoured', idx: m.c.idx });
+      ev.push({ fac: d.fac, kind: 'truce', x });
     } else {
+      shiftStanding(d.fac, 1, 'honoured');
       a.beat = d.beat + 1; a.through = d.through; a.planet = m.c.planet;
       if (a.beat >= 3) { a.state = 'done'; st.lastDone = d.fac; }
       grantReward(d.fac, d.beat);
@@ -5196,6 +5344,8 @@ function startAllies(m) {
   const st = RUN.story; m.allies = [];
   m.strikeT = st.flags.strike && m.c.boss ? 6 : null;
   m.huntT = st.flags.swarm && m.c.boss ? 5 : null;
+  // a faction that likes you sends people: every contract when allied, this one if they offered a favour
+  m.helper = S.pendingFavour || alliedHelper(m.c.facKey); m.helpEvery = S.pendingFavour ? 16 : 26; m.helpT = m.helper ? 7 : null; S.pendingFavour = null;
   if (st.flags.pet) { const v = st.petV || (st.petV = makeVariant('fauna', 'fast')); m.allies.push(newAlly('pet', v, m.paths[0], 160)); }
 }
 function newAlly(kind, v, path, hp) {
@@ -5216,6 +5366,12 @@ function stepAllies(dt) {
     const v = m.pool.hunter || (m.pool.hunter = makeVariant('fauna', 'swarm'));
     for (let k = 0; k < 6; k++) { const a = newAlly('hunter', v, m.paths[0], 40); a.x += (rnd() - 0.5) * 20; a.y += (rnd() - 0.5) * 20; a.delay = k * 0.15; m.allies.push(a); }
     fxText(m.dep.x, m.dep.y - 36, 'THE SWARM HUNTS', '#7bdc6a'); sfx('splat', m.dep.x);
+  }
+  if (live && m.helpT != null && (m.helpT -= dt) <= 0) {
+    m.helpT = m.helpEvery;
+    const F = FACTIONS[m.helper], p = m.paths[ri(0, m.paths.length - 1)], v = m.pool['help' + m.helper] || (m.pool['help' + m.helper] = makeVariant(m.helper, 'swarm'));
+    for (let k = 0; k < 3; k++) { const a = newAlly('picket', v, p, 120); a.delay = k * 0.7; a.col = F.color; m.allies.push(a); }
+    fxText(m.dep.x, m.dep.y - 36, `SENT BY ${F.short.toUpperCase()}`, F.color); sfx('promote', m.dep.x);
   }
   for (const a of m.allies) {
     if (a.down > 0) { if ((a.down -= dt) <= 0) { a.down = 0; a.hp = a.maxhp; a.x = a.path[0].x; a.y = a.path[0].y; a.wi = 1; a.dir = 1; fxText(a.x, a.y - 18, 'BISCUIT IS BACK', '#7bdc6a'); } continue; }
@@ -5358,7 +5514,7 @@ function storyRecap() {
   const st = RUN.story;
   if (!st.log.length) return 'No envoys reached you. Or you never picked up.';
   const verb = { accept: 'accepted', refuse: 'refused', report: 'reported to HR', honoured: 'honoured', betrayed: 'BETRAYED', collateral: 'broke by accident' };
-  return st.log.filter(l => l.choice !== 'accept').map(l => `${l.planet} · ${ARCS[l.fac].envoy} · ${ARCS[l.fac].beats[l.beat].name} · ${verb[l.choice]}`).join('\n');
+  return st.log.filter(l => l.choice !== 'accept').map(l => `${l.planet} · ${ARCS[l.fac].envoy} · ${beatDef(l.fac, l.beat).name} · ${verb[l.choice]}`).join('\n');
 }
 // some factions come back for you when Kindly doesn't
 function rescuer() {
@@ -6061,6 +6217,74 @@ function drawArtPreview(g, t) {
   }
 }
 
+// ---------- every faction fields every kind of hostile ----------
+// Each faction has its own take on all seventeen behaviours. The behaviour (and its weight in the
+// wave mix) stays the faction's own: the union leans on numbers, VectorCorp on hardware, and so on.
+Object.assign(ENEMY_HUMANS.union, {
+  shield: () => ({ shirt: '#6a5a3c', pants: '#3b4a6b', hat: 'hardhat', prop: 'riotshield' }),
+  stealth: () => ({ shirt: '#2a2622', hood: true, pants: '#22201c', mask: '#22201c', prop: 'wrench' }),
+  blinker: () => ({ shirt: '#5a4a3a', pants: '#3b4a6b', hat: 'goggles', prop: 'phone' }),
+  berserk: () => ({ shirt: '#c83a3a', pants: '#3a3a40', hat: 'miner', prop: 'pickaxe', mask: '#8a2a2a' }),
+});
+Object.assign(ENEMY_HUMANS.rival, {
+  swarm: ENEMY_HUMANS.rival.swarm || (() => ({ shirt: '#e8eef4', pants: '#3a3e4a', lanyard: true, prop: 'tablet' })),
+  splitter: () => ({ shirt: '#e8eef4', suit: '#3a3e4a', pants: '#2a2e38', prop: 'clipboard' }),
+  jammer: () => ({ shirt: '#1e2229', suit: '#c8a040', pants: '#1e2229', prop: 'briefcase', shades: true }),
+  berserk: () => ({ shirt: '#1e2229', vest: '#e0455c', pants: '#1e2229', hat: 'balaclava', prop: 'wrench' }),
+  burrower: () => ({ shirt: '#3a3e4a', vest: '#e0455c', stripe: '#ffd23f', pants: '#1e2229', hat: 'hardhat', prop: 'pickaxe' }),
+});
+Object.assign(ENEMY_HUMANS.activists, {
+  medic: () => ({ shirt: '#f2efe6', cross: true, pants: '#3b4a6b', prop: 'medkit', hat: 'cap', capCol: '#d23c3c' }),
+  stealth: () => ({ shirt: '#16181d', hood: true, pants: '#16181d', mask: '#16181d', prop: 'glue' }),
+  berserk: () => ({ shirt: pick(PROTEST_COLS), pants: '#22252b', mask: '#d23c3c', hat: 'beanie', capCol: '#16181d', prop: 'sign', signCol: '#16181d' }),
+  burrower: () => ({ shirt: '#5a4a3a', pants: '#3b4a6b', hat: 'hardhat', prop: 'pickaxe', mask: '#2c8a4a' }),
+});
+// wildlife: a shell-backed guardian, a screecher, a brood carrier and a phase moth
+function crGuardian(c, f) {
+  const P = painter(20, 15), d = shade(c, -0.35), dd = shade(c, -0.55), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 3; i++) legStep(P, 5 + i * 4, 10, 3, ph + (i + 1) * Math.PI, dd);
+  P.ell(9.5, 7 + bob, 8, 5.4, d); P.ell(9.5, 6 + bob, 7, 4.2, c); for (const x of [5, 9, 13]) { P.r(x, 3 + bob, 2, 6, shade(c, 0.25)); P.p(x, 2 + bob, '#e8ffd8'); }
+  P.ell(17, 9 + bob, 2.2, 2, dd); P.p(18, 8 + bob, '#ff5ad1');
+  for (let i = 0; i < 3; i++) legStep(P, 5 + i * 4, 11, 3, ph + i * Math.PI, d);
+  postProcess(P.c); return { c: P.c, ax: 10, ay: 14, lights: [{ x: 9, y: 4, color: '#c8ffa0', r: 10 }] };
+}
+function crScreecher(c, f) {
+  const P = painter(16, 16), d = shade(c, -0.35), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 2; i++) legStep(P, 6 + i * 4, 11, 3, ph + (i + 1) * Math.PI, shade(c, -0.5));
+  P.ell(8, 9 + bob, 5, 3.6, c);
+  // a frill that flares open on the beat
+  const fr = f % 2 ? 6 : 4; for (let k = -fr; k <= fr; k++) P.p(11 + Math.abs(k) / 2 | 0, 6 + k / 2 + bob | 0, k % 2 ? '#ff5ad1' : '#ffd0ff');
+  P.ell(12, 7 + bob, 2.4, 2.2, d); P.p(13, 6 + bob, '#ffffff'); P.r(14, 8 + bob, 2, 1, '#2a1a30');
+  for (let i = 0; i < 2; i++) legStep(P, 6 + i * 4, 12, 3, ph + i * Math.PI, d);
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 14, lights: [{ x: 11, y: 6, color: '#ff5ad1', r: 10, pulse: true }] };
+}
+function crBrood(c, f) {
+  const P = painter(20, 16), d = shade(c, -0.35), dd = shade(c, -0.55), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  for (let i = 0; i < 4; i++) legStep(P, 4 + i * 4, 11, 3, ph + (i + 1) * Math.PI, dd, 1.2);
+  P.ell(9, 8 + bob, 7.5, 4.6, c);
+  // young clinging to the back
+  for (const [x, y] of [[5, 3], [9, 2], [13, 3]]) { P.ell(x, y + bob, 2, 1.6, shade(c, 0.25)); P.p(x + 1, y + bob, '#2a1a30'); }
+  P.ell(17, 9 + bob, 2.4, 2.2, d); P.p(18, 8 + bob, '#ff5ad1');
+  for (let i = 0; i < 4; i++) legStep(P, 4 + i * 4, 12, 3, ph + i * Math.PI, d, 1.2);
+  postProcess(P.c); return { c: P.c, ax: 10, ay: 15 };
+}
+function crMoth(c, f) {
+  const P = painter(18, 15), d = shade(c, -0.3), w = [0, -2, 0, 2][f % 4];
+  for (let s = -1; s <= 1; s += 2) for (let k = 0; k < 6; k++) { const x = 9 + s * (2 + k), h = 5 - (k >> 1) + (s * w > 0 ? 1 : 0); P.r(x, 5 - (h >> 1) + w * (s > 0 ? 0.3 : -0.3) | 0, 1, h, k % 2 ? '#d8b8ff' : c); }
+  P.r(8, 4, 2, 7, d); P.p(8, 3, '#ffffff'); P.p(9, 3, '#ffffff'); P.p(7, 2, d); P.p(10, 2, d);
+  for (const x of [8, 10]) P.r(x, 11, 1, 2 + (f % 2), d);
+  postProcess(P.c); return { c: P.c, ax: 9, ay: 13, lights: [{ x: 9, y: 6, color: '#d8b8ff', r: 12, pulse: true }] };
+}
+const FAUNA_EXTRA = { shield: crGuardian, jammer: crScreecher, carrier: crBrood, blinker: crMoth };
+// names and weights for the newly covered kinds
+Object.assign(FACTIONS.union.names, { shield: 'Picket Wall', stealth: 'Night Shift', blinker: 'Shift Swapper', berserk: 'Furious Foreman' });
+Object.assign(FACTIONS.rival.names, { swarm: FACTIONS.rival.names.swarm || 'Temp Worker', splitter: 'Project Lead', jammer: 'Litigator', berserk: 'Enforcer', burrower: 'Bore Operator' });
+Object.assign(FACTIONS.activists.names, { medic: 'Street Medic', stealth: 'Black Bloc', berserk: 'Rioter', burrower: 'Tunnel Occupier' });
+Object.assign(FACTIONS.fauna.names, { shield: 'Shell Guardian', jammer: 'Screecher', carrier: 'Brood Carrier', blinker: 'Phase Moth' });
+// every faction gets every kind; ones it didn't field before come in at a low weight
+function fullRoster(fac, w = 0.5) { for (const k of Object.keys(CATS)) if (!fac.cats[k]) fac.cats[k] = k === 'naval' || k === 'gunship' ? 0.9 : w; }
+for (const f of Object.keys(FACTIONS)) fullRoster(FACTIONS[f]);
+
 // ---------- finishing a mission ----------
 function finishMission(success) {
   const m = M, c = m.c;
@@ -6069,6 +6293,7 @@ function finishMission(success) {
   RUN.lastDowned = m.downed.slice();
   RUN.history.push({ planet: c.planet, faction: c.facKey, client: c.client.n, good: c.client.good, lost: m.lost, kills: m.kills, idx: c.idx });
   RUN.factionCount[c.facKey] = (RUN.factionCount[c.facKey] || 0) + 1;
+  if (c.boss) shiftStanding(c.facKey, -1, 'boss');
   // the planet keeps what happened to it: theirs if you honoured their deal, the company's otherwise
   const d0 = m.deal, wstate = d0 && !d0.broken && d0.fac === c.facKey ? 'helped' : 'crushed';
   (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, kills: m.kills, act: actOf(c.idx), boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
@@ -6166,6 +6391,7 @@ function showContractCard(i) {
       <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
       <dt>Ethics review</dt><dd>Waived</dd>
       <dt>Hostiles</dt><dd>${esc(o.fac.name)} ${actOfFaction(o.facKey) === actOf(o.idx) && actOf(o.idx) > 1 ? '<span class="pill new">New this act</span>' : actOfFaction(o.facKey) < actOf(o.idx) && returnReason(o.facKey) ? `<span class="pill back">${esc(returnReason(o.facKey))}</span>` : ''}<br><span style="color:var(--muted)">${cats.join(', ')}</span></dd>
+      <dt>Standing</dt><dd>${standingHtml(o.facKey)}${standingOf(o.facKey) >= 2 ? '<br><span style="color:var(--muted)">Smaller waves. Some of them may defect.</span>' : ''}</dd>
       <dt>Biome</dt><dd>${esc(o.biome.name)}. ${esc(o.biome.hazard)}</dd>
       <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
       <dt>Pay</dt><dd class="mono">${o.pay.toFixed(2)}× base rate</dd>
@@ -6431,6 +6657,7 @@ function shortEcho(ev) {
     case 'collateral': return `An "accident" with one of ${who}'s people has been logged.`;
     case 'reported': return `${who} reported to HR. Loyalty bonus: ${ev.pay} scrip.`;
     case 'refused': return `You turned ${who} away. They will remember the lanyard.`;
+    case 'truce': return `Reparations paid to ${who}. Back to neutral.`;
     default: return '';
   }
 }
@@ -6501,11 +6728,12 @@ function showDebrief(d) {
           <figure class="scenebox big">${sceneImg(w.bk, w.fac, w.state, w.v, 'scene', deadShown(w.kills), w.act || 1)}<figcaption>${esc(c.planet)} · ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}</figcaption></figure>
           <h3 class="headline">${esc(F[w.state][w.v % 2](c.planet))}</h3>
           <p class="sub">${esc(F.sub[w.state])}</p>
+          ${(() => { const ch = (RUN.story.standLog || []).filter(l => l.idx === c.idx).reduce((m, l) => { m[l.f] = (m[l.f] || 0) + l.d; return m; }, {}); const fs = [...new Set([c.facKey, ...Object.keys(ch)])].filter(f => FACTIONS[f]); return `<div class="standrow">${fs.map(f => `<div><span>${esc(FACTIONS[f].short)}</span>${standingHtml(f)}${ch[f] ? `<em class="${ch[f] > 0 ? 'up' : 'down'}">${ch[f] > 0 ? '▲' : '▼'}${Math.abs(ch[f])}</em>` : ''}</div>`).join('')}</div>`; })()}
           ${worldStrip()}
         </div>
       </section>
     </div></div>
-    <div class="stand" aria-hidden="true"></div>
+    <div class="mstand" aria-hidden="true"></div>
     <div class="desktop" aria-hidden="true">${act >= 2 ? '<i class="lamp"></i>' : ''}<img class="prop plant" src="${deskPropUrl('plant', plant)}" alt=""><span class="nameplate">EMPLOYEE #${RUN.empId}</span><img class="prop" src="${deskPropUrl('note')}" alt=""><img class="prop" src="${deskPropUrl('mug')}" alt=""></div>
     <div class="row deskbtns"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip</span></div>
   </div></div>`;
@@ -6719,7 +6947,7 @@ function frame(now) {
 }
 
 // test hook for automated playtesting
-window.__AL = { planetScene, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
