@@ -459,6 +459,13 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
    Kindly Security Solutions(TM) employee defence simulator.
    ================================================================ */
 
+// ---------- registries: factions added later plug their art and rules in here ----------
+const FAC_ART = {};      // faction -> (cat, palette seed) => variant, for every hostile kind it draws itself
+const BOSS_ART = {};     // boss id -> (col, frame, look) => sprite
+const ENVOY_ART = {};    // faction -> (P, glints) draws the envoy's portrait
+const ENVOY_SCENES = {}; // scene key -> (g, t) draws the envoy's video-call backdrop
+const OBST_EXTRA = {};   // obstacle kind -> () => sprite
+const FACTION_MAP = {};  // faction -> (map) dresses the map for that faction (villages, wrecks...)
 // ---------- utilities ----------
 const $ = s => document.querySelector(s);
 const R = Math.random;
@@ -1675,7 +1682,7 @@ function bossFrameMore(id, col, f, look) {
 // ---------- behaviour ----------
 function hurtTower(tw, dmg) {
   if (tw.down) return;
-  tw.hp -= dmg * (1 - (tw.bDr || 0)) * (coverAt(tw.tx, tw.ty) ? 1 - COVER_DR : 1); tw.flash = 0.12;
+  tw.hp -= dmg * (1 - (tw.bDr || 0)) * (coverAt(tw.tx, tw.ty) ? 1 - COVER_DR : 1); tw.flash = 0.12; tw.hitAt = M.t;
   if (tw.hp <= 0) killCrew(tw);
 }
 // jump forward along the path (or straight at the drill for flyers)
@@ -1813,6 +1820,7 @@ function finishVariant(kind, r, frames) {
 }
 function makeVariant(facKey, cat) {
   const col = FACTIONS[facKey].color;
+  if (FAC_ART[facKey]) { const v = FAC_ART[facKey](cat); if (v) return v; }
   if (cat === 'naval' || cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => (cat === 'naval' ? navalSprite : gunshipSprite)(facKey, col, f)));
   if (facKey === 'fauna') {
     const c = mixHex(col, pick(['#a8f06a', '#4fdc9a', '#d0e85a', '#6ad0c0']), rnd() * 0.5);
@@ -1832,7 +1840,7 @@ function makeVariant(facKey, cat) {
   return finishVariant('human', [{ ax: 7, ay: 17, lights }], frames);
 }
 const WALKER_BOSSES = ['acquisitions', 'formeremp', 'severance'];
-function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', (facKey === 'fauna' || WALKER_BOSSES.includes(id) || (facKey === 'union' && id === 'steward') ? [0, 1, 2, 3] : [0, 1]).map(f => bossFrameApex(id, col, f, look) || bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
+function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', (facKey === 'fauna' || WALKER_BOSSES.includes(id) || (facKey === 'union' && id === 'steward') ? [0, 1, 2, 3] : [0, 1]).map(f => (BOSS_ART[id] && BOSS_ART[id](col, f, look)) || bossFrameApex(id, col, f, look) || bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
 function getVariant(cat) {
   const human = M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer';
   const pool = M.pool[cat] || (M.pool[cat] = Array.from({ length: human ? 10 : 3 }, () => makeVariant(M.c.facKey, cat)));
@@ -1863,6 +1871,7 @@ const BIOME_ART = {
 // obstacles are 18 wide, up to 24 tall, bottom-aligned on their tile
 function obstacleSprite(kind) {
   if (kind === 'derelict') return derelictSprite();
+  if (OBST_EXTRA[kind]) return OBST_EXTRA[kind]();
   let H = 18; if (['vaporator', 'beacon', 'spire', 'vending', 'neonpost', 'fruittree', 'holokiosk', 'sign', 'neonsign', 'woodsign', 'mast', 'balloon', 'monolith', 'statue', 'glyph'].includes(kind)) H = 24;
   const P = painter(18, H), L = [], props = [], o = H - 18;
   if (obstacleSector2(P, kind, o, L, props)) { postProcess(P.c); return { c: P.c, lights: L, props }; }
@@ -3113,6 +3122,7 @@ function startMission(contract) {
   };
   S.pendingDeal = null;
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
+  if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map);
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade; M.act = actOf(contract.idx);
@@ -3515,9 +3525,10 @@ function spawnEnemy(q) {
   if (q.deal) {
     // marked units carry no auras or tricks: they just want to get to the drill
     Object.assign(e, { deal: q.deal, cost: q.deal.ask.each, bounty: 0, sab: false, healAura: null, shieldAura: null, jamAura: null, split: 0, cloakT: undefined, shoot: null, spawn: null, blink: null, rage: false, burrow: null, color: FACTIONS[q.deal.unitFac].color });
-    e.name = (q.deal.A.oneOff ? c.fac.names[q.cat] || CATS[q.cat].label : UNIT_NAMES[q.deal.ask.kind]) + ' (marked)';
+    e.name = (q.deal.A.oneOff ? c.fac.names[q.cat] || CATS[q.cat].label : (q.deal.ask.unit || UNIT_NAMES[q.deal.ask.kind])) + ' (marked)';
   } else {
     if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
+    if (c.facKey === 'lumen') e.spd *= 1 + 0.3 * clamp(M.t / M.T, 0, 1);
     if (has('doxx') && q.tier === 2) { e.vulnT = 1e9; e.vulnAmt = 0.15; }
     rollAffix(e, q, c.idx);
     // a faction that likes you loses a few of its people to conscience on the way in
@@ -3724,6 +3735,7 @@ function stepMission(dt) {
     tw.recoil *= Math.exp(-dt * 14);
     if (tw.muzzle > 0) tw.muzzle -= dt;
     if (tw.down || tw.lifted) continue;
+    if (has('kinlamp') && tw.hp < tw.maxhp && M.t - (tw.hitAt ?? -9) > 3) tw.hp = Math.min(tw.maxhp, tw.hp + 1.5 * dt);
     tw.gear = crewVis(tw.crew);
     if (tw.gear.tier >= 3 && rnd() < dt * (tw.gear.tier - 1.5)) addPart({ x: tw.x + (rnd() - 0.5) * 14, y: tw.y + 4, vx: 0, vy: -16, life: 0.9, max: 0.9, col: tw.gear.accent, size: 1, layer: 'px' });
     if (tw.offline > 0) { tw.offline -= dt; continue; }
@@ -4021,7 +4033,8 @@ function renderMission(now) {
   ctx.globalCompositeOperation = 'lighter';
   glow(m.dep.x, m.dep.y - 8, 66, '#b98cff', 0.3 + 0.07 * Math.sin(t * 2));
   if (m.phase === 'drill' && Math.floor(t * 3) % 2) glow(m.dep.x + 1, m.dep.y - 34, 12, '#ffd23f', 0.8);
-  for (const l of m.lights) glow(l.x, l.y, l.r, l.color, (l.flicker ? 0.3 + 0.2 * Math.sin(t * 7 + l.x) : 0.4) * (l.pulse ? 0.45 + 0.4 * Math.sin(t * 4) : 1));
+  const dim = 1 - 0.75 * clamp(m.t / m.T, 0, 1);
+  for (const l of m.lights) glow(l.x, l.y, l.r, l.color, (l.flicker ? 0.3 + 0.2 * Math.sin(t * 7 + l.x) : 0.4) * (l.pulse ? 0.45 + 0.4 * Math.sin(t * 4) : 1) * (l.kin ? dim : 1));
   for (const a of m.arts || []) if (a.deployed) { const A = ARTIFACTS[a.id], lx = A.kind === 'heli' ? a.hx : a.x, ly = A.kind === 'heli' ? a.hy : A.kind === 'blimp' ? a.y - 32 : a.y; glow(lx, ly, A.kind === 'van' || A.kind === 'blimp' ? 22 : 14, A.col, 0.3 + 0.1 * Math.sin(t * 3)); if (A.kind === 'van' || A.kind === 'blimp') glow(a.x, a.y, ((A.kind === 'van' ? 2.5 : 3.2) + 0.3 * (a.level - 1)) * TILE, A.col, 0.06); }
   for (const p of m.portals || []) { const cx = p.tx * TILE + TILE / 2, cy = p.ty * TILE + TILE / 2; glow(cx, cy, 26 + 40 * p.open, '#3af0ff', 0.12 + 0.45 * p.open + (p.beam > 0 ? 0.3 : 0)); }
   glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);
@@ -4888,6 +4901,7 @@ function showMessenger(i) {
     escort: `Let ${ask.n} brood sacs nest at the drill: +${ask.secs}s extraction each. ${splash}`,
     uplink: `Let ${ask.n} ${ask.n > 1 ? 'hackers' : 'hacker'} upload at the drill: ${ask.secs}s pause each. ${splash}`,
   }[ask.kind];
+  const askLine = ask.txt ? ask.txt(ask) : askTxt;
   const heat = has('shredder') ? Math.ceil(B.heat / 2) : B.heat;
   $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
     ${titlebar(`Encrypted_Channel · ${A.kind === 'bribe' ? 'origin: offshore' : 'origin: untraced'}`)}
@@ -4898,7 +4912,7 @@ function showMessenger(i) {
       <div class="envoy-talk"><h3>${esc(B.name)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
       <div class="envoy-offer">
         ${FACTIONS[fac] ? `<div class="deal standing"><div class="lbl">Your standing with them</div>${standingHtml(fac)}</div>` : ''}
-        <div class="deal ask"><div class="lbl">The ask</div><p>${esc(B.free ? 'Nothing. That is what worries HR.' : askTxt)}</p></div>
+        <div class="deal ask"><div class="lbl">The ask</div><p>${esc(B.free ? 'Nothing. That is what worries HR.' : askLine)}</p></div>
         <div class="deal reward"><div class="lbl">The reward</div><p>${esc(B.reward)}</p></div>
         <div class="deal risk"><div class="lbl">The risk</div><p>HR suspicion +${heat} (now ${RUN.story.heat}). Break the deal and ${esc(A.envoy)} remembers.</p></div>
         <div class="row" id="envBtns"><button class="btn" data-act="envoy" data-v="accept">Accept</button><button class="btn ghost" data-act="envoy" data-v="refuse">Refuse</button><button class="btn ghost" data-act="envoy" data-v="report">Report to HR (+${A.reportPay} scrip)</button></div>
@@ -4964,7 +4978,7 @@ function drawEnvoyFrame(now) {
   const g = cvs.getContext('2d'), t = (now - S.envoy.t0) / 1000;
   g.imageSmoothingEnabled = false;
   const A = ARCS[S.envoy.fac];
-  ({ mine: sceneMine, penthouse: scenePenthouse, hive: sceneHive, alley: sceneAlley, boardroom: sceneBoardroom })[A.scene](g, t);
+  (ENVOY_SCENES[A.scene] || { mine: sceneMine, penthouse: scenePenthouse, hive: sceneHive, alley: sceneAlley, boardroom: sceneBoardroom }[A.scene])(g, t);
   const bust = envoyBust(S.envoy.fac, typeof S.envoy.beat === 'number' ? S.envoy.beat : Math.min(2, arcOf(S.envoy.fac).beat));
   g.drawImage(bust.c, 112, 112 - bust.c.height);
   // headlamp / shades glint through the shadow
@@ -5182,6 +5196,8 @@ function envoyBust(fac, beat) {
     P.r(46, 60, 16, 24, '#1a1a22'); P.r(48, 62, 12, 18, '#3af0ff'); P.r(50, 64, 4, 4, '#ff3ad6'); P.r(54, 70, 4, 3, '#ffd23f'); P.r(49, 76, 6, 2, '#7bdc6a');
     P.r(44, 70, 4, 10, '#c89c7a');
     glints.push({ x: 29, y: 38, w: 4, h: 3, col: '#ff3ad6' }, { x: 43, y: 38, w: 4, h: 3, col: '#ff3ad6' }, { x: 48, y: 62, w: 12, h: 1, col: '#bff8ff' });
+  } else if (ENVOY_ART[fac]) {
+    ENVOY_ART[fac](P, glints);
   } else {
     // Brent from Claims: comb-over, sweat, loud tie, a claim form
     const skin = '#f0c8a8', sk2 = '#d8a888';
@@ -5331,6 +5347,7 @@ function startAllies(m) {
   const st = RUN.story; m.allies = [];
   m.strikeT = st.flags.strike && m.c.boss ? 6 : null;
   m.huntT = st.flags.swarm && m.c.boss ? 5 : null;
+  m.relightT = st.flags.relight && m.c.boss ? 8 : null;
   // a faction that likes you sends people: every contract when allied, this one if they offered a favour
   m.helper = S.pendingFavour || alliedHelper(m.c.facKey); m.helpEvery = S.pendingFavour ? 16 : 26; m.helpT = m.helper ? 7 : null; S.pendingFavour = null;
   if (st.flags.pet) { const v = st.petV || (st.petV = makeVariant('fauna', 'fast')); m.allies.push(newAlly('pet', v, m.paths[0], 160)); }
@@ -5353,6 +5370,13 @@ function stepAllies(dt) {
     const v = m.pool.hunter || (m.pool.hunter = makeVariant('fauna', 'swarm'));
     for (let k = 0; k < 6; k++) { const a = newAlly('hunter', v, m.paths[0], 40); a.x += (rnd() - 0.5) * 20; a.y += (rnd() - 0.5) * 20; a.delay = k * 0.15; m.allies.push(a); }
     fxText(m.dep.x, m.dep.y - 36, 'THE SWARM HUNTS', '#7bdc6a'); sfx('splat', m.dep.x);
+  }
+  if (live && m.relightT != null && (m.relightT -= dt) <= 0) {
+    m.relightT = 20;
+    for (const e of m.enemies) if (!e.dead && !e.deal && Math.hypot(e.x - m.dep.x, e.y - m.dep.y) <= 2.5 * TILE) { stunE(e, 1.5); damage(e, 40, true, null); }
+    for (const tw of m.towers) if (!tw.down && Math.hypot(tw.x - m.dep.x, tw.y - m.dep.y) <= 3 * TILE) tw.hp = Math.min(tw.maxhp, tw.hp + 25);
+    m.fx.push({ k: 'ring', x: m.dep.x, y: m.dep.y, r: 2.5 * TILE, life: 0.6, max: 0.6, color: '#7fe8ff' });
+    fxText(m.dep.x, m.dep.y - 36, 'THE RELIGHTING', '#7fe8ff'); sfx('overcharge', m.dep.x); shake(2);
   }
   if (live && m.helpT != null && (m.helpT -= dt) <= 0) {
     m.helpT = m.helpEvery;
@@ -5487,6 +5511,7 @@ const ENDINGS = {
 };
 // the two paragraphs each ending keeps on screen: the setup and the punchline
 const ENDING_KEEP = { doubledealer: [0, 2], coalition: [0, 3], union: [0, 3], rival: [0, 2], fauna: [0, 2], activists: [0, 3], loyalist: [0, 2], default: [0, 2] };
+const ALLY_PHRASE = { union: "Local 404's picket lines", rival: "VectorCorp's lawyers", fauna: "the Mother's swarm", activists: "Glitch's 2.3 million viewers" };
 const ENDING_ORDER = ['default', 'loyalist', 'union', 'rival', 'fauna', 'activists', 'coalition', 'doubledealer'];
 function pickEnding() {
   const st = RUN.story, done = Object.keys(st.arcs).filter(f => !ARCS[f].oneOff && st.arcs[f].state === 'done');
@@ -5990,6 +6015,10 @@ function stepArtifacts(dt) {
         if (rnd() < dt * 4) sparks(a.x + (rnd() - 0.5) * 10, a.y - 6, '#ffd23f', 1);
       }
       if (a.hp <= 0) { a.down = 20; smoke(a.x, a.y, 10); shake(3); sfx('bigboom', a.x); fxText(a.x, a.y - 18, 'WRECKED', '#ff4d5e'); }
+    } else if (A.kind === 'lantern') {
+      const r = (2.5 + 0.3 * (a.level - 1)) * TILE, hps = 3 + (a.level - 1);
+      for (const tw of m.towers) if (!tw.down && Math.hypot(tw.x - a.x, tw.y - a.y) <= r && tw.hp < tw.maxhp) { tw.hp = Math.min(tw.maxhp, tw.hp + hps * dt); if (rnd() < dt * 2) addPart({ x: tw.x + (rnd() - 0.5) * 12, y: tw.y - 4, vx: 0, vy: -16, life: 0.7, max: 0.7, col: '#7fe8ff', size: 1, layer: 'px' }); }
+      for (const e of m.enemies) if (!e.dead && e.cloaked && Math.hypot(e.x - a.x, e.y - a.y) <= r) markE(e, 0.01, 0.3);
     } else if (A.kind === 'van' || A.kind === 'blimp') {
       const r = (A.kind === 'van' ? 2.5 : 3.2) + 0.3 * (a.level - 1);
       for (const e of m.enemies) {
@@ -6135,8 +6164,10 @@ function updateArtCards() {
 }
 // ---------- sprites ----------
 const ART_CACHE = {};
+const ART_EXTRA = {};
 function artSprite(id, f = 0) {
   const key = id + f; if (ART_CACHE[key]) return ART_CACHE[key];
+  if (ART_EXTRA[id]) return (ART_CACHE[key] = ART_EXTRA[id](f));
   let P;
   switch (id) {
     case 'barge': P = painter(22, 16); P.r(1, 8, 20, 5, '#b8582a'); P.r(1, 8, 20, 1, '#d8784a'); P.r(3, 13, 17, 1, '#7a3a1a'); P.r(2, 6, 18, 2, '#8a6a44'); for (let x = 3; x < 19; x += 3) P.r(x, 6, 1, 2, '#6a4a2a'); P.r(16, 2, 4, 4, '#5a3a22'); P.r(17, 3, 2, 1, '#ffd890'); P.r(4, 0, 1, 6, '#9aa3ad'); P.r(5, 0, 4, 3, '#d23c3c'); P.r(1, 10, 20, 1, '#d23c3c'); break;
@@ -6383,6 +6414,7 @@ function showContractCard(i) {
       <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
       <dt>Pay</dt><dd class="mono">${o.pay.toFixed(2)}× base rate</dd>
     </dl>
+    ${o.fac.trait ? `<div class="intel" style="--brand:${o.fac.color};color:${o.fac.color}">${esc(o.fac.trait)}</div>` : ''}
     ${o.boss ? `<div class="intel">Target: ${esc(o.bossDef.name)}. ${esc(o.bossDef.desc)} You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
     ${o.envoy ? `<div class="intel" style="--brand:${ARCS[o.envoy.fac].col};color:${ARCS[o.envoy.fac].col}">Encrypted chatter on this planet. ${RUN.story.arcs[o.envoy.fac] && RUN.story.arcs[o.envoy.fac].state === 'active' ? esc(ARCS[o.envoy.fac].envoy) + ' wants to talk again.' : 'Someone wants to talk before you land.'}</div>` : ''}
     ${RUN.story.grudge[o.facKey] ? `<div class="intel" style="color:var(--danger)">The ${esc(o.fac.short)} know what you did. Expect them to be tougher (+${Math.round((RUN.story.grudge[o.facKey] - 1) * 100)}% HP).</div>` : ''}
@@ -6466,7 +6498,8 @@ function sceneNest(g, x, y, burnt) {
   if (!burnt) for (const [ex, ey] of [[-4, -5], [0, -6], [4, -5]]) { pxCircle(g, x + ex, y + ey, 1.5, '#e8f0c8'); px(g, x + ex, y + ey - 1, 1, 1, '#ffffff'); }
   else for (let k = 0; k < 3; k++) px(g, x - 2 + k * 2, y - 8 - k * 2, 1, 1, 'rgba(160,160,170,0.6)');
 }
-// Kindly's drill rig over the crystal seam; sold or reclaimed rigs get repainted
+// Kindly's drill rig over the crystal seam; sold or reclaimed rigs get repainted in the new owner's colours
+const SCENE_DRILL_COL = { union: ['#b8582a', '#d23c3c'], rival: ['#2a2e38', '#ff4d6d'], activists: ['#ff7a1a', '#ff3ad6'], fauna: ['#4a6a3a', '#9be564'] };
 function sceneDrill(g, x, y, state, facKey) {
   const n = state === 'crushed' ? DEP_CRYSTALS.length : state === 'helped' ? 7 : 10;
   for (const i of DEP_KEEP.slice(0, n).slice().sort((a, b) => DEP_CRYSTALS[a][4] - DEP_CRYSTALS[b][4])) {
@@ -6474,8 +6507,8 @@ function sceneDrill(g, x, y, state, facKey) {
     g.drawImage(s.c, x + Math.round(dx * 0.8) - s.ox - (w >> 1), y + bo - s.c.height + 2);
   }
   pxCircle(g, x, y - 8, 14, 'rgba(185,140,255,0.08)');
-  const frame = state === 'helped' ? (facKey === 'rival' ? '#2a2e38' : facKey === 'activists' ? '#ff7a1a' : facKey === 'union' ? '#b8582a' : '#4a6a3a') : '#9aa3ad';
-  const stripe = state === 'helped' ? (facKey === 'rival' ? '#ff4d6d' : facKey === 'activists' ? '#ff3ad6' : facKey === 'union' ? '#d23c3c' : '#9be564') : KINDLY_Y;
+  const dc = SCENE_DRILL_COL[facKey] || ['#4a6a3a', '#9be564'];
+  const frame = state === 'helped' ? dc[0] : '#9aa3ad', stripe = state === 'helped' ? dc[1] : KINDLY_Y;
   // tower legs and a gantry
   pxLine(g, x - 14, y + 2, x - 4, y - 30, frame); pxLine(g, x + 14, y + 2, x + 4, y - 30, frame); px(g, x - 6, y - 32, 13, 3, frame);
   for (let k = 0; k < 13; k += 2) px(g, x - 6 + k, y - 32, 1, 1, stripe);
@@ -6810,7 +6843,7 @@ function showVictory() {
   const betrayedWho = [...new Set(st.log.filter(l => l.choice === 'betrayed' || l.choice === 'collateral').map(l => ARCS[l.fac].envoy))];
   const x = {
     emp: RUN.empId, sector: RUN.sectorName, margin: RUN.margin, fac: c.fac.short.toLowerCase(), lastPlanet: c.planet,
-    allies: andList(doneArcs.map(f => ({ union: "Local 404's picket lines", rival: "VectorCorp's lawyers", fauna: "the Mother's swarm", activists: "Glitch's 2.3 million viewers" })[f])),
+    allies: andList(doneArcs.map(f => ALLY_PHRASE[f] || FACTIONS[f].short)),
     betrayedWho: andList(betrayedWho) || 'everyone',
     offers: st.met,
   };
@@ -6934,6 +6967,305 @@ function frame(now) {
 }
 
 // test hook for automated playtesting
+// ================================================================
+// THE LUMEN KIN. The people whose villages run on the crystal seam Kindly is drilling. Tall,
+// indigo, lit from inside by crystal veins, wearing woven glass-thread and carrying lanterns.
+// ================================================================
+const KIN_SKIN = ['#3a2e6a', '#2e3a72', '#4a2a6a', '#24406a', '#3a2a5a'];
+const KIN_ROBE = ['#d8d0b8', '#9ad0c8', '#e8c8e0', '#c8d8f0', '#b8c8a8'];
+const KIN_GLOW = '#7fe8ff', KIN_HOT = '#e8ffff';
+const kinPal = (dark) => ({ skin: dark ? '#1a1630' : pick(KIN_SKIN), robe: dark ? '#2a2840' : pick(KIN_ROBE), trim: pick(['#5ab8c8', '#c87ab8', '#7ab87a', '#c8a85a']), glow: dark ? '#3a6a7a' : KIN_GLOW });
+// one Kin on foot, four-frame stride; `cat` decides what they carry and how they stand
+function kinUnit(cat, f, pal = kinPal(cat === 'stealth')) {
+  const P = painter(18, 26), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  const { skin, robe, trim, glow } = pal, sd = shade(skin, -0.3), rd = shade(robe, -0.25);
+  const lean = cat === 'fast' || cat === 'berserk' ? 1 : 0, tall = cat === 'carrier' ? -1 : 0, hx = 8 + lean;
+  const leg = (x0, p, col) => { const dx = Math.round(Math.cos(p) * 2), lift = Math.sin(p) > 0.3 ? 1 : 0; P.r(x0 + dx, 17, 1, 6 - lift, col); P.r(x0 + dx, 22 - lift, 2, 1, shade(col, -0.25)); };
+  // far leg, then the robe, then the near leg
+  leg(7, ph + Math.PI, sd);
+  for (let y = 10; y < 19; y++) { const w = 4 + Math.floor((y - 10) / 2.4); P.r(hx - (w >> 1) - (y > 15 ? lean : 0), y + bob, w, 1, y === 13 || y === 17 ? trim : y > 15 ? rd : robe); }
+  leg(8, ph, skin);
+  // neck, head (long, narrow), crown of crystal growths, glowing eyes and veins
+  P.r(hx, 8 + bob + tall, 2, 2, skin);
+  P.ell(hx + 1, 5 + bob + tall, 2.6, 3.6, skin); P.p(hx - 1, 6 + bob + tall, sd);
+  for (const [dx, h] of [[-1, 2], [1, 3], [3, 2]]) { P.r(hx + dx, 1 + bob + tall - (h - 2), 1, h, glow); P.p(hx + dx, 1 + bob + tall - (h - 2), KIN_HOT); }
+  P.p(hx + 2, 5 + bob + tall, KIN_HOT); P.p(hx + 3, 5 + bob + tall, glow);
+  P.p(hx, 7 + bob + tall, glow); P.p(hx + 1, 11 + bob, glow); P.p(hx - 1, 14 + bob, glow);
+  // the near arm, reaching to the hand at (12, 13)
+  const hy = 13 + bob, ax = 12 + lean;
+  P.line(hx + 1, 10 + bob, ax, hy, skin); P.p(ax, hy, glow);
+  const L = [{ x: hx + 1, y: 1 + bob, color: glow, r: 8 }];
+  switch (cat) {
+    case 'swarm': P.r(ax, hy, 1, 3, '#7a6a5a'); P.r(ax - 1, hy + 3, 3, 3, '#3a3a4a'); P.p(ax, hy + 4, KIN_HOT); L.push({ x: ax, y: hy + 4, color: glow, r: 12 }); break;
+    case 'fast': P.r(hx - 4, 11 + bob, 2, 4, trim); break;
+    case 'saboteur': P.line(ax, hy - 8, ax, hy + 8, '#8a7a6a'); P.r(ax - 1, hy - 10, 3, 3, glow); P.p(ax, hy - 10, KIN_HOT); L.push({ x: ax, y: hy - 9, color: glow, r: 9 }); break;
+    case 'medic': P.ell(ax, hy, 2, 2, KIN_HOT); P.p(hx - 3, 13 + bob, KIN_HOT); L.push({ x: ax, y: hy, color: '#b8fff0', r: 14, pulse: true }); break;
+    case 'shield': for (let y = 0; y < 12; y++) P.r(ax + 1, hy - 7 + y, 3, 1, y % 3 ? 'rgba(127,232,255,0.55)' : 'rgba(232,255,255,0.8)'); P.r(ax + 1, hy - 7, 3, 1, KIN_HOT); P.r(ax + 4, hy - 7, 1, 12, '#5ab8c8'); break;
+    case 'splitter': P.p(hx + 4, 3 + bob, glow); P.p(hx + 6, 2 + bob, glow); P.p(hx + 5, 5 + bob, KIN_HOT); break;
+    case 'stealth': break;
+    case 'jammer': P.line(ax, hy - 7, ax, hy + 8, '#8a7a6a'); P.r(ax - 1, hy - 9, 1, 3, glow); P.r(ax + 1, hy - 9, 1, 3, glow); P.p(ax, hy - 7, KIN_HOT); L.push({ x: ax, y: hy - 8, color: glow, r: 8, pulse: true }); break;
+    case 'ranged': P.line(ax, hy, ax + 2, hy - 5, '#c8b898'); P.ell(ax + 2, hy - 6, 1.2, 1.2, KIN_HOT); L.push({ x: ax + 2, y: hy - 6, color: glow, r: 7 }); break;
+    case 'carrier': P.line(ax, hy - 11, ax, hy + 9, '#9a8a6a'); P.ell(ax, hy - 12, 2.2, 2.6, glow); P.p(ax, hy - 13, KIN_HOT); P.r(hx - 3, 9 + bob, 6, 1, trim); L.push({ x: ax, y: hy - 12, color: glow, r: 14 }); break;
+    case 'blinker': for (const [dx, dy] of [[-5, -2], [5, -4], [-4, 6]]) { P.p(hx + dx, 10 + dy + bob, KIN_HOT); P.p(hx + dx + 1, 10 + dy + bob, glow); } L.push({ x: hx, y: 10, color: '#c8b8ff', r: 12, pulse: true }); break;
+    case 'berserk': P.line(ax, hy, ax + 4, hy - 4, glow); P.line(hx - 3, 12 + bob, hx - 6, 9 + bob, glow); P.p(ax + 4, hy - 4, KIN_HOT); P.p(hx - 6, 9 + bob, KIN_HOT); break;
+    case 'burrower': P.r(ax, hy, 3, 2, '#8a7a6a'); P.r(ax + 2, hy + 1, 2, 3, glow); P.r(hx - 2, 21, 6, 2, '#5a4a3a'); break;
+  }
+  postProcess(P.c); return { c: P.c, ax: 8, ay: 23, lights: L };
+}
+// the strider: a long-legged grazer with crystal growths down its back, ridden by a Kin
+function kinStrider(f, col = '#5a6aa8', scale = 1) {
+  const P = painter(30, 32), ph = gaitPh(f), bob = f % 2 ? -1 : 0, d = shade(col, -0.35), dd = shade(col, -0.55);
+  for (let i = 0; i < 2; i++) legStep(P, 9 + i * 10, 19, 11, ph + (i + 1) * Math.PI, dd, 2.2);
+  P.ell(14, 16 + bob, 10, 4.6, col); P.r(6, 18 + bob, 16, 2, d);
+  for (let x = 8; x < 21; x += 3) { P.r(x, 10 + bob, 1, 3 + (x % 2), KIN_GLOW); P.p(x, 10 + bob, KIN_HOT); }
+  P.line(23, 15 + bob, 27, 10 + bob, col); P.ell(27, 9 + bob, 2.4, 2, col); P.p(28, 8 + bob, KIN_HOT);
+  for (let i = 0; i < 2; i++) legStep(P, 10 + i * 10, 20, 11, ph + i * Math.PI, d, 2.2);
+  // rider
+  const pal = kinPal(); P.r(12, 6 + bob, 4, 5, pal.robe); P.ell(14, 3 + bob, 1.8, 2.4, pal.skin); P.p(15, 3 + bob, KIN_HOT); P.r(13, 0 + bob, 1, 2, KIN_GLOW); P.r(15, 0 + bob, 1, 2, KIN_GLOW);
+  postProcess(P.c); return { c: P.c, ax: 14, ay: 30, lights: [{ x: 14, y: 10, color: KIN_GLOW, r: 16 }] };
+}
+// lantern kite: glass panels on a frame, a tail of light
+function kinKite(f, big) {
+  const W = big ? 28 : 18, H = big ? 18 : 14, P = painter(W, H), cx = W >> 1, s = big ? 1.5 : 1, wv = [0, 1, 0, -1][f % 4];
+  for (let y = 0; y < 8 * s; y++) { const w = Math.round((y < 4 * s ? y : 8 * s - y) * 1.4); P.r(cx - w, y + 1, w * 2 + 1, 1, y % 2 ? 'rgba(127,232,255,0.7)' : 'rgba(200,240,255,0.85)'); }
+  P.line(cx, 1, cx, 8 * s, '#8a7a6a'); P.line(cx - 4 * s, 4 * s + 1, cx + 4 * s, 4 * s + 1, '#8a7a6a'); P.p(cx, 4 * s + 1, KIN_HOT);
+  for (let k = 0; k < 5; k++) P.p(cx + Math.round(Math.sin(k + wv) * 1.5), 8 * s + 2 + k, k % 2 ? KIN_GLOW : '#e8c8e0');
+  if (big) { P.r(cx - 4, 13, 8, 3, '#7a5a3a'); P.r(cx - 3, 12, 6, 1, KIN_GLOW); P.line(cx - 4, 13, cx - 2, 8, '#8a7a6a'); P.line(cx + 4, 13, cx + 2, 8, '#8a7a6a'); }
+  postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: cx, ay: Math.round(4 * s), lights: [{ x: cx, y: 4 * s, color: KIN_GLOW, r: big ? 16 : 10 }] };
+}
+// lightskiff: a reed boat with a lantern mast
+function kinSkiff(f) {
+  const P = painter(24, 16), bob = f % 2;
+  P.ell(12, 11 + bob, 10, 2.6, '#b8a070'); for (let x = 3; x < 22; x += 2) P.p(x, 10 + bob, '#8a7048'); P.r(3, 9 + bob, 18, 1, '#d8c890');
+  P.r(12, 1 + bob, 1, 9, '#8a7a6a'); P.ell(12, 1 + bob, 2, 2, KIN_GLOW); P.p(12, 1 + bob, KIN_HOT);
+  for (const x of [7, 16]) { const p = kinPal(); P.r(x - 1, 6 + bob, 3, 4, p.robe); P.ell(x, 4 + bob, 1.4, 1.8, p.skin); P.p(x + 1, 4 + bob, KIN_HOT); }
+  for (let x = 0; x < 24; x += 2) if ((x + f) % 4 < 2) P.p(x, 15, 'rgba(255,255,255,0.6)');
+  postProcess(P.c); return { c: P.c, ax: 12, ay: 12, lights: [{ x: 12, y: 1, color: KIN_GLOW, r: 12 }] };
+}
+FAC_ART.lumen = cat => {
+  if (cat === 'armored') return finishVariant('creature', [0, 1, 2, 3].map(f => kinStrider(f, pick(['#5a6aa8', '#6a5aa8', '#4a7a9a']))));
+  if (cat === 'flyer') return finishVariant('drone', [0, 1, 2, 3].map(f => kinKite(f, false)));
+  if (cat === 'gunship') return finishVariant('vehicle', [0, 1, 2, 3].map(f => kinKite(f, true)));
+  if (cat === 'naval') return finishVariant('vehicle', [0, 1, 2, 3].map(f => kinSkiff(f)));
+  const pal = kinPal(cat === 'stealth');
+  return finishVariant('human', [0, 1, 2, 3].map(f => kinUnit(cat, f, pal)));
+};
+// bosses
+BOSS_ART.lampwarden = (col, f) => { const s = kinUnit('carrier', f, { skin: '#2e2a5a', robe: '#e8e0c8', trim: '#5ab8c8', glow: KIN_GLOW }), c = scale2(s.c), g = c.getContext('2d');
+  pxCircle(g, 24, 4, 5, KIN_GLOW); pxCircle(g, 24, 4, 3, KIN_HOT); return { c, ax: 16, ay: 46, lights: [{ x: 24, y: 4, color: KIN_GLOW, r: 30 }, { x: 18, y: 10, color: KIN_GLOW, r: 14 }] }; };
+BOSS_ART.oldstrider = (col, f) => { const s = kinStrider(f, '#4a4a8a'), c = scale2(s.c); return { c, ax: 28, ay: 60, lights: [{ x: 28, y: 20, color: KIN_GLOW, r: 30 }] }; };
+BOSS_ART.choirmother = (col, f) => {
+  const c = mkCanvas(44, 52), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const pal = { skin: '#3a2a6a', robe: '#e8c8e0', trim: '#c87ab8', glow: '#d8b8ff' };
+  g.drawImage(kinUnit('splitter', (f + 1) % 4, pal).c, 0, 22); g.drawImage(kinUnit('splitter', (f + 3) % 4, pal).c, 26, 22);
+  g.drawImage(scale2(kinUnit('medic', f, pal).c), 4, 0);
+  return { c, ax: 22, ay: 48, lights: [{ x: 22, y: 12, color: '#d8b8ff', r: 30, pulse: true }] };
+};
+BOSS_ART.heartstone = (col, f) => {
+  const P = painter(56, 52), ph = gaitPh(f), bob = f % 2 ? -1 : 0;
+  // bearers under the palanquin
+  for (let i = 0; i < 4; i++) { const s = kinUnit('swarm', (f + i) % 4, { skin: KIN_SKIN[i], robe: KIN_ROBE[i], trim: '#5ab8c8', glow: KIN_GLOW }); P.g.drawImage(s.c, 4 + i * 12, 26); }
+  P.r(2, 26 + bob, 52, 3, '#8a6a44'); P.r(2, 25 + bob, 52, 1, '#b8946a'); P.r(4, 29 + bob, 2, 4, '#6a4a2a'); P.r(50, 29 + bob, 2, 4, '#6a4a2a');
+  // the heart: a great crystal, pulsing
+  for (let r = 0; r < 18; r++) { const w = Math.round((r < 8 ? r : 18 - r) * 1.1) + 1; P.r(28 - w, 4 + r + bob, w * 2, 1, r % 3 === 0 ? KIN_HOT : r % 2 ? KIN_GLOW : '#5ab8e8'); }
+  P.r(27, 2 + bob, 2, 3, KIN_HOT);
+  postProcess(P.c, { shadeIt: false });
+  return { c: P.c, ax: 28, ay: 50, lights: [{ x: 28, y: 13, color: KIN_GLOW, r: 40, pulse: true }] };
+};
+WALKER_BOSSES.push('lampwarden', 'oldstrider', 'choirmother', 'heartstone');
+// village props: glass huts and lantern posts whose light fades as the drill drains the seam
+OBST_EXTRA.kinhut = () => {
+  const P = painter(18, 22), L = [];
+  for (let y = 0; y < 12; y++) { const w = Math.round(Math.sqrt(Math.max(0, 36 - (y - 6) * (y - 6) * 0.9)) * 1.3); P.r(9 - w, 6 + y, w * 2, 1, y % 3 === 0 ? 'rgba(200,240,255,0.9)' : 'rgba(127,200,232,0.75)'); }
+  P.r(2, 17, 14, 3, '#7a6a5a'); P.r(2, 17, 14, 1, '#9a8a6a'); for (let x = 3; x < 16; x += 3) P.line(x, 7, 9, 2, 'rgba(90,184,200,0.8)');
+  P.r(7, 12, 4, 5, '#1a1630'); P.r(8, 13, 2, 3, KIN_GLOW); P.r(8, 0, 1, 3, KIN_GLOW); P.p(8, 0, KIN_HOT);
+  L.push({ x: 9, y: 14, color: KIN_GLOW, r: 18, kin: true }, { x: 8, y: 1, color: KIN_GLOW, r: 8, kin: true });
+  postProcess(P.c, { shadeIt: false }); return { c: P.c, lights: L, props: [] };
+};
+OBST_EXTRA.kinlamp = () => {
+  const P = painter(18, 24); P.r(8, 6, 2, 16, '#8a7a6a'); P.r(6, 21, 6, 2, '#6a5a4a'); P.r(9, 4, 5, 1, '#8a7a6a');
+  P.r(12, 5, 3, 4, '#3a3a4a'); P.p(13, 6, KIN_HOT); P.p(13, 7, KIN_GLOW); P.r(6, 2, 1, 3, KIN_GLOW);
+  postProcess(P.c, { shadeIt: false }); return { c: P.c, lights: [{ x: 13, y: 7, color: KIN_GLOW, r: 14, kin: true }], props: [] };
+};
+FACTION_MAP.lumen = map => {
+  // turn the open-ground props into village huts and the roadside ones into lantern posts
+  const dx = map.dep.x, dy = map.dep.y, far = map.obstacles.filter(o => Math.hypot(o.x - dx, o.y - dy) > 4);
+  let huts = 0, lamps = 0;
+  for (const o of shuffle(far.slice())) {
+    const roadside = DIRS.some(([a, b]) => { const v = map.grid[o.y + b] && map.grid[o.y + b][o.x + a]; return v === 1; });
+    if (roadside && lamps < 5) { o.kind = 'kinlamp'; lamps++; }
+    else if (!roadside && huts < 4) { o.kind = 'kinhut'; huts++; }
+  }
+};
+// the envoy: Sefa Ninelights, Speaker for the Lit Villages
+ENVOY_ART.lumen = (P, glints) => {
+  const skin = '#33306a', sk2 = '#262250';
+  // woven glass-thread mantle over the shoulders
+  P.ell(38, 96, 36, 28, '#c8d8f0'); for (let x = 6; x < 72; x += 4) P.r(x, 72, 2, 12, '#9ad0c8'); P.r(4, 70, 68, 2, '#5ab8c8'); for (let x = 8; x < 70; x += 8) P.p(x, 71, KIN_HOT);
+  // a long neck and a long, calm face
+  P.r(33, 50, 10, 20, sk2); P.ell(38, 34, 13, 20, skin); P.ell(29, 36, 2, 5, sk2);
+  // crystal growths, a crown that is part of them
+  for (const [x, h] of [[27, 10], [32, 14], [38, 18], [44, 14], [49, 10]]) { P.r(x - 1, 16 - h, 3, h, KIN_GLOW); P.r(x, 16 - h, 1, h, KIN_HOT); }
+  // eyes like lamps, veins of light
+  P.r(31, 32, 5, 3, '#0e0c20'); P.r(41, 32, 5, 3, '#0e0c20'); P.r(32, 33, 3, 1, KIN_HOT); P.r(42, 33, 3, 1, KIN_HOT);
+  P.line(28, 40, 33, 50, KIN_GLOW); P.line(48, 40, 44, 50, KIN_GLOW); P.r(37, 44, 3, 1, '#5a4a8a');
+  // a small lantern held up to the camera
+  P.r(54, 58, 1, 8, '#8a7a6a'); P.r(51, 66, 8, 10, '#3a3a4a'); P.r(53, 68, 4, 6, KIN_GLOW); P.r(54, 69, 2, 3, KIN_HOT); P.ell(46, 74, 4, 3, skin);
+  glints.push({ x: 32, y: 33, w: 3, h: 1, col: KIN_HOT }, { x: 42, y: 33, w: 3, h: 1, col: KIN_HOT }, { x: 53, y: 68, w: 4, h: 6, col: 'rgba(127,232,255,0.6)' }, { x: 37, y: 0, w: 3, h: 16, col: 'rgba(232,255,255,0.4)' });
+};
+// her village at night, with the company's drill on the ridge draining the seam
+ENVOY_SCENES.village = (g, t) => {
+  const bg = ENVOY_CACHE.village || (ENVOY_CACHE.village = (() => {
+    const P = painter(200, 112);
+    for (let y = 0; y < 112; y++) P.r(0, y, 200, 1, mixHex('#0a0c22', '#1e1a3a', y / 112));
+    for (let k = 0; k < 60; k++) P.p(ri(0, 199), ri(0, 60), rnd() < 0.3 ? '#ffffff' : '#8a90c0');
+    // the ridge with the Kindly rig and its floodlight
+    for (let x = 0; x < 200; x++) P.r(x, 62 - Math.round(Math.sin(x / 22) * 4 + (x > 120 ? (x - 120) * 0.12 : 0)), 1, 60, '#141228');
+    P.line(150, 44, 156, 24, '#5a5e66'); P.line(162, 44, 156, 24, '#5a5e66'); P.r(152, 22, 8, 2, '#ffd23f'); P.r(155, 24, 2, 18, '#4a4e5a');
+    for (let k = 0; k < 30; k++) P.line(156, 26, 120 - k, 112, `rgba(255,240,180,${0.012})`);
+    // huts, glowing
+    for (const [x, y, s] of [[20, 86, 1], [52, 92, 1.2], [92, 88, 1], [8, 100, 0.9]]) {
+      for (let r = 0; r < 12 * s; r++) { const w = Math.round(Math.sqrt(Math.max(0, 1 - ((r - 6 * s) / (6 * s)) ** 2)) * 9 * s); P.r(x - w, y - 12 * s + r, w * 2, 1, r % 3 === 0 ? '#9ad8f0' : '#4a7aa8'); }
+      P.r(x - 2, y - 5, 4, 5, '#7fe8ff'); P.r(x - 1, y - 4, 2, 3, '#e8ffff');
+    }
+    P.r(0, 100, 200, 12, '#100e20');
+    return P.c;
+  })());
+  g.drawImage(bg, 0, 0);
+  // strings of lanterns swaying between the huts
+  for (let k = 0; k < 18; k++) { const x = 6 + k * 6, y = 70 + Math.round(Math.sin(k * 0.7) * 3 + Math.sin(t * 1.5 + k) * 0.8), on = Math.sin(t * 2 + k * 1.7) > -0.6; px(g, x, y, 2, 2, on ? '#7fe8ff' : '#2a4a5a'); if (on) px(g, x, y, 1, 1, '#e8ffff'); }
+};
+
+// ---------- the Lumen Kin: faction, story and consequences ----------
+FACTIONS.lumen = {
+  name: 'The Lumen Kin', short: 'Lumen Kin', color: '#7fe8ff',
+  trait: 'The drill drains their villages. The dimmer the lamps, the faster the Kin come: up to 30% faster by the end of extraction.',
+  cats: { swarm: 4, fast: 2, medic: 1.6, shield: 1.4, flyer: 1.6, ranged: 1.4, armored: 1.3, carrier: 1, splitter: 1, saboteur: 0.8 },
+  names: { swarm: 'Lampbearer', fast: 'Glass Runner', armored: 'Strider Rider', flyer: 'Lantern Kite', saboteur: 'Seam Singer', medic: 'Mender', shield: 'Glasswarden', splitter: 'Choir', stealth: 'Dimwalker', jammer: 'Hum-Keeper', ranged: 'Prism Slinger', carrier: 'Elder', blinker: 'Refractor', berserk: 'Shardrage', burrower: 'Deepdelver', gunship: 'Great Kite', naval: 'Lightskiff' },
+  bosses: [
+    { id: 'lampwarden', name: 'The Lamp Warden', hp: 2500, spd: 0.36, armor: 6, r: 24, healAura: { r: 3, hps: 14 }, spawn: { cat: 'swarm', n: 3, every: 8 }, desc: 'Carries the village lantern. Heals every Kin within 3 tiles and keeps calling lampbearers to the light.' },
+    { id: 'oldstrider', name: 'Old Strider', hp: 2900, spd: 0.44, armor: 8, r: 24, charge: { every: 8, dur: 1.6, mult: 2.4 }, spawn: { cat: 'fast', n: 2, every: 9 }, desc: 'A strider older than the colony, ridden by the elders. Charges down the road, dropping glass runners as it goes.' },
+    { id: 'choirmother', name: 'The Choir Mother', hp: 2400, spd: 0.4, armor: 4, r: 22, emp: { every: 12, r: 2.6, dur: 2.2 }, splitDeath: { n: 2, name: 'Choir Echo' }, desc: 'Her song knocks crew within 2.6 tiles offline every 12s. When she falls, two echoes of the song carry on.' },
+  ],
+  apex: { id: 'heartstone', name: 'The Heartstone', hp: 5600, spd: 0.28, armor: 8, r: 28, bubble: { at: [0.7, 0.4], cat: 'shield', n: 4 }, healAura: { r: 3.2, hps: 20 }, shed: { step: 0.12, cat: 'swarm', n: 5 }, secondWind: { at: 0.2, to: 0.45 }, desc: 'The living heart of every village on the seam, carried by its people. Shields itself behind glasswardens, heals the Kin around it, and its people will not let it fall.' },
+  clients: [
+    { n: 'Brightwater Colonial Utilities', good: false, asset: 'village-grade Lightstone', why: 'the "indigenous energy users" refuse to be metered' },
+    { n: 'Hope Rising Mission Clinic', good: true, asset: 'medical Lumenite', why: 'the Kin say the clinic is draining their Light, and they are technically correct' },
+    { n: 'Paragon Heritage Resorts', good: false, asset: 'decorative Glowglass', why: 'guests want "authentic village views" without the villagers' },
+  ],
+};
+fullRoster(FACTIONS.lumen);
+ACTS[1].factions.push('lumen');
+BLOOD.lumen = '#2a7a9a';
+// relic, quirk and flag from the arc
+RELICS.kinlamp = { name: 'Kin Lantern', desc: 'Crew heal 1.5 HP per second after 3 seconds without taking damage.', special: true };
+QUIRKS.lightborn = { name: 'Lightborn', desc: '+15% range. Sees cloaked hostiles from further away.', special: true, mod: s => { s.range *= 1.15; } };
+ARCS.lumen = {
+  envoy: 'Sefa Ninelights', title: 'Speaker for the Lit Villages', kind: 'plea', scene: 'village', col: '#7fe8ff', reportPay: 25,
+  beats: [
+    {
+      name: 'The Dimming', ask: { kind: 'couriers', cat: 'swarm', n: 4, each: 3, unit: 'Lampbearer', txt: a => `Let ${a.n} lampbearers fill their lanterns at the drill and go home: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 15,
+      lines: x => [
+        `You are speaking to Sefa Ninelights. My village sits on the seam your company calls ${x.asset}.`,
+        `We call it the Light. It warms our children and sings our dead to sleep. Your drill on ${x.planet} is draining it.`,
+        `Four lampbearers will come for enough to see the winter through. Let them fill their lanterns and go home.`,
+      ],
+      reward: 'Relic: Kin Lantern. Your crew slowly heal while they are not taking damage.',
+      accept: `Thank you. We will remember the lanyard that looked away.`,
+      refuse: `Then we will come anyway, in the dark. It is harder to tell friends from enemies in the dark.`,
+      report: `Your company has been told about us before. They always say "acceptable".`,
+    },
+    {
+      name: 'The Promise', ask: { kind: 'escort', cat: 'medic', n: 3, each: 0, secs: 8, unit: 'Mender', txt: a => `Let ${a.n} Menders sing the seam closed for a while: +${a.secs}s extraction each. Splash can still kill them.` }, heat: 15,
+      lines: x => [
+        `${x.prevThrough} lanterns came home from ${x.prevPlanet}. The village was bright for the first time in a season.`,
+        `On ${x.planet}, our Menders want to sing the seam closed for a while, so it can heal. Your drill will wait. It will not like waiting.`,
+        `My cousin Ilo reads light the way you read contracts. Ilo wants to see what a lanyard sees. Take Ilo with you.`,
+      ],
+      reward: 'Ilo Threefold joins your crew: a rank 3 marksman with the Lightborn quirk (+15% range).',
+      accept: `Ilo is packing. Ilo has never packed before. It is mostly lanterns.`,
+      refuse: `Then the seam bleeds, and so do we.`,
+      report: `Ilo will not be coming. Ilo has stopped speaking to anyone with a badge.`,
+    },
+    {
+      name: 'The Relighting', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 2, unit: 'Lampbearer', txt: a => `Let ${a.n} lampbearers carry light back from the drill: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 20,
+      lines: x => [
+        `Every village on the seam gathers tonight. We are relighting the old lamps, the ones your company switched off.`,
+        `Let five lampbearers reach the drill on ${x.planet}. When the light comes back, it comes back for everyone standing near it.`,
+        `Including you, if you are standing in the right place.`,
+      ],
+      reward: 'The Relighting: on the final contract, village light bursts from the drill every 20s, stunning nearby hostiles and healing your crew.',
+      accept: `Stand close to the drill when it happens. It will be very bright.`,
+      refuse: `Then we will light them without you, and you will be on the wrong side of the window.`,
+      report: `They will switch the lamps off again. They always do. We always relight them.`,
+    },
+  ],
+  truce: `Our lamps are dark because of you. Help us fill them, and we will talk again.`,
+  favour: `The villages are bright again. The Elders want you to have some of that light.`,
+  hr: {
+    honoured: [
+      x => `Inventory on ${x.planet} is ${x.lost}% short. The crystals were last seen "glowing in a hut". Please stop letting huts happen.`,
+      x => `An unregistered employee named Ilo Threefold is on your roster. Ilo was asked to fill in a tax form. Ilo filled it with light.`,
+      x => `Every lamp in the ${x.sector} turned on at once last night. Facilities has filed an energy complaint against "the indigenous population". It came back unopened, glowing.`,
+    ],
+    betrayed: x => `You fired on lampbearers mid-agreement on ${x.planet}. HR has reclassified the village from "community" to "obstacle". Congratulations.`,
+    collateral: x => `A lantern broke in your crossfire on ${x.planet}. The village has gone dark. HR has logged this as "energy efficiency".`,
+    reported: x => `Thank you for reporting Sefa Ninelights. The village is now a "Crystal Opportunity Zone". A loyalty bonus of ${x.pay} scrip has been issued.`,
+    refused: x => `HR notes you declined to negotiate with a hut. HR approves. Huts are not stakeholders.`,
+  },
+  news: [x => `Village lights return on ${x.planet}; Kindly calls it "unscheduled shrinkage"`, x => `Kin glass-reader joins Kindly security crew, refuses lanyard`, x => `Every lamp in the ${x.sector} relit in one night; Kindly HQ reports "a glare problem"`],
+};
+STANDING_LINES.lumen = {
+  hostile: x => `Sefa again. The village is dark because of you. I am calling anyway. Someone has to.`,
+  wary: x => `The Elders asked me not to call. I am calling quietly.`,
+  friendly: x => `The children leave a lamp in the window for you now. They are not sure what a lanyard is.`,
+  allied: x => `Every village on the seam knows your name. They say it the way we say "dawn".`,
+};
+// rewards from the arc
+const _grantLumen = grantReward;
+grantReward = function (fac, beat) {
+  if (fac !== 'lumen') return _grantLumen(fac, beat);
+  const st = RUN.story;
+  if (beat === 0 && !RUN.relics.includes('kinlamp')) RUN.relics.push('kinlamp');
+  if (beat === 1 && RUN.roster.length < 8) { const cr = mkCrew('marksman', 'Ilo Threefold', genLook(), 'lightborn'); cr.level = 3; cr.xp = XP_TH[2]; RUN.roster.push(cr); RUN.usedNames.add(cr.name); }
+  if (beat === 2) st.flags.relight = true;
+};
+ENDINGS.lumen = { name: 'Every Lamp Lit', from: 'Sefa Ninelights', subj: 'look outside',
+  paras: x => [
+    `Every village on the seam relit its lamps on the same night. From orbit, the ${x.sector} looked like someone had spilled stars on it.`,
+    `The light ran down the seam, all the way under Kindly headquarters, to sub-basement 9. Something there had lived in the dark for a very long time. It had never seen itself before.`,
+    `It did not like what it saw. It left.`,
+    `There is a lamp in the village with your name on it. Ilo lights it every night. Ilo says it is very bright, for a lanyard.`,
+  ], sign: '— Sefa Ninelights, for the Lit Villages' };
+ENDING_KEEP.lumen = [0, 3];
+ENDING_ORDER.splice(ENDING_ORDER.indexOf('coalition'), 0, 'lumen');
+RESCUES.lumen = 'A lantern kite drifts down out of the night with Ilo hanging off it. "We saw your shuttle leave without you," Ilo says. "We are not the kind of people who leave people in the dark."';
+ALLY_PHRASE.lumen = "the Lit Villages' lamps";
+// the desk feed and the planet scenes
+FEED.lumen = { ch: 'LIGHT-SONG RELAY', tag: 'SONG',
+  helped: [p => `Every lamp on ${p} is lit tonight.`, p => `${p} sings the seam to sleep. The drill sleeps too.`],
+  crushed: [p => `The villages on ${p} have gone dark.`, p => `${p}: floodlights where the lanterns were.`],
+  sub: { helped: 'Sefa says the lanyard kept its word.', crushed: 'Sefa asks who switched the lights off.' } };
+function sceneHut(g, x, y, lit) {
+  for (let r = 0; r < 12; r++) { const w = Math.round(Math.sqrt(Math.max(0, 1 - ((r - 6) / 6) ** 2)) * 9); px(g, x - w, y - 12 + r, w * 2, 1, r % 3 === 0 ? (lit ? '#c8f0ff' : '#5a6a7a') : (lit ? '#5a9ac8' : '#2a3442')); }
+  px(g, x - 2, y - 5, 4, 5, lit ? KIN_GLOW : '#141820'); if (lit) { px(g, x - 1, y - 4, 2, 3, KIN_HOT); pxCircle(g, x, y - 4, 9, 'rgba(127,232,255,0.12)'); }
+}
+function sceneLanterns(g, x0, x1, y, lit) { pxLine(g, x0, y, x1, y + 2, '#5a5a6a'); for (let x = x0 + 3; x < x1; x += 5) { const yy = y + Math.round((x - x0) / (x1 - x0) * 2) + 1; px(g, x, yy, 2, 2, lit ? KIN_GLOW : '#2a3442'); if (lit) px(g, x, yy, 1, 1, KIN_HOT); } }
+SCENE_FAC.lumen = {
+  unresolved(g) { sceneHut(g, 24, 88, false); sceneHut(g, 48, 92, true); sceneHut(g, 10, 98, false); sceneLanterns(g, 14, 60, 70, false); for (const [cat, x, y, fl] of [['swarm', 70, 84, 0], ['swarm', 82, 86, 0], ['medic', 94, 82, 0], ['shield', 104, 88, 0]]) sceneUnit(g, 'lumen', cat, x, y, fl); },
+  helped(g) { sceneHut(g, 24, 88, true); sceneHut(g, 48, 92, true); sceneHut(g, 10, 98, true); sceneLanterns(g, 14, 60, 70, true); sceneLanterns(g, 62, 120, 54, true); for (const [cat, x, y, fl] of [['swarm', 70, 86, 0], ['carrier', 84, 84, 1], ['swarm', 98, 88, 1]]) sceneUnit(g, 'lumen', cat, x, y, fl); },
+  crushed(g) { sceneHut(g, 24, 88, false); sceneHut(g, 48, 92, false); sceneHut(g, 10, 98, false); sceneLanterns(g, 14, 60, 70, false); for (let k = 0; k < 14; k++) pxLine(g, 135, 46, 30 + k * 4, 98, 'rgba(255,240,180,0.05)'); sceneFlag(g, 150, 70, 18, KINDLY_Y, '#1a1a22'); sceneFence(g, 60, 100, 92, KINDLY_Y); },
+};
+SCENE_DRILL_COL.lumen = ['#5a8aa8', KIN_GLOW];
+// artifacts: the village's great lantern, and a kite to ride
+Object.assign(ARTIFACTS, {
+  lantern: { fac: 'lumen', name: 'Great Village Lantern', kind: 'lantern', place: 'ground', col: '#7fe8ff', desc: 'Crew within 2.5 tiles heal 3 HP per second (+1 per level), and hostiles in its light lose their cloaks.' },
+  kite: { fac: 'lumen', name: 'Lantern Kite', kind: 'ray', place: 'free', col: '#b8f4ff', desc: 'A glass kite on a tether over any tile that is not road. A crew member can ride it for +15% range (+5% per level) and see over buildings.' },
+});
+ARTIFACT_IDS.push('lantern', 'kite');
+ART_EXTRA.lantern = f => { const P = painter(14, 22); P.r(6, 4, 2, 16, '#8a7a6a'); P.r(3, 19, 8, 3, '#6a5a4a'); P.r(3, 0, 8, 2, '#5a5e66'); P.r(2, 2, 10, 8, '#3a3a4a'); P.r(4, 3, 6, 6, f % 2 ? KIN_GLOW : '#5ad8f0'); P.r(5, 4, 4, 3, KIN_HOT); postProcess(P.c, { shadeIt: false }); return { c: P.c, ax: 7, ay: 20 }; };
+ART_EXTRA.kite = f => { const k = kinKite(f, true); return { c: k.c, ax: k.c.width >> 1, ay: k.c.height - 2 }; };
+
 window.__AL = { planetScene, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
