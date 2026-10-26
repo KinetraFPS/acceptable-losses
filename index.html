@@ -2955,10 +2955,10 @@ function deployRefusal(tx, ty) {
 // and crew standing against a building wall are in cover.
 const blocksSight = v => v === 6 || v === 7;
 function lineClear(ax, ay, bx, by) {
-  const n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
+  const n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4), ox = Math.floor(ax), oy = Math.floor(ay);
   for (let i = 1; i < n; i++) {
     const k = i / n, x = Math.floor(ax + (bx - ax) * k), y = Math.floor(ay + (by - ay) * k);
-    if (M.grid[y] && blocksSight(M.grid[y][x])) return false;
+    if ((x !== ox || y !== oy) && M.grid[y] && blocksSight(M.grid[y][x])) return false;
   }
   return true;
 }
@@ -2969,7 +2969,10 @@ function sightMap(tx, ty) {
   for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) out[y * GW + x] = SIGHT_PTS.some(([u, v]) => lineClear(ox, oy, x + u, y + v)) ? 1 : 0;
   return out;
 }
-const seesOverAt = (type, tx, ty) => M.grid[ty][tx] >= 6 || type === 'drone' || type === 'mortar' || (platformAt(tx, ty) && ARTIFACTS[platformAt(tx, ty).id].kind === 'ray');
+// the bottom row of a building is its front wall: crew placed there stand in front of it at street level
+const facadeAt = (tx, ty) => M.grid[ty][tx] >= 6 && !(M.grid[ty + 1] && M.grid[ty + 1][tx] >= 6);
+const onRoof = (tx, ty) => M.grid[ty][tx] >= 6 && !facadeAt(tx, ty);
+const seesOverAt = (type, tx, ty) => onRoof(tx, ty) || type === 'drone' || type === 'mortar' || (platformAt(tx, ty) && ARTIFACTS[platformAt(tx, ty).id].kind === 'ray');
 function towerSight(tw) {
   if (seesOverAt(tw.crew.type, tw.tx, tw.ty)) return null;
   const key = tw.tx + ',' + tw.ty;
@@ -2982,9 +2985,9 @@ function canSee(tw, e) {
   const x = Math.floor(e.x / TILE), y = Math.floor(e.y / TILE);
   return x < 0 || y < 0 || x >= GW || y >= GH || !!s[y * GW + x];
 }
-// on the ground with a building wall right beside you
-const coverAt = (tx, ty) => M.grid[ty][tx] === 0 && DIRS.some(([dx, dy]) => M.grid[ty + dy] && blocksSight(M.grid[ty + dy][tx + dx]));
-const COVER_DR = 0.3;
+// on the ground with a building wall right beside you, or standing against a building's front wall
+const coverAt = (tx, ty) => facadeAt(tx, ty) || M.grid[ty][tx] === 0 && DIRS.some(([dx, dy]) => M.grid[ty + dy] && blocksSight(M.grid[ty + dy][tx + dx]));
+const COVER_DR = 0.2;
 // darken the tiles inside a range ring that buildings hide
 function drawSightShade(ctx, tx, ty, type, range) {
   if (seesOverAt(type, tx, ty)) return;
@@ -3223,7 +3226,7 @@ function deploy(crewIdx, tx, ty) {
   M.budget -= fee;
   sfx('deploy', tx * TILE);
   const st = towerStats(crew);
-  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0, roof: M.grid[ty][tx] >= 6, plat: platformAt(tx, ty) ? ARTIFACTS[platformAt(tx, ty).id].kind : null });
+  M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0, roof: onRoof(tx, ty), plat: platformAt(tx, ty) ? ARTIFACTS[platformAt(tx, ty).id].kind : null });
   M.deployedIds.add(crew.id);
   S.selCrew = -1;
   buildRosterBar();
@@ -3746,7 +3749,7 @@ function renderMission(now) {
       const ok = canBuild(tl.tx, tl.ty) && m.budget >= TOWERS[sc.type].fee, x0 = tl.tx * ATILE, y0 = tl.ty * ATILE, c = ok ? '#ffd23f' : '#ff4d5e';
       for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [17, 0, -1, 1], [0, 17, 1, -1], [17, 17, -1, -1]]) { px(g, x0 + cx + (sx < 0 ? -3 : 0), y0 + cy, 4, 1, c); px(g, x0 + cx, y0 + cy + (sy < 0 ? -3 : 0), 1, 4, c); }
       if (canBuild(tl.tx, tl.ty)) { g.globalAlpha = ok ? 0.7 : 0.35; g.drawImage(palletSprite(), x0 + 1, y0 + 12); g.drawImage(crewSprites(sc).f[0], x0 + 2, y0 - 2); g.globalAlpha = 1; }
-      const prange = towerStats(sc).range * (m.grid[tl.ty][tl.tx] >= 6 ? 1.15 : 1);
+      const prange = towerStats(sc).range * (onRoof(tl.tx, tl.ty) ? 1.15 : 1);
       preview = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2, r: prange * TILE, ok, tx: tl.tx, ty: tl.ty, type: sc.type, range: prange, build: canBuild(tl.tx, tl.ty) };
       if (preview.build && coverAt(tl.tx, tl.ty)) { const sx = x0 + 13, sy = y0 + 1; px(g, sx, sy, 5, 4, '#0c0e14'); px(g, sx + 1, sy + 1, 3, 3, '#9fd3ff'); px(g, sx + 2, sy + 4, 1, 1, '#9fd3ff'); }
     }
@@ -4195,7 +4198,7 @@ function updateHud() {
   if (has('schedule')) set('hWave', 't', m.waveTxt || 'Awaiting first wave');
   // keep roster affordability fresh
   if (hudCache.budgetSeen !== m.budget) { hudCache.budgetSeen = m.budget; refreshRosterAfford(); }
-  if (S.heliPanel && !S.selTower && performance.now() - (hudCache.heliAt || 0) > 500) { hudCache.heliAt = performance.now(); const h = M.arts.find(x => x.id === 'heli'), k = h ? (h.cd > 0 ? Math.ceil(h.cd) : 0) + (h.lift ? 'L' : '') : ''; if (hudCache.heliK !== k) { hudCache.heliK = k; renderTowerInfo(); } }
+  if (S.heliPanel && !S.selTower && performance.now() - (hudCache.heliAt || 0) > 500) { hudCache.heliAt = performance.now(); const h = M.arts.find(x => x.id === 'heli'), k = h ? (h.cd > 0 ? Math.ceil(h.cd) : 0) + (h.lift ? 'L' : '') + (S.artMode ? (S.artMode.tw ? 'D' : 'P') : '') : ''; if (hudCache.heliK !== k) { hudCache.heliK = k; renderTowerInfo(); } }
   if (S.peekBtn && performance.now() - (hudCache.peekAt || 0) > 400) { hudCache.peekAt = performance.now(); refreshPeek(); }
 }
 function buildRosterBar() {
@@ -4238,7 +4241,7 @@ function renderTowerInfo() {
     <div class="traits">${traits}</div>
     <div class="tprio"><div class="lbl">Preferred targets</div><div class="chips">${Object.entries(PRIO).filter(([k, p]) => !p.air || st.air).map(([k, p]) => `<button class="chip${prioOf(cr) === k ? ' on' : ''}" data-act="prio" data-v="${k}" title="${esc(p.desc)}" aria-pressed="${prioOf(cr) === k}">${esc(p.name)}</button>`).join('')}</div>
       <div class="tnote">${esc(PRIO[prioOf(cr)].desc)}. Good against ${esc(GOOD_VS[cr.type].toLowerCase())}.</div>
-      <div class="tnote">${seesOverAt(cr.type, tw.tx, tw.ty) ? (cr.type === 'mortar' ? 'Lobs shells over buildings.' : cr.type === 'drone' ? 'Drone flies over buildings.' : 'Up high: sees over buildings.') : 'Buildings block line of sight (shaded).'}${coverAt(tw.tx, tw.ty) ? ' <b>In cover</b>: 30% less damage.' : ''}</div></div>
+      <div class="tnote">${seesOverAt(cr.type, tw.tx, tw.ty) ? (cr.type === 'mortar' ? 'Lobs shells over buildings.' : cr.type === 'drone' ? 'Drone flies over buildings.' : 'Up high: sees over buildings.') : 'Buildings block line of sight (shaded).'}${coverAt(tw.tx, tw.ty) ? ' <b>In cover</b>: 20% less damage.' : ''}</div></div>
     <div class="row">${tw.down ? `<button class="btn sm" data-act="replace" ${M.budget < replaceCost(cr) ? 'disabled' : ''}>Hire replacement ($${replaceCost(cr)})</button>` : ''}${cr.reviews.length && !tw.down ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Hold review</button>` : ''}<button class="btn sm ghost" data-act="reassign" ${st.noReassign && !tw.down ? 'disabled' : ''}>${tw.down ? 'Remove' : st.noReassign ? 'Bound by contract' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
   ov.appendChild(div);
 }
@@ -5677,7 +5680,7 @@ function stepHeli(a, dt) {
       if (fl.stage === 0) { fl.tw.lifted = true; fl.stage = 1; sfx('beam', a.hx); }
       else if (fl.stage === 1) {
         const tw = fl.tw; tw.tx = fl.dest.tx; tw.ty = fl.dest.ty; tw.x = fl.dest.x; tw.y = fl.dest.y; tw.lifted = false;
-        tw.roof = M.grid[tw.ty][tw.tx] >= 6; tw.plat = platformAt(tw.tx, tw.ty) ? ARTIFACTS[platformAt(tw.tx, tw.ty).id].kind : null;
+        tw.roof = onRoof(tw.tx, tw.ty); tw.plat = platformAt(tw.tx, tw.ty) ? ARTIFACTS[platformAt(tw.tx, tw.ty).id].kind : null;
         fxText(tw.x, tw.y - 22, 'DEPLOYED', '#3af0ff'); smoke(tw.x, tw.y + 6, 5); fl.stage = 2;
         if (S.selTower === tw) renderTowerInfo();
       } else a.lift = null;
@@ -5737,14 +5740,23 @@ function renderHeliInfo() {
   div.innerHTML = `<div class="row" style="gap:8px"><img class="pt big" src="${artIconUrl('heli')}" alt="" style="--rc:${A.col}"><div><h4>${esc(A.name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</h4><div class="lbl">Patrol and door gunner</div></div></div>
     <div class="tprio"><div class="lbl">Chase</div><div class="chips">${Object.entries(PRIO).map(([k, p]) => `<button class="chip${heliPrio() === k ? ' on' : ''}" data-act="heliprio" data-v="${k}" title="${esc(p.desc)}" aria-pressed="${heliPrio() === k}">${esc(p.name)}</button>`).join('')}</div>
       <div class="tnote">${esc(PRIO[heliPrio()].desc)}. The helicopter flies after it and its door gunner fires at anything close. With nothing on the map, it circles the pad.</div></div>
-    <div class="row"><button class="btn sm" data-act="airlift" ${a.cd > 0 || a.lift ? 'disabled' : ''}>${a.lift ? 'Airlift under way' : a.cd > 0 ? `Airlift in ${Math.ceil(a.cd)}s` : 'Airlift a crew member'}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
+    <div class="row"><button class="btn sm" data-act="airlift" ${a.cd > 0 || a.lift || (S.artMode && S.artMode.id === 'heli') ? 'disabled' : ''}>${a.lift ? 'Airlift under way' : a.cd > 0 ? `Airlift in ${Math.ceil(a.cd)}s` : S.artMode && S.artMode.id === 'heli' ? (S.artMode.tw ? 'Pick a drop-off tile' : 'Pick a crew member') : 'Airlift a crew member'}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
   $('#overlay').appendChild(div);
 }
 function artCardClick(id) {
   const a = M.arts.find(x => x.id === id), A = ARTIFACTS[id]; if (!a) return;
   S.selCrew = -1; S.selTower = null; renderTowerInfo();
   if (A.place !== 'none' && !a.deployed) { S.selArt = S.selArt === id ? null : id; S.artMode = null; toast(S.selArt ? `Place the ${A.name}.` : 'Cancelled.', 1300); }
-  else if (A.kind === 'heli') { S.artMode = null; S.selArt = null; S.heliPanel = !S.heliPanel; renderTowerInfo(); }
+  else if (A.kind === 'heli') {
+    S.selArt = null;
+    if (S.heliPanel || (S.artMode && S.artMode.id === id)) { S.artMode = null; S.heliPanel = false; toast('Cancelled.', 1000); }
+    else {
+      S.heliPanel = true;
+      if (a.cd <= 0 && !a.lift) { S.artMode = { id }; toast('Pick a crew member to airlift.', 1500); }
+      else { S.artMode = null; toast(a.lift ? 'Airlift under way.' : `Airlift recharging: ${Math.ceil(a.cd)}s.`, 1200); }
+    }
+    renderTowerInfo();
+  }
   else if (A.kind === 'orbital') {
     if (a.cd > 0) { toast(`${A.name} is recharging: ${Math.ceil(a.cd)}s.`, 1200); sfx('deny'); return; }
     S.artMode = S.artMode && S.artMode.id === id ? null : { id }; S.selArt = null;
@@ -6125,7 +6137,7 @@ document.addEventListener('click', ev => {
   else if (act === 'replace') { if (S.selTower) replaceCrew(S.selTower.crew); }
   else if (act === 'closeinfo') { S.selTower = null; S.heliPanel = false; renderTowerInfo(); }
   else if (act === 'heliprio') { RUN.heliPrio = b.dataset.v; sfx('click'); renderTowerInfo(); }
-  else if (act === 'airlift') { const a = M.arts.find(x => x.id === 'heli'); if (a && a.cd <= 0 && !a.lift) { S.heliPanel = false; S.artMode = { id: 'heli' }; renderTowerInfo(); buildRosterBar(); toast('Pick a crew member to airlift.', 1500); } }
+  else if (act === 'airlift') { const a = M.arts.find(x => x.id === 'heli'); if (a && a.cd <= 0 && !a.lift) { S.artMode = { id: 'heli' }; renderTowerInfo(); buildRosterBar(); toast('Pick a crew member to airlift.', 1500); } }
   else if (act === 'tostore') { if (!startReviewFlow()) showStore(); }
   else if (act === 'review') showReview(RUN.roster.find(c => c.id === b.dataset.id));
   else if (act === 'pickperk') resolveReview(b.dataset.id);
@@ -6184,7 +6196,7 @@ document.addEventListener('keydown', ev => {
   if (modal || S.screen !== 'mission' || !M) return;
   if (ev.key === ' ') { ev.preventDefault(); if (M.phase === 'prep') { M.phase = 'drill'; sfx('start'); } else M.paused = !M.paused; }
   else if (ev.key >= '1' && ev.key <= '8') { const i = +ev.key - 1; if (RUN.roster[i] && !M.deployedIds.has(RUN.roster[i].id)) { S.selCrew = S.selCrew === i ? -1 : i; buildRosterBar(); } }
-  else if (ev.key === 'Escape') { S.selArt = null; S.artMode = null; S.selCrew = -1; S.selTower = null; renderTowerInfo(); buildRosterBar(); }
+  else if (ev.key === 'Escape') { S.selArt = null; S.artMode = null; S.heliPanel = false; S.selCrew = -1; S.selTower = null; renderTowerInfo(); buildRosterBar(); }
 });
 
 // ---------- main loop ----------
@@ -6200,7 +6212,7 @@ function frame(now) {
 }
 
 // test hook for automated playtesting
-window.__AL = { damagedFrame, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
