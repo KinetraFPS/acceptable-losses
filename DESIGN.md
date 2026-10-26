@@ -102,7 +102,7 @@ Liquids can't be built on, and each world has its own:
 Liquids shimmer, and acid, methane and lava bubble. Buildings are styled per world: neon apartment blocks, terracotta eco-houses with solar roofs and gardens, snow-dusted station modules, whitewashed desert domes, moon habitats, moss-covered bunkers, and hazard-striped foundries with smoking chimneys.
 
 ## Sectors
-A run is two sectors of four contracts plus a boss.
+A run is three sectors (acts), each of four contracts plus a boss.
 - **Sector 1** uses the original seven worlds and ends with a faction boss. Beating it shows a *Sector cleared* promotion notice:
   - The board advances up to 20% margin "against future earnings".
   - Crew, relics and story carry over.
@@ -115,7 +115,11 @@ A run is two sectors of four contracts plus a boss.
   - **The World Serpent**: burrows, spits acid at three crew, regenerates, and splits into three serpentlings.
   - **The Chairman (Gold Exosuit)**: blinks, fires on three crew, EMPs, and comes back flying when "removed".
   - **The Revolution**: a mecha made of thousands of protesters that sheds seven every 10% of health, rallies, heals and gets a second wind.
-- Envoys' reckoning beats and the endings now happen at the end of Sector 2.
+- **Sector 3** (contracts 11–15) adds the **Kindly Arcology**, and at least two of them appear on every Sector 3 map:
+  - Polished concrete plazas and dark walkways with yellow lane markings, glass-curtain office blocks with helipads and revolving doors, reflecting pools, planters, bollards, CCTV posts, info kiosks, statues of the Kindly sun mascot, a branded skyscraper, and memos drifting down between the towers.
+  - Company property: enemies +10% HP, crew fire 5% faster with management watching.
+- Each Sector 3 contract counts as about 0.32 of a Sector 1 step, and extraction time stops growing after contract 11.
+- The Sector 2 boss is now an ordinary faction boss ("Executive priority"). The apex bosses, envoys' reckoning beats and the endings happen at the end of Sector 3 ("Board priority").
 
 ## UI feel
 - **Transitions:** every screen arrives behind pixel shutters that slide away, and its content rises in one item after another (email paragraphs, payslip rows, store offers, roster, review cards, envoy offer panels). Before each mission the ship flies out to the chosen planet with a warp trail and a flash.
@@ -137,10 +141,14 @@ Before some deployments a faction's envoy gets onto your channel. This is what s
 - Not on the first contract.
 - Chance on a faction's planet is 20%, plus 12% for every earlier contract against that faction, plus 35% if you're already in that faction's arc. The first sector guarantees one by contract 3.
 - Planets with an envoy waiting show *ENCRYPTED CHATTER* on the star map and in the contract card. While an arc is under way, that faction usually has a planet on offer.
-- Pleas come from the Union, Wildlife and Activists. Bribes come from VectorCorp, and from evil clients committing insurance fraud (18% chance when no faction envoy appears).
+- Pleas come from the Union, Wildlife, Activists, Lumen Kin, the Abandoned, the Precursors and the Church. Bribes come from VectorCorp, the Free Haulers, Asset Protection, and from evil clients committing insurance fraud (18% chance when no faction envoy appears).
 
 **The envoy screen**
-- An animated pixel video call: the envoy's bust over a faction backdrop. The envoy steps further out of the shadow at each beat.
+- An animated pixel video call: the envoy over a faction backdrop. The envoy steps further out of the shadow at each beat.
+- **Envoy rigs:** every envoy is a sculpted, lit portrait built from shaded volumes (head, neck, torso, props) rather than flat shapes, so they read as solid forms (`RIGS`, `sculptBall`, `sculptTorso`, `humanHead`).
+  - **Idle:** breathing, blinking, and a moving mouth while their lines type out.
+  - **Reactions:** accept gets a nod and a smile. Refuse gets a head shake, then they look away while the call dims. Report gets a flash of shock, then anger, then the feed cuts to static and SIGNAL LOST.
+  - Character gags stay in proportion (Brent from Claims has a normal neck and tie) so they read as characterisation, not drawing errors.
 - The envoy's message types out using details from your run: the planet, the client, last time's results, injured crew.
 - An offer panel lists the ask, the reward and the risk.
 - Choices: **Accept**, **Refuse**, or **Report to HR**. Reporting pays scrip and loyalty, but that faction holds a grudge (+15% HP) and never calls again. Two refusals and the envoy stops asking.
@@ -188,10 +196,12 @@ The victory email changes with the run. Endings are checked in this order:
 | The New Board | Completed the VectorCorp arc | VectorCorp Board |
 | Apex Predator | Completed the Wildlife arc | WREN-7 (translated) |
 | Going Viral | Completed the Activists arc | Glitch, live |
+| Asset Protected | Completed the Asset Protection arc | Director Haldane |
+| The Eternal Quarter | Completed the Church arc | The Deacon |
 | Employee of the Quarter | Loyalty 2+ (refused or reported) and honoured no deals | Q. |
 | Acceptable Losses | Anything else | Q. |
 
-The final screen also shows the ending number and a **Your Story** recap of every envoy choice. Endings found are saved in the browser and shown on the title screen as "Endings found: n/8".
+The final screen also shows the ending number and a **Your Story** recap of every envoy choice. Endings found are saved in the browser and shown on the title screen as "Endings found: n/10".
 
 **Rescues:** if you're abandoned with an arc at beat 2 or later (not betrayed or reported), that faction comes for you:
 - Union: Dot's ore hauler.
@@ -234,7 +244,7 @@ Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parac
 The auto-play bot does not use artifacts.
 
 ## Factions
-Eight factions. Every one fields its own version of all 17 hostile kinds, with its own sprite and name. Each faction's identity comes from its spawn weights (the kinds it didn't field before come in at a low 0.5) and its own trait.
+Ten factions. Every one fields its own version of all 17 hostile kinds, with its own sprite and name. Each faction's identity comes from its spawn weights (the kinds it didn't field before come in at a low 0.5) and its own trait.
 
 | Faction | Act | Envoy | Trait |
 |---|---|---|---|
@@ -246,6 +256,8 @@ Eight factions. Every one fields its own version of all 17 hostile kinds, with i
 | **The Abandoned** | 2 | Marguerite Vance | Ex-Kindly staff. Elites wear +3 salvaged armour and carry the names of crew you lost, in this run and earlier ones (stored across runs). |
 | **Free Haulers** | 2 | Bex Ironwake (bribes) | Smugglers: boats and gunships are common, and anything that reaches the drill steals 30% more |
 | **Precursors** | 2 | The Archivist | Psychic constructs: veterans and elites slow crew within 1.8 tiles by 20% |
+| **Kindly Asset Protection** | 3 | Director Ines Haldane (bribes) | Your own company's enforcers. They have read your file: they take 25% less damage from the crew role you have deployed most this run (a toast names it) |
+| **The Church of the Eternal Quarter** | 3 | The Deacon | The burnt-out, organised. Their units gain up to +30% HP as your crew's average morale falls, and staff who quit in Act 3 join the Church |
 
 - **The Lumen Kin** are an alien people, deliberately not a real-world stereotype. They are tall and indigo, lit by crystal veins, with crowns of natural crystal growth, woven glass-thread robes, lanterns, glass shields, kites and long-legged striders.
   - **Arc:** Dimming, Promise, Relighting.
@@ -256,7 +268,12 @@ Eight factions. Every one fields its own version of all 17 hostile kinds, with i
   - **Rewards:** the black market, a free artifact and Guild broadsides on the final contract.
 - **The Precursors arc:** Sleepers, Archive, Waking.
   - **Rewards:** the Glyph of Patience relic (+20% XP), the Archive's Memory relic (+20% damage to bosses and elites) and the drill's precursor beam on the final contract.
-- **The rest of each new faction:** each has 3 bosses plus an Act 2 apex boss, 2 artifacts, a news channel for the desk, planet scenes, a rescue and an ending.
+- **The Asset Protection arc:** Inventory, Requisition, Lockdown. Haldane pays scrip.
+  - **Rewards:** Executive Clearance (store 20% cheaper), the Asset Protection Kit (crew +15% HP) and Lockdown (on the final contract, snipers hit the four hostiles nearest the drill every 20s).
+- **The Church arc:** Collection, Confession, the Rapture.
+  - **Rewards:** the Tithe Plate (contracts pay 20% more), Communion (crew morale never falls below 30) and the Rapture (on the final contract, the choir turns the two hostiles nearest the drill to your side every 22s).
+- **Act 3 bosses:** the Head of Security, the Repossessor, the Auditor-General and the Compliance Engine (apex); the High Cantor, the Reliquary, the Penitent Engine and the Quarter Incarnate (apex).
+- **The rest of each new faction:** each has 3 bosses plus an apex boss, 2 artifacts, a news channel for the desk, planet scenes, a rescue and an ending.
 - **Art plugs in through registries:** units, bosses, envoy portraits and backdrops, obstacles, map dressing and artifact sprites (`FAC_ART`, `BOSS_ART`, `ENVOY_ART`, `ENVOY_SCENES`, `OBST_EXTRA`, `FACTION_MAP`, `ART_EXTRA`).
 
 ## Crew conscience
@@ -328,7 +345,7 @@ Each sector is an act, with its own cast and its own light (`ACTS`).
 |---|---|---|---|
 | 1 (Sector 1) | Onboarding: local grievances | Union, Activists, Wildlife, Lumen Kin | Bright daylight |
 | 2 (Sector 2) | Restructuring: competition and fallout | VectorCorp, the Abandoned, Free Haulers, Precursors | Dusk and smog: warm skies over purple shadow, drifting smog, rusting abandoned Kindly rigs on the map and in scenes, a red nebula on the star map, a flickering lamp on the desk |
-| 3 (planned) | The Endless Quarter: reckoning | Kindly Asset Protection, the Church of the Eternal Quarter | Corporate night (palette defined, not yet used) |
+| 3 (Sector 3) | The Endless Quarter: reckoning | Kindly Asset Protection, the Church of the Eternal Quarter | Corporate night: cold blue-black light, company yellow windows and alarm red, a blue banner on the star map |
 
 - **Unlocking:** a faction first appears when its act arrives. VectorCorp no longer shows up in Act 1.
 - **Weighting:** the act's own factions get weight 3. Factions from earlier acts start at 0.3 and gain weight from your history with them: +1.4 for an unfinished envoy arc, +1 for a grudge, +0.6 for a finished arc, and a little per planet you helped or crushed. A fresh Act 2 is about 80% VectorCorp; a run with unfinished business sees old factions much more (`factionWeights`).

@@ -602,6 +602,8 @@ const DIFFS = [
 
 const RELICS = {
   funbudget: { name: 'Mandatory Fun Budget', desc: 'Corporate perk for loyalty. Crew morale settles higher between contracts.', special: true },
+  sidearms: { name: 'Company Sidearms', desc: 'Corporate perk for loyalty. Crew deal 10% more damage.', special: true },
+  airsupport: { name: 'Corporate Air Support', desc: 'Corporate perk for loyalty. On boss contracts a Kindly gunship strafes six hostiles every 22s.', special: true },
   retention: { name: 'Retention Bonus', desc: 'Corporate perk for loyalty. The first crew member who tries to quit each sector is talked round.', special: true },
   coffee:    { name: 'Broken Coffee Machine',            desc: 'Only dispenses hot water. Crew fire 15% faster out of spite.' },
   poster:    { name: '"Hang In There" Poster',           desc: 'All crew deal 12% more damage.' },
@@ -3536,6 +3538,7 @@ function towerStats(crew, tw) {
   { const mt = moraleTier(crew); s.dmg *= mt.dmg; s.rate *= mt.rate; }
   if (has('archivemem')) s.eliteBonus += 0.2;
   if (has('tactical')) s.maxhp *= 1.15;
+  if (has('sidearms')) s.dmg *= 1.1;
   if (tw && tw.roof) s.range *= 1.15;
   if (tw && tw.plat && M) { const pa = platformAt(tw.tx, tw.ty); s.range *= 1 + (tw.plat === 'boat' ? 0.2 : 0.15) + 0.05 * (((pa && pa.level) || 1) - 1); }
   if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) s.dmg *= 1.2;
@@ -4806,6 +4809,8 @@ function spawnDefector(d) {
 function loyaltyReward(amount, why) {
   RUN.dividend = (RUN.dividend || 0) + amount;
   const st = RUN.story;
+  if (st.loyalty >= 1 && !RUN.relics.includes('sidearms')) { RUN.relics.push('sidearms'); toast('Corporate perk: Company Sidearms. Crew deal 10% more damage.', 2600); }
+  if (st.loyalty >= 3 && !RUN.relics.includes('airsupport')) { RUN.relics.push('airsupport'); toast('Corporate perk: Corporate Air Support on boss contracts.', 2600); }
   if (st.loyalty >= 2 && !RUN.relics.includes('funbudget')) { RUN.relics.push('funbudget'); for (const cr of RUN.roster) cr.morale = clamp((cr.morale ?? 65) + 10, 0, 100); toast('Corporate perk: Mandatory Fun Budget. Morale is now compulsory.', 2600); }
   if (st.loyalty >= 4 && !RUN.relics.includes('retention')) { RUN.relics.push('retention'); toast('Corporate perk: Retention Bonus. One quitter per sector will be talked round.', 2600); }
 }
@@ -5324,8 +5329,8 @@ function envoyChoice(v) {
   if (sp === 'truce') a.truceAt = RUN.idx;
   if (sp === 'favour') a.favourAt = RUN.idx;
   if (v === 'accept' && B.pay) moraleEvent('bribe', E.fac);
-  if (v === 'refuse') { moraleEvent('refused', E.fac); loyaltyReward(10); }
-  if (v === 'report') { moraleEvent('reported', E.fac); loyaltyReward(25); }
+  if (v === 'refuse') moraleEvent('refused', E.fac);
+  if (v === 'report') moraleEvent('reported', E.fac);
   if (v === 'accept' && sp === 'favour') {
     S.pendingFavour = E.fac;
     st.heat = Math.min(100, st.heat + B.heat);
@@ -5345,6 +5350,9 @@ function envoyChoice(v) {
     S.pendingEcho = { fac: E.fac, kind: 'reported', pay: A.reportPay };
   }
   st.log.push(log);
+  // after loyalty has moved, so the perk lands on the choice that earned it
+  if (v === 'refuse') loyaltyReward(10);
+  if (v === 'report') loyaltyReward(25);
   sfx(v === 'accept' ? 'confirm' : v === 'report' ? 'buy' : 'click');
   $('#envSkip').textContent = v === 'accept' ? 'Deal struck.' : v === 'refuse' ? 'Channel closed.' : 'Transcript forwarded to HR-BOT.';
   $('#envBtns').innerHTML = `<button class="btn" data-act="envoydeploy">Deploy to ${esc(o.planet)}</button>`;
@@ -6158,6 +6166,7 @@ function startAllies(m) {
   m.freeT = st.flags.freeport && m.c.boss ? 10 : null;
   m.wakeT = st.flags.waking && m.c.boss ? 9 : null;
   m.lockT = st.flags.lockdown && m.c.boss ? 8 : null;
+  m.airT = has('airsupport') && m.c.boss ? 9 : null;
   m.raptureT = st.flags.rapture && m.c.boss ? 10 : null;
   // a faction that likes you sends people: every contract when allied, this one if they offered a favour
   m.helper = S.pendingFavour || alliedHelper(m.c.facKey); m.helpEvery = S.pendingFavour ? 16 : 26; m.helpT = m.helper ? 7 : null; S.pendingFavour = null;
@@ -6206,6 +6215,12 @@ function stepAllies(dt) {
     const tough = m.enemies.filter(e => !e.dead && !e.deal && !e.invuln).sort((a, b) => b.hp - a.hp).slice(0, 3);
     for (const e of tough) { m.fx.push({ k: 'tracer', x1: m.dep.x, y1: m.dep.y - 20, x2: e.x, y2: ecy(e), life: 0.3, max: 0.3, color: '#ff5ad1', w: 3, glow: '#ff5ad1' }); damage(e, 120, true, null); }
     if (tough.length) { fxText(m.dep.x, m.dep.y - 36, 'THE WAKING', '#ff5ad1'); sfx('thunder', m.dep.x); shake(3); }
+  }
+  if (live && m.airT != null && (m.airT -= dt) <= 0) {
+    m.airT = 22;
+    const live2 = m.enemies.filter(e => !e.dead && !e.deal && !e.invuln);
+    for (const e of shuffle(live2).slice(0, 6)) { m.fx.push({ k: 'tracer', x1: e.x - 60, y1: -10, x2: e.x, y2: ecy(e), life: 0.12, max: 0.12, color: '#ffd23f', w: 2 }); damage(e, 55, false, null); sparks(e.x, ecy(e), '#ffd23f', 4); }
+    if (live2.length) { fxText(m.dep.x, m.dep.y - 36, 'CORPORATE AIR SUPPORT', '#ffd23f'); sfx('gun', m.dep.x); shake(2); }
   }
   if (live && m.lockT != null && (m.lockT -= dt) <= 0) {
     m.lockT = 20;
