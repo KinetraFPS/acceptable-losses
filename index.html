@@ -2825,10 +2825,10 @@ function placeBuildings(grid, dep, spawns) {
     const horiz = rnd() < 0.75, [w, h] = pick(horiz ? [[2, 2], [3, 2], [2, 2]] : [[2, 2], [2, 3]]), n = ri(2, 3);
     const x0 = ri(1, GW - 2), y0 = ri(0, GH - 2), row = Array.from({ length: n }, (_, k) => horiz ? [x0 + k * (w + 1), y0] : [x0, y0 + k * (h + 1)]);
     if (!row.every(([x, y]) => fits(x, y, w, h))) continue;
-    for (const [x, y] of row) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = 6; out.push({ x, y, w, h }); }
+    for (const [x, y] of row) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = 6; out.push({ x, y, w, h, row: true }); }
     if (rnd() < 0.55) {
       const facing = row.map(([x, y]) => horiz ? [x, y + h + 2] : [x + w + 2, y]);
-      if (facing.every(([x, y]) => fits(x, y, w, h))) for (const [x, y] of facing) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = 6; out.push({ x, y, w, h }); }
+      if (facing.every(([x, y]) => fits(x, y, w, h))) for (const [x, y] of facing) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = 6; out.push({ x, y, w, h, row: true }); }
     }
   }
   for (let tries = 0; tries < 160 && out.length < want; tries++) {
@@ -3148,7 +3148,7 @@ function planStreets(P, map, biomeKey, lights) {
   const dx = map.dep.x, dy = map.dep.y;
   for (let y = dy - 1; y <= dy + 1; y++) for (let x = dx - 1; x <= dx + 1; x++) if (code(x, y) === 0) paveTile(x, y, y === dy + 1);
   // a front yard under each building, on the open ground below its facade
-  for (const b of map.buildings || []) for (let x = b.x; x < b.x + b.w; x++) if (code(x, b.y + b.h) === 0) paveTile(x, b.y + b.h, true);
+  if (!B3.BKIT[biomeKey]) for (const b of map.buildings || []) for (let x = b.x; x < b.x + b.w; x++) if (code(x, b.y + b.h) === 0) paveTile(x, b.y + b.h, true);
   // street lamps every few tiles along each road, always on the same side
   const done = new Set();
   for (const p of map.paths) for (let i = 2; i < p.length - 1; i += 4) {
@@ -3262,7 +3262,10 @@ function renderGround(map, biomeKey) {
   const addAll = (o, ox, oy) => { for (const l of o.lights) lights.push({ ...l, x: (ox + l.x) * AP, y: (oy + l.y) * AP }); for (const p of o.props) props.push({ ...p, x: ox + p.x, y: oy + p.y }); };
   planStreets(P, map, biomeKey, lights);
   // buildings, with a tunnel mouth wherever a path leaves the footprint
-  for (const b of map.buildings || []) {
+  // shadows first, so a building never sits under its neighbour's shadow
+  const kit3 = B3.BKIT[biomeKey], blds = (map.buildings || []).slice().sort((a, b) => a.y - b.y);
+  if (kit3) for (const b of blds) if (b.type) B3.buildingShadow(g, b.x * ATILE, b.y * ATILE, b.w * ATILE, b.h * ATILE, B3.TALL[b.type] || 1);
+  for (const b of blds) {
     const openings = [];
     for (let i = 0; i < b.w; i++) {
       if (code(b.x + i, b.y) === 7 && isP(b.x + i, b.y - 1)) openings.push({ side: 'top', i });
@@ -3271,6 +3274,14 @@ function renderGround(map, biomeKey) {
     for (let i = 0; i < b.h; i++) {
       if (code(b.x, b.y + i) === 7 && isP(b.x - 1, b.y + i)) openings.push({ side: 'left', i });
       if (code(b.x + b.w - 1, b.y + i) === 7 && isP(b.x + b.w, b.y + i)) openings.push({ side: 'right', i });
+    }
+    if (kit3 && b.type) {
+      const o = B3.building3d(biomeKey, b, b.type), ox = b.x * ATILE, oy = b.y * ATILE;
+      B3.drawOpenings(o, openings);
+      // a short paved walk from each door down to the open ground in front
+      for (const d of o.doors) { const tx = b.x + Math.floor(d / ATILE); if (code(tx, b.y + b.h) === 0) { const wx = ox + Math.round(d) - 3, wy = oy + b.h * ATILE + 1; P.r(wx, wy, 6, ATILE - 4, shade(A.p[0], 0.1)); P.r(wx - 1, wy, 1, ATILE - 4, shade(A.p[0], -0.25)); P.r(wx + 6, wy, 1, ATILE - 4, shade(A.p[0], -0.25)); for (let y = wy + 3; y < wy + ATILE - 4; y += 4) P.r(wx, y, 6, 1, shade(A.p[0], -0.1)); } }
+      g.drawImage(o.c, ox + o.ox, oy + o.oy); addAll(o, ox, oy);
+      continue;
     }
     const o = buildingSprite(biomeKey, b, openings), ox = b.x * ATILE, oy = b.y * ATILE;
     P.r(ox + b.w * ATILE, oy + 3, 3, b.h * ATILE - 3, 'rgba(0,0,0,0.32)');
@@ -3330,6 +3341,7 @@ function startMission(contract) {
   const dividend = RUN.dividend || 0; RUN.dividend = 0;
   if (dividend) { M.budget += dividend; M.dividendPaid = dividend; setTimeout(() => toast(`Loyalty Dividend: +$${dividend} budget, to cover your crew's attitude.`, 2600), 900); }
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
+  B3.assignTypes(map, contract.biomeKey, contract.facKey);
   if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map);
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
@@ -9008,6 +9020,400 @@ Object.assign(ARTIFACTS, {
   pew: { fac: 'church', name: 'The Confessional', kind: 'lantern', place: 'ground', col: '#c83a5a', desc: 'Somewhere to sit. Crew within 2.5 tiles heal 3 HP per second (+1 per level), and hostiles near it lose their cloaks.' },
 });
 ARTIFACT_IDS.push('checkpoint', 'skycam', 'censer', 'pew');
+
+// ================================================================
+// BUILDINGS IN 3D. Every building is a TYPE (house, shop, school, clinic, church, depot, office,
+// skyscraper, or an alien equivalent) drawn in a BIOME's materials. The footprint is seen from
+// above at three-quarters: roof at the back, a tall front wall facing you, lit from the upper
+// left, with a shadow thrown onto the ground to the lower right and a dark outline round it.
+// ================================================================
+const B3 = (() => {
+// a biome's materials. wall/roof are base colours; ramps are derived from them
+const BKIT = {
+  frozen: { wall: '#8a9aac', trim: '#c83a3a', roof: '#a8463a', roofFlat: '#c8d4e0', roofB: '#9aa8b8', win: '#9fe0ff', winOff: '#24303e', door: '#2a3442', step: '#a8b4c2', tex: 'panel', snow: true,
+            roofs: { house: 'gable', shop: 'flat', school: 'hip', clinic: 'flat', church: 'gable', depot: 'barrel', office: 'flat' }, sign: '#ffd23f', accent: '#c83a3a' },
+  cyber:  { wall: '#3a3c52', trim: '#ff3ad6', roof: '#4a4c62', roofB: '#2a2c3e', win: '#3af0ff', winOff: '#14151f', door: '#0e0f18', step: '#5a5c72', tex: 'concrete', neon: ['#ff3ad6', '#3af0ff', '#ffd23f'],
+            roofs: { house: 'flat', shop: 'flat', school: 'flat', clinic: 'flat', church: 'flat', depot: 'saw', office: 'flat' }, sign: '#3af0ff', accent: '#ff3ad6' },
+  hq:     { wall: '#2a3450', trim: '#ffd23f', roof: '#3a4664', roofB: '#232c44', win: '#ffd23f', winOff: '#121a2c', door: '#0e1424', step: '#8a92a6', tex: 'glass',
+            roofs: { house: 'flat', shop: 'flat', school: 'flat', clinic: 'flat', church: 'gable', depot: 'saw', office: 'flat' }, sign: '#ffd23f', accent: '#4a7ae8' },
+  toxic:  { alien: true, wall: '#d8c8a8', trim: '#8aff4a', cap: '#9a3a7a', cap2: '#c86aa0', win: '#c8ff7a', winOff: '#2a3a1a', door: '#2a1a24', step: '#8a7a5a', glow: '#8aff4a', spot: '#f2e0ea' },
+};
+const BTYPES_HUMAN = ['house', 'shop', 'school', 'clinic', 'church', 'depot', 'office'];
+const BTYPES_ALIEN = ['sporehome', 'sporemarket', 'creche', 'mender', 'shrine', 'growhouse', 'elderhall'];
+const BTYPE_NAME = { house: 'Housing', shop: 'Shop', school: 'School', clinic: 'Clinic', church: 'Church', depot: 'Depot', office: 'Office', skyscraper: 'Skyscraper', unionhall: 'Union Hall',
+  sporehome: 'Spore home', sporemarket: 'Spore market', creche: 'Creche', mender: 'Mender pool', shrine: 'Spiral shrine', growhouse: 'Grow-house', elderhall: 'Elder hall' };
+
+// ---------- shading primitives ----------
+const dk = (c, k = 0.25) => shade(c, -k), lt = (c, k = 0.2) => shade(c, k);
+const dith = (x, y) => (x + y) & 1;
+// a front wall facing you: eave shadow at the top, a darker plinth, a darker side return on the right
+function wallFace(P, x, y, w, h, K, o = {}) {
+  const base = o.col || K.wall;
+  for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+    const k = (yy - y) / h; let c = shade(base, 0.06 - k * 0.14);
+    if (K.tex === 'panel' && (xx - x) % 6 === 0) c = dk(c, 0.1);
+    if (K.tex === 'concrete' && dith(xx, yy) && (xx * 7 + yy * 3) % 11 === 0) c = dk(c, 0.12);
+    if (K.tex === 'glass' && (xx - x) % 4 === 0) c = lt(c, 0.08);
+    if (K.tex === 'brick' && ((yy - y) % 3 === 0 || (xx + ((yy - y) / 3 | 0) * 2) % 5 === 0)) c = dk(c, 0.1);
+    P.p(xx, yy, c);
+  }
+  P.r(x, y, w, 2, dk(base, 0.42)); P.r(x, y + 2, w, 1, dk(base, 0.2));            // eave shadow
+  P.r(x, y + h - 2, w, 2, dk(base, 0.3));                                       // plinth
+  if (!o.noSide) { P.r(x + w - 3, y, 3, h, dk(base, 0.3)); P.r(x + w - 3, y, 1, h, dk(base, 0.18)); } // side return
+  if (o.band) P.r(x, y + 4, w - 3, 1, o.band);
+}
+// a recessed window: frame shadow top-left, a sill catching light, a glint
+function win(P, x, y, w, h, K, lit = rnd() < 0.55, L) {
+  const g = lit ? K.win : K.winOff;
+  P.r(x - 1, y - 1, w + 2, h + 2, dk(K.wall, 0.45));
+  P.r(x, y, w, h, g); P.r(x, y, w, 1, dk(g, 0.35)); P.r(x, y, 1, h, dk(g, 0.25));
+  if (w > 2 && h > 2) P.p(x + w - 2, y + 1, lt(g, 0.5));
+  P.r(x - 1, y + h + 1, w + 2, 1, lt(K.wall, 0.3));
+  if (lit && L && rnd() < 0.5) L.push({ x: x + w / 2, y: y + h / 2, color: K.win, r: 7 + w });
+}
+let DOORS = null;
+function door(P, x, y, w, h, K, o = {}) {
+  if (DOORS) DOORS.push(x + w / 2);
+  P.r(x - 1, y - 1, w + 2, h + 1, o.frame || dk(K.wall, 0.5));
+  P.r(x, y, w, h, K.door); P.r(x, y, w, 2, dk(K.door, 0.4)); P.r(x, y, 1, h, dk(K.door, 0.3));
+  if (o.glass) { P.r(x + 1, y + 2, w - 2, h - 3, K.win); P.r(x + (w >> 1), y + 2, 1, h - 3, K.door); }
+  if (o.arch) { P.p(x, y, dk(K.wall, 0.5)); P.p(x + w - 1, y, dk(K.wall, 0.5)); P.r(x + 1, y - 2, w - 2, 1, dk(K.wall, 0.5)); P.r(x + 1, y - 1, w - 2, 1, K.door); }
+  else P.p(x + w - 2, y + (h >> 1), K.sign || '#ffd23f');
+  P.r(x - 2, y + h - 1, w + 4, 1, K.step); P.r(x - 2, y + h, w + 4, 1, dk(K.step, 0.25));      // step
+}
+// roofs over the rectangle (x, y, w, h), seen from above at three-quarters
+function roofFlat(P, x, y, w, h, K) {
+  const c = K.roofFlat || K.roof;
+  for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) P.p(xx, yy, dith(xx, yy) && (xx * 3 + yy) % 7 === 0 ? dk(c, 0.06) : c);
+  P.r(x, y, w, 2, lt(c, 0.28)); P.r(x, y, 2, h, lt(c, 0.2));                           // parapet, lit
+  P.r(x, y + h - 2, w, 2, dk(c, 0.3)); P.r(x + w - 2, y, 2, h, dk(c, 0.28));
+  P.r(x + 2, y + 2, w - 4, 2, dk(c, 0.2)); P.r(x + 2, y + 2, 2, h - 4, dk(c, 0.14));     // shadow inside the parapet
+}
+function roofGable(P, x, y, w, h, K, o = {}) {
+  const c = o.col || K.roof, back = Math.max(3, Math.round(h * 0.36)), R = toneRamp(c);
+  x -= 1; w += 2;                                                                       // eaves overhang the walls
+  // back slope: tilted away from the light, foreshortened, darker the nearer the ridge
+  for (let yy = y; yy < y + back; yy++) { const k = (yy - y) / back; for (let xx = x; xx < x + w; xx++) P.p(xx, yy, (yy - y) % 3 === 2 ? R[0] : rampPick(R, 0.3 - k * 0.12, xx, yy)); }
+  P.r(x, y + back, w, 1, R[4]);                                                         // ridge catching light
+  // front slope: facing the light, brightest just under the ridge, tile courses every third row
+  for (let yy = y + back + 1; yy < y + h; yy++) { const k = (yy - y - back) / (h - back); for (let xx = x; xx < x + w; xx++) P.p(xx, yy, (yy - y - back) % 3 === 0 ? R[1] : rampPick(R, 0.9 - k * 0.45, xx, yy)); }
+  if (!o.hip) { P.r(x, y, 1, h, R[3]); P.r(x + w - 1, y, 1, h, R[0]); }               // bargeboards
+  P.r(x, y + h - 1, w, 1, R[0]);                                                        // eave edge
+  if (K.snow) { for (let xx = x + 1; xx < x + w - 1; xx++) { if (rnd() < 0.8) P.p(xx, y + back - 1, '#ffffff'); if (rnd() < 0.5) P.p(xx, y + h - 2, '#f4faff'); } }
+}
+function roofHip(P, x, y, w, h, K) {
+  roofGable(P, x, y, w, h, K, { hip: true });
+  const c = K.roof, R = toneRamp(c), back = Math.max(3, Math.round(h * 0.36)), e = Math.min(Math.round(h * 0.55), Math.round(w / 3));
+  x -= 1; w += 2;
+  // the hipped ends: a triangle at each end, apex at the end of the ridge; left lit, right in shade
+  for (let yy = y; yy < y + h; yy++) {
+    const d = yy <= y + back ? (yy - y) / back : (y + h - 1 - yy) / (h - 1 - back), run = Math.round(e * clamp(d, 0, 1));
+    for (let k = 0; k < run; k++) { P.p(x + k, yy, R[3]); P.p(x + w - 1 - k, yy, R[1]); }
+    if (run > 0) { P.p(x + run, yy, R[4]); P.p(x + w - 1 - run, yy, R[1]); }                // hip lines
+  }
+}
+function roofBarrel(P, x, y, w, h, K) {
+  const c = K.roof;
+  for (let yy = y; yy < y + h; yy++) { const ny = (yy - y) / h * 2 - 1; for (let xx = x; xx < x + w; xx++) { const v = litValue(0, ny * 0.95, Math.sqrt(Math.max(0, 1 - ny * ny * 0.9))); P.p(xx, yy, rampPick(toneRamp(c), v, xx, yy)); } }
+  for (let xx = x + 3; xx < x + w - 2; xx += 5) P.r(xx, y, 1, h, dk(c, 0.18));
+  P.r(x, y, 1, h, lt(c, 0.2)); P.r(x + w - 1, y, 1, h, dk(c, 0.4));
+}
+function roofSaw(P, x, y, w, h, K) {
+  const c = K.roof;
+  for (let yy = y; yy < y + h; yy++) { const t = (yy - y) % 6; for (let xx = x; xx < x + w; xx++) P.p(xx, yy, t < 2 ? (K.neon ? '#3af0ff' : '#9fd3ff') : t === 2 ? lt(c, 0.3) : shade(c, 0.1 - (t - 3) * 0.1)); }
+  P.r(x, y, 1, h, lt(c, 0.2)); P.r(x + w - 1, y, 1, h, dk(c, 0.4)); P.r(x, y + h - 1, w, 1, dk(c, 0.45));
+}
+const roofBy = { flat: roofFlat, gable: roofGable, hip: roofHip, barrel: roofBarrel, saw: roofSaw };
+// rooftop objects: each a small block with a lit top, a dark side and a shadow on the roof
+function blockOn(P, x, y, w, h, top, depth = 3, col) {
+  P.g.globalAlpha = 0.35; P.r(x + 2, y + 2, w + depth - 1, h + depth - 1, '#000000'); P.g.globalAlpha = 1;
+  P.r(x, y, w, h, lt(top, 0.2)); P.r(x, y + h, w, depth, col || dk(top, 0.15)); P.r(x + w - 1, y, 1, h + depth, dk(top, 0.35));
+}
+const chimney = (P, x, y, K) => { blockOn(P, x, y, 4, 2, K.accent === '#c83a3a' ? '#8a5a4a' : '#5a5e6a', 4); P.r(x + 1, y, 2, 1, '#1a1414'); };
+const tank = (P, x, y, c = '#8a929c') => { P.g.globalAlpha = 0.35; P.ell(x + 5, y + 7, 4, 2, '#000000'); P.g.globalAlpha = 1; sculptCyl(P, x, y + 1, 6, 6, c, 0.2); sculptBall(P, x + 3, y + 1, 3, 1.5, lt(c, 0.15)); };
+const acUnit = (P, x, y) => { blockOn(P, x, y, 6, 3, '#8a909e', 2); P.ell(x + 2, y + 1.5, 1.2, 1, '#3a3e4a'); };
+const dish = (P, x, y) => { P.g.globalAlpha = 0.35; P.ell(x + 4, y + 5, 3, 1.5, '#000000'); P.g.globalAlpha = 1; P.r(x + 3, y + 3, 1, 3, '#5a626e'); sculptBall(P, x + 3, y + 2, 3.2, 2.2, '#e8eef4'); P.p(x + 3, y + 2, '#8a96a4'); };
+const flagpole = (P, x, y, col, L) => { P.r(x, y - 9, 1, 12, '#c8ccd4'); P.p(x, y - 10, '#ffd23f'); P.r(x + 1, y - 9, 5, 3, col); P.r(x + 1, y - 7, 5, 1, dk(col, 0.3)); P.g.globalAlpha = 0.3; P.line(x + 1, y + 3, x + 5, y + 5, '#000000'); P.g.globalAlpha = 1; };
+
+// ---------- the human types ----------
+// each draws onto (0..W, 0..H): roof 0..RH, wall RH..H. ctx = { W, H, RH, FH, K, L, props, doors: tile index or -1 }
+function winRow(P, c, y, h = 4, step = 6, skip = null, w = 3) { for (let x = 3; x + w < c.W - 4; x += step) { if (skip && skip(x)) continue; win(P, x, y, w, h, c.K, undefined, c.L); } }
+const BT = {
+  house(P, c) {
+    const { W, H, RH, FH, K } = c, units = W >= 72 ? 2 : 1, uw = W / units;
+    for (let u = 0; u < units; u++) {
+      const x0 = Math.round(u * uw), w = Math.round(uw);
+      (roofBy[K.roofs.house])(P, x0, 0, w, RH, K);
+      wallFace(P, x0, RH, w, FH, K, { noSide: u < units - 1 });
+      const dx = x0 + Math.round(w * 0.6); door(P, dx, RH + FH - 10, 5, 8, K);
+      if (K.neon) { for (let fy = RH + 4; fy < RH + FH - 11; fy += 5) { for (let fx = x0 + 3; fx < x0 + w - 6; fx += 7) { win(P, fx, fy, 4, 3, K, undefined, c.L); P.r(fx - 1, fy + 4, 6, 1, '#8a8ea2'); } } }
+      else { win(P, x0 + 4, RH + 5, 4, 4, K, undefined, c.L); if (w > 30) win(P, x0 + w - 9, RH + 5, 3, 4, K, undefined, c.L); }
+      if (K.roofs.house === 'flat') { tank(P, x0 + 4, 4); acUnit(P, x0 + w - 12, RH - 9); } else chimney(P, x0 + w - 9, 2, K);
+      if (K.neon && rnd() < 0.7) { const n = pick(K.neon); P.r(x0 + 3, RH + 3, w - 8, 1, n); c.L.push({ x: x0 + w / 2, y: RH + 3, color: n, r: 10 }); }
+    }
+    // washing line between the units or off the side
+    if (K.roofs.house !== 'flat') { P.line(4, RH + 3, W - 6, RH + 4, '#c8ccd4'); for (let x = 7; x < W - 8; x += 5) P.r(x, RH + 4, 2, 3, pick(['#e8e4dc', '#ff6fae', '#5fd4ff', '#ffd23f'])); }
+  },
+  shop(P, c) {
+    const { W, H, RH, FH, K } = c;
+    (roofBy[K.roofs.shop])(P, 0, 0, W, RH, K);
+    wallFace(P, 0, RH, W, FH, K);
+    // a striped awning that sticks out over the pavement, with its own shadow
+    const ay = RH + 2, stripe = K.neon ? [K.neon[0], '#14151f'] : [K.accent, '#f2efe6'];
+    P.g.globalAlpha = 0.35; P.r(1, ay + 5, W - 4, 2, '#000000'); P.g.globalAlpha = 1;
+    for (let x = 0; x < W - 3; x++) { const col = stripe[(x >> 2) & 1]; P.r(x, ay, 1, 4, col); P.p(x, ay, lt(col, 0.3)); P.p(x, ay + 4, x % 4 < 2 ? dk(col, 0.3) : 'rgba(0,0,0,0)'); }
+    win(P, 3, ay + 7, W - 16, FH - 11, K, true, c.L); door(P, W - 11, RH + FH - 9, 5, 7, K, { glass: true });
+    // a sign above the awning
+    const sw = Math.min(W - 10, 22), sx = (W - sw) >> 1; blockOn(P, sx, RH - 6, sw, 4, K.neon ? '#14151f' : '#3a2a1a', 2);
+    for (let x = sx + 2; x < sx + sw - 2; x += 2) P.p(x, RH - 4, K.neon ? pick(K.neon) : '#f2efe6');
+    if (K.neon) c.L.push({ x: W / 2, y: RH - 4, color: K.neon[1], r: 14 });
+    // crates out front
+    blockOn(P, 2, RH + FH - 5, 4, 2, '#a87a3a', 2);
+    if (K.roofs.shop === 'flat') acUnit(P, 4, 4);
+  },
+  school(P, c) {
+    const { W, H, RH, FH, K } = c;
+    if (K.roofs.school === 'flat') {
+      roofFlat(P, 0, 0, W, RH, K);
+      // a sports court painted on the roof, fenced
+      P.r(5, 5, W - 12, RH - 10, '#2a6a5a'); P.r(5, 5, W - 12, 1, '#e8e4dc'); P.r(5, RH - 6, W - 12, 1, '#e8e4dc'); P.r(5, 5, 1, RH - 10, '#e8e4dc'); P.r(W - 8, 5, 1, RH - 10, '#e8e4dc'); P.r((W >> 1) - 1, 5, 1, RH - 10, '#e8e4dc');
+      P.ell(W / 2 - 0.5, RH / 2, 2.5, 2, 'rgba(232,228,220,0.8)');
+    } else {
+      roofHip(P, 0, 0, W, RH, K);
+      // a little clock tower in the middle of the ridge
+      const tx = (W >> 1) - 4; blockOn(P, tx, 1, 8, 4, K.roof, 6, dk(K.wall, 0.1)); P.ell(tx + 4, 7.5, 2, 2, '#f2efe6'); P.p(tx + 4, 7, '#1a1a22'); P.p(tx + 5, 7, '#1a1a22');
+    }
+    wallFace(P, 0, RH, W, FH, K, { band: K.accent });
+    const dx = (W >> 1) - 4; winRow(P, c, RH + 6, 4, 6, x => x > dx - 4 && x < dx + 11);
+    door(P, dx, RH + FH - 10, 9, 8, K, { glass: true });
+    flagpole(P, 4, RH - 2, K.accent, c.L);
+  },
+  clinic(P, c) {
+    const { W, H, RH, FH, K } = c, white = '#e8eef4', KW = { ...K, wall: white, roof: '#d8e0e8' };
+    roofFlat(P, 0, 0, W, RH, KW);
+    // the rooftop cross / helipad
+    const cx = W >> 1, cy = RH >> 1, s = Math.min(8, RH / 3 | 0);
+    P.ell(cx, cy, s + 4, s + 2, dk(KW.roof, 0.12)); P.r(cx - 1, cy - s, 3, s * 2, '#d23c3c'); P.r(cx - s, cy - 1, s * 2, 3, '#d23c3c');
+    wallFace(P, 0, RH, W, FH, KW, { band: '#d23c3c' });
+    winRow(P, { ...c, K: KW }, RH + 6, 3, 5, x => Math.abs(x - (cx - 5)) < 9);
+    door(P, cx - 5, RH + FH - 10, 10, 8, KW, { glass: true });
+    // a lit cross sign over the door
+    P.r(cx - 1, RH + 3, 3, 1, '#4fe0a6'); P.r(cx, RH + 2, 1, 3, '#4fe0a6'); c.L.push({ x: cx, y: RH + 3, color: '#4fe0a6', r: 10 });
+    acUnit(P, W - 12, 4); if (W >= 54) dish(P, 4, 4);
+  },
+  church(P, c) {
+    const { W, H, RH, FH, K } = c, stone = K.neon ? '#4a4458' : K.alien ? K.wall : '#8a8478', KS = { ...K, wall: stone, tex: 'brick' };
+    if (K.neon) {
+      // a megachurch: a flat slab with a giant screen
+      roofFlat(P, 0, 0, W, RH, K);
+      wallFace(P, 0, RH, W, FH, KS);
+      P.r(4, RH + 3, W - 11, FH - 8, '#0e0f18'); for (let x = 5; x < W - 8; x++) for (let y = RH + 4; y < RH + FH - 6; y++) P.p(x, y, mixHex('#ffd23f', '#ff3ad6', (x + y) / (W + H)));
+      P.ell(W / 2 - 2, RH + FH / 2 - 2, 3, 3, '#ffffff'); c.L.push({ x: W / 2, y: RH + FH / 2, color: '#ffd23f', r: 22 });
+      door(P, (W >> 1) - 4, RH + FH - 5, 7, 4, K, { glass: true });
+      return;
+    }
+    roofGable(P, 0, 0, W, RH, { ...K, roof: K.roofs.church === 'gable' ? dk(K.roof, 0.25) : K.roof }, { steep: true });
+    wallFace(P, 0, RH, W, FH, KS);
+    // the bell tower stands in the front left corner and rises over the roof
+    const tw = 12, th = RH + FH - 2, tx = 2;
+    P.g.globalAlpha = 0.4; P.r(tx + tw, 4, 5, th - 6, '#000000'); P.g.globalAlpha = 1;
+    wallFace(P, tx, 6, tw, th - 4, KS);
+    for (let k = 0; k < 6; k++) P.r(tx + 6 - k, k, 1 + k * 2 > tw ? tw : 1 + k * 2, 1, k % 2 ? dk(K.roof, 0.3) : dk(K.roof, 0.1));
+    P.r(tx + 1, 6, tw - 2, 1, dk(stone, 0.4)); P.r(tx + 5, 9, 3, 4, '#1a1414'); P.p(tx + 6, 11, '#c8a040');      // belfry
+    P.r(tx + 6, -2 + 0, 1, 3, '#c8a040'); P.r(tx + 5, -1, 3, 1, '#c8a040');                                  // cross on the spire
+    // a rose window in the gable end and an arched door
+    const rx = Math.round((tx + tw + W) / 2) - 1, ry = RH + 6;
+    P.ell(rx, ry, 4, 4, dk(stone, 0.45)); for (let a = 0; a < 8; a++) P.p(Math.round(rx + Math.cos(a * 0.785) * 2.5), Math.round(ry + Math.sin(a * 0.785) * 2.5), pick(['#ff6fae', '#5fd4ff', '#ffd23f']));
+    P.p(rx, ry, '#ffd890'); c.L.push({ x: rx, y: ry, color: '#ffd890', r: 12 });
+    door(P, rx - 3, RH + FH - 9, 7, 7, K, { arch: true });
+    win(P, tx + tw + 4, RH + 6, 2, 6, K, true); win(P, W - 8, RH + 6, 2, 6, K, true);
+  },
+  depot(P, c) {
+    const { W, H, RH, FH, K } = c;
+    (roofBy[K.roofs.depot])(P, 0, 0, W, RH, K);
+    wallFace(P, 0, RH, W, FH, { ...K, tex: 'panel' });
+    // roller doors with hazard stripes
+    for (let k = 0; k < Math.max(1, (W / 26) | 0); k++) {
+      const dx = 5 + k * 26, dw = 16; P.r(dx - 1, RH + 3, dw + 2, FH - 4, dk(K.wall, 0.5));
+      for (let y = RH + 4; y < RH + FH - 2; y++) P.r(dx, y, dw, 1, (y - RH) % 2 ? '#8a929c' : '#6a727c');
+      for (let x = dx - 1; x < dx + dw + 1; x++) P.p(x, RH + 2, ((x >> 1) & 1) ? '#ffd23f' : '#1a1a1e');
+    }
+    blockOn(P, W - 9, RH + FH - 6, 5, 3, '#a87a3a', 2); blockOn(P, W - 14, RH + FH - 5, 4, 2, '#5a7a9a', 2);
+  },
+  office(P, c) {
+    const { W, H, RH, FH, K } = c;
+    roofFlat(P, 0, 0, W, RH, K);
+    acUnit(P, 4, 4); P.r(W - 8, 1, 1, 8, '#9aa3ad'); P.p(W - 8, 0, '#ff4d6d'); c.L.push({ x: W - 8, y: 0, color: '#ff4d6d', r: 8, pulse: true });
+    wallFace(P, 0, RH, W, FH, K);
+    for (let y = RH + 4; y < RH + FH - 10; y += 5) winRow(P, c, y, 3, 4, null, 2);
+    door(P, (W >> 1) - 3, RH + FH - 9, 6, 7, K, { glass: true });
+    blockOn(P, (W >> 1) - 8, RH - 5, 16, 3, '#1a1a22', 2); P.r((W >> 1) - 6, RH - 4, 12, 1, K.sign);
+  },
+  // a tower: the roof is small and the whole front is floors, so it reads several storeys taller,
+  // stepping back into a crown near the top
+  skyscraper(P, c) {
+    const { W, H, K } = c, crownH = 8, roofD = 7;
+    // setback crown: a narrower block on top
+    const cw = W - 10, cx = 5;
+    roofFlat(P, cx, 0, cw, roofD, K); wallFace(P, cx, roofD, cw, crownH, K);
+    for (let x = cx + 2; x < cx + cw - 4; x += 3) P.r(x, roofD + 3, 2, 3, K.neon ? pick(K.neon) : K.win);
+    P.r(cx + (cw >> 1), -3, 1, 4, '#9aa3ad'); P.p(cx + (cw >> 1), -4, '#ff4d6d'); c.L.push({ x: cx + cw / 2, y: -4, color: '#ff4d6d', r: 10, pulse: true });
+    // the main shaft: a ledge, then floor after floor
+    const top = roofD + crownH; P.r(0, top, W, 2, lt(K.roof, 0.2)); P.r(0, top + 2, W, 1, dk(K.roof, 0.3));
+    wallFace(P, 0, top + 3, W, H - top - 3, K);
+    for (let y = top + 6; y < H - 9; y += 4) for (let x = 2; x < W - 5; x += 3) { const on = rnd() < 0.6; P.r(x, y, 2, 2, on ? (K.neon && rnd() < 0.2 ? pick(K.neon) : K.win) : K.winOff); }
+    for (let x = 0; x < W - 3; x += 9) P.r(x, top + 3, 1, H - top - 6, lt(K.wall, 0.12));                    // mullions
+    if (K.neon) { const n = pick(K.neon); P.r(W - 6, top + 6, 2, H - top - 18, n); c.L.push({ x: W - 5, y: (top + H) / 2, color: n, r: 20 }); }
+    door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+  },
+  unionhall(P, c) {
+    const { W, H, RH, FH, K } = c, KB = { ...K, wall: '#8a5a4a', tex: 'brick' };
+    roofGable(P, 0, 0, W, RH, { ...K, roof: '#7a4a3a' });
+    wallFace(P, 0, RH, W, FH, KB);
+    // banners hanging off the wall, a red flag on the roof
+    for (const bx of [4, W - 12]) { P.r(bx, RH + 2, 6, FH - 6, '#c83a2a'); P.r(bx, RH + 2, 6, 1, '#f0a23a'); P.r(bx + 2, RH + 5, 2, 3, '#f0a23a'); P.p(bx + 1, RH + FH - 4, '#c83a2a'); P.p(bx + 4, RH + FH - 4, '#c83a2a'); }
+    door(P, (W >> 1) - 4, RH + FH - 10, 8, 8, KB);
+    blockOn(P, (W >> 1) - 9, RH - 6, 18, 4, '#3a2418', 2); P.r((W >> 1) - 7, RH - 5, 14, 1, '#f0a23a');
+    flagpole(P, W - 6, RH - 3, '#c83a2a');
+  },
+};
+// ---------- the alien (fungal) types: caps, stalks, pods and glow ----------
+const capRoof = (P, cx, cy, rx, ry, K, o = {}) => {
+  sculptBall(P, cx, cy, rx, ry, o.col || K.cap, { clip: (x, y) => y <= cy + ry * (o.cut ?? 0.35), rim: K.cap2 });
+  for (let k = 0; k < (o.spots ?? Math.round(rx * ry / 18)); k++) { const a = rnd() * 6.28, r = rnd() * 0.7; const sx = Math.round(cx + Math.cos(a) * rx * r), sy = Math.round(cy - Math.abs(Math.sin(a)) * ry * r * 0.8); P.p(sx, sy, K.spot); if (rnd() < 0.5) P.p(sx + 1, sy, K.spot); }
+  // the gills under the rim, in shadow
+  const gy = Math.round(cy + ry * (o.cut ?? 0.35)); for (let x = Math.round(cx - rx * 0.9); x < cx + rx * 0.9; x++) P.p(x, gy, x % 2 ? dk(K.cap, 0.5) : dk(K.cap, 0.35));
+};
+const stalkWall = (P, x, y, w, h, K) => { sculptCyl(P, x, y, w, h, K.wall, 0.25); for (let yy = y + 2; yy < y + h; yy += 4) for (let xx = x + 1; xx < x + w - 1; xx += 5) P.p(xx + (yy % 3), yy, dk(K.wall, 0.15)); };
+const roundDoor = (P, x, y, r, K, L) => { if (DOORS) DOORS.push(x); P.ell(x, y, r + 1, r + 1.5, dk(K.wall, 0.5)); P.ell(x, y, r, r + 0.5, K.door); P.g.globalAlpha = 0.6; P.ell(x, y + 1, r - 1, r - 1, K.glow); P.g.globalAlpha = 1; if (L) L.push({ x, y, color: K.glow, r: 10 }); P.r(x - r - 1, y + r + 1, r * 2 + 3, 1, K.step); };
+const podWin = (P, x, y, K, L) => { P.ell(x, y, 2, 1.6, dk(K.wall, 0.45)); P.ell(x, y, 1.2, 1, K.win); if (L && rnd() < 0.5) L.push({ x, y, color: K.win, r: 6 }); };
+Object.assign(BT, {
+  sporehome(P, c) {
+    const { W, H, RH, K } = c, n = W >= 54 ? 2 : 1;
+    for (let k = 0; k < n; k++) {
+      const cx = W / n * (k + 0.5), sw = Math.min(16, W / n - 6);
+      stalkWall(P, Math.round(cx - sw / 2), RH - 2, sw, H - RH, K);
+      capRoof(P, cx, RH - 6, W / n / 2 - 1, RH - 4, K);
+      roundDoor(P, Math.round(cx), H - 6, 2, K, c.L); podWin(P, Math.round(cx - sw / 2) + 3, RH + 4, K, c.L);
+    }
+  },
+  sporemarket(P, c) {
+    const { W, H, RH, K } = c;
+    // three small caps over stalls, hung with lantern pods
+    for (let k = 0; k < 3; k++) { const cx = 6 + k * ((W - 12) / 2), cy = RH - 2 + (k % 2) * 3; stalkWall(P, Math.round(cx - 2), cy, 4, H - cy - 2, K); capRoof(P, cx, cy - 4, 8, 6, K, { col: k % 2 ? K.cap2 : K.cap, spots: 3 }); }
+    for (let x = 4; x < W - 4; x += 5) { P.r(x, RH + 6, 1, 3, '#5a4a3a'); sculptBall(P, x + 0.5, RH + 10, 1.6, 1.8, K.glow); c.L.push({ x, y: RH + 10, color: K.glow, r: 6 }); }
+    P.r(2, H - 6, W - 4, 3, '#6a4a2a'); for (let x = 4; x < W - 4; x += 3) P.p(x, H - 6, pick(['#ff6fae', '#ffd23f', '#c8ff7a', '#9a6aff']));
+  },
+  creche(P, c) {
+    const { W, H, RH, K } = c;
+    // a low, wide cap sheltering a nest of glowing egg-pods with young curled inside
+    capRoof(P, W / 2, RH - 4, W / 2 - 1, RH - 3, K, { col: K.cap2 });
+    P.r(2, RH + 1, W - 4, H - RH - 3, dk(K.wall, 0.35));
+    for (let k = 0; k < Math.max(3, (W / 9) | 0); k++) {
+      const px0 = 6 + k * ((W - 12) / Math.max(2, ((W / 9) | 0) - 1)), py = H - 7 - (k % 2) * 2;
+      sculptBall(P, px0, py, 3.4, 4, '#e8f8c8', { rim: K.glow }); P.ell(px0 + 0.5, py + 0.5, 1.4, 1.2, dk(K.glow, 0.4)); c.L.push({ x: px0, y: py, color: K.glow, r: 9, pulse: true });
+    }
+    P.r(2, H - 2, W - 4, 1, K.step);
+  },
+  mender(P, c) {
+    const { W, H, RH, K } = c;
+    // a ring wall around a glowing pool, open to the sky
+    stalkWall(P, 1, RH, W - 2, H - RH - 1, K);
+    sculptBall(P, W / 2, RH / 2 + 1, W / 2 - 1, RH / 2, K.wall);
+    P.ell(W / 2, RH / 2 + 2, W / 2 - 5, RH / 2 - 4, dk(K.wall, 0.4)); P.ell(W / 2, RH / 2 + 3, W / 2 - 7, RH / 2 - 6, '#3ae8c8'); P.ell(W / 2 - 3, RH / 2 + 1, 3, 1.5, '#c8fff0');
+    c.L.push({ x: W / 2, y: RH / 2 + 3, color: '#3ae8c8', r: 22, pulse: true });
+    // a four-petal glyph over the door: the alien red cross
+    const cx = W >> 1; for (const [dx, dy] of [[0, -2], [0, 2], [-2, 0], [2, 0]]) P.ell(cx + dx, RH + 6 + dy, 1.2, 1.2, '#3ae8c8');
+    roundDoor(P, cx, H - 6, 3, { ...K, glow: '#3ae8c8' }, c.L);
+  },
+  shrine(P, c) {
+    const { W, H, RH, K } = c, cx = W / 2;
+    // a tall twisted cone with glowing veins, on a wide stalk base
+    stalkWall(P, 3, H - 14, W - 6, 13, K);
+    for (let y = 0; y < H - 12; y++) { const k = y / (H - 12), w = Math.round(3 + k * (W / 2 - 4)); for (let x = -w; x <= w; x++) { const tw = ((x + y * 0.6) % 6 + 6) % 6; P.p(Math.round(cx + x), y, tw < 1 ? K.glow : shade(K.cap, 0.15 - (x + w) / (2 * w) * 0.45)); } }
+    c.L.push({ x: cx, y: H / 2 - 4, color: K.glow, r: 18, pulse: true });
+    roundDoor(P, Math.round(cx), H - 5, 3, K, c.L);
+  },
+  growhouse(P, c) {
+    const { W, H, RH, K } = c;
+    // a glassy dome over beds of plants
+    stalkWall(P, 1, H - 8, W - 2, 7, K);
+    for (let y = 1; y < H - 7; y++) for (let x = 1; x < W - 1; x++) {
+      const nx = (x - W / 2) / (W / 2 - 1), ny = (y - (H - 8)) / (H - 9); if (nx * nx + ny * ny > 1) continue;
+      P.p(x, y, (x * 3 + y * 5) % 9 === 0 ? pick(['#5aa04a', '#c8ff7a', '#ff6fae']) : 'rgba(170,255,210,0.28)');
+    }
+    for (let x = 4; x < W - 4; x += 6) P.line(x, H - 8, Math.round(W / 2 + (x - W / 2) * 0.4), 2, 'rgba(232,255,240,0.55)');
+    sculptBall(P, W / 2 - W / 5, H / 4, 3, 2, '#ffffff', { k: 1.2 });
+  },
+  elderhall(P, c) {
+    const { W, H, RH, K } = c;
+    // shelf fungus stacked up a trunk, each shelf lit on top
+    stalkWall(P, (W >> 1) - 6, 2, 12, H - 3, K);
+    for (let k = 0; k < 3; k++) { const y = 6 + k * ((H - 16) / 3), side = k % 2 ? 1 : -1; sculptBall(P, W / 2 + side * 6, y, W / 2 - 4, 4, k % 2 ? K.cap : K.cap2, { clip: (x, yy) => yy <= y + 1 }); podWin(P, (W >> 1) - 2, y + 5, K, c.L); }
+    roundDoor(P, W >> 1, H - 6, 3, K, c.L);
+  },
+});
+// ---------- choosing and drawing ----------
+const MARGIN = 6;
+// the building sprite: margins all round for the outline and anything poking above the roofline
+function building3d(biomeKey, b, type) {
+  const K = BKIT[biomeKey] || BKIT.frozen, W = b.w * ATILE, H = b.h * ATILE;
+  const FH = type === 'office' || (K.neon && type === 'house') ? clamp(Math.round(H * 0.55), 18, 30) : clamp(Math.round(H * 0.42), 15, 20);
+  const P = painter(W + MARGIN * 2, H + MARGIN * 2), L = [], props = [];
+  P.g.translate(MARGIN, MARGIN); DOORS = [];
+  BT[type](P, { W, H, RH: H - FH, FH, K, L, props });
+  const doors = DOORS; DOORS = null;
+  P.g.setTransform(1, 0, 0, 1, 0, 0);
+  postProcess(P.c, { shadeIt: false, outlineCol: '#0a0b10' });
+  return { c: P.c, ox: -MARGIN, oy: -MARGIN, W, H, FH, doors, lights: L, props };
+}
+// the shadow thrown onto the ground, lower right, longer for taller things
+function buildingShadow(g, x, y, W, H, tall = 1) {
+  const s = Math.round(6 * tall), d = Math.round(3 * tall);
+  g.save(); g.globalAlpha = 0.34; g.fillStyle = '#000000';
+  for (let k = 0; k <= s; k++) { const yy = y + 3 + Math.round(k * 0.5); g.fillRect(x + W + k - 1, yy, 1, H - 3 + d - Math.round(k * 0.5) + Math.round(k * 0.5)); }
+  g.fillRect(x + 2, y + H, W + s - 2, d);
+  g.restore();
+  g.save(); g.globalAlpha = 0.5; g.fillStyle = '#000000'; g.fillRect(x, y + H, W, 1); g.restore();
+}
+
+// tunnels where a road runs under the building and out of a side
+function drawOpenings(o, openings) {
+  const g = o.c.getContext('2d'), m = MARGIN;
+  for (const op of openings) {
+    const at = m + op.i * ATILE + 3;
+    if (op.side === 'bottom') { px(g, at - 1, m + o.H - 12, 14, 12, '#0a0b10'); px(g, at, m + o.H - 11, 12, 11, '#14151c'); px(g, at, m + o.H - 11, 12, 1, '#ffd23f'); for (let k = at; k < at + 12; k += 4) px(g, k, m + o.H - 11, 2, 1, '#1a1a1a'); }
+    if (op.side === 'top') px(g, at, m, 12, 4, '#0a0b10');
+    if (op.side === 'left') px(g, m, m + op.i * ATILE + 3, 4, 12, '#0a0b10');
+    if (op.side === 'right') px(g, m + o.W - 4, m + op.i * ATILE + 3, 4, 12, '#0a0b10');
+  }
+}
+const TALL = { skyscraper: 2.4, office: 1.4, shrine: 1.6, elderhall: 1.4, church: 1.3 };
+// which building is which: a landmark, matching houses or shops along the planned street,
+// and a mix of everything else that fits
+const FITS = {
+  house: b => true, shop: b => b.w <= 3, school: b => b.w >= 3, clinic: b => true, church: b => b.w >= 3 || b.h >= 3,
+  depot: b => b.w >= 3, office: b => b.h >= 3 || (b.w === 2 && b.h === 2), skyscraper: b => b.h >= 3, unionhall: b => b.w >= 3,
+  sporehome: b => true, sporemarket: b => b.w >= 3, creche: b => b.w >= 3, mender: b => b.w >= 3, shrine: b => b.h >= 3 || b.w === 2,
+  growhouse: b => b.w >= 3, elderhall: b => b.h >= 3,
+};
+function assignTypes(map, bk, fac) {
+  const K = BKIT[bk], bs = map.buildings || []; if (!K || !bs.length) return;
+  const city = !!K.neon || bk === 'hq', set = K.alien ? BTYPES_ALIEN : BTYPES_HUMAN.concat(city ? ['skyscraper'] : []);
+  const fit = (t, b) => FITS[t](b), used = new Set();
+  // the planned street: one everyday type for the whole row
+  const row = bs.filter(b => b.row);
+  if (row.length) { const t = K.alien ? 'sporehome' : city && row.every(b => b.h >= 3) && rnd() < 0.7 ? 'skyscraper' : pick(['house', 'house', 'shop']); for (const b of row) b.type = fit(t, b) ? t : 'house'; used.add(t); }
+  // the landmark: the biggest free plot gets a civic building
+  const rest = bs.filter(b => !b.type).sort((a, b) => b.w * b.h - a.w * a.h);
+  if (rest.length) { const civic = shuffle((K.alien ? ['shrine', 'mender', 'creche'] : city ? ['skyscraper', 'church', 'clinic'] : ['church', 'clinic', 'school']).filter(t => fit(t, rest[0]))); rest[0].type = civic[0] || (K.alien ? 'sporehome' : 'house'); used.add(rest[0].type); }
+  for (const b of rest.slice(1)) { const opts = set.filter(t => fit(t, b)), fresh = opts.filter(t => !used.has(t)); b.type = pick(fresh.length ? fresh : opts); used.add(b.type); }
+  if (city) for (const b of bs) if (b.h >= 3 && !b.row && rnd() < 0.5 && b.type !== 'church') b.type = 'skyscraper';
+  // a faction puts up its own building
+  if (fac === 'union' && !K.alien) { const b = bs.find(b => !b.row && fit('unionhall', b)) || bs.find(b => fit('unionhall', b)); if (b) b.type = 'unionhall'; }
+}
+return { BKIT, BT, BTYPES_HUMAN, BTYPES_ALIEN, BTYPE_NAME, TALL, building3d, buildingShadow, drawOpenings, assignTypes };
+})();
 
 window.__AL = { planetScene, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
