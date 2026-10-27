@@ -277,32 +277,47 @@ Ten factions. Every one fields its own version of all 17 hostile kinds, with its
 - **Art plugs in through registries:** units, bosses, envoy portraits and backdrops, obstacles, map dressing and artifact sprites (`FAC_ART`, `BOSS_ART`, `ENVOY_ART`, `ENVOY_SCENES`, `OBST_EXTRA`, `FACTION_MAP`, `ART_EXTRA`).
 
 ## Crew conscience
-Every crew member holds a **value**, shown on their stat sheet and in Conditions. Their **morale** (0–100) is a thin bar along the bottom of their crew card (`giveConscience`, `MORALE_RULES`).
+Every hire comes with a **personality archetype**, shown on the hiring card, the stat sheet, the store roster and the ship's personnel files. It sets a **moral lean** (good, neutral or evil), the **value** that decides how your choices move their morale, a **passive**, and the voice of their speech bubbles (`PERSONA`, `giveConscience`, `MORALE_RULES`, `EVIL_RULES`). Morale (0–100) is the thin bar along the bottom of their crew card.
+
+| Archetype | Lean | Value | Passive |
+|---|---|---|---|
+| The Idealist | Good | Idealist | +10% fire rate while Content or better |
+| Bleeding Heart | Good | Sympathiser (one faction) | +20% experience |
+| Company Man | Neutral | Company Man | Deploy fee −15% |
+| Mercenary | Neutral | Mercenary | +$2 budget per kill |
+| The Professional | Neutral | Professional | +10% crit chance; morale swings halved |
+| Zealot | Evil | Ruthless | +12% damage |
+| Thrill Seeker | Evil | Ruthless | +8% fire rate, +5% crit chance |
 
 | Value | Likes | Dislikes |
 |---|---|---|
-| Idealist | Deals kept, truces, helped planets | Betrayals, reports, collateral |
+| Idealist | Deals kept, truces, helped planets, good clients | Betrayals, reports, collateral, working for bad people |
 | Company Man | Reports, betrayals, boss kills, clean contracts | Deals, helped planets |
 | Mercenary | Bribes, clean contracts, boss kills | Bloodbaths, betrayals (bad for business) |
 | Sympathiser (one faction) | Helping that faction (+15 for a kept deal) | Betraying (−25) or reporting (−20) them, killing their boss, fighting them (−0.4 per kill) |
+| Professional | Feels the Mercenary's reactions at half strength | |
+| Ruthless | Betrayals, bloodbaths, boss kills, bad clients | **Only** good deeds: kept deals (−7), truces (−6), helped planets (−4) and charity jobs for good clients (−6) |
 
-- **Everyone:** loses morale when a colleague dies (grief) or a contract goes badly (25%+ margin lost). Morale drifts back towards 62 by up to 5 points per contract.
-- **Effects:**
+- **Everyone:** loses morale when a colleague dies (grief) or a contract goes badly (25%+ margin lost). Morale drifts back towards 62 by up to 5 points per contract. New hires start at 60–78.
+- **Morale no longer changes fees.** Unhappiness stacks penalties instead: each tier down keeps the ones above it (`MOOD_FX`, `moodEffects`, `applyMood`). Evil crew get milder versions. On the ship every mood effect, good or bad, is 1.5× as strong.
 
-| Morale | Tier | Effect |
-|---|---|---|
-| 80+ | Inspired | +8% damage and fire rate |
-| 60–79 | Content | — |
-| 35–59 | Disgruntled | Deploy fee +15% |
-| 15–34 | Miserable | Deploy fee +30%, 4% slower |
-| Below 15 | About to quit | Deploy fee +45%, 8% slower |
+| Morale | Tier | Good and neutral crew | Evil crew |
+|---|---|---|---|
+| 80+ | Inspired | +8% damage and fire rate | Bloodthirsty: +8% damage and fire rate |
+| 60–79 | Content | — | — |
+| Below 60 | Disgruntled | Dragging Feet: −8% fire rate | Bored: −4% fire rate |
+| Below 35 | Miserable | + Sloppy: −10% damage | + Half-hearted: −5% damage |
+| Below 15 | About to quit | + Downing Tools: stops firing for 2.5s (3.5s on the ship) every 10–16s | + Sulking: −10% range |
 
 - **Quitting:** anyone below 8 at the end of a contract quits (`crewQuits`). Sympathisers join their faction; everyone else joins the Abandoned.
 - **Defectors return:** a third of the way into a later contract against that faction, they come back as a named elite in their own face and outfit, with extra HP and armour. Your crew react ("Is that... Quinn?"), and killing them hits everyone's morale except the Company Men (`spawnDefector`).
-- **Corporate rewards offset the cost:**
-  - **Loyalty Dividend:** reports (+$25), betrayals (+$15) and refusals (+$10) bank a dividend that is added to your next contract's budget, to cover the fee surcharges.
+- **Corporate rewards:**
+  - **Loyalty Dividend:** reports (+$25), betrayals (+$15) and refusals (+$10) bank a dividend that is added to your next contract's budget.
   - **Loyalty perks:** at loyalty 2, Mandatory Fun Budget (+10 morale now, and morale settles higher). At loyalty 4, Retention Bonus (the first quitter each sector is talked round).
-- **Speech bubbles:** short lines pop up over crew on real events: kills, deal units passing, betrayals, low HP, a boss arriving, and unprompted grumbling or cheer depending on morale. Each line is written for the speaker's value, and a coloured stripe marks it. They are rate-limited (14s per crew member, 3.5s globally), stack instead of overlapping, and flip below crew standing near the top edge (`barkAs`, `drawBarks`).
+- **Speech bubbles:** short lines pop up over crew on real events: kills, deal units passing, betrayals, low HP, a boss arriving, defending the ship, and unprompted grumbling or cheer depending on morale. Each line is written for the speaker's voice, and a stripe in their lean's colour (or their faction's, for a Sympathiser) marks it.
+  - **Kill lines** depend on what died and who the speaker is (`killClass`, `killLine`). A kill is a person, a machine (drones, vehicles, the Precursors' constructs), a bug (the hive) or an alien (the Kin).
+  - Good crew apologise to people and are relieved it was only a robot. Company Men file it. Mercenaries price it. Professionals report it. Evil crew call aliens xeno scum and bugs vermin.
+  - A Sympathiser killing their own faction grieves. Good crew fighting a faction you're Friendly with protest ("We were friends with these people!"). Against a Vendetta faction, good crew mutter "they started it" and evil crew shout "Payback!". They are rate-limited (14s per crew member, 3.5s globally), stack instead of overlapping, and flip below crew standing near the top edge (`barkAs`, `drawBarks`).
 - **The desk:** shows crew morale, quits, the dividend, and HR's response to low engagement ("A mandatory fun event (unpaid) has been scheduled"). The desk plant now follows crew morale.
 
 ## Faction standing
@@ -325,20 +340,39 @@ Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on co
   - **Favour:** a Friendly faction can offer one on someone else's contract: a free squad of their fighters.
   - **Openers:** every envoy opens with a line that fits your standing, from "Don't hang up" to "Every village on the seam knows your name".
 
+## The ship
+One interior, drawn tile by tile, used twice: as the map when a faction boards, and as the deck you walk between contracts (`SHIP_LAYOUT`, `shipDeck`, `shipRooms`, `shipWalls`). It has no buildings: six rooms (quarters, medbay, reactor, crew lounge, cargo hold, bridge) with bulkhead walls and one door each, grated corridors with guide lights, open deck plating in 2×2 panels, coolant tanks, lockers and pipes, and a chamfered hull with portholes.
+- **Fit-out follows company standing:** score = margin − 70 + 15 × loyalty − heat ÷ 4 (`companyScore`, `shipTier`).
+
+| Score | Fit-out | Looks like | Hull guns | Remedy prices |
+|---|---|---|---|---|
+| 50+ | Executive fit-out | Pale chrome, gold trim, plants, red carpet, warm light | 5, +30% damage | ×0.75 |
+| 15+ | Standard issue | Clean grey, blue guide lights | 4 | ×1 |
+| −15+ | Cost-cutting | Dim, missing panels with exposed wiring, "temporary" tape | 3, −10% damage | ×1.15 |
+| Below | Condemned | Rust, puddles, loose cables, flickering red lights, broken coffee machine | 2, −20% damage, taped-over empty mounts | ×1.3 |
+
+- **Walking the ship:** the **Minimise** button on the star map opens the deck (`showShip`). Walk with the arrow keys or WASD, or click a tile to path there. Crew hang out where their personality takes them (idealists in the medbay, company men on the bridge, mercenaries in the lounge, professionals in cargo, the Ruthless by the reactor, anyone miserable in their bunk), wander, and say how they feel. Click a crew member for their archetype, mood effects and recent morale changes.
+- **Stations** (stand on one and press E, or click it):
+  - **Navigation console:** back to the star map (so is the ▴ Star map button).
+  - **Coffee machine:** 15 scrip, everyone +6 morale. Out of order on a Condemned ship.
+  - **Jukebox:** a crew party, 45 scrip, everyone +15 (the Ruthless +20).
+  - **Payroll terminal:** hazard pay, 30 scrip, mercenaries +25 and everyone else +8.
+  - **Wellness pod:** a one-to-one session, 20 scrip, one crew member +25.
+  - **Personnel files**, **reactor** (fit-out and fuel status) and **cargo manifest** (artifacts).
+  - Each remedy can be used once per contract (sessions once per crew member); prices follow the fit-out (`REMEDIES`, `useRemedy`).
+
 ## Ship defence
 A bonus level, not a contract: it doesn't advance the run (`showDemand`, `startSiege`, `finishSiege`).
 - **The demand:** when a faction reaches Vendetta (−3), its envoy calls on the way back to the star map (at most once every two contracts) and demands scrip on the usual animated video call: 60 + 40 per raid already fought + 15 per act.
   - **Pay:** standing goes back to Wary, the grudge is dropped and the raid count resets.
   - **Refuse (or can't afford it):** the envoy's feed cuts to static and they board your ship.
-- **The ship:** one hand-drawn interior, the same every time (`SHIP_LAYOUT`).
-  - Three airlocks (top, side, bottom) lead down corridors to the fuel core.
-  - Crew decks lie between six rooms you can stand on: quarters, medbay, cargo bay, bridge and two reactors with glowing fuel cells.
-  - Coolant pools, lockers, crates and steaming pipes.
+- **The map is the ship itself** (`shipMap`, same interior and fit-out as the walk). Three airlocks lead down corridors to the fuel core; crew stand anywhere off the corridors, in the rooms or on open deck.
+- **Built-in defences:** hull guns on hardpoints track and shoot anything within 3.2 tiles (damage 10 + 3 per difficulty level, scaled by fit-out); blast doors on the three approaches slow anything squeezing through by 35% (`stepShipDefences`).
+- **A test of the crew:** waves are much bigger than a contract at the same point (difficulty ×1.75/2/2.25 for raids 1–3). Big boarders (55+ base HP: armoured, shields, carriers, berserkers, gunships) get +60% HP and move 22% slower; bosses +35% HP and 18% slower. Every mood effect is 1.5× as strong, and crew call out as the airlocks blow.
 - **The raids:** boarders go for the fuel crystals; leaks drain a fuel meter instead of your margin.
   - **Raid 1:** two airlocks, no boss.
   - **Raid 2:** two airlocks and one of the faction's bosses.
   - **Raid 3:** all three airlocks and the faction's apex boss at full force.
-  - Each raid is a little stronger, and a little gentler than a contract at the same point in the run.
   - **Win:** a salvage bounty (+70/+100/+130 scrip), and the next demand comes later.
   - **Lose:** Kindly buys replacement fuel out of your margin (−20%; at 0% you're abandoned), and the raid comes again.
 - **Dissolution:** win raid 3 and the faction is gone for good:

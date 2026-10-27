@@ -150,6 +150,11 @@ button{font:inherit;color:inherit}
 .pill.good{color:var(--ok)}.pill.bad{color:var(--danger)}.pill.neutral{color:var(--muted)}
 .intel{font:400 18px/1.15 var(--f-mono);color:var(--brand);background:rgba(255,210,63,.08);padding:8px 12px 9px 14px;box-shadow:inset var(--b) 0 0 0 var(--brand)}
 .wavehint{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:2px;max-width:min(420px,60%);font:400 18px/1.15 var(--f-mono);color:#ff9ff0;background:rgba(5,7,10,.78);padding:6px 10px 7px;box-shadow:inset 3px 0 0 #ff3ad6;pointer-events:none}
+.shipbtn{position:absolute;right:14px;bottom:14px}
+.shipui{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:min(560px,94%);display:flex;justify-content:center}
+.shipprompt{background:rgba(12,14,20,.92);box-shadow:var(--frame);padding:8px 12px;font:400 17px/1.3 var(--f-mono);color:var(--fg);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.shipprompt.dim{color:var(--muted)}
+.shippanel{position:relative;max-height:min(70vh,560px);overflow:auto;width:100%}
 .maphint{position:absolute;left:12px;bottom:12px;font:400 19px/1.2 var(--f-mono);color:var(--muted);pointer-events:none;max-width:60%;text-shadow:2px 2px 0 var(--ink)}
 
 /* email + payslip */
@@ -173,6 +178,8 @@ button{font:inherit;color:inherit}
 .offer .k{font:400 9px/1.2 var(--f-label);letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
 .offer .t{font:400 27px/.95 var(--f-display)}
 .offer .d{font-size:13.5px;line-height:1.4;color:#c5cbe6;flex:1}
+.arch{display:block;font-size:13px;line-height:1.35;color:#dfe4f5}.arch small{color:#aab3d4}
+.lean{font:400 9px/1 var(--f-label);font-style:normal;text-transform:uppercase;letter-spacing:.04em;color:var(--lc);border:1px solid var(--lc);padding:2px 4px;vertical-align:1px}
 .offer .p{font:400 22px/1 var(--f-mono);color:var(--brand)}
 .offer.sold{opacity:.35;pointer-events:none}
 .rlist{display:flex;flex-direction:column;gap:6px}
@@ -683,7 +690,7 @@ const VIEW = { w: 1000, h: 560, scale: 1, dpr: 1 };
 function setView(w, h) { VIEW.w = w; VIEW.h = h; resize(); }
 function resize() {
   const st = $('#stage').getBoundingClientRect();
-  const m = S.screen === 'mission' || S.screen === 'map' ? 12 : 0;
+  const m = S.screen === 'mission' || S.screen === 'map' || S.screen === 'ship' ? 12 : 0;
   cv.classList.toggle('framed', m > 0);
   const s = Math.max(0.1, Math.min((st.width - m) / VIEW.w, (st.height - m) / VIEW.h));
   VIEW.scale = s;
@@ -696,7 +703,7 @@ function resize() {
 function beginDraw() { ctx.setTransform(VIEW.scale * VIEW.dpr, 0, 0, VIEW.scale * VIEW.dpr, 0, 0); }
 function toLogical(ev) { const r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * VIEW.w, y: (ev.clientY - r.top) / r.height * VIEW.h }; }
 function backdropView() { const r = $('#stage').getBoundingClientRect(); setView(Math.max(100, Math.round(r.width)), Math.max(100, Math.round(r.height))); }
-function onStageResize() { if (S.screen === 'map' && RUN) mapView(); else if (S.screen === 'mission') resize(); else backdropView(); }
+function onStageResize() { if (S.screen === 'ship' && SW) shipView(); else if (S.screen === 'map' && RUN) mapView(); else if (S.screen === 'mission') resize(); else backdropView(); }
 window.addEventListener('resize', onStageResize);
 // nothing in the game is text to copy: no selection highlights and no ghost images when a drag starts on a sprite
 document.addEventListener('selectstart', e => e.preventDefault());
@@ -3401,6 +3408,7 @@ function transposeMap(map) {
   return {
     grid, dep: sw(map.dep), spawns: map.spawns.map(sw), landmarks: map.landmarks.map(sw), obstacles: map.obstacles.map(sw), bridges: map.bridges.map(sw),
     buildings: map.buildings.map(b => ({ ...b, x: b.y, y: b.x, w: b.h, h: b.w })), paths: map.paths.map(p => p.map(sw)),
+    ...(map.deck ? { deck: transposeRows(map.deck), guns: map.guns.map(sw), doors: map.doors.map(sw), tier: map.tier } : {}),
   };
 }
 function startMission(contract) {
@@ -3426,7 +3434,7 @@ function startMission(contract) {
   if (dividend) { M.budget += dividend; M.dividendPaid = dividend; setTimeout(() => toast(`Loyalty Dividend: +$${dividend} budget, to cover your crew's attitude.`, 2600), 900); }
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
   if (!contract.ship) { B3.assignTypes(map, contract.biomeKey, contract.facKey); if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map); }
-  const gr = renderGround(map, contract.biomeKey);
+  const gr = contract.ship ? shipDeck(map.deck, map.tier, { guns: map.guns, doors: map.doors, props: map.obstacles }) : renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade; M.act = actOf(contract.idx);
   S.selCrew = -1; S.selTower = null;
@@ -3550,7 +3558,7 @@ function crewConditions(cr, tw) {
     if (tw.bDr > 0) add(`Protected: -${Math.round(tw.bDr * 100)}% damage taken`, 'good');
   }
   if (cr.reviews && cr.reviews.length) add('Performance review waiting', 'good');
-  { giveConscience(cr); const mt = moraleTier(cr); if (mt.min >= 80) add(`${mt.name}: +8% damage and fire rate`, 'good'); else if (mt.min < 60) add(`${mt.name}: deploy fee +${Math.round((mt.fee - 1) * 100)}%${mt.rate < 1 ? `, ${Math.round((1 - mt.rate) * 100)}% slower` : ''}${mt.min < 15 ? '. Will quit after this contract' : ''}`, 'bad'); }
+  { giveConscience(cr); for (const f of moodEffects(cr)) add(`${f.name}: ${f.desc}`, f.min >= 80 ? 'good' : 'bad'); if (tw && tw.onBreak > 0) add(`On an unscheduled break: ${tw.onBreak.toFixed(1)}s`, 'bad'); }
   return out;
 }
 const conditionsHtml = list => list.length ? `<div class="conds">${list.map(c => `<i class="${c.k}">${esc(c.t)}</i>`).join('')}</div>` : '';
@@ -3572,7 +3580,7 @@ function crewPeekHtml(cr) {
     <div class="pk-row"><span>Good vs</span><div>${esc(GOOD_VS[cr.type])}</div></div>
     <div class="pk-row"><span>Targets</span><div>${esc(pr.name)}: ${esc(pr.desc.toLowerCase())}</div></div>
     <div class="pk-row"><span>Quirk</span><div><b>${esc(QUIRKS[cr.quirk].name)}</b>: ${esc(QUIRKS[cr.quirk].desc)}</div></div>
-    <div class="pk-row"><span>Morale</span><div>${moraleBar(cr)} <b style="color:${moraleTier(cr).col}">${cr.morale} · ${moraleTier(cr).name}</b>${moraleFeeMult(cr) > 1 ? ` <small>(fee +${Math.round((moraleFeeMult(cr) - 1) * 100)}%)</small>` : ''}<br><small>${esc(valueName(cr))}: ${esc(VALUES[cr.value].desc)}</small></div></div>
+    <div class="pk-row"><span>Morale</span><div>${moraleBar(cr)} <b style="color:${moraleTier(cr).col}">${cr.morale} · ${moraleTier(cr).name}</b>${moodEffects(cr).map(f => `<br><small style="color:${f.min >= 80 ? 'var(--ok)' : 'var(--warn, #ffd23f)'}">${esc(f.name)}: ${esc(f.desc)}</small>`).join('')}<br><small>${archHtml(archOf(cr) === PERSONA[cr.arch] ? cr.arch : ARCH_OF_VALUE[cr.value], cr.sym)}</small></div></div>
     <div class="pk-row"><span>Status</span>${conditionsHtml(crewConditions(cr, tw))}</div>
     ${perks.length ? `<div class="pk-traits">${perks.map((n, k) => `<i class="${k === 0 && cr.spec ? 'sp' : ''}">${esc(n)}</i>`).join('')}</div>` : '<div class="pk-row dim">No perks yet. Reviews unlock them.</div>'}
     <div class="pk-foot">${cr.dead ? `KIA · replacement $${replaceCost(cr)}` : tw ? 'Deployed · tap them on the map for orders' : `Fee $${crewFee(cr)} · ${cr.kills} kills`}</div>`;
@@ -3644,7 +3652,7 @@ function towerStats(crew, tw) {
   if (has('poster')) s.dmg *= 1.12;
   if (has('scope')) s.range *= 1.12;
   if (has('patience')) s.xpMult *= 1.2;
-  { const mt = moraleTier(crew); s.dmg *= mt.dmg; s.rate *= mt.rate; }
+  giveConscience(crew); applyMood(s, crew); archOf(crew).mod(s, crew);
   if (has('archivemem')) s.eliteBonus += 0.2;
   if (has('tactical')) s.maxhp *= 1.15;
   if (has('sidearms')) s.dmg *= 1.1;
@@ -3741,7 +3749,7 @@ function damage(e, dmg, pierce, tw, quiet) {
       tw.mkills = (tw.mkills || 0) + 1;
       cr.kills++; cr.xp += e.bounty * s.xpMult;
       if (cr.value === 'sympath' && cr.sym === M.c.facKey) cr.morale = Math.max(0, (cr.morale ?? 65) - 0.4);
-      barkAs(tw, 'kill', e.boss ? 1 : 0.08);
+      barkAs(tw, 'kill', e.boss ? 1 : 0.08, e);
       while (cr.level < MAXL && cr.xp >= XP_TH[cr.level]) {
         cr.level++; cr.reviews.push(cr.level);
         M.promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); sfx('promote', tw.x);
@@ -3825,6 +3833,8 @@ function spawnEnemy(q) {
     ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: q.deal ? (M.pool['deal' + q.cat] || (M.pool['deal' + q.cat] = makeVariant(q.deal.unitFac, q.cat))) : getVariant(q.cat), face: 1,
   };
 
+  // on the ship the big ones come in heavy: tankier and slower, so the hull guns and crew get a long look
+  if (c.ship && C.hp >= 55) { e.hp *= 1.6; e.maxhp = e.hp; e.spd *= 0.78; }
   const sc = 1 + 0.15 * c.idx;
   if (C.heal) e.healAura = { r: 1.6, hps: C.heal * (1 + q.tier) * sc };
   if (C.shield) e.shieldAura = { r: 1.5, amt: C.shield + 0.05 * q.tier };
@@ -3883,6 +3893,7 @@ function spawnBoss(B, mini, child) {
     charge: iv(B.charge), shockwave: iv(B.shockwave), barrage: iv(B.barrage), blink: iv(B.blink), bubble: B.bubble, shed: B.shed, splitDeath: B.splitDeath, secondWind: B.secondWind,
   };
   if (child) { e.name = B.name; e.child = true; }
+  if (M.c.ship) { e.hp *= 1.35; e.maxhp = e.hp; e.spd *= 0.82; }
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e); if (!child) { sfx('bossIn'); portalSpawn(e); }
   if (mini) { if (!child) toast(`Mini-boss: ${e.name}`, 2600); return e; }
@@ -3939,7 +3950,7 @@ function stepMission(dt) {
       if (!m.c.boss && m.c.idx >= 2 && !m.miniSpawned && m.t >= m.T * 0.65) { m.miniSpawned = true; spawnBoss(pick(m.c.fac.bosses), true); }
     }
   }
-  stepDeal(dt); stepAllies(dt); stepArtifacts(dt); stepBarks(dt);
+  stepDeal(dt); stepAllies(dt); stepArtifacts(dt); stepShipDefences(dt); stepBarks(dt);
   if (M.phase === 'drill' && !M.defectorOut && M.t > M.T * 0.3) { const d = defectorFor(M.c); if (d) spawnDefector(d); else M.defectorOut = true; }
   if (m.queue.length) {
     m.queue.sort((a, b) => a.at - b.at);
@@ -4075,6 +4086,12 @@ function stepMission(dt) {
     tw.gear = crewVis(tw.crew);
     if (tw.gear.tier >= 3 && rnd() < dt * (tw.gear.tier - 1.5)) addPart({ x: tw.x + (rnd() - 0.5) * 14, y: tw.y + 4, vx: 0, vy: -16, life: 0.9, max: 0.9, col: tw.gear.accent, size: 1, layer: 'px' });
     if (tw.offline > 0) { tw.offline -= dt; continue; }
+    // crew about to quit down tools now and then while hostiles are about
+    if (tw.onBreak > 0) { tw.onBreak -= dt; continue; }
+    if (tw.st.walkout && m.phase === 'drill') {
+      tw.breakCd = (tw.breakCd ?? 6 + rnd() * 6) - dt;
+      if (tw.breakCd <= 0) { tw.breakCd = 10 + rnd() * 6; tw.onBreak = m.c.ship ? 3.5 : 2.5; fxText(tw.x, tw.y - 22, 'ON BREAK', '#ff9a5a'); barkAs(tw, 'low'); continue; }
+    }
     const s = tw.st, R2 = s.range * TILE, type = tw.crew.type, leaked = has('schedule');
     tw.cd -= dt;
     // timed capstones
@@ -4299,6 +4316,7 @@ function renderMission(now) {
   const list = [];
   for (const tw of m.towers) if (!tw.lifted && !(tw.plat && platformAt(tw.tx, tw.ty))) list.push([tw.y + 6, () => drawTowerPx(g, tw, t)]);
   artDrawList(list, g, t);
+  if (m.map.guns) drawShipGuns(list, g, t);
   for (const e of m.enemies) if (!e.fly) list.push([e.y, () => { drawEnemyPx(g, e, t); drawDealMark(g, e, t); drawThreatMarks(g, e, t); }]);
   for (const a of m.allies || []) list.push([a.y, () => drawAllyPx(g, a, t)]);
   list.push([m.dep.y, () => drawDepositPx(g, t)]);
@@ -4878,30 +4896,78 @@ function toast(msg, ms = 2000) {
 // Kindly offsets all this with corporate rewards: a Loyalty Dividend and perks for loyalists.
 // ================================================================
 const VALUES = {
-  idealist: { name: 'Idealist', desc: 'Signed up to protect people. Wants deals kept, hates betrayals and reports.', col: '#4fe0a6' },
+  idealist: { name: 'Idealist', desc: 'Signed up to protect people. Wants deals kept, hates betrayals, reports and working for bad people.', col: '#4fe0a6' },
   company: { name: 'Company Man', desc: 'Believes in Kindly. Likes reports and loyalty, dislikes deals.', col: '#ffd23f' },
   merc: { name: 'Mercenary', desc: 'Here for the pay. Likes bonuses, bribes and clean contracts.', col: '#c8a040' },
   sympath: { name: 'Sympathiser', desc: 'Has a soft spot for one faction. Fighting them hurts; helping them heals.', col: '#b98cff' },
+  pro: { name: 'Professional', desc: 'Does the job. Feels everything at half strength.', col: '#9fb4d8' },
+  evil: { name: 'Ruthless', desc: 'Enjoys the work. Only good deeds and charity jobs get them down, and even then not much.', col: '#ff5d73' },
 };
+// ---------- personalities ----------
+// Every hire comes with an archetype: a moral lean (good, neutral or evil), the value that decides how
+// your choices move their morale, a passive, and a voice for their barks. Shown on the hiring card.
+const LEANS = { good: { name: 'Good', col: '#4fe0a6' }, neutral: { name: 'Neutral', col: '#9fb4d8' }, evil: { name: 'Evil', col: '#ff5d73' } };
+const PERSONA = {
+  idealist: { name: 'The Idealist', lean: 'good', value: 'idealist', w: 1, passive: 'Protector: +10% fire rate while Content or better.', mod: (s, cr) => { if ((cr.morale ?? 65) >= 60) s.rate *= 1.1; } },
+  bleeding: { name: 'Bleeding Heart', lean: 'good', value: 'sympath', w: 0.8, passive: 'Kindred: +20% experience. Sympathises with one faction.', mod: s => { s.xpMult *= 1.2; } },
+  company: { name: 'Company Man', lean: 'neutral', value: 'company', w: 1, passive: 'Expense Account: deploy fee -15%.', mod: s => { s.feeMult *= 0.85; } },
+  merc: { name: 'Mercenary', lean: 'neutral', value: 'merc', w: 1, passive: 'Bounty Hunter: +$2 budget per kill.', mod: s => { s.bountyAdd += 2; } },
+  pro: { name: 'The Professional', lean: 'neutral', value: 'pro', w: 0.8, passive: 'Steady Hands: +10% crit chance. Morale swings are halved.', mod: s => { s.crit += 0.1; } },
+  zealot: { name: 'Zealot', lean: 'evil', value: 'evil', w: 0.6, passive: 'True Believer: +12% damage.', mod: s => { s.dmg *= 1.12; } },
+  thrill: { name: 'Thrill Seeker', lean: 'evil', value: 'evil', w: 0.6, passive: 'Adrenaline: +8% fire rate, +5% crit chance.', mod: s => { s.rate *= 1.08; s.crit += 0.05; } },
+};
+const ARCH_OF_VALUE = { idealist: 'idealist', sympath: 'bleeding', company: 'company', merc: 'merc', pro: 'pro', evil: 'zealot' };
+const pickArch = () => wpick(Object.fromEntries(Object.entries(PERSONA).map(([k, a]) => [k, a.w])));
+const archOf = cr => PERSONA[cr.arch] || PERSONA[ARCH_OF_VALUE[cr.value]] || PERSONA.company;
+const leanOf = cr => archOf(cr).lean;
+// an archetype as hiring-card or personnel-file HTML
+const archHtml = (arch, sym) => { const A = PERSONA[arch], L = LEANS[A.lean]; return `<span class="arch"><b>${esc(A.name)}</b> <i class="lean" style="--lc:${L.col}">${L.name}</i>${sym && FACTIONS[sym] ? ` <small>Sympathises with ${esc(FACTIONS[sym].short)}</small>` : ''}<br><small>${esc(A.passive)}</small></span>`; };
 const RECRUIT_SYMPATHY = { 'Rafa Okonkwo': 'union', 'Ilo Threefold': 'lumen', 'Dee Okafor': 'abandoned' };
 function giveConscience(cr) {
-  if (cr.value) return cr;
+  if (cr.value) { if (!cr.arch) cr.arch = ARCH_OF_VALUE[cr.value] || 'company'; return cr; }
   const sym = RECRUIT_SYMPATHY[cr.name];
-  cr.value = sym ? 'sympath' : wpick({ idealist: 1, company: 1, merc: 1, sympath: 0.8 });
-  if (cr.value === 'sympath') cr.sym = sym || pick(Object.keys(FACTIONS));
-  cr.morale = sym ? 78 : ri(55, 75);
+  cr.arch = sym ? 'bleeding' : cr.arch || pickArch();
+  cr.value = PERSONA[cr.arch].value;
+  if (cr.value === 'sympath') cr.sym = sym || cr.sym || pick(Object.keys(FACTIONS));
+  cr.morale = sym ? 78 : ri(60, 78);
   return cr;
 }
-const valueName = cr => cr.value === 'sympath' ? `Sympathises with ${FACTIONS[cr.sym] ? FACTIONS[cr.sym].short : 'them'}` : VALUES[cr.value].name;
+const valueName = cr => `${archOf(cr).name}${cr.value === 'sympath' && FACTIONS[cr.sym] ? `, sympathises with ${FACTIONS[cr.sym].short}` : ''}`;
+// Morale no longer changes fees. Unhappiness stacks penalties instead: each tier down keeps the ones above
+// it and adds its own. Evil crew sour less and suffer milder versions. On the ship every effect, good or
+// bad, is half as strong again: defending home is a test of the crew.
 const MORALE_TIERS = [
-  { min: 80, name: 'Inspired', col: '#3af0ff', fee: 1, dmg: 1.08, rate: 1.08 },
-  { min: 60, name: 'Content', col: '#4fe0a6', fee: 1, dmg: 1, rate: 1 },
-  { min: 35, name: 'Disgruntled', col: '#ffd23f', fee: 1.15, dmg: 1, rate: 1 },
-  { min: 15, name: 'Miserable', col: '#ff9a5a', fee: 1.3, dmg: 1, rate: 0.96 },
-  { min: 0, name: 'About to quit', col: '#ff4d5e', fee: 1.45, dmg: 1, rate: 0.92 },
+  { min: 80, name: 'Inspired', col: '#3af0ff' },
+  { min: 60, name: 'Content', col: '#4fe0a6' },
+  { min: 35, name: 'Disgruntled', col: '#ffd23f' },
+  { min: 15, name: 'Miserable', col: '#ff9a5a' },
+  { min: 0, name: 'About to quit', col: '#ff4d5e' },
 ];
 const moraleTier = cr => MORALE_TIERS.find(t => (cr.morale ?? 65) >= t.min) || MORALE_TIERS[4];
-const moraleFeeMult = cr => moraleTier(cr).fee;
+const MOOD_FX = {
+  normal: [
+    { min: 80, name: 'Inspired', desc: '+8% damage and fire rate', dmg: 0.08, rate: 0.08 },
+    { min: 59.99, max: 60, name: 'Dragging Feet', desc: '-8% fire rate', rate: -0.08 },
+    { min: 34.99, max: 35, name: 'Sloppy', desc: '-10% damage', dmg: -0.1 },
+    { min: 14.99, max: 15, name: 'Downing Tools', desc: 'Stops firing for a few seconds now and then; quits after the contract', walkout: true },
+  ],
+  evil: [
+    { min: 80, name: 'Bloodthirsty', desc: '+8% damage and fire rate', dmg: 0.08, rate: 0.08 },
+    { min: 59.99, max: 60, name: 'Bored', desc: '-4% fire rate', rate: -0.04 },
+    { min: 34.99, max: 35, name: 'Half-hearted', desc: '-5% damage', dmg: -0.05 },
+    { min: 14.99, max: 15, name: 'Sulking', desc: '-10% range; quits after the contract', range: -0.1 },
+  ],
+};
+// the effects in force: Inspired at the top, and below Content every tier crossed so far
+function moodEffects(cr) {
+  const mo = cr.morale ?? 65, L = MOOD_FX[leanOf(cr) === 'evil' ? 'evil' : 'normal'];
+  return L.filter(f => f.max == null ? mo >= f.min : mo < f.max);
+}
+function applyMood(s, cr) {
+  const k = M && M.c && M.c.ship ? 1.5 : 1;
+  for (const f of moodEffects(cr)) { if (f.dmg) s.dmg *= 1 + f.dmg * k; if (f.rate) s.rate *= 1 + f.rate * k; if (f.range) s.range *= 1 + f.range * k; if (f.walkout) s.walkout = true; }
+}
+const moraleFeeMult = () => 1;
 // how each value reacts to each kind of event (fac is the faction involved)
 const MORALE_RULES = {
   honoured:   { idealist: 12, company: -10, merc: 2, sym: 15, other: 3 },
@@ -4918,12 +4984,17 @@ const MORALE_RULES = {
   bloodbath:  { idealist: -3, company: -2, merc: -3, sym: -3, other: -3 },
   grief:      { idealist: -4, company: -3, merc: -2, sym: -4, other: -4 },
   traitor:    { idealist: -6, company: 6, merc: 0, sym: -4, other: -4 },
+  // who the client was: good crew sour a little working for bad people, evil crew on charity jobs
+  charity:    { idealist: 3, company: 0, merc: 0, sym: 2, other: 0 },
+  dirtywork:  { idealist: -4, company: 0, merc: 1, sym: -2, other: -2 },
 };
+// Professionals feel the merc's reaction at half strength. Ruthless crew only lose morale to good deeds.
+const EVIL_RULES = { honoured: -7, truce: -6, helped: -4, charity: -6, refused: 0, betrayed: 3, collateral: 2, reported: 3, boss: 4, crushed: 3, clean: 2, bloodbath: 4, grief: 0, traitor: 2, bribe: 2, dirtywork: 3 };
 function moraleEvent(kind, fac, mult = 1) {
   const R = MORALE_RULES[kind]; if (!R || !RUN) return;
   for (const cr of RUN.roster) {
     giveConscience(cr);
-    let d = cr.value === 'sympath' ? (cr.sym === fac ? R.sym : R.other) : R[cr.value];
+    let d = cr.value === 'sympath' ? (cr.sym === fac ? R.sym : R.other) : cr.value === 'evil' ? EVIL_RULES[kind] : cr.value === 'pro' ? (R.merc || 0) * 0.5 : R[cr.value];
     if (!d) continue;
     d *= mult;
     cr.morale = clamp(Math.round((cr.morale ?? 65) + d), has('communion') ? 30 : 0, 100);
@@ -4975,15 +5046,48 @@ function loyaltyReward(amount, why) {
   if (st.loyalty >= 4 && !RUN.relics.includes('retention')) { RUN.relics.push('retention'); toast('Corporate perk: Retention Bonus. One quitter per sector will be talked round.', 2600); }
 }
 // ---------- speech bubbles ----------
+// Barks follow the speaker's voice (their value: idealist, company, merc, sym, pro, evil). Kills also
+// depend on what died (a person, a machine, a bug or an alien) and on how the speaker relates to that
+// faction: a Sympathiser grieves, good crew are relieved it was only a robot, evil crew call aliens vermin.
 const BARKS = {
-  kill: { idealist: ['Sorry.', 'They had families, probably.', 'I hate this part.'], company: ['Another one for the quarterly.', 'For the shareholders.', 'Synergy!'], merc: ['Ka-ching.', 'That one was worth $3.', 'Billable.'], sym: ['...I knew people like them.', 'This is wrong.', 'Forgive me.'] },
-  dealPass: { idealist: ['Let them through. It\'s fine.', 'Good. Go home.'], company: ['We are just... letting them?', 'I am writing this down.'], merc: ['Not my crystals.', 'Whatever pays.'], sym: ['Go on. Quickly.', 'Safe travels.'] },
-  betray: { idealist: ['We PROMISED them!', 'What are we doing?!'], company: ['Orders are orders.', 'Good. No deals.'], merc: ['Bad for business, boss.', 'Word gets around, you know.'], sym: ['You monster.', 'I can\'t believe you.'] },
-  hurt: { idealist: ['Medic!', 'I\'m fine. I\'m not fine.'], company: ['I\'ll be back at my desk Monday.', 'Is this covered?'], merc: ['HAZARD PAY.', 'Not paid enough for this.'], sym: ['Maybe I deserve this.', 'Ow.'] },
-  boss: { idealist: ['Oh no.', 'That is very big.'], company: ['For Kindly!', 'Quarterly targets, people!'], merc: ['Bonus target!', 'That one\'s worth a raise.'], sym: ['That\'s their leader...', 'We don\'t have to do this.'] },
-  low: { idealist: ['Why are we even here?', 'I could be a nurse.'], company: ['Still believe. Mostly.', 'HR will sort it out.'], merc: ['Colony pays better, I hear.', 'Thinking about my options.'], sym: ['They\'d take me in, you know.', 'Thinking about the Colony lately.'] },
-  happy: { idealist: ['We did good today.', 'This is why I signed up.'], company: ['Proud to be Kindly!', 'Best job ever.'], merc: ['Good pay, good day.', 'Love a clean job.'], sym: ['Felt right, that.', 'They\'ll remember this.'] },
+  dealPass: { idealist: ['Let them through. It\'s fine.', 'Good. Go home.'], company: ['We are just... letting them?', 'I am writing this down.'], merc: ['Not my crystals.', 'Whatever pays.'], sym: ['Go on. Quickly.', 'Safe travels.'], pro: ['Holding fire. Per the deal.', 'Marked unit. Passing.'], evil: ['I could hit that one from here.', 'Such a waste of a clean shot.'] },
+  betray: { idealist: ['We PROMISED them!', 'What are we doing?!'], company: ['Orders are orders.', 'Good. No deals.'], merc: ['Bad for business, boss.', 'Word gets around, you know.'], sym: ['You monster.', 'I can\'t believe you.'], pro: ['Noted. Moving on.', 'Deal\'s off. Understood.'], evil: ['Finally.', 'Knew you had it in you, boss.'] },
+  hurt: { idealist: ['Medic!', 'I\'m fine. I\'m not fine.'], company: ['I\'ll be back at my desk Monday.', 'Is this covered?'], merc: ['HAZARD PAY.', 'Not paid enough for this.'], sym: ['Maybe I deserve this.', 'Ow.'], pro: ['Hit. Still working.', 'Flesh wound.'], evil: ['Oh, now it\'s personal.', 'That just makes me angry.'] },
+  boss: { idealist: ['Oh no.', 'That is very big.'], company: ['For Kindly!', 'Quarterly targets, people!'], merc: ['Bonus target!', 'That one\'s worth a raise.'], sym: ['That\'s their leader...', 'We don\'t have to do this.'], pro: ['Priority target. Focus fire.', 'Big one. Stay calm.'], evil: ['Ooh, a big one.', 'I want its head on my desk.'] },
+  low: { idealist: ['Why are we even here?', 'I could be a nurse.'], company: ['Still believe. Mostly.', 'HR will sort it out.'], merc: ['Colony pays better, I hear.', 'Thinking about my options.'], sym: ['They\'d take me in, you know.', 'Thinking about the Colony lately.'], pro: ['Not my best shift.', 'Five minutes. I need five minutes.'], evil: ['This is boring.', 'Wake me when there\'s something to shoot.'] },
+  happy: { idealist: ['We did good today.', 'This is why I signed up.'], company: ['Proud to be Kindly!', 'Best job ever.'], merc: ['Good pay, good day.', 'Love a clean job.'], sym: ['Felt right, that.', 'They\'ll remember this.'], pro: ['Clean work.', 'By the book.'], evil: ['Best. Job. Ever.', 'I love this company.'] },
+  home: { idealist: ['Not on our ship!', 'This is where we sleep!'], company: ['Company property! Hands off!', 'Protect the assets!'], merc: ['That\'s MY bunk!', 'Nobody touches my stash.'], sym: ['Why are you doing this?', 'We could have talked.'], pro: ['Defend the core.', 'Hold the corridors.'], evil: ['They came to us. Perfect.', 'Home field. My favourite.'] },
 };
+// what a kill was: a person, a machine, one of the hive, or something else from out there
+function killClass(e) {
+  if (!e || e.defector) return 'human';
+  const f = M.c.facKey, k = e.v && e.v.kind;
+  if (k === 'drone' || k === 'vehicle' || f === 'precursors') return 'machine';
+  if (f === 'fauna') return 'bug';
+  if (f === 'lumen') return 'alien';
+  return 'human';
+}
+const KILL_BARKS = {
+  good: { human: ['Sorry.', 'They had families, probably.', 'I hate this part.'], machine: ['Just a machine. Thank God.', 'Better a robot than a person.', 'Nobody\'s mum is crying over that one.'], bug: ['It was only protecting its nest.', 'Do they feel pain?', 'Sorry, little thing.'], alien: ['They\'re people too. In their way.', 'I didn\'t want that.', 'It looked at me.'] },
+  company: { human: ['Another one for the quarterly.', 'For the shareholders.', 'Synergy!'], machine: ['Asset written off.', 'Depreciated.', 'That\'s a VectorCorp insurance claim.'], bug: ['Pest control, as per contract.', 'Infestation reduced.', 'Fumigated.'], alien: ['Non-employee neutralised.', 'Not on the payroll. Not my problem.', 'Unlicensed lifeform.'] },
+  merc: { human: ['Ka-ching.', 'That one was worth $3.', 'Billable.'], machine: ['Good scrap on that one.', 'Salvage!', 'Parts are worth more than the pay.'], bug: ['Paid by the kilo, right?', 'Bug bounty.', 'Gross. Billable, but gross.'], alien: ['Exotic. Bet that\'s worth extra.', 'Danger money, that.', 'Collector would want that one.'] },
+  pro: { human: ['Target down.', 'Clean.', 'Next.'], machine: ['Disabled.', 'Unit down.', 'Systems offline.'], bug: ['Neutralised.', 'Organism down.', 'Clear.'], alien: ['Contact eliminated.', 'Down.', 'Hostile down.'] },
+  evil: { human: ['Next!', 'Squishy.', 'Did you see that one fold?'], machine: ['Where\'s the blood? Boring.', 'Toasters.', 'Not even fun.'], bug: ['Bug spray!', 'Squash the vermin.', 'Exterminate the infestation.'], alien: ['Xeno scum.', 'Back to whatever hole you crawled out of.', 'Not even people.'] },
+  // how they feel about who it was
+  mine: ['...I knew people like them.', 'This is wrong.', 'Forgive me.'],
+  friend: ['We were friends with these people!', 'Why are we fighting them?', 'They used to wave at us.'],
+  enemyGood: ['They started it. Didn\'t they?', 'They had it coming. I think.'],
+  enemyEvil: ['Payback!', 'That\'s for last time.', 'Remember us?'],
+};
+const voiceOf = cr => cr.value === 'sympath' ? 'sym' : cr.value;
+function killLine(cr, e) {
+  const f = M.c.facKey, st = standingOf(f), lean = leanOf(cr), cls = killClass(e);
+  if (cr.value === 'sympath' && cr.sym === f) return pick(KILL_BARKS.mine);
+  if (st >= 2 && lean !== 'evil' && rnd() < 0.6) return pick(KILL_BARKS.friend);
+  if (st <= -3 && rnd() < 0.5) return pick(lean === 'evil' ? KILL_BARKS.enemyEvil : KILL_BARKS.enemyGood);
+  const pool = KILL_BARKS[lean === 'good' ? 'good' : lean === 'evil' ? 'evil' : cr.value === 'pro' ? 'pro' : cr.value === 'merc' ? 'merc' : 'company'];
+  return pick(pool[cls]);
+}
 function bark(tw, text, force) {
   if (!M || !tw || tw.down) return;
   const now = M.t;
@@ -4991,11 +5095,12 @@ function bark(tw, text, force) {
   tw.barkAt = now; M.lastBark = now;
   (M.barks = M.barks || []).push({ tw, text, t: 0, life: 2.8 });
 }
-function barkAs(tw, kind, chance = 1) {
+function barkAs(tw, kind, chance = 1, e = null) {
   if (!tw || tw.down || rnd() > chance) return;
   const cr = tw.crew; giveConscience(cr);
+  if (kind === 'kill') { bark(tw, killLine(cr, e)); return; }
   const L = BARKS[kind]; if (!L) return;
-  const pool = L[cr.value === 'sympath' ? 'sym' : cr.value]; if (pool) bark(tw, pick(pool));
+  const pool = L[voiceOf(cr)]; if (pool) bark(tw, pick(pool));
 }
 function stepBarks(dt) {
   if (!M.barks) return;
@@ -5014,7 +5119,7 @@ function drawBarks(ctx, LW) {
     const below = b.tw.y < 64; let y = below ? b.tw.y + 36 : b.tw.y - 50;
     while (placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < 19)) y += below ? 19 : -19;
     placed.push({ x, y, w });
-    const col = VALUES[b.tw.crew.value] ? (b.tw.crew.value === 'sympath' && FACTIONS[b.tw.crew.sym] ? FACTIONS[b.tw.crew.sym].color : VALUES[b.tw.crew.value].col) : '#ffffff';
+    const col = b.tw.crew.value === 'sympath' && FACTIONS[b.tw.crew.sym] ? FACTIONS[b.tw.crew.sym].color : LEANS[leanOf(b.tw.crew)].col;
     ctx.globalAlpha = a;
     ctx.fillStyle = 'rgba(12,14,20,0.94)'; ctx.fillRect(x - w / 2, y - 12, w, 17);
     ctx.fillStyle = col; ctx.fillRect(x - w / 2, y - 12, 3, 17);
@@ -6925,7 +7030,7 @@ function showSectorComplete(c, net) {
   const sector = sectorOf(RUN.idx), loan = Math.min(20, 100 - RUN.margin);
   RUN.margin += loan;
   RUN.sectorName = pick(SECTOR_NAMES[sector] || ['The Outer Dark']);
-  RUN.offers = genOffers();
+  RUN.offers = genOffers(); RUN.rerolls = 0;
   const ws = (RUN.worlds || []).filter(w => sectorOf(w.idx) === sector - 1);
   $('#overlay').innerHTML = `<div class="screen"><div class="paper sector-paper">
     ${titlebar('Promotion_Notice.msg')}
@@ -7433,6 +7538,7 @@ function finishMission(success) {
   moraleEvent(wstate, c.facKey);
   if (m.lost === 0) moraleEvent('clean'); else if (m.lost >= 25) moraleEvent('bloodbath');
   if (m.downed.length) moraleEvent('grief', null, Math.min(2, m.downed.length));
+  moraleEvent(c.client.good ? 'charity' : 'dirtywork', c.facKey);
   moraleDrift();
   const quits = crewQuits();
   // payslip
@@ -7484,7 +7590,7 @@ Breaks are not scheduled. Good luck.                                    — HR-B
 function showMap() {
   S.screen = 'map'; S.mapSel = -1; S.mapHover = -1; M = null; clearMissionUi(); setMusic('map');
   mapView();
-  $('#overlay').innerHTML = `<div class="maphint">${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? (sectorOf(RUN.idx) >= MAX_SECTOR ? 'Board priority. The final contract.' : 'Executive priority. One contract available.') : 'Select a planet to review the contract.'}</div>`;
+  $('#overlay').innerHTML = `<button class="btn sm shipbtn" data-act="walkship" title="Walk around your ship, look after the crew">▾ Minimise · walk the ship</button><div class="maphint">${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? (sectorOf(RUN.idx) >= MAX_SECTOR ? 'Board priority. The final contract.' : 'Executive priority. One contract available.') : 'Select a planet to review the contract.'}</div>`;
   $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">Sector ${sectorOf(RUN.idx)} · ${esc(RUN.sectorName)}</div><div class="val">Choose your next deployment</div></div>
     <div class="hud-meter"><div class="lbl">Profit margin <span class="mono">${RUN.margin}%</span></div><div class="meter m-margin${RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''}"><i style="width:${RUN.margin}%"></i></div></div>
     <div class="hud-meter" title="HR suspicion. Deals raise it; it cools by 5 each contract."><div class="lbl">Heat <span class="mono">${RUN.story.heat}</span></div><div class="meter m-heat"><i style="width:${RUN.story.heat}%"></i></div></div>
@@ -7883,7 +7989,7 @@ function showDebrief(d) {
     <div class="desktop" aria-hidden="true">${act >= 2 ? '<i class="lamp"></i>' : ''}<img class="prop plant" src="${deskPropUrl('plant', plant)}" alt=""><span class="nameplate">EMPLOYEE #${RUN.empId}</span><img class="prop" src="${deskPropUrl('note')}" alt=""><img class="prop" src="${deskPropUrl('mug')}" alt=""></div>
     <div class="row deskbtns"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip</span></div>
   </div></div>`;
-  RUN.offers = genOffers();
+  RUN.offers = genOffers(); RUN.rerolls = 0;
 }
 
 function genOffers() {
@@ -7892,7 +7998,7 @@ function genOffers() {
   // make sure a non-owned type shows up early
   const owned = new Set(RUN.roster.map(c => c.type));
   types.sort((a, b) => owned.has(a) - owned.has(b));
-  for (const t of types.slice(0, 2)) offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook(), quirk: pickQuirk() });
+  for (const t of types.slice(0, 2)) { const arch = pickArch(); offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook(), quirk: pickQuirk(), arch, sym: PERSONA[arch].value === 'sympath' ? pick(Object.keys(FACTIONS).filter(f => !dissolved(f))) : null }); }
   const relics = shuffle(Object.keys(RELICS).filter(r => !RUN.relics.includes(r) && !RELICS[r].special)).slice(0, 2);
   for (const r of relics) offers.push({ kind: 'relic', id: r, price: ri(70, 90) });
   if (RUN.story.flags.blackMarket) for (const r of shuffle(Object.keys(RELICS).filter(r => RELICS[r].black && !RUN.relics.includes(r))).slice(0, 2)) offers.push({ kind: 'relic', id: r, price: ri(55, 75), black: true });
@@ -7914,9 +8020,9 @@ function showStore() {
     const full = it.kind === 'hire' && RUN.roster.length >= 8;
     return `<button class="offer${it.sold ? ' sold' : ''}${it.black ? ' black' : ''}" data-act="buy" data-i="${i}" ${RUN.scrip < it.price || full || it.sold ? 'disabled' : ''}>
       <span class="k">${esc(k)}</span>${it.kind === 'hire' ? `<span class="row" style="gap:8px">${portraitImg({ id: 'offer-' + it.name, type: it.type, look: it.look })}<span class="t">${esc(t)}</span></span>` : `<span class="t">${esc(t)}</span>`}
-      <span class="d">${esc(d)}${full ? ' Roster full (8).' : ''}</span><span class="p">${it.sold ? 'Purchased' : it.price + ' scrip'}</span></button>`;
+      ${it.kind === 'hire' && it.arch ? archHtml(it.arch, it.sym) : ''}<span class="d">${esc(d)}${full ? ' Roster full (8).' : ''}</span><span class="p">${it.sold ? 'Purchased' : it.price + ' scrip'}</span></button>`;
   }).join('');
-  const rosterHtml = RUN.roster.map((cr, i) => `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)}<small>${esc(RANKS[cr.level - 1])} · ${esc(TOWERS[cr.type].name)} · Lv${cr.level} · ${cr.kills} kills</small><small style="color:var(--ok)" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}${cr.spec ? ` · <span style="color:var(--crystal)">${esc(BRANCH[cr.spec].name)}</span>` : ''}${cr.perks.length ? ` · ${cr.perks.length} perk${cr.perks.length > 1 ? 's' : ''}` : ''}</small></div>
+  const rosterHtml = RUN.roster.map((cr, i) => `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)}<small>${esc(RANKS[cr.level - 1])} · ${esc(TOWERS[cr.type].name)} · Lv${cr.level} · ${cr.kills} kills</small><small style="color:var(--ok)" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}${cr.spec ? ` · <span style="color:var(--crystal)">${esc(BRANCH[cr.spec].name)}</span>` : ''}${cr.perks.length ? ` · ${cr.perks.length} perk${cr.perks.length > 1 ? 's' : ''}` : ''}</small><small style="color:${LEANS[leanOf(giveConscience(cr))].col}" title="${esc(archOf(cr).passive)}">${esc(valueName(cr))} · morale ${cr.morale} ${esc(moraleTier(cr).name)}</small></div>
     ${S.promotePick ? (cr.level < MAXL ? `<button class="btn sm" data-act="promote" data-i="${i}">Promote</button>` : '') : cr.reviews.length ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Review</button>` : (RUN.roster.length > 1 ? `<button class="btn sm ghost" data-act="dismiss" data-i="${i}" aria-label="Dismiss ${esc(cr.name)}">Dismiss</button>` : '')}</div>`).join('');
   const relicHtml = RUN.relics.length ? RUN.relics.map(r => `<span class="relic" title="${esc(RELICS[r].desc)}">${esc(RELICS[r].name)}</span>`).join('') : '<span class="colony">No relics yet.</span>';
   $('#overlay').innerHTML = `<div class="screen"><div class="store">
@@ -7925,6 +8031,7 @@ function showStore() {
       <div class="row" style="justify-content:space-between"><div><div class="lbl">Kindly™ Company Store</div><h2>Spend it here.<br>Only here.</h2></div><div style="text-align:right"><div class="lbl">Balance</div><div class="scrip mono">${RUN.scrip}</div></div></div>
       ${S.promotePick ? '<div class="intel">Choose a crew member to promote in the roster.</div>' : ''}
       <div class="offers">${offerHtml}</div>
+      <div class="row"><button class="btn ghost sm" data-act="reroll" ${RUN.scrip < rerollCost() ? 'disabled' : ''}>Reroll the shelves · ${rerollCost()} scrip</button><span class="colony">Restocks everything you haven't bought.</span></div>
       <div class="row"><button class="btn" data-act="tomap" ${S.promotePick ? 'disabled' : ''}>Accept next deployment</button><span class="colony">Margin ${RUN.margin}% · Sector ${sectorOf(RUN.idx)} · Contract ${sectorPos(RUN.idx) + 1} next${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? ' (boss)' : ''}</span></div>
     </div>
     <div class="paper" style="width:100%">
@@ -7935,9 +8042,22 @@ function showStore() {
     </div>
   </div></div>`;
 }
+// restocking the store costs more each time during one visit
+const rerollCost = () => 15 + 10 * (RUN.rerolls || 0);
+function reroll() {
+  const cost = rerollCost(); if (RUN.scrip < cost) return;
+  RUN.scrip -= cost; RUN.rerolls = (RUN.rerolls || 0) + 1;
+  const fresh = genOffers(); RUN.offers = RUN.offers.map(o => o.sold ? o : fresh.shift() || o);
+  showStore();
+}
 function buy(i) {
   const it = RUN.offers[i]; if (!it || it.sold || RUN.scrip < it.price) return;
-  if (it.kind === 'hire') { if (RUN.roster.length >= 8) return; RUN.roster.push(mkCrew(it.type, it.name, it.look, it.quirk)); }
+  if (it.kind === 'hire') {
+    if (RUN.roster.length >= 8) return;
+    const cr = mkCrew(it.type, it.name, it.look, it.quirk);
+    if (it.arch) { cr.arch = it.arch; cr.value = PERSONA[it.arch].value; cr.sym = it.sym || null; }
+    RUN.roster.push(cr);
+  }
   else if (it.kind === 'relic') RUN.relics.push(it.id);
   else if (it.kind === 'train') { if (!RUN.roster.some(c => c.level < MAXL)) return; S.promotePick = true; }
   else if (it.kind === 'account') RUN.margin = Math.min(100, RUN.margin + 15);
@@ -8027,6 +8147,13 @@ document.addEventListener('click', ev => {
   else if (act === 'closereview') closeReview(true);
   else if (act === 'appeal') { const cr = RUN.roster.find(c => c.id === S.reviewOpen), cost = appealCost(); if (cr && RUN.scrip >= cost) { RUN.scrip -= cost; RUN.appeals = (RUN.appeals || 0) + 1; cr.opts = null; showReview(cr); } }
   else if (act === 'buy') buy(i);
+  else if (act === 'reroll') reroll();
+  else if (act === 'walkship') showShip();
+  else if (act === 'shipmap') showMap();
+  else if (act === 'shipuse') { if (SW && SW.near) openStation(SW.near); }
+  else if (act === 'shipclose') shipPrompt();
+  else if (act === 'shipremedy') { const msg = useRemedy(b.dataset.k); if (msg) { shipPanel('Done', `<p class="lede">${esc(msg)}</p>`); shipHud(); } }
+  else if (act === 'shipcounsel') { const cr = RUN.roster.find(c => c.id === b.dataset.id), msg = cr && useRemedy('counsel', cr); if (msg) { shipPanel('Session notes', `<p class="lede">${esc(msg)}</p>`); shipHud(); } }
   else if (act === 'promote') { const cr = RUN.roster[i]; S.promotePick = false; if (cr && cr.level < MAXL) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); cr.reviews.push(cr.level); showReview(cr); } else showStore(); }
   else if (act === 'dismiss') { if (RUN.roster.length > 1) { RUN.roster.splice(i, 1); showStore(); } }
   else if (act === 'tomap') { const f = siegeDue(); if (f) showDemand(f); else { RUN.options = genOptions(); showMap(); } }
@@ -8046,6 +8173,7 @@ cv.addEventListener('pointermove', ev => {
 cv.addEventListener('pointerleave', () => { S.hover = null; });
 cv.addEventListener('pointerdown', ev => {
   const p = toLogical(ev);
+  if (S.screen === 'ship' && SW) { shipClick(p); return; }
   if (S.screen === 'map') {
     const i = planetAt(p);
     if (i >= 0) showContractCard(i);
@@ -8078,12 +8206,22 @@ document.addEventListener('keydown', ev => {
   if (ev.target.matches && ev.target.matches('input')) return;
   if (ev.key === 'm' || ev.key === 'M') { setMuted(!CFG.muted); return; }
   if (!modal && (ev.key === 'r' || ev.key === 'R') && RUN) { const cr = RUN.roster.find(c => c.reviews.length); if (cr) { showReview(cr); return; } }
+  if (!modal && S.screen === 'ship' && SW) { shipKey(ev, true); return; }
   if (modal || S.screen !== 'mission' || !M) return;
   if (ev.key === ' ') { ev.preventDefault(); if (M.phase === 'prep') { M.phase = 'drill'; sfx('start'); } else M.paused = !M.paused; }
   else if (ev.key >= '1' && ev.key <= '8') { const i = +ev.key - 1; if (RUN.roster[i] && !M.deployedIds.has(RUN.roster[i].id)) { S.selCrew = S.selCrew === i ? -1 : i; buildRosterBar(); } }
   else if (ev.key === 'Escape') { S.selArt = null; S.artMode = null; S.heliPanel = false; S.selCrew = -1; S.selTower = null; renderTowerInfo(); buildRosterBar(); }
 });
 
+document.addEventListener('keyup', ev => { if (S.screen === 'ship' && SW) shipKey(ev, false); });
+const SHIP_KEYS = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down' };
+function shipKey(ev, down) {
+  const k = SHIP_KEYS[ev.key];
+  if (k) { SW.keys[k] = down; ev.preventDefault(); if (down) SW.me.arrive = null; return; }
+  if (!down) return;
+  if ((ev.key === 'e' || ev.key === 'E' || ev.key === 'Enter') && SW.near) openStation(SW.near);
+  else if (ev.key === 'Escape') shipPrompt();
+}
 // ---------- main loop ----------
 let last = performance.now(), acc = 0;
 // the next frame is booked first, so one bad frame can never stop the game; errors are reported once each
@@ -8105,6 +8243,7 @@ function frame(now) {
       if (!M.paused) { acc += dt * M.speed; let n = 0; while (acc >= STEP && n++ < 12) { stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= 12) acc = 0; }
       if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; renderMission(now); updateHud(); }
     } else if (S.screen === 'map') renderMap(now);
+    else if (S.screen === 'ship') renderShip(now, dt);
     else { beginDraw(); drawStars(now / 1000); if (S.screen === 'envoy') drawEnvoyFrame(now); }
   } catch (e) { acc = 0; reportFrameError(e); }
 }
@@ -9959,7 +10098,8 @@ return { FOOT, BKIT, BT, BTYPES_HUMAN, BTYPES_ALIEN, BTYPE_NAME, TALL, FAC_BUILD
 // ================================================================
 const SHIP_NAME = 'KSS Due Diligence (your ship)';
 // one ship, drawn by hand: three airlocks, corridors to the fuel core, crew decks between the rooms
-//  = corridor   A airlock   C fuel core   ~ coolant   q quarters  m medbay  r/e reactor  c cargo  b bridge
+//  = corridor   A airlock   C fuel core   ~ coolant   q quarters  m medbay  r reactor  l crew lounge  c cargo  b bridge
+// The rooms are part of the ship, not buildings: crew stand anywhere off the corridors.
 const SHIP_LAYOUT = [
   '.....A................',
   '.....=................',
@@ -9968,33 +10108,26 @@ const SHIP_LAYOUT = [
   '.......qqq.mmm...=.rr.',
   '.~~..............=.rr.',
   'A================C....',
-  '.~~....cccc.bbb..=.ee.',
-  '.......cccc.bbb..=.ee.',
-  '.................=.ee.',
+  '.~~....cccc.bbb..=.ll.',
+  '.......cccc.bbb..=.ll.',
+  '.................=.ll.',
   '.....=============....',
   '.....=................',
   '.....A................',
 ];
-const SHIP_ROOMS = { q: 'house', m: 'clinic', r: 'reactor', e: 'reactor', c: 'depot', b: 'office' };
 const SHIP_PROPS = [[1, 1, 'locker'], [3, 3, 'crate'], [14, 0, 'pipes'], [2, 9, 'crate'], [13, 12, 'locker'], [21, 0, 'pipes'], [21, 12, 'pipes'], [9, 11, 'crate'], [19, 11, 'locker'], [19, 1, 'crate']];
 const SHIP_LANES = { top: [[5, 0], [5, 2], [17, 2], [17, 6]], mid: [[0, 6], [17, 6]], low: [[5, 12], [5, 10], [17, 10], [17, 6]] };
 // which airlocks each raid breaches
 const SHIP_RAIDS = { 1: ['mid', 'top'], 2: ['top', 'low'], 3: ['top', 'mid', 'low'] };
 function shipMap(stage) {
-  const grid = SHIP_LAYOUT.map(r => [...r].map(ch => ch === '=' || ch === 'A' ? 1 : ch === 'C' ? 3 : ch === '~' ? 5 : SHIP_ROOMS[ch] ? 6 : 0));
+  const tier = shipTier(), grid = SHIP_LAYOUT.map(r => [...r].map(ch => ch === '=' || ch === 'A' ? 1 : ch === 'C' ? 3 : ch === '~' ? 5 : 0));
   const expand = pts => { const out = []; for (let i = 0; i < pts.length - 1; i++) { let [x, y] = pts[i]; const [x1, y1] = pts[i + 1]; while (x !== x1 || y !== y1) { out.push({ x, y }); x += Math.sign(x1 - x); y += Math.sign(y1 - y); } } const [lx, ly] = pts[pts.length - 1]; out.push({ x: lx, y: ly }); return out; };
   const paths = SHIP_RAIDS[stage].map(k => expand(SHIP_LANES[k]));
   const spawns = paths.map(p => ({ x: p[0].x, y: p[0].y })); for (const s of spawns) grid[s.y][s.x] = 4;
-  // each room is the box its letter covers
-  const buildings = [], seen = new Set();
-  SHIP_LAYOUT.forEach((r, y) => [...r].forEach((ch, x) => {
-    if (!SHIP_ROOMS[ch] || seen.has(ch + x + ',' + y)) return;
-    let w = 0, h = 0; while (SHIP_LAYOUT[y][x + w] === ch) w++; while (SHIP_LAYOUT[y + h] && SHIP_LAYOUT[y + h][x] === ch) h++;
-    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) seen.add(ch + xx + ',' + yy);
-    buildings.push({ x, y, w, h, type: SHIP_ROOMS[ch], row: false });
-  }));
   const obstacles = SHIP_PROPS.map(([x, y, kind]) => { grid[y][x] = 2; return { x, y, kind }; });
-  return { grid, dep: { x: 17, y: 6 }, spawns, buildings, bridges: [], obstacles, landmarks: [], paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
+  const guns = shipGuns(tier); for (const gn of guns) grid[gn.y][gn.x] = 2;
+  const doors = SHIP_DOOR_SPOTS.map(([x, y]) => ({ x, y }));
+  return { grid, dep: { x: 17, y: 6 }, spawns, buildings: [], bridges: [], obstacles, landmarks: [], deck: SHIP_LAYOUT.slice(), guns, doors, tier, paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
 }
 // the ship as a place
 Object.assign(BIOMES, { ship: { name: 'Your ship', mod: {}, hazard: 'Boarders are after the fuel crystals. Hold until the raid is spent.' } });
@@ -10007,6 +10140,422 @@ Object.assign(OBST_EXTRA, {
   locker: () => { const P = painter(18, 22); P.r(4, 4, 10, 16, '#5a6270'); P.r(4, 4, 10, 1, '#8a92a6'); P.r(9, 5, 1, 15, '#3a4250'); for (const x of [6, 11]) { P.r(x, 7, 2, 1, '#2a3040'); P.r(x, 9, 2, 1, '#2a3040'); } P.p(8, 12, '#ffd23f'); P.r(3, 20, 12, 1, '#2a2e38'); postProcess(P.c); return { c: P.c, lights: [], props: [] }; },
   pipes: () => { const P = painter(18, 18); for (const [x, c] of [[3, '#7a8290'], [8, '#8a6a4a'], [13, '#6a7a8a']]) { P.r(x, 2, 3, 15, c); P.r(x, 2, 1, 15, shade(c, 0.25)); P.r(x + 2, 2, 1, 15, shade(c, -0.3)); P.r(x - 1, 6, 5, 2, shade(c, -0.2)); P.r(x - 1, 12, 5, 2, shade(c, -0.2)); } P.p(9, 9, '#ff4d5e'); postProcess(P.c); return { c: P.c, lights: [{ x: 9, y: 9, color: '#ff4d5e', r: 6, pulse: true }], props: [{ kind: 'steam', x: 4, y: 3 }] }; },
 });
+// ================================================================
+// THE SHIP AS A PLACE. One interior, drawn tile by tile, used twice: as the map when boarders come for
+// the fuel crystals, and as the deck you walk between contracts. Its fit-out follows your standing with
+// the company: Executive, Standard issue, Cost-cutting or Condemned. Better fit-outs mean more and
+// stronger hull guns in a raid and cheaper ways to look after your crew.
+// ================================================================
+const SHIP_ROOM_INFO = { q: 'Crew quarters', m: 'Medbay', r: 'Reactor', l: 'Crew lounge', c: 'Cargo hold', b: 'Bridge' };
+const SHIP_TIERS = [
+  { key: 'condemned', name: 'Condemned', desc: 'Kindly has stopped maintaining your ship. Flickering lights, rust, a broken coffee machine, and two hull guns sold for parts.', guns: 2, gunDmg: 0.8, price: 1.3,
+    pal: { floor: '#3e3a38', floor2: '#38342f', seam: '#24201c', trim: '#7a3a2a', wall: '#5a5450', face: '#3a3430', grate: '#2a2622', grate2: '#3a3430', light: '#ff6a4a', carpet: '#4a3a36', glow: '#ff6a4a' } },
+  { key: 'cuts', name: 'Cost-cutting', desc: 'Budget cuts. Dim lights, missing panels and one hull gun "temporarily" removed.', guns: 3, gunDmg: 0.9, price: 1.15,
+    pal: { floor: '#4a505c', floor2: '#444a56', seam: '#30343e', trim: '#8a7a4a', wall: '#6a7080', face: '#464c5a', grate: '#30363f', grate2: '#454c58', light: '#d8c8a0', carpet: '#3e4a5a', glow: '#c8b88a' } },
+  { key: 'standard', name: 'Standard issue', desc: 'Clean, grey and adequately lit. Four hull guns.', guns: 4, gunDmg: 1, price: 1,
+    pal: { floor: '#5a6272', floor2: '#545c6c', seam: '#3e4656', trim: '#5ab8ff', wall: '#8a92a6', face: '#5a6274', grate: '#363e4c', grate2: '#4a5262', light: '#9fd3ff', carpet: '#2e4a7a', glow: '#5ab8ff' } },
+  { key: 'exec', name: 'Executive fit-out', desc: 'Chrome, plants and real coffee. Kindly rewards loyal managers. Five upgraded hull guns.', guns: 5, gunDmg: 1.3, price: 0.75,
+    pal: { floor: '#b8bec8', floor2: '#aeb4c0', seam: '#8a92a0', trim: '#e0b850', wall: '#e8ecf2', face: '#a4acba', grate: '#6a7282', grate2: '#848c9c', light: '#fff2c8', carpet: '#7a2a3a', glow: '#ffe2a0' } },
+];
+// what the company thinks of you: margin, loyalty to Kindly, and how much HR suspects you
+function companyScore() { const st = RUN.story; return RUN.margin - 70 + 15 * (st.loyalty || 0) - (st.heat || 0) / 4; }
+function shipTier() { if (!RUN) return 2; const s = companyScore(); return s >= 50 ? 3 : s >= 15 ? 2 : s >= -15 ? 1 : 0; }
+
+// rooms as boxes: { ch, x, y, w, h, door: { x, y, side } }
+function shipRooms(rows) {
+  const out = [], seen = new Set(), H = rows.length, W = rows[0].length;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const ch = rows[y][x]; if (!SHIP_ROOM_INFO[ch] || seen.has(x + ',' + y)) continue;
+    let w = 0, h = 0; while (rows[y][x + w] === ch) w++; while (rows[y + h] && rows[y + h][x] === ch) h++;
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) seen.add(xx + ',' + yy);
+    const r = { ch, x, y, w, h };
+    // one door, in the middle of the first side that opens onto deck
+    const open = (tx, ty) => rows[ty] && rows[ty][tx] && (rows[ty][tx] === '.' || rows[ty][tx] === '=');
+    const sides = [['bottom', x + (w >> 1), y + h - 1, 0, 1], ['top', x + (w >> 1), y, 0, -1], ['left', x, y + (h >> 1), -1, 0], ['right', x + w - 1, y + (h >> 1), 1, 0]];
+    for (const [side, dx, dy, ox, oy] of sides) if (open(dx + ox, dy + oy)) { r.door = { x: dx, y: dy, side, ox, oy }; break; }
+    out.push(r);
+  }
+  return out;
+}
+// walls sit on room edges; the door edge is open. key: "x,y,dx,dy" from the inside tile outwards
+function shipWalls(rows, rooms) {
+  const walls = new Set(), H = rows.length, W = rows[0].length;
+  for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) for (const [dx, dy] of DIRS) {
+    const nx = x + dx, ny = y + dy; if (nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h) continue;
+    if (r.door && r.door.x === x && r.door.y === y && r.door.ox === dx && r.door.oy === dy) continue;
+    walls.add(`${x},${y},${dx},${dy}`); if (nx >= 0 && ny >= 0 && nx < W && ny < H) walls.add(`${nx},${ny},${-dx},${-dy}`);
+  }
+  return walls;
+}
+const transposeRows = rows => Array.from({ length: rows[0].length }, (_, y) => rows.map(r => r[y]).join(''));
+
+// the deck, tile by tile. Returns the same shape as renderGround.
+function shipDeck(rows, tier, extra = {}) {
+  const H = rows.length, W = rows[0].length, P = painter(W * ATILE, H * ATILE), lights = [], liquidTiles = [], T = SHIP_TIERS[tier], C = T.pal, A = ATILE;
+  const at = (x, y) => (y < 0 || y >= H || x < 0 || x >= W) ? '#' : rows[y][x];
+  const rooms = shipRooms(rows), walls = shipWalls(rows, rooms), roomAt = (x, y) => rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  const light = (x, y, color, r, flicker) => lights.push({ x: x * AP, y: y * AP, color, r, flicker: flicker || (tier === 0 && rnd() < 0.5) });
+  const isCor = ch => ch === '=' || ch === 'A' || ch === 'C';
+  const Lq = LIQUIDS.coolant;
+  for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
+    const ch = at(tx, ty), x0 = tx * A, y0 = ty * A;
+    if (ch === '~') {
+      P.r(x0, y0, A, A, '#14181f'); P.r(x0 + 1, y0 + 1, A - 2, A - 2, Lq.a); P.r(x0 + 1, y0 + 1, A - 2, 3, Lq.b);
+      for (let k = 0; k < 3; k++) P.r(x0 + 3 + k * 5, y0 + 8 + (k & 1) * 3, 3, 1, Lq.hi);
+      liquidTiles.push({ x: x0, y: y0, s: rnd() }); if ((tx + ty) % 2 === 0) light(x0 + 9, y0 + 9, Lq.glow, 16);
+      continue;
+    }
+    if (isCor(ch)) {
+      // grated corridor with guide lights along both edges
+      P.r(x0, y0, A, A, C.grate);
+      for (let k = 1; k < A; k += 3) { P.r(x0 + k, y0, 1, A, C.grate2); P.r(x0, y0 + k, A, 1, C.grate2); }
+      const hor = isCor(at(tx - 1, ty)) || isCor(at(tx + 1, ty)), ver = isCor(at(tx, ty - 1)) || isCor(at(tx, ty + 1));
+      const dim = tier <= 1 && (tx + ty) % 3 === 0;
+      if (hor && !isCor(at(tx, ty - 1))) { P.r(x0, y0, A, 2, C.seam); if (!dim) for (let k = 3; k < A; k += 6) P.r(x0 + k, y0 + 2, 2, 1, C.trim); }
+      if (hor && !isCor(at(tx, ty + 1))) { P.r(x0, y0 + A - 2, A, 2, C.seam); if (!dim) for (let k = 3; k < A; k += 6) P.r(x0 + k, y0 + A - 3, 2, 1, C.trim); }
+      if (ver && !isCor(at(tx - 1, ty))) { P.r(x0, y0, 2, A, C.seam); if (!dim) for (let k = 3; k < A; k += 6) P.r(x0 + 2, y0 + k, 1, 2, C.trim); }
+      if (ver && !isCor(at(tx + 1, ty))) { P.r(x0 + A - 2, y0, 2, A, C.seam); if (!dim) for (let k = 3; k < A; k += 6) P.r(x0 + A - 3, y0 + k, 1, 2, C.trim); }
+      if (ch === 'A') { for (let k = 0; k < A; k += 4) { P.r(x0 + k, y0, 2, A, '#ffd23f'); P.r(x0 + k + 2, y0, 2, A, '#1a1a1a'); } P.r(x0 + 3, y0 + 3, A - 6, A - 6, '#20242c'); P.r(x0 + 4, y0 + 4, A - 8, A - 8, '#3a4250'); P.r(x0 + 8, y0 + 4, 2, A - 8, '#14161c'); light(x0 + 9, y0 + 9, '#ff4d5e', 14, true); }
+      if ((tx + ty) % 4 === 0 && ch === '=') light(x0 + 9, y0 + 9, C.light, 12);
+      continue;
+    }
+    const r = roomAt(tx, ty);
+    if (r) {
+      const rc = { q: C.carpet, m: tier === 0 ? '#8a8a84' : '#d8dee8', r: '#3a3e46', l: tier === 3 ? '#6a4a34' : '#5a4e44', c: '#4a4e56', b: '#22283a' }[r.ch];
+      P.r(x0, y0, A, A, rc);
+      if (r.ch === 'm') for (let k = 0; k < A; k += 6) { P.r(x0 + k, y0, 1, A, shade(rc, -0.12)); P.r(x0, y0 + k, A, 1, shade(rc, -0.12)); }
+      if (r.ch === 'q' || r.ch === 'l') for (let k = 0; k < A; k += 2) P.r(x0 + ((k * 7 + ty * 3) % A), y0 + k, 1, 1, shade(rc, 0.08));
+      if (r.ch === 'r') { for (let k = 0; k < A; k += 3) P.r(x0, y0 + k, A, 1, shade(rc, 0.1)); }
+      if (r.ch === 'c') { P.r(x0, y0 + A - 3, A, 1, '#c8a040'); }
+      if (r.ch === 'b') { P.r(x0, y0, A, 1, shade(rc, 0.15)); }
+      if (tier === 0 && rnd() < 0.3) P.ell(x0 + 4 + rnd() * 10, y0 + 6 + rnd() * 8, 3 + rnd() * 3, 2, 'rgba(90,50,30,0.45)');
+      continue;
+    }
+    // open deck plating
+    // big 2x2-tile panels with a soft sheen, seams and rivets only at panel edges
+    P.r(x0, y0, A, A, ((tx >> 1) + (ty >> 1)) % 2 ? C.floor : C.floor2);
+    if (!(ty & 1)) { P.r(x0, y0, A, 1, C.seam); P.r(x0, y0 + 1, A, 1, shade(C.floor, 0.14)); }
+    if (!(tx & 1)) P.r(x0, y0, 1, A, C.seam);
+    if (!(tx & 1) && !(ty & 1)) { P.p(x0 + 2, y0 + 3, shade(C.floor, -0.3)); P.p(x0 + 2, y0 + 3 + A, shade(C.floor, -0.3)); }
+    if (tier >= 2 && (tx & 1) && (ty & 1)) P.r(x0 + A - 6, y0 + A - 6, 4, 4, shade(C.floor, 0.06));
+    const roll = rnd();
+    if (tier === 3) { if (roll < 0.06) { P.ell(x0 + 9, y0 + 12, 4, 2.5, '#6a4a3a'); P.ell(x0 + 9, y0 + 8, 5, 4, '#3a8a4a'); P.ell(x0 + 8, y0 + 6, 3, 3, '#5aaa5a'); } else if (roll < 0.14) P.r(x0 + 3, y0 + 8, A - 6, 1, C.trim); }
+    if (tier === 1 && roll < 0.1) { P.r(x0 + 4, y0 + 4, 10, 10, '#16181e'); P.line(x0 + 5, y0 + 6, x0 + 12, y0 + 11, '#c8382a'); P.line(x0 + 6, y0 + 11, x0 + 12, y0 + 5, '#3a8aff'); }
+    if (tier === 1 && roll > 0.94) { P.r(x0 + 3, y0 + 7, 12, 3, '#d8c890'); P.r(x0 + 3, y0 + 8, 12, 1, '#b8a870'); }
+    if (tier === 0) { if (roll < 0.25) P.ell(x0 + 4 + rnd() * 10, y0 + 4 + rnd() * 10, 3 + rnd() * 4, 2 + rnd() * 2, 'rgba(120,60,30,0.5)'); else if (roll < 0.35) { P.ell(x0 + 9, y0 + 10, 6, 3, 'rgba(80,110,130,0.55)'); P.r(x0 + 7, y0 + 9, 3, 1, 'rgba(200,230,255,0.5)'); } else if (roll < 0.45) { P.line(x0 + 1, y0 + 5, x0 + 16, y0 + 12, '#1a1a1a'); P.line(x0 + 1, y0 + 6, x0 + 16, y0 + 13, '#c8382a'); } }
+  }
+  // furniture and stations, room by room
+  for (const r of rooms) furnishRoom(P, r, tier, C, light);
+  // walls: the far wall of a room shows its face, the others are thin bulkheads
+  for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+    const x0 = x * A, y0 = y * A, w = (dx, dy) => walls.has(`${x},${y},${dx},${dy}`);
+    if (w(0, -1)) { P.r(x0, y0, A, 5, C.face); P.r(x0, y0, A, 1, C.wall); P.r(x0, y0 + 5, A, 1, shade(C.face, -0.35)); if (tier >= 2 && (x % 2 === 0)) P.r(x0 + 7, y0 + 2, 4, 1, C.trim); }
+    if (w(0, 1)) { P.r(x0, y0 + A - 2, A, 2, C.wall); P.r(x0, y0 + A - 1, A, 1, shade(C.face, -0.3)); }
+    if (w(-1, 0)) { P.r(x0, y0, 2, A, C.wall); P.r(x0 + 2, y0, 1, A, shade(C.face, -0.3)); }
+    if (w(1, 0)) { P.r(x0 + A - 2, y0, 2, A, C.wall); P.r(x0 + A - 3, y0, 1, A, shade(C.face, -0.2)); }
+    if (r.door && r.door.x === x && r.door.y === y) {
+      const d = r.door, hor = d.oy !== 0, cx = x0 + (d.ox > 0 ? A - 2 : d.ox < 0 ? 0 : 3), cy = y0 + (d.oy > 0 ? A - 2 : d.oy < 0 ? 0 : 3);
+      if (hor) { P.r(x0 + 2, cy, 2, 2, C.trim); P.r(x0 + A - 4, cy, 2, 2, C.trim); P.r(x0 + 4, cy, A - 8, 1, shade(C.face, -0.4)); }
+      else { P.r(cx, y0 + 2, 2, 2, C.trim); P.r(cx, y0 + A - 4, 2, 2, C.trim); P.r(cx, y0 + 4, 1, A - 8, shade(C.face, -0.4)); }
+    }
+  }
+  // the hull around it all, with portholes on the long sides
+  const PW = W * A, PH = H * A;
+  P.r(0, 0, PW, 2, '#0c0e14'); P.r(0, PH - 2, PW, 2, '#0c0e14'); P.r(0, 0, 2, PH, '#0c0e14'); P.r(PW - 2, 0, 2, PH, '#0c0e14');
+  P.r(2, 2, PW - 4, 1, C.wall); P.r(2, PH - 3, PW - 4, 1, shade(C.face, -0.3));
+  // chamfered corners, so it reads as a hull rather than a room
+  const CH = 12;
+  for (let k = 0; k < CH; k++) {
+    const w = CH - k;
+    for (const [x, y] of [[0, k], [PW - w, k], [0, PH - 1 - k], [PW - w, PH - 1 - k]]) { P.r(x, y, w, 1, '#05070c'); }
+    P.p(CH - k, k, '#0c0e14'); P.p(PW - 1 - (CH - k), k, '#0c0e14'); P.p(CH - k, PH - 1 - k, '#0c0e14'); P.p(PW - 1 - (CH - k), PH - 1 - k, '#0c0e14');
+    P.p(CH - k + 1, k, C.wall); P.p(PW - 2 - (CH - k), k, C.wall);
+  }
+  for (let x = 3 * A; x < PW - 2 * A; x += 4 * A) for (const y of [3, PH - 7]) { if (!['.', 'q', 'm', 'l', 'b', 'c', 'r'].includes(at((x / A) | 0, (y / A) | 0))) continue; P.ell(x + 9, y + 2, 4, 2, '#0c0e14'); P.ell(x + 9, y + 2, 3, 1.4, '#0a1028'); P.p(x + 8, y + 2, '#ffffff'); P.p(x + 11, y + 1, '#9fd3ff'); }
+  if (extra.doors) for (const d of extra.doors) {
+    // blast doors across the corridor: open frames on each side, hazard-striped sill
+    const x0 = d.x * A, y0 = d.y * A, hor = isCor(at(d.x - 1, d.y)) || isCor(at(d.x + 1, d.y));
+    if (hor) { P.r(x0 + 7, y0, 4, A, '#1a1a1a'); for (let k = 0; k < A; k += 4) P.r(x0 + 7, y0 + k, 4, 2, '#ffd23f'); P.r(x0 + 5, y0 - 2, 8, 4, C.face); P.r(x0 + 5, y0 + A - 2, 8, 4, C.face); }
+    else { P.r(x0, y0 + 7, A, 4, '#1a1a1a'); for (let k = 0; k < A; k += 4) P.r(x0 + k, y0 + 7, 2, 4, '#ffd23f'); P.r(x0 - 2, y0 + 5, 4, 8, C.face); P.r(x0 + A - 2, y0 + 5, 4, 8, C.face); }
+    light(x0 + 9, y0 + 9, '#ffb030', 10, true);
+  }
+  if (extra.guns) for (const gn of extra.guns) {
+    // a hull-gun hardpoint: armoured ring on the deck; the turret head is drawn live
+    const x0 = gn.x * A, y0 = gn.y * A;
+    P.ell(x0 + 9, y0 + 11, 7, 4, '#14161c'); P.ell(x0 + 9, y0 + 10, 6, 3.4, gn.sold ? '#3a3430' : '#4a5262'); P.ell(x0 + 9, y0 + 9.5, 4, 2, gn.sold ? '#2a2420' : '#2a2e38');
+    if (gn.sold) { P.r(x0 + 2, y0 + 1, 14, 5, '#d8c890'); P.r(x0 + 3, y0 + 3, 12, 1, '#7a6a3a'); }
+  }
+  postProcess(P.c, { shadeIt: false, outlineCol: '#0c0e14' });
+  for (const it of (extra.props || []).slice().sort((a, b) => a.y - b.y)) { const o = obstacleSprite(it.kind), x0 = it.x * A; P.g.fillStyle = 'rgba(0,0,0,0.3)'; P.g.fillRect(x0 + 3, it.y * A + 13, 12, 3); P.g.drawImage(o.c, x0, it.y * A + 16 - o.c.height); }
+  return { cv: P.c, lights, props: [], liquidTiles, rooms, walls };
+}
+// the contents of each room. Stations (things you can use on the walk) get their tile recorded.
+function furnishRoom(P, r, tier, C, light) {
+  const A = ATILE, X = r.x * A, Y = r.y * A, W = r.w * A, Hh = r.h * A, top = Y + 6;
+  const broken = tier === 0, posh = tier === 3;
+  if (r.ch === 'q') {
+    for (let i = 0; i < r.w; i++) {
+      const bx = X + i * A + 2;
+      P.r(bx, top, 14, 9, '#2a2e38'); P.r(bx + 1, top + 1, 12, 7, broken ? '#8a8270' : '#d8dce4'); P.r(bx + 1, top + 1, 4, 3, '#f2f4f8');
+      P.r(bx + 1, top + 4, 12, 4, posh ? '#7a2a3a' : broken ? '#5a5048' : C.carpet === '#2e4a7a' ? '#3a6ab8' : '#4a5a7a');
+      if (broken && i === 1) P.ell(bx + 8, top + 12, 4, 2, '#6a6a5a');
+    }
+    P.r(X + W - 6, Y + Hh - 12, 4, 10, '#5a6270'); P.r(X + W - 6, Y + Hh - 12, 4, 1, '#8a92a6');
+    light(X + W / 2, Y + Hh / 2, broken ? '#c88a5a' : '#ffe2b0', 18);
+  } else if (r.ch === 'm') {
+    for (let i = 0; i < r.w; i++) { const bx = X + i * A + 3; P.r(bx, top, 12, 8, '#8a92a6'); P.r(bx + 1, top + 1, 10, 6, '#f2f4f8'); P.r(bx + 1, top + 1, 3, 2, '#ffffff'); P.r(bx + 9, top - 4, 3, 3, '#14161c'); P.r(bx + 9, top - 3, 3, 1, broken ? '#ff4d5e' : '#4fe0a6'); }
+    P.r(X + W / 2 - 3, Y + 1, 6, 2, '#d23c3c'); P.r(X + W / 2 - 1, Y, 2, 4, '#d23c3c');
+    light(X + W / 2, Y + Hh / 2, '#dff6ff', 20);
+  } else if (r.ch === 'r') {
+    const cx = X + W / 2, cy = Y + Hh / 2;
+    P.r(X + 2, Y + 7, W - 4, Hh - 10, '#1a1a1a'); for (let k = 0; k < W - 4; k += 4) { P.r(X + 2 + k, Y + 7, 2, 2, '#ffd23f'); P.r(X + 2 + k, Y + Hh - 5, 2, 2, '#ffd23f'); }
+    P.ell(cx, cy + 6, 9, 4, '#2a2e38'); P.r(cx - 9, cy - 10, 18, 16, '#4a5262'); P.r(cx - 9, cy - 10, 2, 16, '#6a7282'); P.r(cx + 7, cy - 10, 2, 16, '#2a2e38');
+    P.ell(cx, cy - 10, 9, 4, '#6a7282'); P.ell(cx, cy - 10, 6, 2.5, broken ? '#ff8a4a' : '#7fe8ff'); P.r(cx - 9, cy - 3, 18, 3, broken ? '#ff6a2a' : '#3af0ff');
+    light(cx, cy - 4, broken ? '#ff6a2a' : '#3af0ff', 34, broken);
+  } else if (r.ch === 'l') {
+    // coffee machine and jukebox along the far wall, a sofa and a table below
+    P.r(X + 3, top - 1, 9, 12, broken ? '#4a3a32' : '#2a2e38'); P.r(X + 4, top, 7, 4, broken ? '#2a2420' : '#3af0ff'); P.r(X + 6, top + 6, 3, 3, '#e8e4dc'); if (broken) { P.r(X + 3, top + 4, 9, 3, '#d8c890'); P.r(X + 4, top + 5, 7, 1, '#7a6a3a'); }
+    P.r(X + A + 4, top - 1, 10, 12, posh ? '#7a4a2a' : '#5a3a6a'); P.ell(X + A + 9, top + 3, 4, 3, posh ? '#ffd23f' : '#ff3ad6'); P.r(X + A + 5, top + 7, 8, 3, '#14161c');
+    P.r(X + 3, Y + Hh - 16, W - 6, 6, posh ? '#7a2a3a' : '#4a5a7a'); P.r(X + 3, Y + Hh - 17, W - 6, 2, posh ? '#9a3a4a' : '#5a6a8a');
+    P.r(X + W / 2 - 6, Y + Hh / 2, 12, 5, posh ? '#8a5a3a' : '#5a5048'); if (posh) P.ell(X + W / 2, Y + Hh / 2 + 1, 2, 1.5, '#3a8a4a');
+    light(X + 8, top + 2, broken ? '#c88a5a' : '#3af0ff', 12); light(X + A + 9, top + 3, posh ? '#ffd23f' : '#ff3ad6', 14, !posh); light(X + W / 2, Y + Hh / 2, C.light, 22);
+  } else if (r.ch === 'c') {
+    const cols = ['#8a6a3a', '#5a6a4a', '#6a5a4a', '#4a5a6a'];
+    for (let i = 0; i < r.w; i++) for (let j = 0; j < r.h; j++) { if ((i + j) % 2) continue; const bx = X + i * A + 3, by = Y + j * A + 4, c = cols[(i + j * 3) % 4]; P.r(bx, by, 11, 10, c); P.r(bx, by, 11, 2, shade(c, 0.2)); P.r(bx + 5, by, 1, 10, shade(c, -0.3)); }
+    light(X + W / 2, Y + Hh / 2, C.light, 18);
+  } else if (r.ch === 'b') {
+    // a viewscreen of stars on the far wall, consoles under it, the manager's chair
+    P.r(X + 2, Y + 1, W - 4, 5, '#05070c'); for (let k = 0; k < W - 6; k += 5) P.p(X + 4 + k, Y + 2 + (k % 3), '#ffffff');
+    for (let i = 0; i < r.w; i++) { const bx = X + i * A + 2; P.r(bx, top + 1, 14, 6, '#2a2e38'); P.r(bx + 1, top + 2, 12, 2, broken ? '#5a2a2a' : i % 2 ? '#3af0ff' : '#4fe0a6'); for (let k = 0; k < 4; k++) P.p(bx + 2 + k * 3, top + 5, ['#ffd23f', '#ff4d5e', '#4fe0a6', '#5ab8ff'][(i + k) % 4]); }
+    P.ell(X + W / 2, Y + Hh - 8, 4, 3, posh ? '#7a2a3a' : '#3a3e48'); P.r(X + W / 2 - 4, Y + Hh - 14, 8, 5, posh ? '#9a3a4a' : '#4a4e58');
+    light(X + W / 2, Y + 8, '#3af0ff', 22);
+  }
+}
+// where you can do things on the walk (landscape layout tiles)
+const SHIP_STATIONS = [
+  { key: 'helm', room: 'b', at: [1, 0], name: 'Navigation console', hint: 'Open the star map' },
+  { key: 'payroll', room: 'b', at: [0, 0], name: 'Payroll terminal', hint: 'Hazard pay' },
+  { key: 'coffee', room: 'l', at: [0, 0], name: 'Coffee machine', hint: 'A round of coffee' },
+  { key: 'party', room: 'l', at: [1, 0], name: 'Jukebox', hint: 'Throw a crew party' },
+  { key: 'counsel', room: 'm', at: [2, 0], name: 'Wellness pod', hint: 'One-to-one sessions' },
+  { key: 'files', room: 'q', at: [0, 0], name: 'Personnel files', hint: 'Who is who' },
+  { key: 'reactor', room: 'r', at: [0, 1], name: 'Reactor', hint: 'Fuel status' },
+  { key: 'cargo', room: 'c', at: [0, 0], name: 'Cargo manifest', hint: 'Artifacts in the hold' },
+];
+// remedies: what they cost (before the fit-out's price factor) and what they do
+const REMEDIES = {
+  coffee: { base: 15, desc: 'Everyone +6 morale.', once: true, run: () => { for (const cr of RUN.roster) bumpMorale(cr, 6, 'coffee'); return 'The smell of real coffee. Morale up across the board.'; } },
+  party: { base: 45, desc: 'Everyone +15 morale; the Ruthless +20.', once: true, run: () => { for (const cr of RUN.roster) bumpMorale(cr, leanOf(cr) === 'evil' ? 20 : 15, 'party'); return 'Somebody found the karaoke settings. Nobody will mention this again.'; } },
+  payroll: { base: 30, desc: 'Mercenaries +25 morale, everyone else +8.', once: true, run: () => { for (const cr of RUN.roster) bumpMorale(cr, cr.value === 'merc' ? 25 : 8, 'hazard pay'); return 'Hazard pay, backdated. The mercenaries are briefly sincere.'; } },
+  counsel: { base: 20, desc: 'One crew member +25 morale.', perCrew: true, run: cr => { bumpMorale(cr, 25, 'counselling'); return `${cr.name.split(' ')[0]} talks for forty minutes about their childhood. They feel much better.`; } },
+};
+function bumpMorale(cr, d, why) { giveConscience(cr); cr.morale = clamp((cr.morale ?? 65) + d, 0, 100); (cr.moodLog = cr.moodLog || []).push({ kind: why, d, idx: RUN.idx }); }
+const remedyPrice = k => Math.round(REMEDIES[k].base * SHIP_TIERS[shipTier()].price);
+const remedyUsed = (k, cr) => !!(RUN.shipUse || {})[`${k}:${cr ? cr.id : ''}:${RUN.idx}`];
+function useRemedy(k, cr) {
+  const R = REMEDIES[k], price = remedyPrice(k);
+  if (remedyUsed(k, cr) || RUN.scrip < price) return null;
+  if (k === 'coffee' && shipTier() === 0) return null;
+  RUN.scrip -= price; (RUN.shipUse = RUN.shipUse || {})[`${k}:${cr ? cr.id : ''}:${RUN.idx}`] = true;
+  sfx('buy'); return R.run(cr);
+}
+
+// ---------- walking the ship ----------
+const WALK_SPEED = 3.2;
+let SW = null;   // walk state
+function showShip() {
+  S.screen = 'ship'; M = null; clearMissionUi(); setMusic('menu');
+  const rows = SHIP_LAYOUT, tier = shipTier(), deck = shipDeck(rows, tier, { guns: shipGuns(tier), props: SHIP_PROPS.map(([x, y, kind]) => ({ x, y, kind })) });
+  const rooms = deck.rooms, roomOf = ch => rooms.find(r => r.ch === ch);
+  const stations = SHIP_STATIONS.map(s => { const r = roomOf(s.room); return r ? { ...s, x: r.x + Math.min(s.at[0], r.w - 1), y: r.y + Math.min(s.at[1], r.h - 1) } : null; }).filter(Boolean);
+  const blocked = new Set();
+  rows.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '~') blocked.add(x + ',' + y); }));
+  for (const [x, y] of SHIP_PROPS) blocked.add(x + ',' + y);
+  for (const gn of shipGuns(tier)) blocked.add(gn.x + ',' + gn.y);
+  const start = roomOf('b');
+  SW = { rows, tier, deck, stations, blocked, W: rows[0].length, H: rows.length, buf: mkCanvas(rows[0].length * ATILE, rows.length * ATILE),
+    me: { x: start.x + 1.5, y: start.y + start.h - 0.5, path: [], face: 1, step: 0 }, crew: [], keys: {}, near: null, bubbles: [], t: 0 };
+  // everyone hangs out where their personality takes them
+  const HANG = { idealist: 'm', sympath: 'q', company: 'b', merc: 'l', pro: 'c', evil: 'r' };
+  RUN.roster.forEach((cr, i) => { giveConscience(cr); const r = roomOf((cr.morale ?? 65) < 35 ? 'q' : HANG[cr.value] || 'l') || roomOf('l'); const tx = r.x + (i % r.w), ty = r.y + Math.min(r.h - 1, 1 + ((i >> 1) % Math.max(1, r.h - 1))); SW.crew.push({ cr, room: r, x: tx + 0.5, y: ty + 0.5, path: [], wait: rnd() * 3, face: rnd() < 0.5 ? -1 : 1 }); });
+  shipView(); shipHud();
+  $('#overlay').innerHTML = `<div class="shipui" id="shipui"></div>`;
+  shipPrompt();
+}
+function shipView() { if (isPortrait()) setView(600, 940); else setView(1000, 600); }
+// where the deck sits on screen
+function shipFit() { const bw = SW.W * ATILE, bh = SW.H * ATILE, top = 70, bottom = isPortrait() ? 260 : 60, k = Math.min((VIEW.w - 24) / bw, (VIEW.h - top - bottom) / bh); return { k, ox: (VIEW.w - bw * k) / 2, oy: top + (VIEW.h - top - bottom - bh * k) / 2 }; }
+function shipHud() {
+  const T = SHIP_TIERS[SW.tier];
+  $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">${esc(SHIP_NAME.replace(' (your ship)', ''))}</div><div class="val" title="${esc(T.desc)}">${esc(T.name)}</div></div>
+    <div class="hud-block"><div class="lbl">Crew morale</div><div class="val mono">${avgMorale()}</div></div>
+    <div class="hud-block"><div class="lbl">Scrip</div><div class="val mono">${RUN.scrip}</div></div>
+    <div class="hud-block"><button class="btn sm" data-act="shipmap">▴ Star map</button></div>`;
+}
+const walkable = (x, y) => x >= 0 && y >= 0 && x < SW.W && y < SW.H && !SW.blocked.has(x + ',' + y);
+const wallBetween = (x, y, dx, dy) => SW.deck.walls.has(`${x},${y},${dx},${dy}`);
+function shipPath(sx, sy, tx, ty) {
+  if (!walkable(tx, ty)) return null;
+  const key = (x, y) => y * SW.W + x, prev = new Map([[key(sx, sy), -1]]), q = [[sx, sy]];
+  while (q.length) {
+    const [x, y] = q.shift(); if (x === tx && y === ty) break;
+    for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy; if (!walkable(nx, ny) || prev.has(key(nx, ny)) || wallBetween(x, y, dx, dy)) continue; prev.set(key(nx, ny), key(x, y)); q.push([nx, ny]); }
+  }
+  if (!prev.has(key(tx, ty))) return null;
+  const out = []; for (let k = key(tx, ty); k !== key(sx, sy); k = prev.get(k)) out.unshift({ x: k % SW.W + 0.5, y: Math.floor(k / SW.W) + 0.5 });
+  return out;
+}
+function stepWalker(w, dt, speed) {
+  if (!w.path.length) return false;
+  const p = w.path[0], dx = p.x - w.x, dy = p.y - w.y, d = Math.hypot(dx, dy), s = speed * dt;
+  if (Math.abs(dx) > 0.01) w.face = dx < 0 ? -1 : 1;
+  if (d <= s) { w.x = p.x; w.y = p.y; w.path.shift(); } else { w.x += dx / d * s; w.y += dy / d * s; }
+  w.step += s; return true;
+}
+function stepShip(dt) {
+  const me = SW.me; SW.t += dt; me.step = me.step || 0;
+  // keyboard walking, tile to tile
+  if (!me.path.length) {
+    const k = SW.keys, dx = (k.right ? 1 : 0) - (k.left ? 1 : 0), dy = (k.down ? 1 : 0) - (k.up ? 1 : 0);
+    if (dx || dy) { const tx = Math.floor(me.x), ty = Math.floor(me.y), mx = dx ? tx + dx : tx, my = dx ? ty : ty + dy, ddx = dx ? dx : 0, ddy = dx ? 0 : dy; if (walkable(mx, my) && !wallBetween(tx, ty, ddx, ddy)) me.path = [{ x: mx + 0.5, y: my + 0.5 }]; }
+  }
+  const moved = stepWalker(me, dt, WALK_SPEED);
+  if (!moved && me.arrive) { const st = me.arrive; me.arrive = null; openStation(st); }
+  for (const c of SW.crew) {
+    if (stepWalker(c, dt, 1.4)) continue;
+    if ((c.wait -= dt) > 0) continue;
+    c.wait = 2 + rnd() * 4;
+    const r = c.room, tx = r.x + ri(0, r.w - 1), ty = r.y + ri(0, r.h - 1), p = shipPath(Math.floor(c.x), Math.floor(c.y), tx, ty);
+    if (p && p.length <= 6) c.path = p;
+    if (rnd() < 0.25 && !SW.bubbles.some(b => b.c === c)) { const kind = (c.cr.morale ?? 65) < 35 ? 'low' : (c.cr.morale ?? 65) >= 70 ? 'happy' : null; const L = kind && BARKS[kind][voiceOf(c.cr)]; if (L) SW.bubbles.push({ c, text: pick(L), t: 0 }); }
+  }
+  SW.bubbles = SW.bubbles.filter(b => (b.t += dt) < 3);
+  const tx = Math.floor(me.x), ty = Math.floor(me.y), near = SW.stations.find(s => Math.abs(s.x - tx) + Math.abs(s.y - ty) <= 0 || (Math.abs(s.x + 0.5 - me.x) < 0.9 && Math.abs(s.y + 0.5 - me.y) < 0.9)) || null;
+  if (near !== SW.near) { SW.near = near; shipPrompt(); }
+}
+function renderShip(now, dt) {
+  if (!SW) return;
+  stepShip(dt);
+  const t = now / 1000, g = SW.buf.getContext('2d'), A = ATILE;
+  g.imageSmoothingEnabled = false; g.drawImage(SW.deck.cv, 0, 0);
+  // stations pulse when you're on them
+  for (const s of SW.stations) { if (s !== SW.near) continue; const a = 0.5 + 0.4 * Math.sin(t * 6); g.globalAlpha = a; g.strokeStyle = '#ffd23f'; g.lineWidth = 1; g.strokeRect(s.x * A + 0.5, s.y * A + 0.5, A - 1, A - 1); g.globalAlpha = 1; }
+  // hull guns idle on the walk
+  for (const gn of shipGuns(SW.tier)) if (!gn.sold) drawGunHead(g, gn.x * A + 9, gn.y * A + 7, Math.sin(t * 0.4 + gn.x) * 2.5, 0);
+  // people, sorted by depth
+  const list = SW.crew.map(c => ({ y: c.y, draw: () => drawWalker(g, c.cr, c, t, false) }));
+  list.push({ y: SW.me.y, draw: () => drawWalker(g, null, SW.me, t, true) });
+  list.sort((a, b) => a.y - b.y).forEach(o => o.draw());
+  // onto the screen
+  const { k, ox, oy } = shipFit();
+  beginDraw(); drawStars(t);
+  ctx.save(); ctx.translate(ox, oy); ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(6, 8, SW.buf.width * k, SW.buf.height * k);
+  ctx.drawImage(SW.buf, 0, 0, SW.buf.width * k, SW.buf.height * k);
+  ctx.globalCompositeOperation = 'lighter';
+  const kk = k / AP;
+  for (const l of SW.deck.lights) { const a = (l.flicker ? 0.18 + 0.14 * (Math.sin(t * 9 + l.x) > 0.6 ? 0 : 1) : 0.26) * (SW.tier === 0 ? 0.8 : 1); const gr = ctx.createRadialGradient(l.x * kk, l.y * kk, 0, l.x * kk, l.y * kk, l.r * kk * 1.2); gr.addColorStop(0, rgba(l.color, a)); gr.addColorStop(1, rgba(l.color, 0)); ctx.fillStyle = gr; ctx.fillRect(l.x * kk - l.r * kk * 1.2, l.y * kk - l.r * kk * 1.2, l.r * kk * 2.4, l.r * kk * 2.4); }
+  ctx.globalCompositeOperation = 'source-over';
+  if (SW.tier === 0 && Math.sin(t * 2.3) > 0.97) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, SW.buf.width * k, SW.buf.height * k); }
+  // speech bubbles and name tags in screen space
+  ctx.font = '400 15px VT323, "Courier New", monospace'; ctx.textAlign = 'center';
+  for (const b of SW.bubbles) {
+    const x = b.c.x * A * k, y = (b.c.y * A - 22) * k, w = Math.min(200, ctx.measureText(b.text).width + 14), a = Math.min(1, (3 - b.t) * 3);
+    ctx.globalAlpha = a; ctx.fillStyle = 'rgba(12,14,20,0.94)'; ctx.fillRect(x - w / 2, y - 12, w, 17); ctx.fillStyle = LEANS[leanOf(b.c.cr)].col; ctx.fillRect(x - w / 2, y - 12, 3, 17);
+    ctx.fillStyle = '#eef2f5'; ctx.fillText(b.text, x + 1, y + 1); ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+const MANAGER_OUTFIT = { shirt: '#dfe6f2', pants: '#2a3042', logo: true, pocket: true };
+let MANAGER_SPR = null;
+function drawWalker(g, cr, w, t, me) {
+  const A = ATILE, ax = Math.round(w.x * A), ay = Math.round(w.y * A) + 6;
+  let im;
+  if (me) {
+    if (!MANAGER_SPR || MANAGER_SPR.look !== RUN.playerLook) { RUN.playerLook = RUN.playerLook || genLook(); MANAGER_SPR = { look: RUN.playerLook, f: ['w0', 'w1', 'w2', 'w3'].map((l, i) => humanLit(RUN.playerLook, MANAGER_OUTFIT, l, i % 2)), stand: humanLit(RUN.playerLook, MANAGER_OUTFIT, 'n', 0) }; }
+    im = w.path.length ? MANAGER_SPR.f[Math.floor(w.step * 4) % 4] : MANAGER_SPR.stand;
+  } else im = crewSprites(cr).f[(w.path.length ? Math.floor(t * 6) : Math.floor(t * 1.5 + w.x)) % 2];
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(ax - 5, ay - 1, 10, 2);
+  if (w.face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, ax - 7, ay - 17); g.restore(); } else g.drawImage(im, ax - 7, ay - 17);
+  if (me) { px(g, ax - 1, ay - 22, 3, 2, '#ffd23f'); px(g, ax, ay - 20, 1, 1, '#ffd23f'); }
+  else { const mt = moraleTier(cr); px(g, ax - 1, ay - 21, 3, 2, mt.col); }
+}
+function drawGunHead(g, x, y, ang, recoil) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  for (let k = 0; k < 8; k++) { const bx = Math.round(x + c * (k - recoil)), by = Math.round(y + s * (k - recoil) * 0.7); px(g, bx, by, 2, 2, k > 5 ? '#14161c' : '#6a7282'); }
+  px(g, x - 3, y - 2, 6, 5, '#4a5262'); px(g, x - 3, y - 2, 6, 1, '#8a92a6'); px(g, x - 1, y, 2, 1, '#ff4d5e');
+}
+// what the prompt line says, and the station or crew panel
+function shipPrompt() {
+  const el = $('#shipui'); if (!el) return;
+  const s = SW.near;
+  el.innerHTML = s ? `<div class="shipprompt"><b>${esc(s.name)}</b> <span>${esc(s.hint)}</span> <button class="btn sm" data-act="shipuse" data-k="${s.key}">Use (E)</button></div>` : `<div class="shipprompt dim">Walk with the arrow keys or WASD, or click where to go. Click a crew member to talk.</div>`;
+}
+function openStation(st) {
+  if (st.key === 'helm') { showMap(); return; }
+  const T = SHIP_TIERS[SW.tier];
+  let body = '';
+  const remedyBtn = k => { const used = remedyUsed(k), p = remedyPrice(k), broken = k === 'coffee' && SW.tier === 0; return `<p class="lede">${esc(REMEDIES[k].desc)}</p><div class="row"><button class="btn" data-act="shipremedy" data-k="${k}" ${used || broken || RUN.scrip < p ? 'disabled' : ''}>${broken ? 'Out of order' : used ? 'Done this contract' : `Pay ${p} scrip`}</button></div>`; };
+  if (st.key === 'coffee') body = SW.tier === 0 ? `<p class="lede">OUT OF ORDER. A note taped to it: "Coffee is a privilege. — Facilities."</p>${remedyBtn('coffee')}` : remedyBtn('coffee');
+  else if (st.key === 'party') body = remedyBtn('party');
+  else if (st.key === 'payroll') body = remedyBtn('payroll');
+  else if (st.key === 'counsel') body = `<p class="lede">${esc(REMEDIES.counsel.desc)} ${remedyPrice('counsel')} scrip a session, one each per contract.</p><div class="rlist">${RUN.roster.map(cr => crewRow(cr, true)).join('')}</div>`;
+  else if (st.key === 'files') body = `<div class="rlist">${RUN.roster.map(cr => crewRow(cr, false)).join('')}</div>`;
+  else if (st.key === 'reactor') body = `<p class="lede">The fuel crystals hum. If a faction ever boards the ship, this is what they come for. Fit-out: <b>${esc(T.name)}</b>. ${esc(T.desc)}</p><p class="colony">Your fit-out follows company standing: margin, loyalty to Kindly and HR heat.</p>`;
+  else if (st.key === 'cargo') body = (RUN.artifacts || []).length ? `<div class="relics">${RUN.artifacts.map(a => `<span class="relic" style="color:${ARTIFACTS[a.id].col}" title="${esc(ARTIFACTS[a.id].desc)}">${esc(ARTIFACTS[a.id].name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span>`).join('')}</div>` : '<p class="lede">Empty. Bosses drop artifacts; this is where they live.</p>';
+  shipPanel(st.name, body);
+}
+function crewRow(cr, counsel) {
+  giveConscience(cr); const mt = moraleTier(cr), fx = moodEffects(cr), used = remedyUsed('counsel', cr), p = remedyPrice('counsel');
+  return `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)} <small>${esc(TOWERS[cr.type].name)} · Lv${cr.level}</small>${archHtml(cr.arch, cr.sym)}<small>${moraleBar(cr)} <b style="color:${mt.col}">${cr.morale} ${esc(mt.name)}</b>${fx.map(f => ` · ${esc(f.name)}`).join('')}</small></div>${counsel ? `<button class="btn sm" data-act="shipcounsel" data-id="${cr.id}" ${used || RUN.scrip < p ? 'disabled' : ''}>${used ? 'Seen' : p + ' scrip'}</button>` : ''}</div>`;
+}
+function openCrewCard(cr) {
+  giveConscience(cr); const fx = moodEffects(cr), log = (cr.moodLog || []).slice(-4).reverse();
+  shipPanel(cr.name, `${archHtml(cr.arch, cr.sym)}<p class="lede">${moraleBar(cr)} <b style="color:${moraleTier(cr).col}">${cr.morale} · ${esc(moraleTier(cr).name)}</b></p>
+    ${fx.length ? `<div class="conds">${fx.map(f => `<i class="${f.min >= 80 ? 'good' : 'bad'}">${esc(f.name)}: ${esc(f.desc)}</i>`).join('')}</div>` : '<p class="colony">No mood effects. Content.</p>'}
+    ${log.length ? `<p class="colony">Lately: ${log.map(l => `${l.d > 0 ? '+' : ''}${l.d} ${esc(l.kind)}`).join(', ')}</p>` : ''}
+    <div class="row"><button class="btn" data-act="shipcounsel" data-id="${cr.id}" ${remedyUsed('counsel', cr) || RUN.scrip < remedyPrice('counsel') ? 'disabled' : ''}>Book a session · ${remedyPrice('counsel')} scrip</button></div>`);
+}
+function shipPanel(title, body) { $('#shipui').innerHTML = `<div class="card shippanel" role="dialog">${titlebar(title.replace(/\s+/g, '_') + '.exe', 'shipclose')}<h3>${esc(title)}</h3>${body}<div class="row"><button class="btn ghost" data-act="shipclose">Close</button></div></div>`; }
+function shipClick(p) {
+  const { k, ox, oy } = shipFit(), x = (p.x - ox) / k / ATILE, y = (p.y - oy) / k / ATILE;
+  if (x < 0 || y < 0 || x >= SW.W || y >= SW.H) return;
+  const c = SW.crew.find(c => Math.abs(c.x - x) < 0.6 && y > c.y - 1.2 && y < c.y + 0.5);
+  if (c) { openCrewCard(c.cr); return; }
+  const tx = Math.floor(x), ty = Math.floor(y), st = SW.stations.find(s => s.x === tx && s.y === ty);
+  const path = shipPath(Math.floor(SW.me.x), Math.floor(SW.me.y), tx, ty);
+  if (path) { SW.me.path = path; SW.me.arrive = st || null; if (st && !path.length) openStation(st); }
+}
+
+// ---------- the ship in a raid: hull guns and blast doors ----------
+// hardpoints in landscape tiles, best first; the fit-out decides how many are installed
+const SHIP_GUN_SPOTS = [[15, 5], [15, 7], [8, 1], [8, 11], [3, 7]];
+const SHIP_DOOR_SPOTS = [[17, 3], [17, 9], [12, 6]];
+// cut-price fit-outs show the empty mounts where guns used to be
+function shipGuns(tier) { const n = SHIP_TIERS[tier].guns; return SHIP_GUN_SPOTS.map(([x, y], i) => ({ x, y, sold: i >= n })).filter((g, i) => i < Math.max(n, 4)); }
+function stepShipDefences(dt) {
+  const m = M; if (!m.map.guns) return;
+  const T = SHIP_TIERS[m.map.tier], dmg = (10 + 3 * diffLevel(m.c.idx)) * T.gunDmg;
+  for (const gn of m.map.guns) {
+    if (gn.sold) continue;
+    const gx = gn.x * TILE + TILE / 2, gy = gn.y * TILE + TILE / 2;
+    gn.cd = (gn.cd || 0) - dt; gn.recoil = (gn.recoil || 0) * Math.exp(-dt * 12);
+    let best = null, bd = 3.2 * TILE;
+    for (const e of m.enemies) { if (e.dead || e.invuln || e.deal || e.burrowed) continue; const d = Math.hypot(e.x - gx, e.y - gy); if (d < bd) { bd = d; best = e; } }
+    if (!best) continue;
+    gn.ang = Math.atan2(ecy(best) - gy, best.x - gx);
+    if (gn.cd > 0) continue;
+    gn.cd = 0.6; gn.recoil = 2;
+    m.fx.push({ k: 'tracer', x1: gx + Math.cos(gn.ang) * 14, y1: gy - 6 + Math.sin(gn.ang) * 10, x2: best.x, y2: ecy(best), life: 0.08, max: 0.08, color: '#9fd3ff', w: 1.6 });
+    damage(best, dmg, false, null); sfx('gun', gx);
+  }
+  // blast doors slow anything squeezing through
+  for (const d of m.map.doors || []) { const dx = d.x * TILE + TILE / 2, dy = d.y * TILE + TILE / 2; for (const e of m.enemies) if (!e.dead && !e.fly && Math.abs(e.x - dx) < TILE * 0.6 && Math.abs(e.y - dy) < TILE * 0.6) applySlow(e, 0.35, 0.3); }
+}
+function drawShipGuns(list, g, t) {
+  for (const gn of M.map.guns || []) if (!gn.sold) list.push([gn.y * TILE + TILE / 2 + 2, () => drawGunHead(g, gn.x * ATILE + 9, gn.y * ATILE + 7, gn.ang ?? Math.sin(t * 0.4 + gn.x) * 2.5, gn.recoil || 0)]);
+}
+
 // ---------- the state of each faction's grudge ----------
 function siegeOf(f) { const st = RUN.story; st.siege = st.siege || {}; return st.siege[f] || (st.siege[f] = { stage: 0, lastDemand: -9 }); }
 const dissolved = f => !!(RUN && RUN.story && RUN.story.dissolved && RUN.story.dissolved[f]);
@@ -10081,9 +10630,10 @@ function startSiege(f) {
   const c = genContract(RUN.idx, stage - 1, stage >= 2, f);
   Object.assign(c, { ship: { fac: f, stage }, biomeKey: 'ship', biome: BIOMES.ship, planet: SHIP_NAME, envoy: null, grudge: null,
     boss: stage >= 2, bossDef: stage === 3 ? F.apex : stage === 2 ? pick(F.bosses) : null,
-    mod: c.mod * (0.9 + 0.1 * stage), T: 130 + 30 * stage, pay: 1, diffLabel: `Raid ${stage} of 3`, stars: stage + 1 });
+    mod: c.mod * (1.5 + 0.25 * stage), T: 130 + 30 * stage, pay: 1, diffLabel: `Raid ${stage} of 3`, stars: stage + 1 });
   startMission(c);
   M.fuel = 100;
+  setTimeout(() => { if (M && M.c.ship) for (const tw of M.towers) barkAs(tw, 'home', 0.5); }, 4000);
   banner('Boarding alarm', `${F.name} · raid ${stage} of 3`, F.color, true);
 }
 // a faction finished: what changes, and who notices
@@ -10148,7 +10698,7 @@ function finishSiege(success) {
   juiceScreen(); if (success) confetti(null, null, s.stage >= 3 ? 120 : 60);
 }
 
-window.__AL = { planetScene, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
