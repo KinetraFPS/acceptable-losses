@@ -553,8 +553,8 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Quirks**: every hire rolls one of 10 traits (Nepotism Hire, Tenured, Office Gossip...). They're shown in the store before you hire.
 - **Appeal decision** rerolls the cards for scrip (10, then +5 each time). **Decline promotion** takes 12 scrip instead.
 - **Synergies**: marks (Tracer Rounds, Static Cling, Spotter, Quagmire foam) amplify all crew damage. Auras buff, heal or protect crew within 1.5 tiles.
-- **Level cap 12** (`MAXL`), with a slower climb that keeps paying off through acts 4 and 5. XP thresholds: 20 / 55 / 110 / 190 / 300 / 440 / 610 / 820 / 1070 / 1360 / 1700. Ranks 9–12: Associate Director, Director of Associates, Chief Associate Officer, Associate for Life.
-- **Acts 4 and 5 hit harder to match:** wave difficulty keeps climbing at +0.34 per contract after contract 15 (`diffLevel`), and act bosses get +30% HP per act past Act 3.
+- **Level cap 12** (`MAXL`), with the early levels at the old pace (so Act 1 crews still grow fast enough) and a slower climb from level 6 that keeps paying off through acts 4 and 5. XP thresholds: 16 / 45 / 95 / 165 / 265 / 395 / 560 / 770 / 1030 / 1340 / 1700. Ranks 9–12: Associate Director, Director of Associates, Chief Associate Officer, Associate for Life.
+- **Acts 4 and 5 hit harder to match:** wave difficulty keeps climbing at +0.4 per contract after contract 15 (`diffLevel`), so the ordinary contracts of acts 4 and 5 stay a fight for a level-12 crew. Act bosses get +25% HP in Act 4 and +35% in Act 5: the finale is already stacked on the hardest waves, so its boss is tuned to be beatable rather than a coin flip on the last contract.
 
 ## Crew types
 | Type | Fee | Plays as | Specialisations (capstone) |

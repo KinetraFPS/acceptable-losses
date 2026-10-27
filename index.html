@@ -535,7 +535,7 @@ const TOWERS = {
 };
 const HIRE_COST = { gunner: 50, taser: 60, mortar: 75, drone: 65, marksman: 85, flamer: 60, rail: 95, liaison: 55 };
 // xp needed for each rank: a little slower early, and room to grow through acts 4 and 5
-const XP_TH = [0, 20, 55, 110, 190, 300, 440, 610, 820, 1070, 1360, 1700];
+const XP_TH = [0, 16, 45, 95, 165, 265, 395, 560, 770, 1030, 1340, 1700];
 const RANKS = ['Associate', 'Senior Associate', 'Lead Associate', 'Principal Associate', 'Associate Emeritus', 'Vice Associate', 'Senior Vice Associate', 'Executive Associate (Unpaid)', 'Associate Director', 'Director of Associates', 'Chief Associate Officer', 'Associate for Life'];
 
 const CATS = {
@@ -3988,7 +3988,7 @@ function spawnEnemy(q) {
 }
 function spawnBoss(B, mini, child) {
   const path = M.paths[0], k = mini ? 0.25 : 1;
-  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : sectorOf(M.c.idx) === 1 ? 0.82 : 1) * (sectorOf(M.c.idx) > 3 ? 1 + 0.3 * (sectorOf(M.c.idx) - 3) : 1);
+  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : sectorOf(M.c.idx) === 1 ? 0.82 : 1) * (sectorOf(M.c.idx) === 4 ? 1.25 : sectorOf(M.c.idx) >= 5 ? 1.35 : 1);
   const slow = mini ? 1.5 : 1, iv = o => o && { ...o, every: o.every * slow };
   const e = {
     cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
@@ -6902,7 +6902,7 @@ const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 5;
 const sectorOf = idx => Math.floor(idx / SECTOR_LEN) + 1;
 const sectorPos = idx => idx % SECTOR_LEN;
 // how hard a contract is: full steps through sector 1, then gentler ones so sectors 2 and 3 stay beatable
-const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : idx <= 14 ? 6.8 + (idx - 9) * 0.32 : 8.4 + (idx - 14) * 0.34;
+const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : idx <= 14 ? 6.8 + (idx - 9) * 0.32 : 8.4 + (idx - 14) * 0.4;
 const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
 Object.assign(BIOMES, {
   cloud: { name: 'Cloud City', mod: { flyers: 1.8, range: 1.1, espd: 1.05 }, hazard: 'High-altitude winds: far more flyers, enemies 5% faster, crew range +10%.' },
@@ -8080,7 +8080,7 @@ function showDebrief(d) {
   S.screen = 'debrief'; M = null; clearMissionUi(); backdropView(); setMusic('menu');
   const { c } = d, w = (RUN.worlds || []).slice(-1)[0] || { bk: c.biomeKey, fac: c.facKey, state: 'crushed', v: 0 };
   const F = FEED[c.facKey], stars = perfStars(d.lost);
-  const quip = QUIPS.find(([lim]) => d.lost <= lim)[1](c.planet);
+  const quip = (QUIPS.find(([lim]) => d.lost <= lim) || QUIPS[QUIPS.length - 1])[1](c.planet);
   const notes = [];
   for (const ev of d.story || []) { const t = shortEcho(ev); if (t) notes.push(t); }
   if (d.audited) notes.push('Audited: 25 scrip for the time HR spent suspecting you.');
