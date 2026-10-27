@@ -135,6 +135,7 @@ A run is three sectors (acts), each of four contracts plus a boss.
 - Reduced-motion settings switch the animations off.
 
 ## Envoys and deals
+Every envoy says their piece in two lines (plus a line about your standing with them): who they are and what they want. The ask, reward and risk panels carry the numbers.
 Before some deployments a faction's envoy gets onto your channel. This is what sets the game apart: some deals mean certain enemies must get **through**, and you spend your own margin to keep a promise.
 
 **When envoys appear**
@@ -340,6 +341,29 @@ Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on co
   - **Favour:** a Friendly faction can offer one on someone else's contract: a free squad of their fighters.
   - **Openers:** every envoy opens with a line that fits your standing, from "Don't hang up" to "Every village on the seam knows your name".
 
+## The manager
+Douglas Pryce, Regional Manager, is Kindly in person and the most recurring face in the game (`showOnboarding`, `showReview`, `managerScene`).
+- **Day one:** every run opens with his three-line orientation on your ship's bridge: who he is, the job, and the quarterly review. "Sign the waiver" takes you to the star map.
+- **Quarterly reviews:** every 3 contracts, on the way from the store to the star map (before any faction demand), he comes aboard and grades the quarter.
+  - **Score** = (average stars − 3) × 0.8 + (crew morale − 55) ÷ 25 − (HR suspicion − 20) ÷ 30 + 0.7 per task done − 0.5 per task failed (`grade`).
+
+| Grade | Score | He… | Effect |
+|---|---|---|---|
+| S | 2.2+ | claps, confetti | +50 scrip and a choice of two pieces of **Executive Technology** |
+| A | 1.2+ | points, grins | +90 scrip, +10% margin |
+| B | 0.2+ | sips his coffee | +20 scrip ("a pizza voucher") |
+| C | −0.8+ | adjusts his tie | Performance Improvement Plan: −40 scrip, HR suspicion +10 |
+| D | −1.8+ | facepalms | −15% margin, crew morale −8 |
+| F | below | slams his tablet | **Terminated: the run ends.** On your first review it's a final warning instead (graded D) |
+
+- **Tasks:** each review sets two for the next quarter, all of them what the company actually wants (`MGR_TASKS`): Asset Recovery (leave 2 planets crushed), Pacification Quota (150 kills), Whistleblower Programme (report an envoy), Renegotiation (break a deal), Budget Discipline (return $2,500 of unspent budget), Insurance Event (lose a crew member), Zero Shrinkage (two zero-loss contracts). Completing them helps your grade, pleases Company Men, mercenaries and the Ruthless, and sours idealists and sympathisers.
+- **Executive Technology** (relics marked `exec`, never sold in the store): Overclocked Neural Contracts (+35% fire rate, +15% damage), Liability Waiver Field (crew take half damage), Asset Write-Off Satellite (every 12s the toughest non-boss hostile is deleted), Bottomless Expense Account (+$300 budget per contract), Time Theft Protocol (extraction 25% shorter), Creative Accounting AI (margin losses halved).
+- **The scene:** the most detailed rig in the game, drawn every frame from sculpted layers (`managerFigure`): a full figure with a suit, company tie, ID badge, lapel pin and rimless glasses. His arms are posed with two-bone joint maths (`armIK`, `sculptCapsule`) through tablet tapping, a coffee sip, pointing, an open-armed welcome, clapping, adjusting his tie, a facepalm and a tablet slam. Each line of dialogue drives his pose and face (`mgrType`, `mgrState`), with a smug raised brow, a corporate grin, glances at the tablet, blinking, a glint travelling across his glasses, coffee steam and a slow weight shift. His tablet chart rises or falls with your quarter.
+  - It's set on your own bridge in its current fit-out (`mgrBackdrop`), with a hologram over the bridge table: the company logo on day one, the scorecard bars and grade at a review. Great quarters end in confetti, terminations in a red alarm.
+
+## The money
+The payslip lists every deduction on its own line. Under it, **Where the money went** shows what Kindly billed the client (about 34–52× your base fee, more for bad clients), the unspent field budget it reclaims (split into executive spending: yachts, consultants, a rebrand of the word "layoffs"), and your pay as a share of the value delivered, usually around 1–3% (`companyLedger`). The mission HUD notes that unspent budget returns to Kindly. Your pay itself is unchanged.
+
 ## The ship
 One interior, drawn tile by tile, used twice: as the map when a faction boards, and as the deck you walk between contracts (`SHIP_LAYOUT`, `shipDeck`, `shipRooms`, `shipWalls`). It has no buildings: six rooms (quarters, medbay, reactor, crew lounge, cargo hold, bridge) with bulkhead walls and one door each, grated corridors with guide lights, open deck plating in 2×2 panels, coolant tanks, lockers and pipes, and a chamfered hull with portholes.
 - **Fit-out follows company standing:** score = margin − 70 + 15 × loyalty − heat ÷ 4 (`companyScore`, `shipTier`).
@@ -368,7 +392,7 @@ A bonus level, not a contract: it doesn't advance the run (`showDemand`, `startS
   - **Refuse (or can't afford it):** the envoy's feed cuts to static and they board your ship.
 - **The map is the ship itself** (`shipMap`, same interior and fit-out as the walk). Three airlocks lead down corridors to the fuel core; crew stand anywhere off the corridors, in the rooms or on open deck.
 - **Built-in defences:** hull guns on hardpoints track and shoot anything within 3.2 tiles (damage 10 + 3 per difficulty level, scaled by fit-out); blast doors on the three approaches slow anything squeezing through by 35% (`stepShipDefences`).
-- **A test of the crew:** waves are much bigger than a contract at the same point (difficulty ×1.75/2/2.25 for raids 1–3). Big boarders (55+ base HP: armoured, shields, carriers, berserkers, gunships) get +60% HP and move 22% slower; bosses +35% HP and 18% slower. Every mood effect is 1.5× as strong, and crew call out as the airlocks blow.
+- **A test of the crew:** waves are much bigger than a contract at the same point (difficulty ×1.6/1.75/1.9 for raids 1–3). Big boarders (55+ base HP: armoured, shields, carriers, berserkers, gunships) get +45% HP and move 22% slower; bosses +25% HP and 18% slower. Every mood effect is 1.5× as strong, and crew call out as the airlocks blow.
 - **The raids:** boarders go for the fuel crystals; leaks drain a fuel meter instead of your margin.
   - **Raid 1:** two airlocks, no boss.
   - **Raid 2:** two airlocks and one of the faction's bosses.
