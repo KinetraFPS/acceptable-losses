@@ -9091,7 +9091,8 @@ const BKIT = {
   tomb:   { wall: '#3e4a4c', trim: '#ff5ad1', roof: '#4a5654', win: '#ff5ad1', winOff: '#14181a', door: '#0e1214', step: '#5a6664', tex: 'stone', church: 'temple', alienCivic: true,
             cap: '#4a5654', cap2: '#5a6664', glow: '#ff5ad1', spot: '#3ae8d0',
             roofs: { house: 'step', shop: 'step', school: 'step', clinic: 'step', church: 'step', depot: 'step', office: 'step' }, sign: '#ff5ad1', accent: '#3ae8d0' },
-  toxic:  { alien: true, wall: '#d8c8a8', trim: '#8aff4a', cap: '#9a3a7a', cap2: '#c86aa0', win: '#c8ff7a', winOff: '#2a3a1a', door: '#2a1a24', step: '#8a7a5a', glow: '#8aff4a', spot: '#f2e0ea' },
+  toxic:  { alien: true, roof: '#6a5a7a', roofFlat: '#8a7a6a', accent: '#9a3a7a', sign: '#c8ff7a', tex: 'adobe',
+            roofs: { house: 'gable', shop: 'flat', school: 'hip', clinic: 'flat', church: 'gable', depot: 'barrel', office: 'flat' }, wall: '#d8c8a8', trim: '#8aff4a', cap: '#9a3a7a', cap2: '#c86aa0', win: '#c8ff7a', winOff: '#2a3a1a', door: '#2a1a24', step: '#8a7a5a', glow: '#8aff4a', spot: '#f2e0ea' },
 };
 const BTYPES_HUMAN = ['house', 'shop', 'school', 'clinic', 'church', 'depot', 'office'];
 const BTYPES_ALIEN = ['sporehome', 'sporemarket', 'creche', 'mender', 'shrine', 'growhouse', 'elderhall'];
@@ -9514,7 +9515,7 @@ Object.assign(BT, {
 const MARGIN = 6;
 // the building sprite: margins all round for the outline and anything poking above the roofline
 function building3d(biomeKey, b, type) {
-  const K = BKIT[biomeKey] || BKIT.frozen, W = b.w * ATILE, H = b.h * ATILE;
+  const K0 = BKIT[biomeKey] || BKIT.frozen, K = { cap: shade(K0.roof || K0.wall, -0.1), cap2: K0.roof || K0.wall, glow: K0.win, spot: '#ffffff', ...K0 }, W = b.w * ATILE, H = b.h * ATILE;
   const FH = type === 'office' || (K.neon && type === 'house') ? clamp(Math.round(H * 0.55), 18, 30) : clamp(Math.round(H * 0.42), 15, 20);
   const P = painter(W + MARGIN * 2, H + MARGIN * 2), L = [], props = [];
   P.g.translate(MARGIN, MARGIN); DOORS = []; ANIMS = [];
