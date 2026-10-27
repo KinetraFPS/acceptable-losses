@@ -1919,7 +1919,7 @@ function rollAffix(e, q, idx) {
 }
 function volatileBlast(e) {
   M.fx.push({ k: 'boom', x: e.x, y: e.y, r: 1.3 * TILE, life: 0.4, max: 0.4, color: '#ff7a1a' }); sfx('mortar', e.x); shake(2);
-  for (const tw of crewNear(e, 1.3)) hurtTower(tw, 22 + 4 * M.c.idx);
+  for (const tw of crewNear(e, 1.3)) hurtTower(tw, 22 + 4 * lateIdx(M.c.idx));
 }
 function drawThreatMarks(g, e, t) {
   if (e._bx == null) return;
@@ -3942,14 +3942,14 @@ function spawnEnemy(q) {
 
   // on the ship the big ones come in heavy: tankier and slower, so the hull guns and crew get a long look
   if (c.ship && C.hp >= 55) { e.hp *= 1.45; e.maxhp = e.hp; e.spd *= 0.78; }
-  const sc = 1 + 0.15 * c.idx;
+  const sc = 1 + 0.15 * lateIdx(c.idx);
   if (C.heal) e.healAura = { r: 1.6, hps: C.heal * (1 + q.tier) * sc };
   if (C.shield) e.shieldAura = { r: 1.5, amt: C.shield + 0.05 * q.tier };
   if (C.jam) e.jamAura = { r: 1.6, amt: C.jam };
   if (C.split) e.split = C.split + q.tier;
   if (C.cloak) e.cloakT = rnd() * 5;
   if (C.naval) { e.naval = true; e.unload = C.unload; e.sp = -1; }
-  if (C.shoot) e.shoot = { ...C.shoot, dmg: C.shoot.dmg * (1 + 0.35 * q.tier) * (1 + 0.1 * c.idx) };
+  if (C.shoot) e.shoot = { ...C.shoot, dmg: C.shoot.dmg * (1 + 0.35 * q.tier) * (1 + 0.1 * lateIdx(c.idx)) };
   if (C.carry) { e.spawn = { ...C.carry }; e.spawnCd = C.carry.every * 0.6; }
   if (C.blink) e.blink = { ...C.blink };
   if (C.rage) e.rage = true;
@@ -3988,7 +3988,7 @@ function spawnEnemy(q) {
 }
 function spawnBoss(B, mini, child) {
   const path = M.paths[0], k = mini ? 0.25 : 1;
-  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : sectorOf(M.c.idx) === 1 ? 0.82 : 1) * (sectorOf(M.c.idx) === 4 ? 1.25 : sectorOf(M.c.idx) >= 5 ? 1.35 : 1);
+  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * lateIdx(M.c.idx) : sectorOf(M.c.idx) === 1 ? 0.82 : 1) * (sectorOf(M.c.idx) === 4 ? 1.25 : sectorOf(M.c.idx) >= 5 ? 1.35 : 1);
   const slow = mini ? 1.5 : 1, iv = o => o && { ...o, every: o.every * slow };
   const e = {
     cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
@@ -6905,6 +6905,9 @@ const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 5;
 const sectorOf = idx => Math.floor(idx / SECTOR_LEN) + 1;
 const sectorPos = idx => idx % SECTOR_LEN;
 // how hard a contract is: full steps through sector 1, then gentler ones so sectors 2 and 3 stay beatable
+// what scales straight off the contract number (enemy guns, blasts, heal auras, mini-bosses) was tuned for three
+// acts; past Act 3 it climbs at a third of the pace, since crew stop growing at the level cap and the waves keep growing
+const lateIdx = idx => idx <= 14 ? idx : 14 + (idx - 14) * 0.35;
 const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : idx <= 14 ? 6.8 + (idx - 9) * 0.32 : 8.4 + (idx - 14) * 0.4;
 const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
 Object.assign(BIOMES, {
