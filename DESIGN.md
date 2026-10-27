@@ -212,7 +212,7 @@ The final screen also shows the ending number and a **Your Story** recap of ever
 
 - **How the ending is chosen** (`pickEnding`), in order:
   1. Two or more betrayals: Broken Promises.
-  2. Defected: Coalition (Hostile Work Environment) if any other faction is still your ally, otherwise your faction's own ending.
+  2. Defected: Coalition (Hostile Work Environment) if two or more other factions are your allies, otherwise your faction's own ending.
   3. Loyal, every faction purged: Total Market Share (new).
   4. Two finished storylines: Coalition. One: that faction's ending.
   5. Two or more reports to HR: Employee of the Quarter (the informant's Loyalist ending).
@@ -511,7 +511,7 @@ A run is five acts of five contracts (`MAX_SECTOR = 5`); difficulty growth flatt
 |---|---|---|
 | Entering Act 4 | Your faction's council: "Kindly is coming for us. Time we went for them first." | Pryce promotes you to Director of Market Homogenisation |
 | Entering Act 5 | Pryce calls, furious: the board is coming for you in person | Pryce: "A few holdouts left. Finish them." |
-| Act 4–5 contracts | Mostly against Asset Protection and Kindly loyalists | Every contract you win **purges** that faction for good (`purgeAfter`) |
+| Act 4–5 contracts | Mostly against Asset Protection and Kindly loyalists | Two wins against a faction (or one boss win) **purges** it for good; contract cards show who is weakened (`purgeAfter`) |
 | Final contract | The Board: Kindly's board out of the sub-basement with Pryce at the controls (Asset Protection's apex, +35% HP) | The last faction standing's apex, +20% HP |
 
 ## Planet scenes and the desk

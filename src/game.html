@@ -6637,7 +6637,7 @@ function pickEnding() {
   // you went over to a faction and brought Kindly down: with allies it's a coalition, alone it's theirs
   if (RUN.side) {
     const allies = Object.keys(FACTIONS).filter(f => f !== RUN.side && !dissolved(f) && (standingOf(f) >= 2 || (st.arcs[f] && st.arcs[f].state === 'done')));
-    return allies.length || !ENDINGS[RUN.side] ? 'coalition' : RUN.side;
+    return allies.length >= 2 || !ENDINGS[RUN.side] ? 'coalition' : RUN.side;
   }
   if (Object.keys(FACTIONS).every(f => dissolved(f))) return 'homogenised';
   if (done.length >= 2) return 'coalition';
@@ -7637,6 +7637,7 @@ function showContractCard(i) {
       <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
       <dt>Ethics review</dt><dd>Waived</dd>
       <dt>Hostiles</dt><dd>${esc(o.fac.name)} ${actOfFaction(o.facKey) === actOf(o.idx) && actOf(o.idx) > 1 ? '<span class="pill new">New this act</span>' : actOfFaction(o.facKey) < actOf(o.idx) && returnReason(o.facKey) ? `<span class="pill back">${esc(returnReason(o.facKey))}</span>` : ''}<br><span style="color:var(--muted)">${cats.join(', ')}</span></dd>
+      ${!RUN.side && sectorOf(o.idx) >= 4 ? `<dt>Purge</dt><dd>${(RUN.purge || {})[o.facKey] ? 'Weakened: one more win purges them' : 'Two wins purge them (a boss, one)'}</dd>` : ''}
       <dt>Standing</dt><dd>${standingHtml(o.facKey)}${standingOf(o.facKey) >= 2 ? '<br><span style="color:var(--muted)">Smaller waves. Some of them may defect.</span>' : ''}</dd>
       <dt>Biome</dt><dd>${esc(o.biome.name)}. ${esc(o.biome.hazard)}</dd>
       <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
@@ -11177,12 +11178,14 @@ function showCrossroads(sector) {
       : [{ t: 'Market share: nearly total. A few holdouts left.', pose: 'tablet', expr: 'smug' }, { t: 'Finish them, and the galaxy runs on Kindly crystals. Forever.', pose: 'spread', expr: 'smile' }];
   const card = side
     ? `<div class="deal risk"><div class="lbl">Act 5 · Overthrow</div><p>The last contract is at Kindly headquarters, against the Board itself.</p></div><div class="row"><button class="btn" data-act="tostore">Ready the crew</button></div>`
-    : `<div class="deal ask"><div class="lbl">Act ${sector} · ${esc(actInfo(sector).name)}</div><p>Every contract you win from now on purges that faction for good: off the books, its worlds crushed, its people scattered. Purge them all for the Homogenised ending.</p></div><div class="row"><button class="btn" data-act="tostore">${sector === 4 ? 'Accept the promotion' : 'Back to work'}</button></div>`;
+    : `<div class="deal ask"><div class="lbl">Act ${sector} · ${esc(actInfo(sector).name)}</div><p>Two wins against a faction from now on (or one boss win) purge it for good: off the books, its worlds crushed, its people scattered. Purge them all for the Total Market Share ending.</p></div><div class="row"><button class="btn" data-act="tostore">${sector === 4 ? 'Accept the promotion' : 'Back to work'}</button></div>`;
   managerScene({ title: side ? 'Final_Warning.mtg' : `Promotion_${sector === 4 ? 'Director' : 'Final'}.mtg`, head: side ? 'Douglas Pryce, uninvited' : actInfo(sector).name, lines, card, holo: null, mood: side ? 'down' : 'up', react: side ? 'fury' : 'delight' });
 }
-// the loyal campaign: every faction you beat from Act 4 on is purged
+// the loyal campaign: from Act 4 on, two wins against a faction (or beating its boss) purges it for good
 function purgeAfter(c) {
   if (RUN.side || sectorOf(c.idx) < 4 || dissolved(c.facKey)) return null;
+  const P = RUN.purge = RUN.purge || {}; P[c.facKey] = (P[c.facKey] || 0) + (c.boss ? 2 : 1);
+  if (P[c.facKey] < 2) { toast(`${FACTIONS[c.facKey].name}: weakened. One more win purges them.`, 3000); return null; }
   const D = dissolveFaction(c.facKey); toast(`${FACTIONS[c.facKey].name}: purged. ${D.line}`, 3600); return c.facKey;
 }
 // the employer's take on the crew's morals, after every contract
