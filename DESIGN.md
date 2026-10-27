@@ -239,7 +239,7 @@ Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parac
 | Activists | Pirate Broadcast Van | Ground | An aura that slows and marks enemies |
 | Activists | Livestream Blimp | Anywhere | Marks enemies over a wide area so crew deal more damage |
 | Fauna | Tamed Sky Ray | Anywhere | A flying platform for one crew member, with +15% range |
-| Fauna | Brood Nest | Ground | Hatches allied hunters that chase enemies |
+| Fauna | Brood Nest | Ground | Hatches allied hunters that chase enemies. Every bite costs the hunter health (8 + 2 per enemy tier, 16 against a boss), so each one lasts four or five bites; hurt summons flash and show a health bar |
 
 The auto-play bot does not use artifacts.
 
@@ -417,6 +417,8 @@ Each sector is an act, with its own cast and its own light (`ACTS`).
 - **Less reading:** HR letters became one-liners. Endings keep two paragraphs (the setup and the punchline). Termination, sector review and envoy deal terms are each down to a sentence or two.
 
 ## Line of sight, cover and targeting
+- **Riding platforms:** the barge, skiff, sky ray, lantern kite and floating dais are drawn in layers around their rider (`RIDE`, `rideSprite`, `drawRide`): the platform, then the crew member standing on its deck row and moving with its bob or rocking, then the platform's front layer (gunwale, basket, near lip) over their boots. The rider is sorted with the platform as one item.
+- **Frame errors:** the frame loop survives an exception, resets the canvas state so a half-finished draw cannot leave the screen tinted, and the toast names the functions involved. Colour helpers treat a missing colour as grey instead of throwing. Enemy gunfire colours (`SHOT_COL`) cover every faction.
 - **Line of sight:** buildings block what crew on the ground can see. Crew on rooftops or the sky ray see over them, drones fly over them, and mortars lob over them. Flyers are always visible. Hostiles can only shoot crew who can see them. When you place or select crew, blind spots inside the range ring are shaded and red-hatched (`sightMap`, `canSee`).
 - **Cover:** props near buildings now sit on the corners, so the walls are free. Crew on a tile next to a building wall are in cover and take 20% less damage. So are crew on a building's bottom row: that is its front wall, so they stand in front of it at street level, with no rooftop range bonus and ground-level line of sight. The placement ghost shows a shield on cover tiles (`coverAt`, `facadeAt`, `COVER_DR`).
 - **Preferred targets:** every crew member has a targeting mode: First, Last, Strongest, Weakest, Closest, Flyers (anti-air crew only) or Elites. It is set from the info panel, and kept for the rest of the run (`PRIO`, `crew.prio`). Marksmen default to Strongest; everyone else defaults to First.
