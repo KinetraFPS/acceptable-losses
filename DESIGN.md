@@ -326,17 +326,43 @@ Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on co
   - **Openers:** every envoy opens with a line that fits your standing, from "Don't hang up" to "Every village on the seam knows your name".
 
 ## Architecture
-- **Bespoke buildings:** each biome has its own design, and the rooftops stay walkable (`ARCH`).
-  - Polar research stations with red safety borders, portholes and an airlock.
-  - Glass greenhouses under purple grow-lights.
-  - Adobe with crenellations, arches and striped awnings.
-  - Linked habitat pods.
-  - Neon city blocks with water tanks and lit window grids.
-  - Eco terraces with green roofs, solar rows and timber.
-  - Riveted forge halls with furnace windows.
-  - Marble sky villas with gold trim.
-  - Precursor temples with glyph inlays.
-- **Planned layouts:** buildings come in a row of 2–3 matching buildings at even spacing, sometimes facing a second row across a two-tile street. The drill sits on a paved plaza, every building has a paved front yard, and street lamps stand at even intervals along every road, all on one side. There are fewer random props.
+Buildings are drawn as solid forms seen at three-quarters, from a **type** (what the building is for) in a **biome's materials** (`B3`: `BT`, `BKIT`).
+- **Reading as 3D:**
+  - Roofs have a lit and a shaded slope, a ridge and overhanging eaves. The roof styles are gable, hip, flat with parapet, barrel, sawtooth, pressurised dome, green turf and stepped ziggurat.
+  - Front walls are tall, with recessed windows, lit sills, stepped doors and a darker side return.
+  - Rooftop clutter (chimneys, tanks, AC, dishes, panels) casts its own shadow.
+  - Every building has a dark outline and throws a shadow onto the ground to the lower right, longer for taller buildings.
+- **Human types:** housing, shop (striped awning), school (flagpole and clock tower, or a rooftop court in cities), clinic (rooftop cross), church (bell tower and rose window; a domed church with a minaret on desert, moon and sky worlds; a megachurch screen in the megacity; an eye temple on tomb worlds), depot (roller doors) and office. City worlds (megacity, Kindly HQ) add **skyscrapers**: setback crowns, a beacon, floor after floor of windows and a long shadow.
+- **Alien types** (fungal world): spore homes, a spore market, a **creche** of glowing egg-pods in place of a school, a **mender pool** in place of a hospital, a spiral shrine, a glass grow-house and a shelf-fungus elder hall. The precursor tomb uses stone ziggurats and also swaps school and clinic for creche and mender pool.
+- **Materials per biome:**
+  - Ice: red polar-station roofs under snow.
+  - Desert: adobe with flat roofs and a domed church.
+  - Moon: panelled pods under glass domes.
+  - Megacity: concrete and neon.
+  - Solarpunk: timber, turf roofs and solar panels.
+  - Volcanic: basalt and iron, with smoking chimneys.
+  - Cloud City: white villas with lavender roofs and brass.
+  - Tomb: carved stone ziggurats.
+  - Kindly HQ: glass and company yellow.
+- **Faction buildings:** on a faction's map, one or two plots become theirs:
+  - Union: a Union Hall with banners.
+  - Activists: a tagged squat.
+  - Wildlife: brood mounds.
+  - Lumen Kin: glass lodges.
+  - VectorCorp: a branch office.
+  - The Abandoned: boarded-up Kindly prefabs.
+  - Free Haulers: a guild warehouse.
+  - Precursors: a ziggurat with a watching eye.
+  - Asset Protection: barracks with a searchlight.
+  - The Church: a crimson chapel.
+- **Town planning** (`placeBuildings`, `assignTypes`): roads are routed first, and buildings go up along them.
+  - The first few line a straight stretch of road as a planned street of matching houses, shops or towers, doors onto the road.
+  - Every other plot is scored for nature: a road in front of the door is best, one alongside is fine, the back of a building facing the road is penalised, and plots near other buildings score higher.
+  - The biggest free plot becomes the civic landmark.
+  - Buildings never sit on a road, always keep a clear tile between them, and never put a door onto water, a wall, another building, a prop or a landmark. A short paved walk runs from each door.
+  - Tested over 400 generated maps: no building on a road, none touching, no blocked door, and about three-quarters open straight onto a road.
+- **Animations** (`drawBuildingAnim`): waving flags, chimney smoke and steam, flickering neon, office windows switching on and off, blinking beacons, a cycling megachurch screen, pulsing egg-pods, a ripple on the mender pool, spores drifting off caps, light running up the shrine's veins, a glint across Kin glass, the ziggurat's eye looking around, a sweeping searchlight and candles.
+- Street lamps stand at even intervals along every road, and the drill sits on a paved plaza.
 
 ## Acts
 Each sector is an act, with its own cast and its own light (`ACTS`).
