@@ -553,8 +553,8 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Quirks**: every hire rolls one of 10 traits (Nepotism Hire, Tenured, Office Gossip...). They're shown in the store before you hire.
 - **Appeal decision** rerolls the cards for scrip (10, then +5 each time). **Decline promotion** takes 12 scrip instead.
 - **Synergies**: marks (Tracer Rounds, Static Cling, Spotter, Quagmire foam) amplify all crew damage. Auras buff, heal or protect crew within 1.5 tiles.
-- **Level cap 12** (`MAXL`), with the early levels at the old pace (so Act 1 crews still grow fast enough) and a slower climb from level 6 that keeps paying off through acts 4 and 5. XP thresholds: 16 / 45 / 95 / 165 / 265 / 395 / 560 / 770 / 1030 / 1340 / 1700. Levels 9–12 add +25 max HP each instead of +12 (264 HP at level 12), since the late waves are what they're for. Ranks 9–12: Associate Director, Director of Associates, Chief Associate Officer, Associate for Life.
-- **Acts 4 and 5 hit harder to match:** wave difficulty keeps climbing at +0.4 per contract after contract 15 (`diffLevel`), so the ordinary contracts of acts 4 and 5 stay a fight for a level-12 crew. Act bosses get +25% HP in Act 4 and +35% in Act 5: the finale is already stacked on the hardest waves, so its boss is tuned to be beatable rather than a coin flip on the last contract. What scales straight off the contract number (enemy gun damage, volatile blasts, medic heal auras, mini-boss HP) climbs at a third of the pace after Act 3 (`lateIdx`): crew health stops at the level cap, and without this the late waves downed a maxed crew outright.
+- **Level cap 12** (`MAXL`). XP thresholds: 16 / 45 / 95 / 165 / 265 / 395 / 560 / 770 / 1030 / 1340 / 1700. Levels 9–12 add +25 max HP each instead of +12 (264 HP at level 12). Ranks 9–12: Associate Director, Director of Associates, Chief Associate Officer, Associate for Life.
+- **Levels follow the acts** (see *The difficulty model*): a promotion freeze caps crew at level 4 / 6 / 8 / 10 / 12 in acts 1–5, so the last levels land in the final act.
 
 ## Crew types
 | Type | Fee | Plays as | Specialisations (capstone) |
@@ -589,29 +589,32 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Sound effects**: quiet and distinct per role, with slight random pitch: a tight two-tick rifle burst (three with Extended Mags), a low electric taser buzz, a hollow mortar 'thoonk' and soft foam landing, a sniper crack with a bolt-action click-clack, and a soft rising drone chirp. Also kills, leaks, saboteur clanks, injuries, deploying and reassigning crew, promotions, the boss arrival horn, and UI clicks. The store has a "ka-ching". Effects are panned left or right by their position on the map and rate-limited so big fights don't clip.
 - **Settings** (gear button, bottom-right): master, music and effects volume, mute (also the M key), and a screen shake toggle. Settings are saved in the browser. Opening settings mid-contract pauses the game.
 
-## Balance tuning knobs (in index.html)
-Difficulty is tuned to rise through the run rather than flatten out as your crew levels up.
-- `genWave`: wave threat budget `(5 + idx*2.7 + idx²*0.26) * (1 + prog*1.8) * diff.mod`
-- `genWave`: veteran rate `-0.04 + idx*0.14 + prog*0.3` (max 68%), elite rate `-0.2 + idx*0.08 + prog*0.16` (max 34%)
-- Wave interval: 13s, tightening from contract 4 by 0.9s per contract and up to 2.4s as the drill fills (minimum 8.5s)
-- `spawnEnemy`: HP scaling `(1 + 0.2*idx + 0.026*idx²)`
-- Sector 1 bosses have 82% HP and Sector 2 bosses full HP. Understudies have `25% × (1 + 0.2*idx)`. Naval craft arrive from contract 4, and the nastier behaviours ramp in from contract 3. Sector 2 difficulty uses `diffLevel = 4 + (idx - 4) * 0.56`.
-- `startMission`: starting budget `120 + 12*idx`
-- **Three acts, by envoy policy** (bot always takes the envoy contract and gives the same answer; 30–45 runs each). Before the loyalty combat perks, refusing and reporting trailed badly (full wins 2% and 0% vs 7% for accepting). After Company Sidearms and Corporate Air Support:
+## The difficulty model
+Difficulty is designed from a planned crew-power curve rather than tuned run by run. In the old curve the best crew member hit level 12 by contract 6, the rank mix stopped changing after Act 2, Acts 2–4 cost almost no margin and Act 5 then wiped crews.
 
-  | Policy | Clear Sector 1 | Clear Sector 2 | Win the run |
-  |---|---|---|---|
-  | Accept | 33% | 23% | 7% |
-  | Refuse | 33% | 17% | 7% |
-  | Report | 44% | 16% | 7% |
+- **Crew pace.** XP is steady pay: every deployed crew member gets the contract's completion XP (`COMPLETION_XP` 14 / 24 / 40 / 66 / 125 by act), the bench half, and anyone three or more ranks below the sector's ceiling double. Kills add a little on top (`killXp`, about 30% of bounty early, falling as waves grow). A **promotion freeze** caps levels per act (`ACT_CAP` 4 / 6 / 8 / 10 / 12); XP over the cap is banked and the reviews fall due when the next sector starts. Crew cards say when a promotion is frozen.
+- **Planned power.** Roster size (3 rising to 8) × level gains (+10% damage, +3% fire rate per level) × the perk each review adds (Tier I ×1.13, Tier II ×1.2, specialisation ×1.3, capstone ×1.25, executive ×1.12) × a small allowance for relics.
+- **Wave threat** (`threatAt`) is anchored at the end of each act and interpolated geometrically: 0.85 at contract 0, then 4.6 / 15.9 / 37.9 / 87.4 / 156. The anchors come from that planned power against the old curve: Act 1 holds its old pressure, Acts 2–4 rise by 25–35% (they had gone slack) and Act 5 eases 5%. Threat splits into more hostiles (`waveBudget` = 5 × threat^0.55) and tougher ones (`waveHp` = threat^0.45).
+- **Every vector steps up per act** (`ACT_STEP`):
 
-  Reporting front-loads power (scrip, early perks) but makes enemies tougher; accepting pays off late through final-contract allies. Most bot losses still come at contracts 2–4.
-- Sector 3 difficulty: `diffLevel = 6.8 + (idx - 9) * 0.32` after contract 10; extraction time stops growing after contract 11.
-- With all eight factions, standing and the new architecture, the bot clears Sector 1 in 29% of runs and finishes both sectors in 9% (90 runs). It ignores favours, allies and artifacts.
-- After line of sight and the retune, the auto-play bot (line-of-sight-aware greedy placement, no artifacts, default targeting) clears Sector 1 in 29% of runs and finishes both sectors in 13% (90 runs), up from 7% and 2%.
-- Before Sector 2, the bot won about 28% of runs, down from 67% before this pass (80 runs each). Average margin lost per contract:
-  - Before: 11 / 21 / 26 / 15 / 5% (it got easier as crew levelled).
-  - Now: 12 / 18 / 33 / 25 / 24%.
+  | Act | Armour (not swarms) | Speed | Veterans | Elites | Elite traits | Lanes |
+  |---|---|---|---|---|---|---|
+  | 1 | +0 | ×1 | 5% | 0% | 30% from contract 2 | 1–2 |
+  | 2 | +0 | ×1.03 | 20% | 6% | one each | 2 |
+  | 3 | +1 | ×1.06 | 32% | 13% | one; veterans 20% | 2 |
+  | 4 | +2 | ×1.09 | 42% | 20% | half carry two; veterans 35% | 3 |
+  | 5 | +3 | ×1.12 | 50% | 28% | two each; veterans 50% | 3 |
+
+  These are what each act builds up to by its boss: every value blends from the previous act's across the act's contracts (`actStep`), so no single contract takes every step at once. Rank shares also rise as the drill fills.
+- **Unlocks** (`UNLOCK_ACT`): the basics from the start; Medics and Splitters in Act 1; Shields, Stealth, Ranged, Berserkers, Gunships and naval craft in Act 2; Jammers, Carriers, Blinkers and Burrowers in Act 3. Each comes in lightly in its first act.
+- **Hordes** (`genHorde`): every 5th wave in Act 1, every 4th in acts 2–3 and every 3rd in acts 4–5 (one sooner on Suicidal). A horde is one kind of grunt (Swarm, Runners, or Flyers from Act 2), 12–60 strong, packed close and spread over every lane, announced on arrival. Ordinary waves stay mixed, so a contract reads as mixed, mixed, horde, with the bosses on top.
+- **The boss ladder.** Act 1: one mini-boss a contract and the act boss. Act 2: two mini-bosses. Act 3: the faction's bosses also walk in with ordinary waves as **lieutenants** (shrunken boss sprites, gold-outlined, the boss's armour and auras, about an elite's toughness). Act 4: lieutenants in ordinary waves, and every other horde is a pack of 4–6 of them. Act 5: every horde is 6–9 lieutenants, and one mini-boss each contract is the faction's apex.
+- **Boss HP by act** (`BOSS_ACT`): ×0.45 / 0.65 / 0.9 / 1.5 / 1.8 of the faction's listed HP, from the same power curve (no level-10 carry in Act 1 any more; a full level-12 crew in Act 5). Mini-bosses follow the wave HP curve (`0.9 × waveHp`); apex understudies at 12% of the apex.
+- **Stun resistance.** Bosses take 40% of a stun, mini-bosses and lieutenants 60%, elites 80%. Every stun adds resistance (+25% for bosses and lieutenants, +10% for others, up to 80%) that fades at 12% a second, and a boss can't be stunned for 1.5s after one ends (0.8s for minis and lieutenants). A thin bar under the health bar shows it: blue while resistance builds, grey while immune. Bosses and lieutenants also take half the slow.
+- **Suicidal** contracts mean it: ×1.35 threat (HP through its square root), +1 lane, ranks one step up (+15% veterans, +10% elites), traits ×1.5, hordes one wave sooner, a third mini-boss, more lieutenants. They pay ×1.6, plus hazard pay (25 + 15 per act) and a requisitioned rare or very rare relic.
+- **Upgrade power budget.** Tier I: about +12–15% to one stat (Gym Membership +50% HP → +30%). Tier II: about +20–30% or utility (Hostile Takeover +40% → +30%). Capstones define the build. Executive: +20–30% to one thing, or a trade (Golden Handcuffs +30%/+30% → +20%/+20%, Burnout +60%/−40% → +40%/−30%, Tenure +40%/+15% → +30%/+10%).
+- **Relics** come in three tiers: common (about 60 scrip; Scopes, Loyalty Card, Insurance, Overtime, Signing Bonus, Interns, Ammo), rare from Act 2 (about 110; Poster, Coffee Machine, Golden Parachute) and very rare from Act 3 (about 170; Liability Waiver, now +40% HP, and Overclocked Tasers). Prices rise 15% each act.
+- Unchanged: the wave interval (13s, tightening with `diffLevel` and drill progress), the starting budget, and enemy gun damage and heal auras on `lateIdx`.
 
 ## Next up
 Sector 2+, more factions and relics, crew permadeath (an option), real art and audio, a narrative event system, deeper colony meta.

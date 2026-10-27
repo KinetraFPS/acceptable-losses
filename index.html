@@ -630,9 +630,15 @@ const BIOMES = {
 const DIFFS = [
   { label: 'Routine',  mod: 0.85, pay: 0.85, stars: 1 },
   { label: 'Elevated', mod: 1.0,  pay: 1.0,  stars: 2 },
-  { label: 'Suicidal', mod: 1.2,  pay: 1.4,  stars: 3 },
+  { label: 'Suicidal', mod: 1.35, pay: 1.6,  stars: 3 },
 ];
 
+// relic tiers: common from the start, rare from Act 2, very rare from Act 3; prices rise each act
+const RELIC_TIER = { scope: 1, loyalty: 1, insurance: 1, overtime: 1, takeover: 1, intern: 1, ammo: 1, poster: 2, coffee: 2, parachute: 2, waiver: 3, tasers: 3 };
+const RELIC_TIER_NAME = ['', 'Common', 'Rare', 'Very rare'];
+const relicTier = id => RELIC_TIER[id] || 1;
+const relicMaxTier = () => Math.min(3, actOf(RUN.idx));
+const relicPrice = id => Math.round([0, 60, 110, 170][relicTier(id)] * (1 + 0.15 * (actOf(RUN.idx) - 1)) * (0.92 + rnd() * 0.16));
 const RELICS = {
   funbudget: { name: 'Mandatory Fun Budget', desc: 'Corporate perk for loyalty. Crew morale settles higher between contracts.', special: true },
   sidearms: { name: 'Company Sidearms', desc: 'Corporate perk for loyalty. Crew deal 10% more damage.', special: true },
@@ -641,7 +647,7 @@ const RELICS = {
   coffee:    { name: 'Broken Coffee Machine',            desc: 'Only dispenses hot water. Crew fire 15% faster out of spite.' },
   poster:    { name: '"Hang In There" Poster',           desc: 'All crew deal 12% more damage.' },
   scope:     { name: 'Slightly Larger Scopes',           desc: 'All crew gain 12% range.' },
-  waiver:    { name: 'Liability Waiver',                 desc: 'Crew have 60% more HP. Legally, they agreed to this.' },
+  waiver:    { name: 'Liability Waiver',                 desc: 'Crew have 40% more HP. Legally, they agreed to this.' },
   takeover:  { name: 'Signing Bonus (Clawback Pending)', desc: '+40 budget at the start of every contract.' },
   loyalty:   { name: 'Loyalty Points Card',              desc: '+1 budget for every kill.' },
   insurance: { name: 'Insurance Fraud Kit',              desc: 'The first 6% of margin lost each contract is "recovered".' },
@@ -1912,9 +1918,11 @@ const AFFIXES = {
   volatile: { name: 'Volatile', col: '#ff7a1a', apply: e => { e.volatile = true; } },
 };
 function rollAffix(e, q, idx) {
-  const p = q.tier === 2 ? (idx >= 2 ? 0.15 + 0.15 * (idx - 2) : 0) : q.tier === 1 ? (idx >= 3 ? 0.1 + 0.06 * (idx - 3) : 0) : 0;
+  const act = actOf(idx), sui = M.c.diff === 2 && !M.c.boss ? 1.5 : 1;
+  const p = (q.tier === 2 ? (idx >= 2 ? actStep('trait', idx) : 0) : q.tier === 1 ? actStep('vtrait', idx) : 0) * sui;
   if (!p || rnd() >= p) return;
   const k = pick(Object.keys(AFFIXES)); e.affix = k; AFFIXES[k].apply(e); e.name = AFFIXES[k].name + ' ' + e.name;
+  if (q.tier === 2 && rnd() < actStep('trait2', idx) * sui) { const k2 = pick(Object.keys(AFFIXES).filter(x => x !== k)); e.affix2 = k2; AFFIXES[k2].apply(e); e.name = AFFIXES[k2].name + ' ' + e.name; }
   if (!RUN.seenAffix) { RUN.seenAffix = true; toast('Elites now arrive with traits: Swift, Hardened, Regenerating or Volatile. Watch the coloured pips.', 3400); }
 }
 function volatileBlast(e) {
@@ -1923,6 +1931,7 @@ function volatileBlast(e) {
 }
 function drawThreatMarks(g, e, t) {
   if (e._bx == null) return;
+  if (e.affix2) { const c = AFFIXES[e.affix2].col; px(g, e._bx + 2, e._by - 4, 3, 2, '#0c0e14'); px(g, e._bx + 3, e._by - 4, 1, 1, c); px(g, e._bx + 2, e._by - 3, 3, 1, c); }
   if (e.affix) { const c = AFFIXES[e.affix].col; px(g, e._bx - 1, e._by - 4, 3, 2, '#0c0e14'); px(g, e._bx, e._by - 4, 1, 1, c); px(g, e._bx - 1, e._by - 3, 3, 1, c); }
   if (e.bubbled) {
     // a golden dome: nothing gets through until the guards are down
@@ -2537,7 +2546,7 @@ const P = (id, tier, role, name, desc, mod) => ({ id, tier, role, name, desc, mo
 const PERKS = [
   // corporate: any role
   P('espresso', 't1', null, 'Double Espresso', '+15% fire rate.', s => { s.rate *= 1.15; }),
-  P('gym', 't1', null, 'Gym Membership (Unused)', '+50% HP.', s => { s.maxhp *= 1.5; }),
+  P('gym', 't1', null, 'Gym Membership (Unused)', '+30% HP.', s => { s.maxhp *= 1.3; }),
   P('networking', 't1', null, 'Networking Event', '+30% XP from kills.', s => { s.xpMult *= 1.3; }),
   P('sidehustle', 't1', null, 'Side Hustle', '+1 budget per kill.', s => { s.bountyAdd += 1; }),
   P('lanyard', 't1', null, 'Fancy Lanyard', '+12% range.', s => { s.range *= 1.12; }),
@@ -2546,12 +2555,12 @@ const PERKS = [
   P('teamlead', 't2', null, 'Team Lead', 'Crew within 1.5 tiles fire 12% faster.', s => { s.auraRate += 0.12; }),
   P('expenses', 't2', null, 'Creative Expense Report', 'Deploy fee -40%.', s => { s.feeMult *= 0.6; }),
   P('bonusplan', 't2', null, 'Combat Bonus Structure', '+15% crit chance. Crits deal 2.5x.', s => { s.crit += 0.15; s.critMult = Math.max(s.critMult, 2.5); }),
-  P('takeover', 't2', null, 'Hostile Takeover', '+40% damage against Elites and bosses.', s => { s.eliteBonus += 0.4; }),
-  P('handcuffs', 'exec', null, 'Golden Handcuffs', '+30% damage and fire rate. Can never be reassigned.', s => { s.dmg *= 1.3; s.rate *= 1.3; s.noReassign = true; }),
+  P('takeover', 't2', null, 'Hostile Takeover', '+30% damage against Elites and bosses.', s => { s.eliteBonus += 0.3; }),
+  P('handcuffs', 'exec', null, 'Golden Handcuffs', '+20% damage and fire rate. Can never be reassigned.', s => { s.dmg *= 1.2; s.rate *= 1.2; s.noReassign = true; }),
   P('mentor', 'exec', null, 'Mentorship Program', 'Crew within 1.5 tiles gain +50% XP.', s => { s.auraXp += 0.5; }),
   P('stock', 'exec', null, 'Stock Options', 'Every kill also pays 1 scrip.', s => { s.scripKill += 1; }),
   P('crunch', 'exec', null, 'Crunch Time', '+25% damage. Fires 30% faster once the drill passes 75%.', s => { s.dmg *= 1.25; s.crunch = true; }),
-  P('burnout', 'exec', null, 'Burnout Protocol', '+60% fire rate, -40% HP.', s => { s.rate *= 1.6; s.maxhp *= 0.6; }),
+  P('burnout', 'exec', null, 'Burnout Protocol', '+40% fire rate, -30% HP.', s => { s.rate *= 1.4; s.maxhp *= 0.7; }),
   // the new roles
   P('napalmgel', 't1', 'flamer', 'Napalm Gel', 'Burning +50%.', s => { s.burnMult *= 1.5; }),
   P('nozzle', 't1', 'flamer', 'Wide Nozzle', 'Flame cone 40% wider.', s => { s.cone *= 1.4; }),
@@ -2569,7 +2578,7 @@ const PERKS = [
   P('offsite', 'cap', 'liaison', 'Mandatory Offsite', 'Aura heals crew 5 HP/s and makes them take 25% less damage.', s => { s.heal += 5; s.auraDr = Math.max(s.auraDr, 0.25); }),
   P('pip', 'cap', 'liaison', 'Performance Improvement Plan', 'Hostiles in range lose 2 armour and take +30% damage.', s => { s.supVuln = Math.max(s.supVuln, 0.3); s.supStrip = 2; }),
   // late-career perks for ranks 6-12
-  P('tenure', 'exec', null, 'Tenure Track', '+40% HP, +15% damage.', s => { s.maxhp *= 1.4; s.dmg *= 1.15; }),
+  P('tenure', 'exec', null, 'Tenure Track', '+30% HP, +10% damage.', s => { s.maxhp *= 1.3; s.dmg *= 1.1; }),
   P('unpaidot', 'exec', null, 'Unpaid Overtime', '+20% fire rate.', s => { s.rate *= 1.2; }),
   P('pensionraid', 'exec', null, 'Pension Raid', '+3 budget per kill.', s => { s.bountyAdd += 3; }),
   P('keynote', 'exec', null, 'Keynote Speaker', 'Crew within 1.5 tiles deal +10% damage and fire 10% faster.', s => { s.auraDmg += 0.1; s.auraRate += 0.1; }),
@@ -2878,7 +2887,7 @@ function genContract(idx, diff, boss, forceFac) {
   const client = RUN.side && facKey !== RUN.side ? sideClient() : pick(fac.clients);
   const D = DIFFS[diff];
   const prev = [...RUN.history].reverse().find(h => h.faction === facKey);
-  let spawns = (idx >= 2 ? 2 : 1) + (diff === 2 ? 1 : 0) + (idx === 1 && rnd() < 0.5 ? 1 : 0);
+  let spawns = Math.min(3, (idx >= 2 ? 2 : 1) + (diff === 2 ? 1 : 0) + (idx === 1 && rnd() < 0.5 ? 1 : 0) + (actOf(idx) >= 4 ? 1 : 0));
   if (boss) spawns = 2;
   const o = {
     idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? (sector >= MAX_SECTOR ? endgameBoss(facKey) : sector >= 3 ? fac.apex : pick(fac.bosses)) : null,
@@ -3717,6 +3726,7 @@ function startMission(contract) {
   const dividend = RUN.dividend || 0; RUN.dividend = 0;
   if (dividend) { M.budget += dividend; M.dividendPaid = dividend; setTimeout(() => toast(`Loyalty Dividend: +$${dividend} budget, to cover your crew's attitude.`, 2600), 900); }
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
+  { const freed = RUN.roster.reduce((n, cr) => n + promoteCrew(cr, null), 0); if (freed) setTimeout(() => toast(`New sector, promotion freeze lifted: ${freed} review${freed > 1 ? 's' : ''} due.`, 2800), 1200); }
   if (!contract.ship) { B3.assignTypes(map, contract.biomeKey, contract.facKey); if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map); }
   const gr = contract.ship ? shipDeck(map.deck, map.tier, { guns: map.guns, doors: map.doors, props: map.obstacles }) : renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
@@ -3960,13 +3970,22 @@ function towerStats(crew, tw) {
   for (const id of crew.perks || []) PERK[id].mod(s);
   if (s.commission && tw) s.dmg *= 1 + Math.min(0.3, s.commission * (tw.mkills || 0));
   if (s.crunch && M && M.t / M.T > 0.75) s.rate *= 1.3;
-  if (has('waiver')) s.maxhp *= 1.6;
+  if (has('waiver')) s.maxhp *= 1.4;
   return s;
 }
 const crewFee = cr => Math.round(TOWERS[cr.type].fee * towerStats(cr).feeMult * moraleFeeMult(cr));
 
-function applySlow(e, v, dur) { if (e.boss) v *= 0.5; e.slowAmt = e.slowT > 0 ? Math.max(e.slowAmt, v) : v; e.slowT = Math.max(e.slowT, dur); }
-function stunE(e, dur) { e.stunT = Math.max(e.stunT || 0, e.boss ? dur * 0.3 : dur); }
+function applySlow(e, v, dur) { if (e.boss || e.lt) v *= 0.5; e.slowAmt = e.slowT > 0 ? Math.max(e.slowAmt, v) : v; e.slowT = Math.max(e.slowT, dur); }
+// Stun resistance: bosses shrug off most of it, mini-bosses and lieutenants a lot, elites some. Every stun builds
+// resistance that fades over a few seconds, and a boss can't be stunned again straight after one ends.
+const stunBase = e => e.boss && !e.mini ? 0.4 : e.mini || e.lt ? 0.6 : e.tier === 2 ? 0.8 : 1;
+function stunE(e, dur) {
+  if (e.stunImmT > 0) return;
+  const d = dur * stunBase(e) * (1 - (e.stunRes || 0));
+  if (d < 0.05) return;
+  e.stunT = Math.max(e.stunT || 0, d);
+  e.stunRes = Math.min(0.8, (e.stunRes || 0) + (e.boss || e.lt ? 0.25 : 0.1));
+}
 function markE(e, amt, dur) { e.vulnAmt = e.vulnT > 0 ? Math.max(e.vulnAmt, amt) : amt; e.vulnT = Math.max(e.vulnT || 0, dur); }
 // one direct hit from a crew member, with every on-hit perk applied
 function hitEnemy(e, base, s, tw, opt = {}) {
@@ -4041,10 +4060,10 @@ function damage(e, dmg, pierce, tw, quiet) {
       const s = tw.st || towerStats(tw.crew, tw), cr = tw.crew;
       M.budget += s.bountyAdd; if (s.scripKill) RUN.scrip += s.scripKill;
       tw.mkills = (tw.mkills || 0) + 1;
-      cr.kills++; cr.xp += e.bounty * s.xpMult;
+      cr.kills++; cr.xp += e.bounty * s.xpMult * killXp(M.c.idx);
       if (cr.value === 'sympath' && cr.sym === M.c.facKey) cr.morale = Math.max(0, (cr.morale ?? 65) - 0.4);
       barkAs(tw, 'kill', e.boss ? 1 : 0.08, e);
-      while (cr.level < MAXL && cr.xp >= XP_TH[cr.level]) {
+      while (cr.level < Math.min(MAXL, actCap(M.c.idx)) && cr.xp >= XP_TH[cr.level]) {
         cr.level++; cr.reviews.push(cr.level);
         M.promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); sfx('promote', tw.x);
         fxText(tw.x, tw.y - 22, 'REVIEW DUE', '#ffd23f');
@@ -4083,20 +4102,25 @@ function reassign(tw) {
 }
 
 function genWave() {
-  const m = M, c = m.c, idx = diffLevel(c.idx), prog = m.t / m.T;
-  let budget = (5 + idx * 2.7 + idx * idx * 0.26) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey);
+  const m = M, c = m.c, act = actOf(c.idx), prog = m.t / m.T, early = c.idx % SECTOR_LEN, sui = c.diff === 2 && !c.boss;
   m.waveNum++;
-  const vet = clamp(-0.04 + idx * 0.14 + prog * 0.3, 0, 0.68), eli = clamp(-0.2 + idx * 0.08 + prog * 0.16, 0, 0.34);
+  // every few waves a horde: one kind, all grunts, in a dense stream; late on, the horde is the faction's old bosses
+  const every = Math.max(3, HORDE_EVERY[act - 1] - (sui ? 1 : 0));
+  if (m.waveNum > 1 && m.waveNum % every === 0) { genHorde(); return; }
+  let budget = waveBudget(c.idx) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey);
+  const vet = clamp(actStep('vet', c.idx) + prog * 0.2 + (sui ? 0.15 : 0), 0, 0.8), eli = clamp(actStep('eli', c.idx) + prog * 0.1 + (sui ? 0.1 : 0), 0, 0.5);
   const weights = { ...c.fac.cats };
   if (m.biome.mod.flyers) weights.flyer = (weights.flyer || 0.8) * m.biome.mod.flyers;
   if (m.biome.mod.swarm) weights.swarm = (weights.swarm || 1) * m.biome.mod.swarm;
   // first contract eases you in: no saboteurs, fewer armoured
-  if (idx === 0) { delete weights.saboteur; if (weights.armored) weights.armored *= 0.5; }
-  for (const k of SPECIALS) if (weights[k]) { if (idx === 0) delete weights[k]; else weights[k] *= Math.min(1, idx / 2.5); }
-  // the nastier behaviours (ranged, carriers, blinkers, berserkers, burrowers) arrive from contract 3
-  if (weights.naval && (idx < 3 || !m.waterPath)) delete weights.naval;
-  for (const k of ['ranged', 'carrier', 'blinker', 'berserk', 'burrower', 'gunship']) if (weights[k]) { if (idx < 2) delete weights[k]; else weights[k] *= Math.min(1, (idx - 1.4) / 2.6); }
+  if (c.idx === 0) { delete weights.saboteur; if (weights.armored) weights.armored *= 0.5; }
+  // each kind joins in its own act, lightly at first
+  for (const k of Object.keys(weights)) { const u = UNLOCK_ACT[k]; if (!u) continue; if (act < u || (u === 1 && c.idx === 0)) delete weights[k]; else if (act === u) weights[k] *= u === 1 ? Math.min(1, c.idx / 2.5) : 0.6; }
+  if (weights.naval && !m.waterPath) delete weights.naval;
+  if (!Object.values(weights).some(w => w > 0)) weights.swarm = 1;
   const list = []; let guard = 0;
+  // the boss ladder: from Act 3 the faction's old bosses walk in with the ordinary waves
+  if (act >= 3 && !c.ship && c.fac.bosses && rnd() < [0, 0, 0.35, 0.5, 0.6][act - 1] + (sui ? 0.2 : 0)) { const n = act >= 4 ? ri(1, 2) : 1; list.push({ lt: pick(c.fac.bosses), n }); budget -= LT_THREAT * n; }
   while (budget > 0.5 && guard++ < 40) {
     const cat = wpick(weights);
     let tier = 0; const r = rnd();
@@ -4106,22 +4130,63 @@ function genWave() {
     if (cost > budget * 1.4) { if (tier > 0) continue; if (list.length) break; }
     budget -= cost; list.push({ cat, tier, n });
   }
-  if (has('schedule')) { const cnt = {}; for (const g of list) { const nm = c.fac.names[g.cat] || CATS[g.cat].label; cnt[nm] = (cnt[nm] || 0) + g.n; } m.waveTxt = Object.entries(cnt).map(([k, v]) => `${k} ×${v}`).join(', '); }
+  if (has('schedule')) { const cnt = {}; for (const g of list) { const nm = g.lt ? g.lt.name : c.fac.names[g.cat] || CATS[g.cat].label; cnt[nm] = (cnt[nm] || 0) + g.n; } m.waveTxt = Object.entries(cnt).map(([k, v]) => `${k} ×${v}`).join(', '); }
   let t = m.t + 0.4;
   for (const g of list) {
     const sp = ri(0, m.paths.length - 1);
-    for (let i = 0; i < g.n; i++) m.queue.push({ at: t + i * 0.32, cat: g.cat, tier: g.tier, sp });
+    for (let i = 0; i < g.n; i++) m.queue.push(g.lt ? { at: t + i * 0.9, lt: g.lt, sp } : { at: t + i * 0.32, cat: g.cat, tier: g.tier, sp });
     t += 0.6 + rnd() * 0.8;
   }
+  m.queue.sort((a, b) => a.at - b.at);
 }
+// a horde: grunts of one kind, packed close and spread over every lane, so the wave reads at a glance.
+// Act 4 alternates them with packs of the faction's old bosses; in Act 5 the old bosses are the horde.
+function genHorde() {
+  const m = M, c = m.c, act = actOf(c.idx), prog = m.t / m.T, lanes = m.paths.length;
+  m.hordes = (m.hordes || 0) + 1;
+  const budget = waveBudget(c.idx) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey);
+  const bossHorde = !c.ship && c.fac.bosses && (act >= 5 || (act === 4 && m.hordes % 2 === 0));
+  let t = m.t + 0.6, n, label;
+  if (bossHorde) {
+    n = act >= 5 ? ri(6, 9) : ri(4, 6); const B = pick(c.fac.bosses); label = B.name;
+    for (let i = 0; i < n; i++) m.queue.push({ at: t + i * 0.7, lt: B, sp: i % lanes });
+  } else {
+    const kinds = ['swarm', 'fast', 'flyer'].filter(k => c.fac.cats[k] && (k !== 'flyer' || act >= 2));
+    const cat = kinds.length ? pick(kinds) : Object.keys(c.fac.cats).sort((a, b) => CATS[a].threat - CATS[b].threat)[0], C = CATS[cat];
+    n = clamp(Math.round(budget * 1.8 / C.threat), 12, 60); label = c.fac.names[cat] || C.label;
+    for (let i = 0; i < n; i++) m.queue.push({ at: t + i * 0.16, cat, tier: 0, sp: i % lanes });
+  }
+  m.queue.sort((a, b) => a.at - b.at);
+  if (has('schedule')) m.waveTxt = `HORDE: ${label} ×${n}`;
+  toast(`Horde inbound: ${n} × ${label}`, 2000); sfx('review');
+}
+// ---------- the boss ladder: former bosses in the ranks ----------
+// A shrunken copy of the boss, with its armour and its auras but none of its other tricks, as tough as a big elite.
+const LT_THREAT = 20;
+function shrinkVariant(v, k) {
+  const sc = c => { const s = mkCanvas(Math.max(1, Math.round(c.width * k)), Math.max(1, Math.round(c.height * k))), g = s.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, s.width, s.height); return s; };
+  const frames = v.frames.map(sc);
+  return { kind: v.kind, frames, white: frames.map(c => silhouette(c, '#ffffff')), vet: frames.map(c => silhouette(c, '#e8eef5')), elite: frames.map(c => silhouette(c, '#ffd23f')), slow: frames.map(c => silhouette(c, '#5fd4ff')),
+    ax: Math.round(v.ax * k), ay: Math.round(v.ay * k), lights: (v.lights || []).map(l => ({ ...l, x: Math.round(l.x * k), y: Math.round(l.y * k), r: (l.r || 4) * k })) };
+}
+function spawnLieutenant(B, sp) {
+  const c = M.c, act = actOf(c.idx), e = spawnEnemy({ cat: 'armored', tier: 2, sp });
+  const key = 'lt:' + B.id, v = M.pool[key] || (M.pool[key] = shrinkVariant(makeBossVariant(c.facKey, B.id), 0.6));
+  const hp = B.hp * 0.12 * waveHp(c.idx) * Math.sqrt(c.mod) * (M.biome.mod.ehp || 1);
+  Object.assign(e, { lt: true, name: B.name + ' (Demoted)', v, hp, maxhp: hp, armor: B.armor + Math.round(actStep('armor', c.idx)), spd: B.spd * 1.6 * actStep('spd', c.idx) * (M.biome.mod.espd || 1),
+    r: Math.max(10, B.r * 0.6), fly: !!B.fly, bounty: 14, cost: 6, affix: null, affix2: null, volatile: false, healAura: B.healAura || null, shieldAura: B.shieldAura || null, jamAura: B.jamAura || null });
+  if (e.fly) { e.sx = e.x; e.sy = e.y; }
+  return e;
+}
+
 function spawnEnemy(q) {
   const c = M.c, C = CATS[q.cat], Tt = TIERS[q.tier], path = C.naval && M.waterPath ? M.waterPath : M.paths[q.sp];
-  const hp = C.hp * Tt.hp * (1 + 0.2 * diffLevel(c.idx) + 0.026 * diffLevel(c.idx) ** 2) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
-  const armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3));
+  const hp = C.hp * Tt.hp * waveHp(c.idx) * (M.biome.mod.ehp || 1) * (c.grudge ? 1.1 : 1) * Math.sqrt(c.mod) * (q.deal ? 3 : RUN.story.grudge[c.facKey] || 1);
+  const act = actOf(c.idx), armor = C.armor + (q.cat === 'armored' ? Tt.armor : Math.floor(Tt.armor / 3)) + (q.cat === 'swarm' ? 0 : Math.round(actStep('armor', c.idx)));
   const e = {
     cat: q.cat, tier: q.tier, name: c.fac.names[q.cat], color: c.fac.color,
     x: path[0].x + (rnd() - 0.5) * 6, y: path[0].y + (rnd() - 0.5) * 6, path, wi: 1, sp: q.sp,
-    hp, maxhp: hp, spd: C.spd * Tt.spd * (M.biome.mod.espd || 1), armor,
+    hp, maxhp: hp, spd: C.spd * Tt.spd * actStep('spd', c.idx) * (M.biome.mod.espd || 1), armor,
     r: C.r * Tt.size, fly: !!C.fly, sab: !!C.sab, dps: (C.dps || 0) * (1 + 0.15 * q.tier),
     bounty: C.bounty * Tt.bounty, cost: C.cost * Tt.cost, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: rnd() * 6,
     ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: q.deal ? (M.pool['deal' + q.cat] || (M.pool['deal' + q.cat] = makeVariant(q.deal.unitFac, q.cat))) : getVariant(q.cat), face: 1,
@@ -4174,8 +4239,8 @@ function spawnEnemy(q) {
   return e;
 }
 function spawnBoss(B, mini, child) {
-  const path = M.paths[0], k = mini ? 0.25 : 1;
-  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * lateIdx(M.c.idx) : sectorOf(M.c.idx) === 1 ? 0.82 : 1) * (sectorOf(M.c.idx) === 4 ? 1.25 : sectorOf(M.c.idx) >= 5 ? 1.35 : 1);
+  const path = M.paths[0], k = mini ? (B === M.c.fac.apex ? 0.12 : 0.25) : 1;
+  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 0.9 * waveHp(M.c.idx) : BOSS_ACT[actOf(M.c.idx) - 1]);
   const slow = mini ? 1.5 : 1, iv = o => o && { ...o, every: o.every * slow };
   const e = {
     cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
@@ -4243,14 +4308,19 @@ function stepMission(dt) {
       m.waveTimer -= dt;
       if (m.waveTimer <= 0) { genWave(); m.waveTimer = Math.max(8.5, m.waveInterval - 0.9 * Math.max(0, diffLevel(m.c.idx) - 2) - 2.4 * clamp(m.t / m.T, 0, 1) * Math.min(1, Math.max(0, m.c.idx - 1) / 2)); }
       if (m.c.boss && !m.bossSpawned && m.t >= m.T * 0.45) spawnBoss(m.c.bossDef);
-      if (!m.c.boss && m.c.idx >= 2 && !m.miniSpawned && m.t >= m.T * 0.65) { m.miniSpawned = true; spawnBoss(pick(m.c.fac.bosses), true); }
+      // mini-bosses: one a contract in Act 1, two from Act 2, a third on Suicidal; in Act 5 one of them is the apex
+      if (!m.c.boss && m.c.idx >= 2 && !m.c.ship) {
+        const act = actOf(m.c.idx), at = [0.65].concat(act >= 2 ? [0.4] : [], m.c.diff === 2 ? [0.85] : []).sort((a, b) => a - b);
+        m.minis = m.minis || 0;
+        if (m.minis < at.length && m.t >= m.T * at[m.minis]) { m.minis++; spawnBoss(act >= 5 && m.minis === at.length && m.c.fac.apex ? m.c.fac.apex : pick(m.c.fac.bosses), true); }
+      }
     }
   }
   stepDeal(dt); stepAllies(dt); stepArtifacts(dt); stepShipDefences(dt); stepManagerTech(dt); stepBarks(dt);
   if (M.phase === 'drill' && !M.defectorOut && M.t > M.T * 0.3) { const d = defectorFor(M.c); if (d) spawnDefector(d); else M.defectorOut = true; }
   if (m.queue.length) {
     m.queue.sort((a, b) => a.at - b.at);
-    while (m.queue.length && m.queue[0].at <= m.t) portalSpawn(spawnEnemy(m.queue.shift()));
+    while (m.queue.length && m.queue[0].at <= m.t) { const q = m.queue.shift(); portalSpawn(q.lt ? spawnLieutenant(q.lt, q.sp) : spawnEnemy(q)); }
   }
   // enemy auras: healing, shields and crew jamming
   for (const e of m.enemies) e.dr = 0;
@@ -4316,7 +4386,9 @@ function stepMission(dt) {
     }
     if (e.vulnT > 0) e.vulnT -= dt;
     if (e.holdT > 0) { e.holdT -= dt; e.target = null; continue; }
-    if (e.stunT > 0) { e.stunT -= dt; e.target = null; continue; }
+    if (e.stunRes > 0) e.stunRes = Math.max(0, e.stunRes - 0.12 * dt);
+    if (e.stunImmT > 0) e.stunImmT -= dt;
+    if (e.stunT > 0) { e.stunT -= dt; if (e.stunT <= 0 && (e.boss || e.lt)) e.stunImmT = e.boss && !e.mini ? 1.5 : 0.8; e.target = null; continue; }
     const spd = e.spd * TILE * (e.slowT > 0 ? 1 - e.slowAmt : 1) * (e.rallyT > 0 ? e.rallyMult : 1) * (e.burrowed ? 1.6 : 1) * (e.chargeT > 0 ? e.charge.mult : 1) * (e.rage ? 1 + 0.9 * (1 - e.hp / e.maxhp) : 1) * (e.aimSlow || 1);
     if (e.sab && !e.inTunnel) {
       let tgt = null, bd = 1.4 * TILE;
@@ -4715,10 +4787,12 @@ function renderMission(now) {
   }
   // health bars
   for (const e of m.enemies) {
-    if (!(e.hp < e.maxhp || e.boss) || e._bx == null) continue;
+    if (!(e.hp < e.maxhp || e.boss || e.stunRes > 0.05) || e._bx == null) continue;
     const w = e.boss ? 26 : clamp(Math.round(e.v.frames[0].width * 0.6), 6, 12), x = e._bx - (w >> 1), y = e._by;
     px(g, x - 1, y - 1, w + 2, e.boss ? 4 : 3, '#0c0e14');
     px(g, x, y, Math.max(0, Math.round(w * clamp(e.hp / e.maxhp, 0, 1))), e.boss ? 2 : 1, e.boss ? '#ff4d5e' : e.tier === 2 ? '#ffd23f' : '#e8eef5');
+    // stun resistance under the bar: gold while it builds, grey while a boss can't be stunned at all
+    if ((e.boss || e.lt) && (e.stunRes > 0.05 || e.stunImmT > 0)) px(g, x, y + (e.boss ? 3 : 2), Math.max(1, Math.round(w * (e.stunImmT > 0 ? 1 : e.stunRes / 0.8))), 1, e.stunImmT > 0 ? '#9aa3ad' : '#5fd4ff');
   }
   for (const tw of m.towers) {
     const pc = tw.down ? null : perchOf(tw), ax = Math.round(tw.x / AP) + (pc ? pc.dx : 0), ay = Math.round(tw.y / AP) + 6 + (pc ? pc.dy : 0);
@@ -5246,7 +5320,7 @@ function renderTowerInfo() {
   if (S.selTower) S.heliPanel = false; else if (S.heliPanel) { renderHeliInfo(); return; }
   const tw = S.selTower; if (!tw || !M.towers.includes(tw)) return;
   const st = tw.st || towerStats(tw.crew, tw), cr = tw.crew;
-  const next = cr.level < MAXL ? `${Math.floor(cr.xp)}/${XP_TH[cr.level]} xp to next review` : 'Max rank. Still no raise.';
+  const next = cr.level >= MAXL ? 'Max rank. Still no raise.' : cr.level >= actCap(RUN.idx) ? `Promotion freeze until next sector (${Math.floor(cr.xp)}/${XP_TH[cr.level]} xp banked)` : `${Math.floor(cr.xp)}/${XP_TH[cr.level]} xp to next review`;
   const traits = `<span class="trait q" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}</span>` + perkSummary(cr).map((n, k) => `<span class="trait${k === 0 && cr.spec ? ' sp' : ''}">${esc(n)}</span>`).join('');
   const div = document.createElement('div'); div.className = 'tinfo';
   div.innerHTML = `<div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
@@ -7106,6 +7180,41 @@ const sectorPos = idx => idx % SECTOR_LEN;
 // acts; past Act 3 it climbs at a third of the pace, since crew stop growing at the level cap and the waves keep growing
 const lateIdx = idx => idx <= 14 ? idx : 14 + (idx - 14) * 0.35;
 const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : idx <= 14 ? 6.8 + (idx - 9) * 0.32 : 8.4 + (idx - 14) * 0.4;
+// promotions up to the sector's ceiling; anything over it is banked until the next sector lifts the freeze
+function promoteCrew(cr, promos) {
+  let n = 0;
+  while (cr.level < Math.min(MAXL, actCap(RUN.idx)) && cr.xp >= XP_TH[cr.level]) { cr.level++; cr.reviews.push(cr.level); n++; if (promos) promos.push({ name: cr.name, rank: RANKS[cr.level - 1] }); }
+  return n;
+}
+// ---------- the difficulty model ----------
+// Planned, not measured. Crew levels follow the act caps (ACT_CAP), rosters fill to eight, and each level's review
+// adds its perk on top of the level's own gains. Wave threat is anchored at the end of each act and interpolated in
+// between: derived from that planned power against the old curve, holding Act 1 where it was, pushing Acts 2-4
+// (which had gone slack) and easing Act 5 (which wiped crews). Threat is split between more hostiles and tougher ones;
+// armour, speed, rank mix, traits, unlocks, hordes and the boss ladder each add their own step per act on top.
+const ACT_CAP = [4, 6, 8, 10, 12];
+const actCap = idx => ACT_CAP[actOf(idx) - 1];
+const THREAT_AT = [[0, 0.85], [4, 4.6], [9, 15.9], [14, 37.9], [19, 87.4], [24, 156]];
+function threatAt(idx) {
+  if (idx <= 0) return THREAT_AT[0][1];
+  for (let k = 1; k < THREAT_AT.length; k++) { const [i1, t1] = THREAT_AT[k], [i0, t0] = THREAT_AT[k - 1]; if (idx <= i1) return t0 * Math.pow(t1 / t0, (idx - i0) / (i1 - i0)); }
+  const [i0, t0] = THREAT_AT[THREAT_AT.length - 1]; return t0 * Math.pow(1.12, idx - i0);
+}
+const waveBudget = idx => 5 * Math.pow(threatAt(idx), 0.55);
+const waveHp = idx => Math.pow(threatAt(idx), 0.45);
+// what each act builds up to by its boss: armour on everything but swarms, speed, veteran and elite shares, the chance
+// an elite (and a veteran) carries a trait, and the chance an elite carries a second. Values blend from the previous
+// act's across the act's contracts, so no single contract takes every step at once.
+const ACT_STEP = { armor: [0, 0, 1, 2, 3], spd: [1, 1.03, 1.06, 1.09, 1.12], vet: [0.05, 0.2, 0.32, 0.42, 0.5], eli: [0, 0.06, 0.13, 0.2, 0.28], trait: [0.3, 1, 1, 1, 1], vtrait: [0, 0, 0.2, 0.35, 0.5], trait2: [0, 0, 0, 0.5, 1] };
+function actStep(key, idx) { const a = actOf(idx), k = clamp((idx % SECTOR_LEN) / (SECTOR_LEN - 1), 0, 1), cur = ACT_STEP[key][a - 1], prev = a > 1 ? ACT_STEP[key][a - 2] : cur; return prev + (cur - prev) * k; }
+// the act each kind of hostile joins the waves; the basics are there from the start
+const UNLOCK_ACT = { medic: 1, splitter: 1, shield: 2, stealth: 2, ranged: 2, berserk: 2, gunship: 2, naval: 2, jammer: 3, carrier: 3, blinker: 3, burrower: 3 };
+// a horde every fifth wave in Act 1, every third by Act 5
+const HORDE_EVERY = [5, 4, 4, 3, 3];
+// act boss HP against the faction's listed HP: lower early (no level-10 carry any more), higher late (a full level-12 crew)
+const BOSS_ACT = [0.45, 0.65, 0.9, 1.5, 1.8];
+const COMPLETION_XP = [14, 24, 40, 66, 125];
+const killXp = idx => 0.3 / (1 + 0.12 * idx);
 const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
 Object.assign(BIOMES, {
   cloud: { name: 'Cloud City', mod: { flyers: 1.8, range: 1.1, espd: 1.05 }, hazard: 'High-altitude winds: far more flyers, enemies 5% faster, crew range +10%.' },
@@ -7875,10 +7984,23 @@ function finishMission(success) {
   causeMorale(c);
   moraleDrift();
   const quits = crewQuits();
+  // experience is steady pay: every deployed crew member gets the contract's share, the bench half, and anyone three
+  // or more ranks behind the sector's ceiling double, so late hires catch up
+  for (const cr of RUN.roster) {
+    if (cr.dead) continue;
+    const xm = towerStats(cr).xpMult || 1;
+    cr.xp += COMPLETION_XP[actOf(c.idx) - 1] * (m.deployedIds.has(cr.id) ? 1 : 0.5) * (cr.level < actCap(c.idx) - 3 ? 2 : 1) * xm;
+    promoteCrew(cr, m.promos);
+  }
   // payslip
   const gross = Math.round((50 + 12 * c.idx) * c.pay * (has('tithe') ? 1.2 : 1));
   const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
   if (m.lost === 0) lines.push(['Zero-loss bonus', 25]);
+  if (c.diff === 2 && !c.boss) {
+    lines.push(['Hazard pay (Suicidal)', 25 + 15 * actOf(c.idx)]);
+    const pool = Object.keys(RELICS).filter(r => !RUN.relics.includes(r) && !RELICS[r].special && !RELICS[r].black && relicTier(r) >= 2 && relicTier(r) <= relicMaxTier());
+    if (pool.length) { const r = pick(pool); RUN.relics.push(r); setTimeout(() => toast(`Hazard requisition: ${RELICS[r].name}. ${RELICS[r].desc}`, 3600), 900); }
+  }
   const ded = shuffle([...DEDUCTIONS]).slice(0, ri(2, 3)).map(d => [d, -ri(3, 9)]);
   for (const cr of RUN.roster) if (cr.dead) { const old = cr.name; replaceCrew(cr, true); ded.push([`Replacement hire for ${old}`, -15]); }
   const all = lines.concat(ded);
@@ -8340,8 +8462,8 @@ function genOffers() {
   const owned = new Set(RUN.roster.map(c => c.type));
   types.sort((a, b) => owned.has(a) - owned.has(b));
   for (const t of types.slice(0, 2)) { if (RUN.side) { const cm = comrade(RUN.side, t); offers.push({ kind: 'hire', type: t, name: cm.name, price: HIRE_COST[t], look: cm.look, quirk: cm.quirk, arch: cm.arch, sym: cm.sym, fac: RUN.side }); continue; } const arch = pickArch(); offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook(), quirk: pickQuirk(), arch, sym: PERSONA[arch].value === 'sympath' ? pick(Object.keys(FACTIONS).filter(f => !dissolved(f))) : null }); }
-  const relics = shuffle(Object.keys(RELICS).filter(r => !RUN.relics.includes(r) && !RELICS[r].special)).slice(0, 2);
-  for (const r of relics) offers.push({ kind: 'relic', id: r, price: ri(70, 90) });
+  const relics = shuffle(Object.keys(RELICS).filter(r => !RUN.relics.includes(r) && !RELICS[r].special && !RELICS[r].black && relicTier(r) <= relicMaxTier())).slice(0, 2);
+  for (const r of relics) offers.push({ kind: 'relic', id: r, price: relicPrice(r) });
   if (RUN.story.flags.blackMarket) for (const r of shuffle(Object.keys(RELICS).filter(r => RELICS[r].black && !RUN.relics.includes(r))).slice(0, 2)) offers.push({ kind: 'relic', id: r, price: ri(55, 75), black: true });
   offers.push(rnd() < 0.5 || RUN.margin >= 90 ? { kind: 'train', price: 40 } : { kind: 'account', price: 55 });
   if (RUN.margin < 60 && !offers.some(o => o.kind === 'account')) offers.push({ kind: 'account', price: 55 });
@@ -8355,7 +8477,7 @@ function showStore() {
   const offerHtml = o.map((it, i) => {
     let k, t, d;
     if (it.kind === 'hire') { k = 'Hire · ' + TOWERS[it.type].name; t = it.name; d = `${TOWERS[it.type].desc} Quirk: ${QUIRKS[it.quirk].name}. ${QUIRKS[it.quirk].desc}`; }
-    else if (it.kind === 'relic') { k = it.black ? 'Black market · VectorCorp' : 'Relic'; t = RELICS[it.id].name; d = RELICS[it.id].desc; }
+    else if (it.kind === 'relic') { k = it.black ? 'Black market · VectorCorp' : 'Relic · ' + RELIC_TIER_NAME[relicTier(it.id)]; t = RELICS[it.id].name; d = RELICS[it.id].desc; }
     else if (it.kind === 'train') { k = 'Training seminar'; t = 'Leadership Webinar'; d = 'Promote one crew member a rank, with a performance review. Certificate not included.'; }
     else { k = 'Finance'; t = 'Creative Accounting'; d = 'Restore 15% profit margin. Legally grey. Ethically black.'; }
     const full = it.kind === 'hire' && RUN.roster.length >= 8;
@@ -8401,7 +8523,7 @@ function buy(i) {
     RUN.roster.push(cr);
   }
   else if (it.kind === 'relic') RUN.relics.push(it.id);
-  else if (it.kind === 'train') { if (!RUN.roster.some(c => c.level < MAXL)) return; S.promotePick = true; }
+  else if (it.kind === 'train') { if (!RUN.roster.some(c => c.level < Math.min(MAXL, actCap(RUN.idx)))) return; S.promotePick = true; }
   else if (it.kind === 'account') RUN.margin = Math.min(100, RUN.margin + 15);
   RUN.scrip -= it.price; it.sold = true;
   showStore();
@@ -8500,7 +8622,7 @@ document.addEventListener('click', ev => {
   else if (act === 'shipclose') shipPrompt();
   else if (act === 'shipremedy') { const msg = useRemedy(b.dataset.k); if (msg) { shipPanel('Done', `<p class="lede">${esc(msg)}</p>`); shipHud(); } }
   else if (act === 'shipcounsel') { const cr = RUN.roster.find(c => c.id === b.dataset.id), msg = cr && useRemedy('counsel', cr); if (msg) { shipPanel('Session notes', `<p class="lede">${esc(msg)}</p>`); shipHud(); } }
-  else if (act === 'promote') { const cr = RUN.roster[i]; S.promotePick = false; if (cr && cr.level < MAXL) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); cr.reviews.push(cr.level); showReview(cr); } else showStore(); }
+  else if (act === 'promote') { const cr = RUN.roster[i]; S.promotePick = false; if (cr && cr.level < Math.min(MAXL, actCap(RUN.idx))) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); cr.reviews.push(cr.level); showReview(cr); } else showStore(); }
   else if (act === 'dismiss') { if (RUN.roster.length > 1) { RUN.roster.splice(i, 1); showStore(); } }
   else if (act === 'tomap') { if (reviewDue()) showQuarterly(); else { const f = siegeDue(); if (f) showDemand(f); else { RUN.options = genOptions(); showMap(); } } }
   else if (act === 'mgronboard') showMap();
@@ -11561,7 +11683,7 @@ SECTOR_BIOMES[4] = ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'vol
 SECTOR_BIOMES[5] = ['hq', 'hq', 'cyber', 'cloud', 'tomb', 'volcanic'];
 SECTOR_NAMES[4] = ['The Contested Belt', 'Supply Line Zero', 'The Quiet War']; SECTOR_NAMES[5] = ['Headquarters Approach', 'The Last Quarter'];
 
-window.__AL = { planetScene, deathFx, buildWaterFrames, perchAt, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, deathFx, buildWaterFrames, stunE, promoteCrew, genOffers, relicTier, spawnLieutenant, perchAt, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
