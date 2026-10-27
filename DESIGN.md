@@ -342,7 +342,7 @@ Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on co
   - **Openers:** every envoy opens with a line that fits your standing, from "Don't hang up" to "Every village on the seam knows your name".
 
 ## The manager
-Douglas Pryce, Regional Manager, is Kindly in person and the most recurring face in the game (`showOnboarding`, `showReview`, `managerScene`).
+Douglas Pryce, Regional Manager, is Kindly in person and the most recurring face in the game (`showOnboarding`, `showQuarterly`, `managerScene`).
 - **Day one:** every run opens with his three-line orientation on your ship's bridge: who he is, the job, and the quarterly review. "Sign the waiver" takes you to the star map.
 - **Quarterly reviews:** every 3 contracts, on the way from the store to the star map (before any faction demand), he comes aboard and grades the quarter.
   - **Score** = (average stars − 3) × 0.8 + (crew morale − 55) ÷ 25 − (HR suspicion − 20) ÷ 30 + 0.7 per task done − 0.5 per task failed (`grade`).

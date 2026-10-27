@@ -8115,7 +8115,7 @@ document.addEventListener('click', ev => {
   else if (act === 'shipcounsel') { const cr = RUN.roster.find(c => c.id === b.dataset.id), msg = cr && useRemedy('counsel', cr); if (msg) { shipPanel('Session notes', `<p class="lede">${esc(msg)}</p>`); shipHud(); } }
   else if (act === 'promote') { const cr = RUN.roster[i]; S.promotePick = false; if (cr && cr.level < MAXL) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); cr.reviews.push(cr.level); showReview(cr); } else showStore(); }
   else if (act === 'dismiss') { if (RUN.roster.length > 1) { RUN.roster.splice(i, 1); showStore(); } }
-  else if (act === 'tomap') { if (reviewDue()) showReview(); else { const f = siegeDue(); if (f) showDemand(f); else { RUN.options = genOptions(); showMap(); } } }
+  else if (act === 'tomap') { if (reviewDue()) showQuarterly(); else { const f = siegeDue(); if (f) showDemand(f); else { RUN.options = genOptions(); showMap(); } } }
   else if (act === 'mgronboard') showMap();
   else if (act === 'mgrdone') { S.mgr = null; S.mgrOffer = null; const f = siegeDue(); if (f) showDemand(f); else { RUN.options = genOptions(); showMap(); } }
   else if (act === 'mgrtech') { if (!RUN.relics.includes(b.dataset.id)) RUN.relics.push(b.dataset.id); sfx('promote'); for (const x of document.querySelectorAll('[data-act="mgrtech"]')) { x.disabled = true; if (x === b) x.classList.add('picked'); } const d = $('[data-act="mgrdone"]'); if (d) d.disabled = false; }
@@ -10705,8 +10705,8 @@ const VERDICTS = {
   D: { pose: 'facepalm', expr: 'angry', line: 'Unacceptable. The shortfall comes out of your margin, and your crew know why.', apply: () => { RUN.margin = Math.max(1, RUN.margin - 15); for (const cr of RUN.roster) bumpMorale(cr, -8, 'disciplinary'); return '−15% margin, crew morale −8.'; } },
   F: { pose: 'slam', expr: 'angry', line: 'You are done. Security will walk you off your own ship.', apply: () => 'Terminated.' },
 };
-// the review itself
-function showReview() {
+// the review itself (named apart from showReview, the crew performance review)
+function showQuarterly() {
   const q = quarter(), R = grade(); let G = R.G.g;
   const probation = !RUN.reviews && G === 'F';
   if (probation) G = 'D';
@@ -10981,7 +10981,7 @@ function stepManagerTech(dt) {
   }
 }
 
-window.__AL = { planetScene, mgrHead, mgrBody, painter, showReview, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
