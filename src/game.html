@@ -2548,7 +2548,7 @@ const PERKS = [
   P('capacitor', 't1', 'rail', 'Bigger Capacitor', '+25% damage.', s => { s.dmg *= 1.25; }),
   P('longbarrel', 't1', 'rail', 'Long Barrel', '+20% range.', s => { s.range *= 1.2; }),
   P('hyper', 't2', 'rail', 'Hypervelocity', '+25% fire rate.', s => { s.rate *= 1.25; }),
-  P('writedown', 'cap', 'rail', 'Write-Down', 'A slug that kills recharges the gun instantly.', s => { s.railRefund = true; }),
+  P('writedown', 'cap', 'rail', 'Write-Down', 'A slug that kills recharges the gun in under half a second.', s => { s.railRefund = true; }),
   P('gauss', 'cap', 'rail', 'Gauss Volley', 'Every 3rd shot fires twice.', s => { s.railDouble = 3; }),
   P('icebreaker', 't1', 'liaison', 'Icebreakers', 'Aura: +5% more fire rate.', s => { s.auraRate += 0.05; }),
   P('snacks', 't1', 'liaison', 'Office Snacks', 'Aura heals crew 2 HP/s.', s => { s.heal += 2; }),
@@ -4280,7 +4280,7 @@ function stepMission(dt) {
         hitEnemy(e, s.dmg, s, tw); if (e.dead) killed = true;
       }
       m.fx.push({ k: 'tracer', x1: mz.x, y1: mz.y, x2: mz.x + ux * len, y2: mz.y + uy * len, life: 0.2, max: 0.2, color: tw.gear.tracer || s.color, w: 3, glow: '#bff8ff' });
-      if (killed && s.railRefund) tw.cd = 0.05;
+      if (killed && s.railRefund) tw.cd = Math.min(tw.cd, 0.45);
       smoke(mz.x, mz.y, 3); shake(2);
       continue;
     }
@@ -4434,7 +4434,7 @@ function glow(x, y, r, col, a) {
 function renderMission(now) {
   const m = M, t = now / 1000, W = GW * ATILE, H = GH * ATILE, LW = GW * TILE, LH = GH * TILE;
   if (!WB || WB.width !== W || WB.height !== H) { WB = mkCanvas(W, H); WBG = WB.getContext('2d'); }
-  const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1;
+  const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1; DMG_BUDGET = 3;
   g.drawImage(m.ground, 0, 0);
   drawLiquidFx(g, t);
   drawPortals(g, t);
@@ -4516,9 +4516,7 @@ function renderMission(now) {
     px(g, x, y, Math.max(0, Math.round(w * clamp(e.hp / e.maxhp, 0, 1))), e.boss ? 2 : 1, e.boss ? '#ff4d5e' : e.tier === 2 ? '#ffd23f' : '#e8eef5');
   }
   for (const tw of m.towers) {
-    const ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6;
-    for (let i = 0; i < tw.crew.level; i++) px(g, ax - 7 + i * 2, ay + 3, 1, 1, tw.down ? '#59616b' : '#ffd23f');
-    if (tw.crew.spec) px(g, ax + 6, ay + 2, 2, 2, tw.crew.perks.includes(BRANCH[tw.crew.spec].cap) ? '#ffd23f' : '#b98cff');
+    const pc = tw.down ? null : perchOf(tw), ax = Math.round(tw.x / AP) + (pc ? pc.dx : 0), ay = Math.round(tw.y / AP) + 6 + (pc ? pc.dy : 0);
     if (tw.offline > 0) { const k = Math.floor(t * 10) % 3; px(g, ax - 4 + k * 3, ay - 22, 1, 2, '#3af0ff'); px(g, ax - 3 + k * 2, ay - 25, 1, 1, '#eaffff'); }
     if (tw.jam > 0 && Math.floor(t * 2) % 2) { px(g, ax - 2, ay - 24, 1, 1, '#ff4d6d'); px(g, ax + 2, ay - 24, 1, 1, '#ff4d6d'); px(g, ax - 1, ay - 23, 3, 1, '#ff4d6d'); px(g, ax - 2, ay - 22, 1, 1, '#ff4d6d'); px(g, ax + 2, ay - 22, 1, 1, '#ff4d6d'); }
     if (tw.crew.reviews.length && Math.floor(t * 3) % 2) { px(g, ax - 1, ay - 26, 3, 5, '#0c0e14'); px(g, ax, ay - 25, 1, 2, '#ffd23f'); px(g, ax, ay - 22, 1, 1, '#ffd23f'); }
@@ -4886,11 +4884,16 @@ function drawTowerBody(g, tw, t, ride, shiftX = 0, foot = ride == null ? 'full' 
 // below 50%, and chunks blown out of the silhouette below 25%. Each kind of mark has its own seed per sprite,
 // so the marks stay put from one animation frame (and one damage stage) to the next.
 const dmgStage = e => { const k = e.hp / e.maxhp; return k < 0.25 ? 3 : k < 0.5 ? 2 : k < 0.75 ? 1 : 0; };
+// Building one reads pixels back, so only a few are made per frame: a chain or a rail slug can push a dozen
+// hostiles into a new stage at once, and the rest show their last stage for a frame or two instead of stalling.
+let DMG_BUDGET = 3;
 function damagedFrame(v, fi, stage) {
   v.dmg = v.dmg || [];
   const key = stage * 32 + fi;
   if (v.dmg[key]) return v.dmg[key];
-  const src = v.frames[fi], w = src.width, h = src.height, c = mkCanvas(w, h), g = c.getContext('2d');
+  if (DMG_BUDGET <= 0) { for (let k = stage - 1; k > 0; k--) if (v.dmg[k * 32 + fi]) return v.dmg[k * 32 + fi]; return v.frames[fi]; }
+  DMG_BUDGET--;
+  const src = v.frames[fi], w = src.width, h = src.height, c = mkCanvas(w, h), g = c.getContext('2d', { willReadFrequently: true });
   g.drawImage(src, 0, 0);
   const id = g.getImageData(0, 0, w, h), d = id.data, area = w * h;
   const base = v.seed || (v.seed = ((w * 73856093) ^ (h * 19349663) ^ ((v.ax + 7) * 83492791)) >>> 0 || 1);
