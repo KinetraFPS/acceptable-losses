@@ -8005,14 +8005,25 @@ document.addEventListener('keydown', ev => {
 
 // ---------- main loop ----------
 let last = performance.now(), acc = 0;
+// the next frame is booked first, so one bad frame can never stop the game; errors are reported once each
+const FRAME_ERRORS = new Set();
+function reportFrameError(e) {
+  const msg = (e && e.message) || String(e), where = ((e && e.stack) || '').split('\n')[1] || '';
+  console.error('frame error', e);
+  if (FRAME_ERRORS.has(msg)) return; FRAME_ERRORS.add(msg);
+  S.lastError = `${msg} ${where.trim()}`;
+  try { toast(`Something broke (${msg}). The game kept running. Tell the developer: ${where.trim().slice(0, 60)}`, 6000); } catch (e2) { }
+}
 function frame(now) {
-  const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  if (S.screen === 'mission' && M) {
-    if (!M.paused) { acc += dt * M.speed; let n = 0; while (acc >= STEP && n++ < 12) { stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= 12) acc = 0; }
-    if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; renderMission(now); updateHud(); }
-  } else if (S.screen === 'map') renderMap(now);
-  else { beginDraw(); drawStars(now / 1000); if (S.screen === 'envoy') drawEnvoyFrame(now); }
   requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  try {
+    if (S.screen === 'mission' && M) {
+      if (!M.paused) { acc += dt * M.speed; let n = 0; while (acc >= STEP && n++ < 12) { stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= 12) acc = 0; }
+      if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; renderMission(now); updateHud(); }
+    } else if (S.screen === 'map') renderMap(now);
+    else { beginDraw(); drawStars(now / 1000); if (S.screen === 'envoy') drawEnvoyFrame(now); }
+  } catch (e) { acc = 0; reportFrameError(e); }
 }
 
 // test hook for automated playtesting
