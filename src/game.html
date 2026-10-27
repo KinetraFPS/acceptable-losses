@@ -2827,8 +2827,8 @@ function carveRiver(grid, dep, spawns) {
 // Buildings go up after the roads, the way towns grow: along the streets, doors facing the road,
 // never on a road, a clear tile between neighbours, and never with a pool, river or wall in front
 // of the door. The first few line a straight stretch of road as a planned street.
-function placeBuildings(grid, dep, spawns, roads) {
-  const out = [], front = new Set(), want = ri(3, 5), sizes = [[2, 2], [3, 2], [2, 3], [3, 3], [4, 2]];
+function placeBuildings(grid, dep, spawns, roads, city) {
+  const out = [], front = new Set(), want = city ? ri(6, 9) : ri(3, 5), sizes = city ? [[2, 3], [3, 3], [2, 3], [2, 2], [3, 2], [2, 4]] : [[2, 2], [3, 2], [2, 3], [3, 3], [4, 2]];
   const road = (x, y) => roads.has(y * GW + x), v = (x, y) => (grid[y] ? grid[y][x] : undefined);
   const near = (b, x, y, w, h, d) => !(x > b.x + b.w - 1 + d || x + w - 1 < b.x - d || y > b.y + b.h - 1 + d || y + h - 1 < b.y - d);
   const fits = (x, y, w, h) => {
@@ -2860,7 +2860,7 @@ function placeBuildings(grid, dep, spawns, roads) {
   const runs = [];
   for (const p of roads.paths || []) for (let i = 0; i < p.length;) { let j = i; while (j + 1 < p.length && p[j + 1].y === p[i].y && Math.abs(p[j + 1].x - p[j].x) === 1) j++; if (j - i >= 5) runs.push({ y: p[i].y, x0: Math.min(p[i].x, p[j].x), x1: Math.max(p[i].x, p[j].x) }); i = j + 1; }
   for (const r of shuffle(runs)) {
-    const [w, h] = pick([[2, 2], [3, 2], [2, 2]]), n = Math.min(3, Math.floor((r.x1 - r.x0 + 2) / (w + 1)));
+    const [w, h] = pick(city ? [[2, 3], [2, 2], [3, 3]] : [[2, 2], [3, 2], [2, 2]]), n = Math.min(3, Math.floor((r.x1 - r.x0 + 2) / (w + 1)));
     if (n < 2) continue;
     const plots = Array.from({ length: n }, (_, k) => [r.x0 + k * (w + 1), r.y - h]);
     if (!plots.every(([x, y]) => fits(x, y, w, h))) continue;
@@ -2870,8 +2870,8 @@ function placeBuildings(grid, dep, spawns, roads) {
   // the rest: the most natural free plots
   for (let n = 0; n < 60 && out.length < want; n++) {
     let best = null;
-    for (let k = 0; k < 160; k++) { const [w, h] = pick(sizes), x = ri(1, GW - w - 1), y = ri(1, GH - h - 1); if (!fits(x, y, w, h)) continue; const s = score(x, y, w, h); if (!best || s > best.s) best = { x, y, w, h, s }; }
-    if (!best || best.s < 0) break;
+    for (let k = 0; k < (city ? 260 : 160); k++) { const [w, h] = pick(sizes), x = ri(1, GW - w - 1), y = ri(1, GH - h - 1); if (!fits(x, y, w, h)) continue; const s = score(x, y, w, h); if (!best || s > best.s) best = { x, y, w, h, s }; }
+    if (!best || best.s < (city ? -7 : 0)) break;
     put(best.x, best.y, best.w, best.h, false);
   }
   out.front = front;
@@ -2925,7 +2925,7 @@ function genMap(nSpawns, biomeKey) {
     }
     if (!ok || !pathsOk(paths)) continue;
     onAny.paths = paths;
-    const buildings = placeBuildings(grid, dep, spawns, onAny), front = buildings.front;
+    const buildings = placeBuildings(grid, dep, spawns, onAny, biomeKey === 'cyber' || biomeKey === 'hq'), front = buildings.front;
     const bridges = [];
     for (const k of onAny) {
       const x = k % GW, y = (k / GW) | 0, v = grid[y][x];
@@ -3293,6 +3293,7 @@ function renderGround(map, biomeKey) {
   // buildings, with a tunnel mouth wherever a path leaves the footprint
   // shadows first, so a building never sits under its neighbour's shadow
   const kit3 = B3.BKIT[biomeKey], blds = (map.buildings || []).slice().sort((a, b) => a.y - b.y);
+  map.noStand = new Set();
   if (kit3) for (const b of blds) if (b.type) B3.buildingShadow(g, b.x * ATILE, b.y * ATILE, b.w * ATILE, b.h * ATILE, B3.TALL[b.type] || 1);
   for (const b of blds) {
     const openings = [];
@@ -3307,6 +3308,8 @@ function renderGround(map, biomeKey) {
     if (kit3 && b.type) {
       const o = B3.building3d(biomeKey, b, b.type), ox = b.x * ATILE, oy = b.y * ATILE;
       B3.drawOpenings(o, openings);
+      // roof tiles whose middle isn't on the deck are not somewhere anyone can stand (the front row is ground level, against the wall)
+      for (let ty = b.y; ty < b.y + b.h - 1; ty++) for (let tx = b.x; tx < b.x + b.w; tx++) { const lx = (tx - b.x) * ATILE + ATILE / 2, ly = (ty - b.y) * ATILE + ATILE / 2; if (!o.deck.some(([x, y, w, h]) => lx >= x && lx < x + w && ly >= y && ly < y + h)) map.noStand.add(ty * GW + tx); }
       // a short paved walk from each door down to the open ground in front
       for (const d of o.doors) { const tx = b.x + Math.floor(d / ATILE); if (code(tx, b.y + b.h) === 0) { const wx = ox + Math.round(d) - 3, wy = oy + b.h * ATILE + 1; P.r(wx, wy, 6, ATILE - 4, shade(A.p[0], 0.1)); P.r(wx - 1, wy, 1, ATILE - 4, shade(A.p[0], -0.25)); P.r(wx + 6, wy, 1, ATILE - 4, shade(A.p[0], -0.25)); for (let y = wy + 3; y < wy + ATILE - 4; y += 4) P.r(wx, y, 6, 1, shade(A.p[0], -0.1)); } }
       g.drawImage(o.c, ox + o.ox, oy + o.oy); addAll(o, ox, oy);
@@ -3322,6 +3325,7 @@ function renderGround(map, biomeKey) {
     const x0 = it.x * ATILE, y0 = it.y * ATILE;
     if (it.big) {
       const o = landmarkSprite(pick(A.land)), oy = y0 + ATILE * 2 - 2 - o.c.height;
+      if (oy < y0 - 4) for (let dx = 0; dx < 2; dx++) map.noStand.add((it.y - 1) * GW + it.x + dx);
       P.ell(x0 + 18, y0 + 33, 16, 3.5, 'rgba(0,0,0,0.3)'); g.drawImage(o.c, x0, oy); addAll(o, x0, oy);
     } else {
       const o = obstacleSprite(it.kind), oy = y0 + 16 - o.c.height;
@@ -3388,6 +3392,7 @@ function towerAtTile(tx, ty) { return M.towers.find(t => t.tx === tx && t.ty ===
 // open ground or a rooftop (6, or 7 with a tunnel underneath)
 function deployRefusal(tx, ty) {
   const v = M.grid[ty][tx];
+  if (M.map && M.map.noStand && M.map.noStand.has(ty * GW + tx)) return v >= 6 ? 'Nowhere to stand up there. Health and Safety has been informed.' : 'That sign is in the way. Crew are not decorations.';
   if (v === 5) return `Crew cannot stand in ${LIQUIDS[BIOME_ART[M.c.biomeKey].liquid.kind].name}. Not covered by insurance.`;
   if (v === 1 && (M.map.bridges || []).some(b => b.x === tx && b.y === ty)) return 'Bridge is load-rated for hostiles only.';
   if (v === 1 || v === 4 || tunnelMouth(tx, ty)) return 'Crew cannot stand on the path. Union rules (ours).';
@@ -3571,7 +3576,7 @@ function initPeek() {
 }
 // a tunnel tile on a building's front row is the tunnel mouth itself: that is road, not rooftop
 const tunnelMouth = (tx, ty) => M.grid[ty][tx] === 7 && facadeAt(tx, ty);
-function canBuild(tx, ty) { const v = M.grid[ty][tx]; return (v === 0 || v === 6 || (v === 7 && !tunnelMouth(tx, ty)) || !!platformAt(tx, ty)) && !towerAtTile(tx, ty) && !artBlocks(tx, ty); }
+function canBuild(tx, ty) { const v = M.grid[ty][tx]; if (M.map && M.map.noStand && M.map.noStand.has(ty * GW + tx) && !platformAt(tx, ty)) return false; return (v === 0 || v === 6 || (v === 7 && !tunnelMouth(tx, ty)) || !!platformAt(tx, ty)) && !towerAtTile(tx, ty) && !artBlocks(tx, ty); }
 
 function towerStats(crew, tw) {
   const b = TOWERS[crew.type], L = crew.level;
@@ -9212,6 +9217,7 @@ const flagpole = (P, x, y, col, L) => { P.r(x, y - 9, 1, 12, '#c8ccd4'); P.p(x, 
 function winRow(P, c, y, h = 4, step = 6, skip = null, w = 3) { for (let x = 3; x + w < c.W - 4; x += step) { if (skip && skip(x)) continue; win(P, x, y, w, h, c.K, undefined, c.L); } }
 const BT = {
   house(P, c) {
+    if (c.K.neon || c.K.tex === 'glass') return BT.flats(P, c);
     const { W, H, RH, FH, K } = c, units = W >= 72 ? 2 : 1, uw = W / units;
     for (let u = 0; u < units; u++) {
       const x0 = Math.round(u * uw), w = Math.round(uw);
@@ -9226,6 +9232,29 @@ const BT = {
     }
     // washing line between the units or off the side
     P.line(4, RH + 3, W - 6, RH + 4, '#c8ccd4'); for (let x = 7; x < W - 8; x += 5) P.r(x, RH + 4, 2, 3, pick(['#e8e4dc', '#ff6fae', '#5fd4ff', '#ffd23f']));
+  },
+  // city housing: a block of stacked capsule flats, portholes lit or dark, balconies with plants
+  // and laundry, a fire escape down the side and a vertical neon sign
+  flats(P, c) {
+    const { W, H, RH, FH, K } = c, pods = K.neon || [K.sign, '#9fd3ff'];
+    roofFlat(P, 0, 0, W, RH, K);
+    tank(P, 3, 2); dish(P, W - 11, 1); if (W > 40) acUnit(P, (W >> 1) - 3, RH - 8);
+    wallFace(P, 0, RH, W, FH, K);
+    const ph = 7, pw = 9;
+    for (let y = RH + 3, row = 0; y + ph <= H - 10; y += ph + 1, row++) for (let x = 5 + (row % 2) * 2; x + pw < W - 6; x += pw + 1) {
+      const col = shade(K.wall, (row + (x >> 3)) % 3 === 0 ? 0.16 : 0.02);
+      P.r(x, y, pw, ph, col); P.r(x, y, pw, 1, lt(col, 0.28)); P.r(x + pw - 1, y, 1, ph, dk(col, 0.32)); P.r(x, y + ph - 1, pw, 1, dk(col, 0.38));
+      const lit = rnd() < 0.62, gl = lit ? (rnd() < 0.3 ? pick(pods) : K.win) : K.winOff;
+      P.ell(x + 3.5, y + 3, 2.2, 2, dk(col, 0.5)); P.ell(x + 3.5, y + 3, 1.4, 1.2, gl); if (lit) P.p(x + 3, y + 2, '#ffffff');
+      P.r(x + 6, y + 2, 2, 4, dk(col, 0.22)); if (rnd() < 0.45) { P.p(x + 6, y + 1, '#5aa04a'); P.p(x + 7, y + 1, '#7cc86a'); }
+      if (rnd() < 0.3) P.r(x + 1, y + ph - 2, 3, 1, pick(['#ff6fae', '#ffd23f', '#e8e4dc', '#5fd4ff']));
+      if (lit && rnd() < 0.3) anim({ kind: 'winblink', x: x + 3, y: y + 2, on: gl, off: K.winOff, ph: rnd() * 9 });
+      if (lit && rnd() < 0.4) c.L.push({ x: x + 3.5, y: y + 3, color: gl, r: 6 });
+    }
+    for (let y = RH + 4; y < H - 6; y += 5) { P.r(W - 7, y, 4, 1, '#8a8ea2'); P.line(W - 7, y, W - 4, y + 4, '#5a5e72'); }
+    const n = pick(pods); P.r(1, RH + 3, 3, FH - 9, '#14151f'); for (let y = RH + 4; y < RH + FH - 7; y += 2) P.p(2, y, n);
+    anim({ kind: 'neon', x: 2, y: RH + 4, w: 1, h: FH - 11, col: n }); c.L.push({ x: 2, y: RH + FH / 2, color: n, r: 14 });
+    door(P, (W >> 1) - 3, H - 9, 6, 7, K, { glass: true });
   },
   shop(P, c) {
     const { W, H, RH, FH, K } = c;
@@ -9333,24 +9362,9 @@ const BT = {
     door(P, (W >> 1) - 3, RH + FH - 9, 6, 7, K, { glass: true });
     blockOn(P, (W >> 1) - 8, RH - 5, 16, 3, '#1a1a22', 2); P.r((W >> 1) - 6, RH - 4, 12, 1, K.sign);
   },
-  // a tower: the roof is small and the whole front is floors, so it reads several storeys taller,
-  // stepping back into a crown near the top
-  skyscraper(P, c) {
-    const { W, H, K } = c, crownH = 8, roofD = 7;
-    // setback crown: a narrower block on top
-    const cw = W - 10, cx = 5;
-    roofFlat(P, cx, 0, cw, roofD, K); wallFace(P, cx, roofD, cw, crownH, K);
-    for (let x = cx + 2; x < cx + cw - 4; x += 3) P.r(x, roofD + 3, 2, 3, K.neon ? pick(K.neon) : K.win);
-    P.r(cx + (cw >> 1), -3, 1, 4, '#9aa3ad'); P.p(cx + (cw >> 1), -4, '#ff4d6d'); anim({ kind: 'beacon', x: cx + (cw >> 1), y: -4 }); c.L.push({ x: cx + cw / 2, y: -4, color: '#ff4d6d', r: 10, pulse: true });
-    // the main shaft: a ledge, then floor after floor
-    const top = roofD + crownH; P.r(0, top, W, 2, lt(K.roof, 0.2)); P.r(0, top + 2, W, 1, dk(K.roof, 0.3));
-    wallFace(P, 0, top + 3, W, H - top - 3, K);
-    for (let k = 0; k < 4; k++) anim({ kind: 'winblink', x: 2 + ri(0, ((W - 8) / 3) | 0) * 3, y: top + 6 + ri(0, Math.max(0, ((H - top - 16) / 4) | 0)) * 4, on: K.win, off: K.winOff, ph: rnd() * 9 });
-    for (let y = top + 6; y < H - 9; y += 4) for (let x = 2; x < W - 5; x += 3) { const on = rnd() < 0.6; P.r(x, y, 2, 2, on ? (K.neon && rnd() < 0.2 ? pick(K.neon) : K.win) : K.winOff); }
-    for (let x = 0; x < W - 3; x += 9) P.r(x, top + 3, 1, H - top - 6, lt(K.wall, 0.12));                    // mullions
-    if (K.neon) { const n = pick(K.neon); P.r(W - 6, top + 6, 2, H - top - 18, n); anim({ kind: 'neon', x: W - 6, y: top + 6, w: 2, h: H - top - 18, col: n }); c.L.push({ x: W - 5, y: (top + H) / 2, color: n, r: 20 }); }
-    door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
-  },
+  // towers: the roof is small and the whole front is floors, so they read several storeys taller.
+  // Five shapes, so a city skyline never repeats: setback, slab, round, needle and tiered
+  skyscraper(P, c) { return [towerSetback, towerSlab, towerRound, towerNeedle, towerTiers][c.variant ?? ri(0, 4)](P, c); },
   unionhall(P, c) {
     const { W, H, RH, FH, K } = c, KB = { ...K, wall: local('#8a5a4a', K.wall, 0.45), tex: 'brick' };
     roofGable(P, 0, 0, W, RH, { ...K, roof: local('#7a4a3a', K.roof, 0.45) });
@@ -9362,6 +9376,82 @@ const BT = {
     flagpole(P, W - 6, RH - 3, '#c83a2a');
   },
 };
+
+// ---------- towers ----------
+// a field of windows: lit, dark, the odd neon one, a few switching on and off
+function floors(P, x0, y0, x1, y1, K, c, o = {}) {
+  const stepY = o.stepY || 4, stepX = o.stepX || 3, pods = K.neon || [K.win];
+  for (let y = y0; y < y1 - 1; y += stepY) for (let x = x0; x < x1 - 1; x += stepX) {
+    if (o.mask && !o.mask(x, y)) continue;
+    const on = rnd() < 0.6; P.r(x, y, 2, 2, on ? (K.neon && rnd() < 0.18 ? pick(pods) : K.win) : K.winOff);
+  }
+  for (let k = 0; k < 3; k++) anim({ kind: 'winblink', x: x0 + ri(0, Math.max(0, ((x1 - x0 - 3) / stepX) | 0)) * stepX, y: y0 + ri(0, Math.max(0, ((y1 - y0 - 3) / stepY) | 0)) * stepY, on: K.win, off: K.winOff, ph: rnd() * 9 });
+}
+const ledge = (P, x, y, w, K) => { P.r(x - 1, y, w + 2, 2, lt(K.roofFlat || K.roof, 0.22)); P.r(x - 1, y + 2, w + 2, 1, dk(K.roof, 0.35)); };
+const beaconMast = (P, x, y, len, c) => { P.r(x, y - len, 1, len + 1, '#9aa3ad'); P.p(x, y - len - 1, '#ff4d6d'); anim({ kind: 'beacon', x, y: y - len - 1 }); c.L.push({ x, y: y - len - 1, color: '#ff4d6d', r: 10, pulse: true }); };
+const neonStripe = (P, x, y, w, h, K, c) => { if (!K.neon) return; const n = pick(K.neon); P.r(x, y, w, h, n); anim({ kind: 'neon', x, y, w, h, col: n }); c.L.push({ x: x + w / 2, y: y + h / 2, color: n, r: 18 }); };
+// the original: a narrower crown set back on top of the main shaft
+function towerSetback(P, c) {
+  const { W, H, K } = c, crownH = 8, roofD = 7, cw = W - 10, cx = 5;
+  roofFlat(P, cx, 0, cw, roofD, K); wallFace(P, cx, roofD, cw, crownH, K);
+  for (let x = cx + 2; x < cx + cw - 4; x += 3) P.r(x, roofD + 3, 2, 3, K.neon ? pick(K.neon) : K.win);
+  beaconMast(P, cx + (cw >> 1), 0, 3, c);
+  const top = roofD + crownH; ledge(P, 0, top, W, K);
+  wallFace(P, 0, top + 3, W, H - top - 3, K);
+  floors(P, 2, top + 6, W - 5, H - 9, K, c);
+  for (let x = 0; x < W - 3; x += 9) P.r(x, top + 3, 1, H - top - 6, lt(K.wall, 0.12));
+  neonStripe(P, W - 6, top + 6, 2, H - top - 18, K, c);
+  door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+}
+// a broad slab: helipad on the roof, glass bands floor after floor, an ad screen down the side
+function towerSlab(P, c) {
+  const { W, H, K } = c, roofD = 11;
+  roofFlat(P, 0, 0, W, roofD, K);
+  const hx = Math.round(W * 0.38), hy = 5; P.ell(hx, hy, 5, 3, dk(K.roof, 0.2)); P.ell(hx, hy, 4, 2.3, '#ffd23f'); P.ell(hx, hy, 3, 1.6, dk(K.roof, 0.2)); P.r(hx - 1, hy - 1, 1, 3, '#e8e4dc'); P.r(hx + 1, hy - 1, 1, 3, '#e8e4dc'); P.p(hx, hy, '#e8e4dc');
+  for (let k = 0; k < 3; k++) beaconMast(P, W - 6 - k * 3, 3 + k, 3 + k * 2, c);
+  wallFace(P, 0, roofD, W, H - roofD, K);
+  for (let y = roofD + 4; y < H - 9; y += 4) { P.r(1, y, W - 5, 2, mixHex(K.winOff, K.win, rnd() * 0.5 + 0.2)); P.r(1, y + 2, W - 5, 1, dk(K.wall, 0.2)); }
+  for (let k = 0; k < 4; k++) anim({ kind: 'winblink', x: ri(2, W - 8), y: roofD + 4 + ri(0, ((H - roofD - 14) / 4) | 0) * 4, on: K.win, off: K.winOff, ph: rnd() * 9 });
+  if (K.neon) { const sw = Math.max(6, (W / 4) | 0); P.r(2, roofD + 5, sw, H - roofD - 18, '#0e0f18'); anim({ kind: 'screen', x: 3, y: roofD + 6, w: sw - 2, h: H - roofD - 20 }); c.L.push({ x: 2 + sw / 2, y: H / 2, color: '#ff3ad6', r: 22 }); }
+  else { P.ell(W / 2, roofD + 7, 4, 3, '#ffd23f'); P.ell(W / 2 - 1, roofD + 6, 2, 1, '#fff2b0'); c.L.push({ x: W / 2, y: roofD + 7, color: '#ffd23f', r: 16 }); }
+  door(P, (W >> 1) - 5, H - 8, 10, 6, K, { glass: true });
+}
+// a round tower: the wall wraps away from the light, windows narrowing towards the edges
+function towerRound(P, c) {
+  const { W, H, K } = c, roofD = 9, cx = W / 2, R = W / 2 - 1;
+  sculptCyl(P, 1, roofD - 2, W - 3, H - roofD + 1, K.wall, 0.15);
+  for (let y = roofD + 3; y < H - 9; y += 4) for (let x = 3; x < W - 4; x += 3) { const nx = (x - cx) / R; if (Math.abs(nx) > 0.85) continue; const on = rnd() < 0.6; P.r(x, y, Math.abs(nx) > 0.6 ? 1 : 2, 2, on ? (K.neon && rnd() < 0.2 ? pick(K.neon) : K.win) : K.winOff); }
+  for (let k = 0; k < 3; k++) anim({ kind: 'winblink', x: Math.round(cx - 4 + k * 3), y: roofD + 3 + ri(0, ((H - roofD - 14) / 4) | 0) * 4, on: K.win, off: K.winOff, ph: rnd() * 9 });
+  sculptBall(P, cx - 0.5, roofD - 2, R, roofD - 3, K.roofFlat || K.roof);
+  for (let a = 0; a < 6.28; a += 0.5) { const x = Math.round(cx + Math.cos(a) * (R - 2)), y = Math.round(roofD - 2 + Math.sin(a) * (roofD - 5)); P.p(x, y, K.neon ? pick(K.neon) : '#ffd23f'); }
+  beaconMast(P, Math.round(cx), roofD - 3, 5, c);
+  if (K.neon) { const n = pick(K.neon); for (let y = roofD + 2; y < H - 10; y += 6) { P.r(3, y, W - 7, 1, n); } anim({ kind: 'neon', x: 3, y: roofD + 2, w: W - 7, h: 1, col: n }); }
+  door(P, Math.round(cx) - 4, H - 8, 8, 6, K, { glass: true });
+}
+// a needle: the body steps in twice and ends in a long lit spire (nowhere to stand up there)
+function towerNeedle(P, c) {
+  const { W, H, K } = c, t1 = Math.round(H * 0.42), t2 = Math.round(H * 0.24);
+  wallFace(P, 0, t1, W, H - t1, K); floors(P, 2, t1 + 4, W - 5, H - 9, K, c); ledge(P, 0, t1 - 2, W, K);
+  const w2 = W - 8; wallFace(P, 4, t2, w2, t1 - t2 - 2, K); floors(P, 6, t2 + 3, 4 + w2 - 4, t1 - 3, K, c); ledge(P, 4, t2 - 2, w2, K);
+  const w3 = Math.max(6, W - 18), x3 = (W - w3) >> 1; wallFace(P, x3, 8, w3, t2 - 10, K, { noSide: true });
+  for (let k = 0; k < 6; k++) P.r((W >> 1) - 3 + (k >> 1), 2 + k, 6 - (k >> 1) * 2, 1, lt(K.roof, 0.1 - k * 0.04));
+  beaconMast(P, W >> 1, 2, 7, c);
+  neonStripe(P, (W >> 1) - 1, t2 + 2, 2, H - t2 - 12, K, c);
+  c.deck = [];
+  door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+}
+// tiers: three stacked blocks, each with an overhanging ledge; in the megacity the ledges glow like a pagoda's eaves
+function towerTiers(P, c) {
+  const { W, H, K } = c, n = 3, tierH = Math.floor((H - 8) / n);
+  for (let k = 0; k < n; k++) {
+    const inset = (n - 1 - k) * 3, x = inset, w = W - inset * 2, y = 8 + k * tierH - (k === 0 ? 6 : 0), hh = tierH + (k === 0 ? 6 : 0);
+    wallFace(P, x, y, w, hh, K); floors(P, x + 2, y + 4, x + w - 4, y + hh - 2, K, c, { stepY: 4 });
+    P.r(x - 2, y - 1, w + 4, 2, K.neon ? pick(K.neon) : lt(K.roof, 0.2)); P.r(x - 2, y + 1, w + 4, 1, dk(K.roof, 0.4));
+    if (K.neon) anim({ kind: 'neon', x: x - 2, y: y - 1, w: w + 4, h: 1, col: K.neon[k % K.neon.length] });
+  }
+  roofFlat(P, 6, 0, W - 12, 4, K); beaconMast(P, W >> 1, 1, 4, c);
+  door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+}
 // ---------- the alien (fungal) types: caps, stalks, pods and glow ----------
 const capRoof = (P, cx, cy, rx, ry, K, o = {}) => {
   if (rx > 6) anim({ kind: 'spore', x: cx, y: cy - ry * 0.6, r: rx, col: K.glow || '#ffd0f0' });
@@ -9370,12 +9460,18 @@ const capRoof = (P, cx, cy, rx, ry, K, o = {}) => {
   // the gills under the rim, in shadow
   const gy = Math.round(cy + ry * (o.cut ?? 0.35)); for (let x = Math.round(cx - rx * 0.9); x < cx + rx * 0.9; x++) P.p(x, gy, x % 2 ? dk(K.cap, 0.5) : dk(K.cap, 0.35));
 };
+const basePad = (P, W, H, col, glow) => {
+  const y0 = Math.round(H * 0.32), c0 = col;
+  P.r(1, y0, W - 2, H - y0 - 1, c0); P.r(1, y0, W - 2, 1, lt(c0, 0.25)); P.r(1, y0, 1, H - y0 - 1, lt(c0, 0.12)); P.r(W - 2, y0, 1, H - y0 - 1, dk(c0, 0.3)); P.r(1, H - 3, W - 2, 2, dk(c0, 0.32));
+  for (let k = 0; k < W * H / 30; k++) P.p(ri(2, W - 3), ri(y0 + 2, H - 4), k % 5 === 0 && glow ? glow : lt(c0, 0.12));
+};
 const stalkWall = (P, x, y, w, h, K) => { sculptCyl(P, x, y, w, h, K.wall, 0.25); for (let yy = y + 2; yy < y + h; yy += 4) for (let xx = x + 1; xx < x + w - 1; xx += 5) P.p(xx + (yy % 3), yy, dk(K.wall, 0.15)); };
 const roundDoor = (P, x, y, r, K, L) => { if (DOORS) DOORS.push(x); P.ell(x, y, r + 1, r + 1.5, dk(K.wall, 0.5)); P.ell(x, y, r, r + 0.5, K.door); P.g.globalAlpha = 0.6; P.ell(x, y + 1, r - 1, r - 1, K.glow); P.g.globalAlpha = 1; if (L) L.push({ x, y, color: K.glow, r: 10 }); P.r(x - r - 1, y + r + 1, r * 2 + 3, 1, K.step); };
 const podWin = (P, x, y, K, L) => { P.ell(x, y, 2, 1.6, dk(K.wall, 0.45)); P.ell(x, y, 1.2, 1, K.win); if (L && rnd() < 0.5) L.push({ x, y, color: K.win, r: 6 }); };
 Object.assign(BT, {
   sporehome(P, c) {
     const { W, H, RH, K } = c, n = W >= 54 ? 2 : 1;
+    if (n > 1) basePad(P, W, H, dk(K.wall, 0.55), K.glow);
     for (let k = 0; k < n; k++) {
       const cx = W / n * (k + 0.5), sw = Math.min(16, W / n - 6);
       stalkWall(P, Math.round(cx - sw / 2), RH - 2, sw, H - RH, K);
@@ -9384,7 +9480,7 @@ Object.assign(BT, {
     }
   },
   sporemarket(P, c) {
-    const { W, H, RH, K } = c;
+    const { W, H, RH, K } = c; basePad(P, W, H, dk(K.wall, 0.55), K.glow);
     // three small caps over stalls, hung with lantern pods
     for (let k = 0; k < 3; k++) { const cx = 6 + k * ((W - 12) / 2), cy = RH - 2 + (k % 2) * 3; stalkWall(P, Math.round(cx - 2), cy, 4, H - cy - 2, K); capRoof(P, cx, cy - 4, 8, 6, K, { col: k % 2 ? K.cap2 : K.cap, spots: 3 }); }
     for (let x = 4; x < W - 4; x += 5) { P.r(x, RH + 6, 1, 3, '#5a4a3a'); sculptBall(P, x + 0.5, RH + 10, 1.6, 1.8, K.glow); c.L.push({ x, y: RH + 10, color: K.glow, r: 6 }); }
@@ -9413,7 +9509,7 @@ Object.assign(BT, {
     roundDoor(P, cx, H - 6, 3, { ...K, glow: '#3ae8c8' }, c.L);
   },
   shrine(P, c) {
-    const { W, H, RH, K } = c, cx = W / 2;
+    const { W, H, RH, K } = c, cx = W / 2; basePad(P, W, H, dk(K.wall, 0.5), K.glow);
     // a tall twisted cone with glowing veins, on a wide stalk base
     stalkWall(P, 3, H - 14, W - 6, 13, K);
     for (let y = 0; y < H - 12; y++) { const k = y / (H - 12), w = Math.round(3 + k * (W / 2 - 4)); for (let x = -w; x <= w; x++) { const tw = ((x + y * 0.6) % 6 + 6) % 6; P.p(Math.round(cx + x), y, tw < 1 ? K.glow : shade(K.cap, 0.15 - (x + w) / (2 * w) * 0.45)); } }
@@ -9432,7 +9528,7 @@ Object.assign(BT, {
     sculptBall(P, W / 2 - W / 5, H / 4, 3, 2, '#ffffff', { k: 1.2 });
   },
   elderhall(P, c) {
-    const { W, H, RH, K } = c;
+    const { W, H, RH, K } = c; basePad(P, W, H, dk(K.wall, 0.55), K.glow);
     // shelf fungus stacked up a trunk, each shelf lit on top
     stalkWall(P, (W >> 1) - 6, 2, 12, H - 3, K);
     for (let k = 0; k < 3; k++) { const y = 6 + k * ((H - 16) / 3), side = k % 2 ? 1 : -1; sculptBall(P, W / 2 + side * 6, y, W / 2 - 4, 4, k % 2 ? K.cap : K.cap2, { clip: (x, yy) => yy <= y + 1 }); podWin(P, (W >> 1) - 2, y + 5, K, c.L); }
@@ -9449,14 +9545,14 @@ Object.assign(BT, {
   },
   // Wildlife: a brood mound, the colony's nursery, lumpy and breathing
   broodmound(P, c) {
-    const { W, H } = c;
+    const { W, H } = c; basePad(P, W, H, '#4a3a26', '#7bdc6a');
     for (let k = 0; k < 5; k++) sculptBall(P, 5 + rnd() * (W - 10), H * 0.35 + rnd() * H * 0.4, W / 4 + rnd() * 3, H / 4 + rnd() * 3, pick(['#6a5a3a', '#5a4a30', '#7a6a42']));
     for (let k = 0; k < Math.max(3, (W / 8) | 0); k++) { const x = 5 + rnd() * (W - 10), y = H * 0.35 + rnd() * H * 0.45; P.ell(x, y, 1.8, 1.4, '#1a120a'); P.p(Math.round(x), Math.round(y), '#7bdc6a'); c.L.push({ x, y, color: '#7bdc6a', r: 6, pulse: true }); anim({ kind: 'pod', x, y, col: '#7bdc6a', ph: k }); }
     for (let x = 2; x < W - 2; x += ri(3, 5)) P.line(x, H - 2, x + ri(-2, 2), H - ri(5, 10), '#3f7a3a');
   },
   // Lumen Kin: a glass lodge, its crown of crystal lit from inside
   lodge(P, c) {
-    const { W, H, RH, FH } = c;
+    const { W, H, RH, FH } = c; basePad(P, W, H, local('#6a6a7a', c.K.wall, 0.6), '#7fe8ff');
     for (let y = 2; y < RH; y++) { const k = (y - 2) / RH, w = Math.round(W * (0.35 + k * 0.6)); for (let x = (W - w) >> 1; x < ((W + w) >> 1); x++) P.p(x, y, (x + y) % 5 === 0 ? local('#c8f4ff', c.K.roof, 0.45) : mixHex(local('#5ab8c8', c.K.roof, 0.6), local('#2a3a5a', c.K.wall, 0.5), k * 0.6 + (x > W / 2 ? 0.2 : 0))); }
     wallFace(P, 1, RH, W - 2, FH, { ...c.K, wall: local('#3a3a5a', c.K.wall, 0.5), tex: 'none' });
     for (const [dx, h] of [[-6, 6], [-2, 10], [2, 8], [6, 5]]) { P.r(W / 2 + dx, 0, 2, h, '#7fe8ff'); P.p(W / 2 + dx, 0, '#e8ffff'); }
@@ -9501,17 +9597,27 @@ Object.assign(BT, {
 });
 // ---------- choosing and drawing ----------
 const MARGIN = 6;
+// the part of each roof crew can stand on, as rectangles in the building's own pixels; null = nowhere
+const DECK = {
+  skyscraper: (W, H, RH) => [[4, 0, W - 8, 12]],
+  church: (W, H, RH) => [[16, 0, W - 16, RH]], chapel: (W, H, RH) => [[16, 0, W - 16, RH]],
+  sporehome: (W, H, RH) => [[3, 0, W - 6, RH - 4]], creche: (W, H, RH) => [[3, 0, W - 6, RH - 3]],
+  ziggurat: (W, H) => [[W * 0.28, 0, W * 0.44, H * 0.5]],
+  sporemarket: null, mender: null, shrine: null, growhouse: null, elderhall: null, broodmound: null, lodge: null,
+};
+const deckOf = (type, W, H, RH) => type in DECK ? (DECK[type] ? DECK[type](W, H, RH) : []) : [[2, 0, W - 4, RH]];
 // the building sprite: margins all round for the outline and anything poking above the roofline
 function building3d(biomeKey, b, type) {
   const K0 = BKIT[biomeKey] || BKIT.frozen, K = { cap: shade(K0.roof || K0.wall, -0.1), cap2: K0.roof || K0.wall, glow: K0.win, spot: '#ffffff', ...K0 }, W = b.w * ATILE, H = b.h * ATILE;
-  const FH = type === 'office' || (K.neon && type === 'house') ? clamp(Math.round(H * 0.55), 18, 30) : clamp(Math.round(H * 0.42), 15, 20);
+  const FH = (K.neon || K.tex === 'glass') && (type === 'house' || type === 'squat' || type === 'prefab') ? clamp(Math.round(H * 0.72), 24, 40) : type === 'office' ? clamp(Math.round(H * 0.55), 18, 30) : clamp(Math.round(H * 0.42), 15, 20);
   const P = painter(W + MARGIN * 2, H + MARGIN * 2), L = [], props = [];
   P.g.translate(MARGIN, MARGIN); DOORS = []; ANIMS = [];
-  BT[type](P, { W, H, RH: H - FH, FH, K, L, props });
+  const ctx = { W, H, RH: H - FH, FH, K, L, props, variant: b.variant };
+  BT[type](P, ctx);
   const doors = DOORS, anims = ANIMS; DOORS = null; ANIMS = null;
   P.g.setTransform(1, 0, 0, 1, 0, 0);
   postProcess(P.c, { shadeIt: false, outlineCol: '#0a0b10' });
-  return { c: P.c, ox: -MARGIN, oy: -MARGIN, W, H, FH, doors, lights: L, props: props.concat(anims) };
+  return { c: P.c, ox: -MARGIN, oy: -MARGIN, W, H, FH, doors, deck: ctx.deck || deckOf(type, W, H, H - FH), lights: L, props: props.concat(anims) };
 }
 // the shadow thrown onto the ground, lower right, longer for taller things
 function buildingShadow(g, x, y, W, H, tall = 1) {
@@ -9534,15 +9640,15 @@ function drawOpenings(o, openings) {
     if (op.side === 'right') px(g, m + o.W - 4, m + op.i * ATILE + 3, 4, 12, '#0a0b10');
   }
 }
-const TALL = { skyscraper: 2.4, office: 1.4, branch: 1.4, shrine: 1.6, elderhall: 1.4, church: 1.3, chapel: 1.3, ziggurat: 1.3 };
+const TALL = { skyscraper: 2.6, office: 1.4, branch: 1.4, shrine: 1.6, elderhall: 1.4, church: 1.3, chapel: 1.3, ziggurat: 1.3 };
 // each faction puts up its own buildings: how many, and which
-const FAC_BUILD = { union: ['unionhall', 1], activists: ['squat', 2], fauna: ['broodmound', 2], lumen: ['lodge', 2], rival: ['branch', 1], abandoned: ['prefab', 2], haulers: ['warehouse', 1], precursors: ['ziggurat', 1], kindly: ['barracks', 1], church: ['chapel', 1] };
+const FAC_BUILD = { union: ['unionhall', 1], activists: ['squat', 2], fauna: ['broodmound', 2], rival: ['branch', 1], abandoned: ['prefab', 2], haulers: ['warehouse', 1], precursors: ['ziggurat', 1], kindly: ['barracks', 1], church: ['chapel', 1] };
 Object.assign(BTYPE_NAME, { squat: 'Squat', broodmound: 'Brood mound', lodge: 'Glass lodge', branch: 'VectorCorp branch', prefab: 'Abandoned prefab', warehouse: 'Guild warehouse', ziggurat: 'Ziggurat', barracks: 'AP barracks', chapel: 'Chapel' });
 // which building is which: a landmark, matching houses or shops along the planned street,
 // and a mix of everything else that fits
 const FITS = {
   house: b => true, shop: b => b.w <= 3, school: b => b.w >= 3, clinic: b => true, church: b => b.w >= 3 || b.h >= 3,
-  depot: b => b.w >= 3, office: b => b.h >= 3 || (b.w === 2 && b.h === 2), skyscraper: b => b.h >= 3, unionhall: b => b.w >= 3,
+  depot: b => b.w >= 3, office: b => b.h >= 3 || (b.w === 2 && b.h === 2), skyscraper: b => b.h >= 3 || (b.w === 2 && b.h === 2), unionhall: b => b.w >= 3,
   sporehome: b => true, sporemarket: b => b.w >= 3, creche: b => b.w >= 3, mender: b => b.w >= 3, shrine: b => b.h >= 3 || b.w === 2,
   growhouse: b => b.w >= 3, elderhall: b => b.h >= 3,
   squat: b => true, broodmound: b => true, lodge: b => b.w <= 3, branch: b => b.h >= 3 || b.w === 2, prefab: b => true, warehouse: b => b.w >= 3, ziggurat: b => b.w >= 2, barracks: b => b.w >= 3, chapel: b => b.w >= 3 || b.h >= 3,
@@ -9556,12 +9662,14 @@ function assignTypes(map, bk, fac) {
   const fit = (t, b) => FITS[t](b), used = new Set();
   // the planned street: one everyday type for the whole row
   const row = bs.filter(b => b.row);
-  if (row.length) { const t = K.alien ? 'sporehome' : city && row.every(b => b.h >= 3) && rnd() < 0.7 ? 'skyscraper' : pick(['house', 'house', 'shop']); for (const b of row) b.type = fit(t, b) ? t : 'house'; used.add(t); }
+  if (row.length) { const t = K.alien ? 'sporehome' : city && rnd() < 0.6 ? 'skyscraper' : pick(['house', 'house', 'shop']); for (const b of row) b.type = fit(t, b) ? t : 'house'; used.add(t); }
   // the landmark: the biggest free plot gets a civic building
   const rest = bs.filter(b => !b.type).sort((a, b) => b.w * b.h - a.w * a.h);
   if (rest.length) { const civic = shuffle((K.alien ? ['shrine', 'mender', 'creche'] : K.alienCivic ? ['church', 'mender', 'creche'] : city ? ['skyscraper', 'church', 'clinic'] : ['church', 'clinic', 'school']).filter(t => fit(t, rest[0]))); rest[0].type = civic[0] || (K.alien ? 'sporehome' : 'house'); used.add(rest[0].type); }
-  for (const b of rest.slice(1)) { const opts = set.filter(t => fit(t, b)), fresh = opts.filter(t => !used.has(t)); b.type = pick(fresh.length ? fresh : opts); used.add(b.type); }
-  if (city) for (const b of bs) if (b.h >= 3 && !b.row && rnd() < 0.5 && b.type !== 'church') b.type = 'skyscraper';
+  for (const b of rest.slice(1)) { const opts = set.filter(t => fit(t, b)), fresh = opts.filter(t => !used.has(t)); b.type = city && fit('skyscraper', b) && rnd() < 0.55 ? 'skyscraper' : pick(fresh.length ? fresh : opts); used.add(b.type); }
+  if (city) for (const b of bs) if (!b.row && b.type !== 'church' && (b.h >= 3 ? rnd() < 0.7 : b.w === 2 && b.h === 2 && rnd() < 0.3)) b.type = 'skyscraper';
+  // each tower its own shape, avoiding repeats where possible
+  const shapes = shuffle([0, 1, 2, 3, 4]); let si = 0; for (const b of bs) if (b.type === 'skyscraper') b.variant = b.w === 2 && b.h === 2 ? pick([0, 2, 4]) : shapes[si++ % 5];
   // a faction puts up its own building
   const fb = FAC_BUILD[fac];
   if (fb) { const [t, n] = fb, cand = shuffle(bs.filter(b => fit(t, b))).sort((a, b) => (a.row ? 1 : 0) - (b.row ? 1 : 0)); for (const b of cand.slice(0, n)) b.type = t; }

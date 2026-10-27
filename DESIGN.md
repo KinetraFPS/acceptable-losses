@@ -344,11 +344,13 @@ Buildings are drawn as solid forms seen at three-quarters, from a **type** (what
   - Cloud City: white villas with lavender roofs and brass.
   - Tomb: carved stone ziggurats.
   - Kindly HQ: glass and company yellow.
+- **Cities** (megacity, Kindly HQ) get more plots, plots back from the road like city blocks, and mostly towers in five shapes: setback, slab (helipad and an ad screen), round, needle and tiered (glowing pagoda eaves in the megacity). Housing there is a block of capsule flats with portholes, balconies, laundry, a fire escape and a vertical neon sign.
+- **Where crew can stand:** each type has a roof deck. Skyscrapers only on the crown, churches not on the bell tower. Spires, glass domes, pools, mounds, markets and the elder hall have no rooftop spot. The front-wall row stays a ground-level cover spot. Tiles a tall landmark (the billboard) overhangs are blocked too.
+- **Odd shapes sit on a base** (a mycelium mat, packed earth or a plinth), so the whole plot reads as part of the building.
 - **Faction buildings:** on a faction's map, one or two plots become theirs:
   - Union: a Union Hall with banners.
   - Activists: a tagged squat.
   - Wildlife: brood mounds.
-  - Lumen Kin: glass lodges.
   - VectorCorp: a branch office.
   - The Abandoned: boarded-up Kindly prefabs.
   - Free Haulers: a guild warehouse.
