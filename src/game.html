@@ -9793,8 +9793,8 @@ const BT = {
   church(P, c) {
     const { W, H, RH, FH, K } = c, stone = K.neon ? '#4a4458' : K.alien ? K.wall : local('#8a8478', K.wall, 0.5), KS = { ...K, wall: stone, tex: 'brick' };
     if (K.neon) {
-      // a megachurch: a flat slab with a giant screen
-      roofFlat(P, 0, 0, W, RH, K);
+      // a megachurch: a flat slab with a giant screen, and no bell tower, so the whole roof is deck
+      roofFlat(P, 0, 0, W, RH, K); c.deck = [[2, 0, W - 4, RH]];
       wallFace(P, 0, RH, W, FH, KS);
       P.r(4, RH + 3, W - 11, FH - 8, '#0e0f18'); for (let x = 5; x < W - 8; x++) for (let y = RH + 4; y < RH + FH - 6; y++) P.p(x, y, mixHex('#ffd23f', '#ff3ad6', (x + y) / (W + H)));
       anim({ kind: 'screen', x: 5, y: RH + 4, w: W - 13, h: FH - 10 });
