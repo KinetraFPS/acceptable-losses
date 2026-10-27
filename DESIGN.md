@@ -344,8 +344,8 @@ Buildings are drawn as solid forms seen at three-quarters, from a **type** (what
   - Cloud City: white villas with lavender roofs and brass.
   - Tomb: carved stone ziggurats.
   - Kindly HQ: glass and company yellow.
-- **Cities** (megacity, Kindly HQ) get more plots, plots back from the road like city blocks, and mostly towers in five shapes: setback, slab (helipad and an ad screen), round, needle and tiered: one block per tile row, each topped by a lit terrace with a railing that crew can stand on, level by level (glowing pagoda eaves in the megacity). Housing there is a block of capsule flats with portholes, balconies, laundry, a fire escape and a vertical neon sign.
-- **Where crew can stand:** each type has a roof deck. Skyscrapers only on the crown, churches not on the bell tower. The needle and the glass grow-house have no rooftop spot. The front-wall row stays a ground-level cover spot. Tiles a tall landmark (the billboard) overhangs are blocked too.
+- **Cities** (megacity, Kindly HQ) get more plots, plots back from the road like city blocks, and mostly towers. Every tower is built level by level, one tile row each, with a terrace on top of every level that crew can stand on (`towerLevels`). Five shapes: setback (a narrow crown and a ledge round it), slab (a helipad, sky gardens on every level, an ad screen), round (a balcony ring on every level), needle (steps in level by level to a lit spire nobody can stand on) and tiered (each level a little wider than the one above; glowing pagoda eaves in the megacity). Housing there is a block of capsule flats with portholes, balconies, laundry, a fire escape and a vertical neon sign.
+- **Where crew can stand:** each type has a roof deck. Every tower level has a terrace (not the needle's spire), churches not on the bell tower. The needle and the glass grow-house have no rooftop spot. The front-wall row stays a ground-level cover spot. Tiles a tall landmark (the billboard) overhangs are blocked too.
 - **Faction buildings:** on a faction's map, one or two plots become theirs:
   - Union: a Union Hall with banners.
   - Activists: a tagged squat.

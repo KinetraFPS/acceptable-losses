@@ -9460,55 +9460,57 @@ function floors(P, x0, y0, x1, y1, K, c, o = {}) {
 const ledge = (P, x, y, w, K) => { P.r(x - 1, y, w + 2, 2, lt(K.roofFlat || K.roof, 0.22)); P.r(x - 1, y + 2, w + 2, 1, dk(K.roof, 0.35)); };
 const beaconMast = (P, x, y, len, c) => { P.r(x, y - len, 1, len + 1, '#9aa3ad'); P.p(x, y - len - 1, '#ff4d6d'); anim({ kind: 'beacon', x, y: y - len - 1 }); c.L.push({ x, y: y - len - 1, color: '#ff4d6d', r: 10, pulse: true }); };
 const neonStripe = (P, x, y, w, h, K, c) => { if (!K.neon) return; const n = pick(K.neon); P.r(x, y, w, h, n); anim({ kind: 'neon', x, y, w, h, col: n }); c.L.push({ x: x + w / 2, y: y + h / 2, color: n, r: 18 }); };
-// the original: a narrower crown set back on top of the main shaft
+// every tower is built level by level, one tile row each, so crew can stand on each level's terrace.
+// o.inset(k, rows) sets each level's width, o.terrace its style, o.top its roof, o.skip the levels nobody can stand on
+function towerLevels(P, c, o) {
+  const { W, H, K } = c, rows = Math.round(H / ATILE), deck = [];
+  for (let k = 0; k < rows; k++) {
+    const inset = o.inset(k, rows), x = inset, w = W - inset * 2, ty = k === 0 ? 1 : k * ATILE + 5, wy = k * ATILE + 11, wb = k === rows - 1 ? H : (k + 1) * ATILE + 5;
+    if (o.round) { sculptCyl(P, x, wy, w, wb - wy, K.wall, 0.12); for (let yy = wy + 3; yy < wb - (k === rows - 1 ? 9 : 1); yy += 4) for (let xx = x + 2; xx < x + w - 2; xx += 3) { const nx = (xx - x - w / 2) / (w / 2); if (Math.abs(nx) > 0.8) continue; P.r(xx, yy, Math.abs(nx) > 0.55 ? 1 : 2, 2, rnd() < 0.6 ? (K.neon && rnd() < 0.2 ? pick(K.neon) : K.win) : K.winOff); } }
+    else if (o.bands) { wallFace(P, x, wy, w, wb - wy, K); for (let yy = wy + 3; yy < wb - (k === rows - 1 ? 9 : 2); yy += 4) { P.r(x + 1, yy, w - 4, 2, mixHex(K.winOff, K.win, rnd() * 0.5 + 0.2)); P.r(x + 1, yy + 2, w - 4, 1, dk(K.wall, 0.2)); } }
+    else { wallFace(P, x, wy, w, wb - wy, K); floors(P, x + 2, wy + 3, x + w - 4, wb - (k === rows - 1 ? 9 : 1), K, c, { stepY: 4 }); }
+    if (!(k === 0 && o.spire)) {
+      // the terrace on top of this level: a lit floor, a railing, an edge (neon in the megacity)
+      const tc = lt(K.roofFlat || K.roof, 0.12), r = o.round ? 2 : 0;
+      P.r(x - 1 + r, ty, w + 2 - r * 2, wy - ty, tc); if (r) { P.r(x, ty + 1, w, wy - ty - 2, tc); }
+      P.r(x - 1 + r, ty, w + 2 - r * 2, 1, lt(tc, 0.25)); P.r(x - 1, ty + r, 1, wy - ty - r * 2, lt(tc, 0.15)); P.r(x + w, ty + r, 1, wy - ty - r * 2, dk(tc, 0.35));
+      for (let xx = x + 1; xx < x + w; xx += 3) P.p(xx, ty + 1, dk(tc, 0.3));
+      if (o.garden) for (let xx = x + 2; xx < x + w - 2; xx += ri(3, 5)) { P.p(xx, wy - 2, '#3f8a3a'); P.p(xx, wy - 3, pick(['#5aa04a', '#7cc86a', '#ff6fae'])); }
+      const edge = K.neon ? K.neon[k % K.neon.length] : lt(K.roof, 0.3);
+      P.r(x - 2 + r, wy - 1, w + 4 - r * 2, 1, edge); P.r(x - 2 + r, wy, w + 4 - r * 2, 1, dk(K.roof, 0.45));
+      if (K.neon) { anim({ kind: 'neon', x: x - 2 + r, y: wy - 1, w: w + 4 - r * 2, h: 1, col: edge }); c.L.push({ x: W / 2, y: wy, color: edge, r: 14 }); }
+    }
+    if (k < rows - 1 && !(o.skip && o.skip.includes(k))) deck.push([x + 1, k * ATILE, w - 2, ATILE]);
+  }
+  if (o.top) o.top(P, c, rows);
+  door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+  c.deck = deck;
+}
+// setback: a narrow crown with a beacon, a ledge round it, balconies all the way down
 function towerSetback(P, c) {
-  const { W, H, K } = c, crownH = 8, roofD = 7, cw = W - 10, cx = 5;
-  roofFlat(P, cx, 0, cw, roofD, K); wallFace(P, cx, roofD, cw, crownH, K);
-  for (let x = cx + 2; x < cx + cw - 4; x += 3) P.r(x, roofD + 3, 2, 3, K.neon ? pick(K.neon) : K.win);
-  beaconMast(P, cx + (cw >> 1), 0, 3, c);
-  const top = roofD + crownH; ledge(P, 0, top, W, K);
-  wallFace(P, 0, top + 3, W, H - top - 3, K);
-  floors(P, 2, top + 6, W - 5, H - 9, K, c);
-  for (let x = 0; x < W - 3; x += 9) P.r(x, top + 3, 1, H - top - 6, lt(K.wall, 0.12));
-  neonStripe(P, W - 6, top + 6, 2, H - top - 18, K, c);
-  door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+  towerLevels(P, c, { inset: (k, rows) => k === 0 ? 7 : 0, top: (P, c) => { beaconMast(P, c.W >> 1, 1, 4, c); for (let x = 9; x < c.W - 10; x += 3) P.r(x, 14, 2, 2, c.K.neon ? pick(c.K.neon) : c.K.win); } });
+  neonStripe(P, c.W - 6, ATILE + 14, 2, c.H - ATILE - 26, c.K, c);
 }
-// a broad slab: helipad on the roof, glass bands floor after floor, an ad screen down the side
+// slab: a broad block, a helipad on top, sky gardens on every level, an ad screen down the side
 function towerSlab(P, c) {
-  const { W, H, K } = c, roofD = 11;
-  roofFlat(P, 0, 0, W, roofD, K);
-  const hx = Math.round(W * 0.38), hy = 5; P.ell(hx, hy, 5, 3, dk(K.roof, 0.2)); P.ell(hx, hy, 4, 2.3, '#ffd23f'); P.ell(hx, hy, 3, 1.6, dk(K.roof, 0.2)); P.r(hx - 1, hy - 1, 1, 3, '#e8e4dc'); P.r(hx + 1, hy - 1, 1, 3, '#e8e4dc'); P.p(hx, hy, '#e8e4dc');
-  for (let k = 0; k < 3; k++) beaconMast(P, W - 6 - k * 3, 3 + k, 3 + k * 2, c);
-  wallFace(P, 0, roofD, W, H - roofD, K);
-  for (let y = roofD + 4; y < H - 9; y += 4) { P.r(1, y, W - 5, 2, mixHex(K.winOff, K.win, rnd() * 0.5 + 0.2)); P.r(1, y + 2, W - 5, 1, dk(K.wall, 0.2)); }
-  for (let k = 0; k < 4; k++) anim({ kind: 'winblink', x: ri(2, W - 8), y: roofD + 4 + ri(0, ((H - roofD - 14) / 4) | 0) * 4, on: K.win, off: K.winOff, ph: rnd() * 9 });
-  if (K.neon) { const sw = Math.max(6, (W / 4) | 0); P.r(2, roofD + 5, sw, H - roofD - 18, '#0e0f18'); anim({ kind: 'screen', x: 3, y: roofD + 6, w: sw - 2, h: H - roofD - 20 }); c.L.push({ x: 2 + sw / 2, y: H / 2, color: '#ff3ad6', r: 22 }); }
-  else { P.ell(W / 2, roofD + 7, 4, 3, '#ffd23f'); P.ell(W / 2 - 1, roofD + 6, 2, 1, '#fff2b0'); c.L.push({ x: W / 2, y: roofD + 7, color: '#ffd23f', r: 16 }); }
-  door(P, (W >> 1) - 5, H - 8, 10, 6, K, { glass: true });
+  towerLevels(P, c, { inset: () => 0, bands: true, garden: true, top: (P, c) => {
+    const { W, H, K } = c, hx = Math.round(W * 0.38), hy = 6;
+    P.ell(hx, hy, 5, 3, dk(K.roof, 0.2)); P.ell(hx, hy, 4, 2.3, '#ffd23f'); P.ell(hx, hy, 3, 1.6, dk(K.roof, 0.2)); P.r(hx - 1, hy - 1, 1, 3, '#e8e4dc'); P.r(hx + 1, hy - 1, 1, 3, '#e8e4dc'); P.p(hx, hy, '#e8e4dc');
+    for (let k = 0; k < 3; k++) beaconMast(P, W - 6 - k * 3, 3 + k, 3 + k * 2, c);
+    if (K.neon) { const sw = Math.max(6, (W / 4) | 0); P.r(2, ATILE + 13, sw, H - ATILE - 24, '#0e0f18'); anim({ kind: 'screen', x: 3, y: ATILE + 14, w: sw - 2, h: H - ATILE - 26 }); c.L.push({ x: 2 + sw / 2, y: H / 2, color: '#ff3ad6', r: 22 }); }
+  } });
 }
-// a round tower: the wall wraps away from the light, windows narrowing towards the edges
+// round: a cylinder with a ring of balcony at every level and a crown of lights
 function towerRound(P, c) {
-  const { W, H, K } = c, roofD = 9, cx = W / 2, R = W / 2 - 1;
-  sculptCyl(P, 1, roofD - 2, W - 3, H - roofD + 1, K.wall, 0.15);
-  for (let y = roofD + 3; y < H - 9; y += 4) for (let x = 3; x < W - 4; x += 3) { const nx = (x - cx) / R; if (Math.abs(nx) > 0.85) continue; const on = rnd() < 0.6; P.r(x, y, Math.abs(nx) > 0.6 ? 1 : 2, 2, on ? (K.neon && rnd() < 0.2 ? pick(K.neon) : K.win) : K.winOff); }
-  for (let k = 0; k < 3; k++) anim({ kind: 'winblink', x: Math.round(cx - 4 + k * 3), y: roofD + 3 + ri(0, ((H - roofD - 14) / 4) | 0) * 4, on: K.win, off: K.winOff, ph: rnd() * 9 });
-  sculptBall(P, cx - 0.5, roofD - 2, R, roofD - 3, K.roofFlat || K.roof);
-  for (let a = 0; a < 6.28; a += 0.5) { const x = Math.round(cx + Math.cos(a) * (R - 2)), y = Math.round(roofD - 2 + Math.sin(a) * (roofD - 5)); P.p(x, y, K.neon ? pick(K.neon) : '#ffd23f'); }
-  beaconMast(P, Math.round(cx), roofD - 3, 5, c);
-  if (K.neon) { const n = pick(K.neon); for (let y = roofD + 2; y < H - 10; y += 6) { P.r(3, y, W - 7, 1, n); } anim({ kind: 'neon', x: 3, y: roofD + 2, w: W - 7, h: 1, col: n }); }
-  door(P, Math.round(cx) - 4, H - 8, 8, 6, K, { glass: true });
+  towerLevels(P, c, { inset: (k, rows) => k === 0 ? 3 : 1, round: true, top: (P, c) => { const { W, K } = c; for (let x = 5; x < W - 5; x += 3) P.p(x, 3, K.neon ? pick(K.neon) : '#ffd23f'); beaconMast(P, W >> 1, 2, 5, c); } });
 }
-// a needle: the body steps in twice and ends in a long lit spire (nowhere to stand up there)
+// needle: steps in level by level up to a long lit spire (nobody stands on the spire)
 function towerNeedle(P, c) {
-  const { W, H, K } = c, t1 = Math.round(H * 0.42), t2 = Math.round(H * 0.24);
-  wallFace(P, 0, t1, W, H - t1, K); floors(P, 2, t1 + 4, W - 5, H - 9, K, c); ledge(P, 0, t1 - 2, W, K);
-  const w2 = W - 8; wallFace(P, 4, t2, w2, t1 - t2 - 2, K); floors(P, 6, t2 + 3, 4 + w2 - 4, t1 - 3, K, c); ledge(P, 4, t2 - 2, w2, K);
-  const w3 = Math.max(6, W - 18), x3 = (W - w3) >> 1; wallFace(P, x3, 8, w3, t2 - 10, K, { noSide: true });
-  for (let k = 0; k < 6; k++) P.r((W >> 1) - 3 + (k >> 1), 2 + k, 6 - (k >> 1) * 2, 1, lt(K.roof, 0.1 - k * 0.04));
-  beaconMast(P, W >> 1, 2, 7, c);
-  neonStripe(P, (W >> 1) - 1, t2 + 2, 2, H - t2 - 12, K, c);
-  c.deck = [];
-  door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+  towerLevels(P, c, { inset: (k, rows) => Math.max(0, (rows - 1 - k) * 4 - 2), spire: true, skip: [0], top: (P, c, rows) => {
+    const { W, K } = c, cx = W >> 1;
+    for (let k = 0; k < 9; k++) P.r(cx - 3 + (k >> 2), 2 + k, 6 - (k >> 2) * 2, 1, lt(K.roof, 0.15 - k * 0.04));
+    beaconMast(P, cx, 2, 7, c); neonStripe(P, cx - 1, ATILE + 13, 2, c.H - ATILE - 24, K, c);
+  } });
 }
 // tiers: one stacked block per tile row, each a little wider than the one above, each topped by
 // a lit terrace you can stand on (glowing like a pagoda's eaves in the megacity)
