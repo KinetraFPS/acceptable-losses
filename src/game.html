@@ -9118,6 +9118,7 @@ function win(P, x, y, w, h, K, lit = rnd() < 0.55, L) {
   if (lit && L && rnd() < 0.5) L.push({ x: x + w / 2, y: y + h / 2, color: K.win, r: 7 + w });
 }
 let DOORS = null, ANIMS = null;
+const local = (col, base, k = 0.5) => mixHex(col, base, k);
 const anim = a => { if (ANIMS) ANIMS.push(a); };
 function door(P, x, y, w, h, K, o = {}) {
   if (DOORS) DOORS.push(x + w / 2);
@@ -9167,7 +9168,7 @@ function roofBarrel(P, x, y, w, h, K) {
 }
 function roofSaw(P, x, y, w, h, K) {
   const c = K.roof;
-  for (let yy = y; yy < y + h; yy++) { const t = (yy - y) % 6; for (let xx = x; xx < x + w; xx++) P.p(xx, yy, t < 2 ? (K.neon ? '#3af0ff' : '#9fd3ff') : t === 2 ? lt(c, 0.3) : shade(c, 0.1 - (t - 3) * 0.1)); }
+  for (let yy = y; yy < y + h; yy++) { const t = (yy - y) % 6; for (let xx = x; xx < x + w; xx++) P.p(xx, yy, t < 2 ? (K.glass || (K.neon ? '#3af0ff' : K.win)) : t === 2 ? lt(c, 0.3) : shade(c, 0.1 - (t - 3) * 0.1)); }
   P.r(x, y, 1, h, lt(c, 0.2)); P.r(x + w - 1, y, 1, h, dk(c, 0.4)); P.r(x, y + h - 1, w, 1, dk(c, 0.45));
 }
 // a pressurised dome over a low deck (moon colonies, sky villas)
@@ -9261,7 +9262,7 @@ const BT = {
     flagpole(P, 4, RH - 2, K.accent, c.L);
   },
   clinic(P, c) {
-    const { W, H, RH, FH, K } = c, white = '#e8eef4', KW = { ...K, wall: white, roof: '#d8e0e8' };
+    const { W, H, RH, FH, K } = c, white = local('#e8eef4', K.wall, 0.35), KW = { ...K, wall: white, roof: local('#d8e0e8', K.roofFlat || K.roof, 0.4), roofFlat: local('#d8e0e8', K.roofFlat || K.roof, 0.4) };
     roofFlat(P, 0, 0, W, RH, KW);
     // the rooftop cross / helipad
     const cx = W >> 1, cy = RH >> 1, s = Math.min(8, RH / 3 | 0);
@@ -9274,7 +9275,7 @@ const BT = {
     acUnit(P, W - 12, 4); if (W >= 54) dish(P, 4, 4);
   },
   church(P, c) {
-    const { W, H, RH, FH, K } = c, stone = K.neon ? '#4a4458' : K.alien ? K.wall : '#8a8478', KS = { ...K, wall: stone, tex: 'brick' };
+    const { W, H, RH, FH, K } = c, stone = K.neon ? '#4a4458' : K.alien ? K.wall : local('#8a8478', K.wall, 0.5), KS = { ...K, wall: stone, tex: 'brick' };
     if (K.neon) {
       // a megachurch: a flat slab with a giant screen
       roofFlat(P, 0, 0, W, RH, K);
@@ -9351,8 +9352,8 @@ const BT = {
     door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
   },
   unionhall(P, c) {
-    const { W, H, RH, FH, K } = c, KB = { ...K, wall: '#8a5a4a', tex: 'brick' };
-    roofGable(P, 0, 0, W, RH, { ...K, roof: '#7a4a3a' });
+    const { W, H, RH, FH, K } = c, KB = { ...K, wall: local('#8a5a4a', K.wall, 0.45), tex: 'brick' };
+    roofGable(P, 0, 0, W, RH, { ...K, roof: local('#7a4a3a', K.roof, 0.45) });
     wallFace(P, 0, RH, W, FH, KB);
     // banners hanging off the wall, a red flag on the roof
     for (const bx of [4, W - 12]) { P.r(bx, RH + 2, 6, FH - 6, '#c83a2a'); P.r(bx, RH + 2, 6, 1, '#f0a23a'); P.r(bx + 2, RH + 5, 2, 3, '#f0a23a'); P.p(bx + 1, RH + FH - 4, '#c83a2a'); P.p(bx + 4, RH + FH - 4, '#c83a2a'); }
@@ -9456,17 +9457,17 @@ Object.assign(BT, {
   // Lumen Kin: a glass lodge, its crown of crystal lit from inside
   lodge(P, c) {
     const { W, H, RH, FH } = c;
-    for (let y = 2; y < RH; y++) { const k = (y - 2) / RH, w = Math.round(W * (0.35 + k * 0.6)); for (let x = (W - w) >> 1; x < ((W + w) >> 1); x++) P.p(x, y, (x + y) % 5 === 0 ? '#e8ffff' : mixHex('#5ab8c8', '#2a3a5a', k * 0.6 + (x > W / 2 ? 0.2 : 0))); }
-    wallFace(P, 1, RH, W - 2, FH, { ...c.K, wall: '#3a3a5a', tex: 'none' });
+    for (let y = 2; y < RH; y++) { const k = (y - 2) / RH, w = Math.round(W * (0.35 + k * 0.6)); for (let x = (W - w) >> 1; x < ((W + w) >> 1); x++) P.p(x, y, (x + y) % 5 === 0 ? local('#c8f4ff', c.K.roof, 0.45) : mixHex(local('#5ab8c8', c.K.roof, 0.6), local('#2a3a5a', c.K.wall, 0.5), k * 0.6 + (x > W / 2 ? 0.2 : 0))); }
+    wallFace(P, 1, RH, W - 2, FH, { ...c.K, wall: local('#3a3a5a', c.K.wall, 0.5), tex: 'none' });
     for (const [dx, h] of [[-6, 6], [-2, 10], [2, 8], [6, 5]]) { P.r(W / 2 + dx, 0, 2, h, '#7fe8ff'); P.p(W / 2 + dx, 0, '#e8ffff'); }
     c.L.push({ x: W / 2, y: 4, color: '#7fe8ff', r: 20, pulse: true }); anim({ kind: 'glint', x: W / 2 - 7, y: 1, w: 14, h: RH - 4 });
     win(P, 5, RH + 5, 3, 4, { ...c.K, win: '#7fe8ff' }, true, c.L); door(P, (W >> 1) - 3, RH + FH - 9, 6, 7, { ...c.K, door: '#1a1630' }, { arch: true });
   },
   // VectorCorp: a branch office in black glass and red
-  branch(P, c) { BT.office(P, { ...c, K: { ...c.K, wall: '#2a2a34', roof: '#3a3a44', roofFlat: '#3a3a44', win: '#ff8a9a', sign: '#ff5d73', tex: 'glass' } }); P.r((c.W >> 1) - 5, c.RH - 4, 10, 1, '#ff5d73'); anim({ kind: 'neon', x: (c.W >> 1) - 5, y: c.RH - 4, w: 10, h: 1, col: '#ff5d73' }); },
+  branch(P, c) { BT.office(P, { ...c, K: { ...c.K, wall: local('#2a2a34', c.K.wall, 0.35), roof: local('#3a3a44', c.K.roof, 0.35), roofFlat: local('#3a3a44', c.K.roofFlat || c.K.roof, 0.35), win: '#ff8a9a', sign: '#ff5d73', tex: 'glass' } }); P.r((c.W >> 1) - 5, c.RH - 4, 10, 1, '#ff5d73'); anim({ kind: 'neon', x: (c.W >> 1) - 5, y: c.RH - 4, w: 10, h: 1, col: '#ff5d73' }); },
   // the Abandoned: a Kindly prefab left to rot, boards over the windows
   prefab(P, c) {
-    const K = { ...c.K, wall: '#8a8a72', roof: '#7a6a4a', roofFlat: '#7a6a4a', tex: 'panel', roofs: { ...c.K.roofs, house: 'flat' } };
+    const K = { ...c.K, wall: local('#8a8a72', c.K.wall, 0.4), roof: local('#7a6a4a', c.K.roof, 0.4), roofFlat: local('#7a6a4a', c.K.roofFlat || c.K.roof, 0.4), tex: 'panel', roofs: { ...c.K.roofs, house: 'flat' } };
     BT.house(P, { ...c, K }); const { W, RH, FH } = c;
     for (let x = 2; x < W - 4; x += ri(5, 9)) P.r(x, RH + 1, 1, ri(3, FH - 3), '#8a4a2a');
     for (let x = 3; x < W - 8; x += 9) { P.line(x, RH + 5, x + 5, RH + 9, '#6a4a2a'); P.line(x, RH + 9, x + 5, RH + 5, '#6a4a2a'); }
@@ -9474,26 +9475,26 @@ Object.assign(BT, {
   },
   // Free Haulers: a guild warehouse, teal-striped, cargo stacked outside
   warehouse(P, c) {
-    BT.depot(P, { ...c, K: { ...c.K, wall: '#3a5a58' } }); const { W, RH } = c;
+    BT.depot(P, { ...c, K: { ...c.K, wall: local('#3a5a58', c.K.wall, 0.6) } }); const { W, RH } = c;
     P.r(0, RH + 1, W - 3, 1, '#3ab8a0'); flagpole(P, W - 6, RH - 3, '#1a1a1e');
     blockOn(P, 3, RH - 9, 7, 5, '#8a6a44', 3); blockOn(P, 12, RH - 7, 6, 3, '#3ab8a0', 2);
   },
   // the Precursors: a ziggurat with an eye that follows you
   ziggurat(P, c) {
-    const { W, H, K } = c, KZ = { ...K, roof: '#4a5654', glow: '#ff5ad1', wall: '#3e4a4c', tex: 'stone' };
+    const { W, H, K } = c, KZ = { ...K, roof: local('#4a5654', K.roof, 0.4), glow: '#ff5ad1', wall: local('#3e4a4c', K.wall, 0.4), tex: 'stone' };
     roofStep(P, 0, 0, W, H - 8, KZ); wallFace(P, 0, H - 8, W, 8, KZ);
     P.ell(W / 2, (H - 8) * 0.45, 4, 2.6, '#f2efe6'); P.ell(W / 2, (H - 8) * 0.45, 2, 2, '#ff5ad1'); anim({ kind: 'eye', x: W / 2, y: (H - 8) * 0.45 });
     c.L.push({ x: W / 2, y: (H - 8) * 0.45, color: '#ff5ad1', r: 22, pulse: true }); door(P, (W >> 1) - 3, H - 7, 6, 5, KZ, { arch: true });
   },
   // Asset Protection: a barracks behind a checkpoint, searchlight sweeping
   barracks(P, c) {
-    BT.depot(P, { ...c, K: { ...c.K, wall: '#1d2433', roof: '#2a3348', tex: 'panel' } }); const { W, RH } = c;
+    BT.depot(P, { ...c, K: { ...c.K, wall: local('#1d2433', c.K.wall, 0.6), roof: local('#2a3348', c.K.roof, 0.6), tex: 'panel' } }); const { W, RH } = c;
     P.r(0, RH + 1, W - 3, 1, '#ffd23f'); flagpole(P, 4, RH - 3, '#4a7ae8');
     blockOn(P, W - 12, 3, 6, 4, '#2a3348', 3); P.p(W - 9, 4, '#ffffff'); anim({ kind: 'search', x: W - 9, y: 4 });
   },
   // the Church: a chapel in crimson and gold, candles in every window
   chapel(P, c) {
-    BT.church(P, { ...c, K: { ...c.K, roof: '#5a1a2a', church: c.K.church === 'screen' ? undefined : c.K.church, neon: null, accent: '#c8a040' } });
+    BT.church(P, { ...c, K: { ...c.K, roof: local('#5a1a2a', c.K.roof, 0.35), church: c.K.church === 'screen' ? undefined : c.K.church, neon: null, accent: '#c8a040' } });
     const { W, RH, FH } = c; for (const x of [W - 14, W - 8]) { P.r(x, RH + FH - 5, 1, 2, '#e8e4dc'); P.p(x, RH + FH - 6, '#ffb040'); anim({ kind: 'candle', x, y: RH + FH - 6 }); }
     P.r(W - 6, RH + 2, 3, FH - 6, '#7a1a2a'); P.r(W - 6, RH + 2, 3, 1, '#c8a040');
   },
