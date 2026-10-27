@@ -571,6 +571,13 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **The taser rework:** it used to pulse weakly at everything around it. The Arc Technician throws lightning at a target and it chains on to the nearest hostiles; its perks now read as chains (Arc Jump adds jumps, Overcharge and Total Lockdown count discharges).
 - **Balance check** (three crew of one type, a whole contract): Marksman, Railgun and Mortar lose least, Drone and Turret sit in the middle, and the flamethrower and Arc Technician were buffed to close the gap. The Liaison pays off in a fuller roster, where its aura covers several crew.
 
+## Water, fire and burning
+
+- **Water** (`buildWaterFrames`): every liquid gets a looping ripple layer, baked into 16 frames when the mission starts and played at 9 fps. Three travelling waves summed per pixel give lit crests, a fainter ripple band, shaded troughs and the odd glint. The water darkens with its true distance from the shore (a chamfer pass over the map), and foam laps along the edge in a slow surge. Lava gets molten crests and a cooling crust, the sky biome only soft white crests, the ship's coolant a 1px band.
+- **Fire on the ground** (`fireFrames`, `drawFireZone`): scorched ground, a bed of mostly dark coals with live embers, and rows of flame tongues rising across the patch, back to front, swaying and breaking up at the tips. Baked once per patch size into 12 frames; patches start at different frames so they never flicker in step. Embers and smoke rise off them, and they light the ground around them.
+- **Burning hostiles**: anything caught by a flamer cone or standing in fire burns for about a second after (`burnT`): a scorched tint, and flames licking up from the sprite's own outline (`burnFrames`, six frames per sprite frame), with smoke and an orange glow. Visual only: burning does no extra damage.
+- **Burnt to the bone**: a humanoid that dies on fire writhes and blackens, the char flakes away to ash and the skeleton shows through, then the skeleton gives way. The legs buckle first, everything above drops onto them, and the skull lands last and rolls. The bones lie on a scorch mark for a few seconds before fading. At most ten burn at once; the rest die the ordinary way.
+
 ## Audio
 - Everything is synthesised live with Web Audio. There are no audio files. Audio starts on the first tap or key press, which is a browser rule.
 - **Music**: a small chiptune sequencer with five tracks.

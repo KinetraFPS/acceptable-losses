@@ -3478,13 +3478,199 @@ function renderGround(map, biomeKey) {
   return { cv: P.c, lights, props, liquidTiles };
 }
 function drawLiquidFx(g, t) {
-  const Lq = LIQUIDS[BIOME_ART[M.c.biomeKey].liquid.kind];
-  g.fillStyle = rgba(Lq.hi, 0.55);
-  for (const l of M.liquidTiles || []) {
-    const k = (t * 5 + l.s * 18) % 18, y = l.y + 4 + Math.round(l.s * 9);
-    g.fillRect(l.x + Math.round(k), y, 2, 1);
-    if (l.s > 0.5) g.fillRect(l.x + Math.round((k + 9) % 18), y + 4, 1, 1);
+  if (M.water) g.drawImage(M.water[Math.floor(t * 9) % M.water.length], 0, 0);
+}
+// ---------- water: a looping ripple layer, baked once per mission ----------
+// Three travelling waves summed per pixel give crests (lit), troughs (shaded) and the odd glint; the water
+// darkens with depth away from the shore and foam laps along it. Each wave's phase is a whole multiple of the
+// loop, so the last frame runs straight into the first. Lava gets molten crests and a cooling crust instead.
+const WATER_FRAMES = 16;
+const hsh3 = (a, b, c) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 1274126177); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+function buildWaterFrames(tiles, Lq, ship) {
+  if (!tiles || !tiles.length || !Lq) return null;
+  const W = GW * ATILE, H = GH * ATILE, set = new Set(tiles.map(l => (l.y / ATILE) * GW + l.x / ATILE));
+  const isL = (tx, ty) => tx >= 0 && ty >= 0 && tx < GW && ty < GH && set.has(ty * GW + tx);
+  const lava = Lq === LIQUIDS.lava, sky = Lq === LIQUIDS.sky, band = ship ? 1 : 2;
+  // open water, then each pixel's distance from the shore (a two-pass chamfer over the whole map)
+  const open = new Uint8Array(W * H), dist = new Float32Array(W * H).fill(0);
+  for (const l of tiles) {
+    const tx = l.x / ATILE, ty = l.y / ATILE, eU = ship || !isL(tx, ty - 1), eD = ship || !isL(tx, ty + 1), eL = ship || !isL(tx - 1, ty), eR = ship || !isL(tx + 1, ty);
+    for (let y = 0; y < ATILE; y++) for (let x = 0; x < ATILE; x++)
+      if (!(eU && y < band) && !(eD && y > ATILE - 1 - band) && !(eL && x < band) && !(eR && x > ATILE - 1 - band)) open[(l.y + y) * W + l.x + x] = 1;
   }
+  for (let i = 0; i < W * H; i++) dist[i] = open[i] ? 99 : 0;
+  for (let y = 1; y < H; y++) for (let x = 1; x < W - 1; x++) { const i = y * W + x; if (open[i]) dist[i] = Math.min(dist[i], dist[i - 1] + 1, dist[i - W] + 1, dist[i - W - 1] + 1.4, dist[i - W + 1] + 1.4); }
+  for (let y = H - 2; y >= 0; y--) for (let x = W - 2; x > 0; x--) { const i = y * W + x; if (open[i]) dist[i] = Math.min(dist[i], dist[i + 1] + 1, dist[i + W] + 1, dist[i + W + 1] + 1.4, dist[i + W - 1] + 1.4); }
+  const pts = [];
+  for (let i = 0; i < W * H; i++) if (open[i]) pts.push(i % W, (i / W) | 0, Math.min(9, Math.round(dist[i]) - 1));
+  const C = c => hex2rgb(c), hi = C(Lq.hi), deep = C(shade(Lq.a, lava ? -0.55 : -0.42)), glint = C(lava ? '#fff4c0' : '#ffffff'),
+    foam = C(lava ? '#2a120c' : sky ? '#ffffff' : '#eef8ff'), crust = C('#4a140a');
+  const frames = [];
+  for (let f = 0; f < WATER_FRAMES; f++) {
+    const ph = f / WATER_FRAMES * Math.PI * 2, c = mkCanvas(W, H), g = c.getContext('2d'), im = g.createImageData(W, H), a = im.data;
+    const put = (x, y, col, al) => { const i = (y * W + x) * 4; a[i] = col[0]; a[i + 1] = col[1]; a[i + 2] = col[2]; a[i + 3] = Math.round(255 * clamp(al, 0, 1)); };
+    for (let i = 0; i < pts.length; i += 3) {
+      const x = pts[i], y = pts[i + 1], d = pts[i + 2];
+      const w = 0.55 * Math.sin(x * 0.42 + y * 0.17 + ph) + 0.45 * Math.sin(x * 0.11 - y * 0.39 + 2 * ph + 1.7) + 0.35 * Math.sin(x * 0.29 + y * 0.33 - ph + 4.1);
+      // foam laps the shore in a slow surge
+      if (d === 0 && Math.sin(x * 0.8 + y * 0.8 - 2 * ph) > -0.25) { put(x, y, foam, sky ? 0.5 : 0.7); continue; }
+      if (d === 1 && Math.sin(x * 0.8 + y * 0.8 - 2 * ph + 0.9) > 0.55 && ((x + y) & 1)) { put(x, y, foam, 0.4); continue; }
+      if (w > 0.92) {
+        if (w > 1.2 && hsh3(x, y, 7) < 0.22) put(x, y, glint, 0.95);
+        else put(x, y, hi, (lava ? 0.55 : sky ? 0.32 : 0.4) + (w - 0.92) * 1.2);
+      } else if (w > 0.74 && ((x + y) & 1)) put(x, y, hi, lava ? 0.4 : 0.22);
+      else if (w < -0.95 && !sky) put(x, y, lava ? crust : deep, lava ? 0.62 : 0.34);
+      else if (d >= 4 && !sky) put(x, y, deep, 0.07 * (d - 3));
+    }
+    g.putImageData(im, 0, 0); frames.push(c);
+  }
+  return frames;
+}
+// ---------- fire on the ground: scorch, a bed of embers, and tongues that rise, sway and break up at the tips ----------
+// Baked once per patch size into a short loop of frames; patches start at different frames so they never flicker in step.
+const FIRE_FRAMES = 12, FIRE_CACHE = {};
+function fireFrames(r) {
+  if (FIRE_CACHE[r]) return FIRE_CACHE[r];
+  const ry = r / 1.8, up = Math.ceil(3 + r * 0.55) + 3, ox = r + 3, oy = up + Math.ceil(ry) + 1, W = 2 * r + 7, H = oy + Math.ceil(ry) + 2, seed = r * 31, out = { ox, oy, f: [] };
+  for (let fl = 0; fl < FIRE_FRAMES; fl++) {
+    const t = fl / 14, c = mkCanvas(W, H), g = c.getContext('2d'), im = g.createImageData(W, H), a = im.data;
+    const put = (x, y, col, al) => { x += ox; y += oy; if (x < 0 || y < 0 || x >= W || y >= H) return; const i = (y * W + x) * 4, [rr, gg, bb] = hex2rgb(col); a[i] = rr; a[i + 1] = gg; a[i + 2] = bb; a[i + 3] = Math.round(255 * al); };
+    // scorched ground and a bed of coals, mostly dark with a few live embers
+    for (let y = -Math.ceil(ry); y <= ry; y++) for (let x = -r; x <= r; x++) {
+      const q = (x * x) / (r * r) + (y * y) / (ry * ry); if (q > 1) continue;
+      if (q > 0.7) { if (!((x + y) & 1)) put(x, y, '#1a0e08', 0.45); continue; }
+      const h = hsh3(x + seed, y, fl >> 1); put(x, y, h < 0.07 ? '#ffd060' : h < 0.24 ? '#ff6a1a' : h < 0.6 ? '#7a1a0a' : '#3a0e06', 1);
+    }
+    // tongues rise from rows across the patch, back to front, each swaying and breaking up at the tip
+    const rows = Math.max(1, Math.round(ry / 2.5));
+    for (let ri2 = 0; ri2 < rows; ri2++) {
+      const fy = rows === 1 ? 0 : -ry * 0.55 + (ri2 / (rows - 1)) * ry * 1.1, base = Math.round(fy), half = r * Math.sqrt(Math.max(0, 1 - (fy * fy) / (ry * ry))) * 0.85;
+      for (let x = -Math.floor(half); x <= half; x++) {
+        if (hsh3(x, ri2 + seed, 5) < 0.35) continue;
+        const span = Math.sqrt(1 - (x * x) / ((half + 1) * (half + 1)));
+        const Hh = Math.round((3 + r * 0.55) * span * (0.55 + 0.45 * Math.sin(t * 9 + x * 1.3 + ri2 * 2 + seed)) * (0.6 + 0.4 * hsh3(x, ri2 + seed, fl >> 2)));
+        for (let j = 0; j < Hh; j++) {
+          const f = j / Hh; if (hsh3(x * 3 + ri2, j, fl + seed) < f * f * 0.95) continue;
+          put(x + Math.round(Math.sin(t * 7 + j * 0.5 + x + ri2) * f * 1.5), base - j, f < 0.2 && Math.abs(x) < half * 0.7 ? '#fff4c0' : f < 0.42 ? '#ffd060' : f < 0.7 ? '#ff7a2a' : '#c8301a', 1 - f * 0.3);
+        }
+      }
+    }
+    g.putImageData(im, 0, 0); out.f.push(c);
+  }
+  return (FIRE_CACHE[r] = out);
+}
+function drawFireZone(g, z, t) {
+  const cx = Math.round(z.x / AP), cy = Math.round(z.y / AP), r = Math.max(3, Math.round(z.r / AP)), k = clamp(z.life / 0.6, 0, 1), F = fireFrames(r);
+  g.globalAlpha = k; g.drawImage(F.f[(Math.floor(t * 14) + ((z.x * 7 + z.y * 13) | 0)) % FIRE_FRAMES], cx - F.ox, cy - F.oy); g.globalAlpha = 1;
+  if (M.paused || M.parts.length > 400) return;
+  if (rnd() < 0.2 + r * 0.02) addPart({ x: z.x + (rnd() - 0.5) * z.r, y: z.y - 4, vx: (rnd() - 0.5) * 14, vy: -30 - rnd() * 30, life: 0.6, max: 0.6, col: rnd() < 0.5 ? '#ffb040' : '#ffe08a', size: 1, layer: 'px' });
+  if (rnd() < 0.05 + r * 0.01) addPart({ x: z.x + (rnd() - 0.5) * z.r * 0.8, y: z.y - r * AP * 0.8, vx: (rnd() - 0.5) * 8, vy: -16 - rnd() * 10, r: 0.6, grow: 2.4, life: 1.1, max: 1.1, col: '#2e2a2c', layer: 'px', alpha: 0.45 });
+}
+// ---------- burning: a scorched tint, and flames licking up from the sprite's own outline ----------
+function frameProfile(c) {
+  if (c.prof) return c.prof;
+  if (DMG_BUDGET <= 0) return null;
+  DMG_BUDGET--;
+  const w = c.width, h = c.height, s = mkCanvas(w, h), sg = s.getContext('2d', { willReadFrequently: true }); sg.drawImage(c, 0, 0);
+  const d = sg.getImageData(0, 0, w, h).data, prof = [];
+  for (let x = 0; x < w; x++) { let top = -1, bot = -1; for (let y = 0; y < h; y++) if (d[(y * w + x) * 4 + 3] > 40) { if (top < 0) top = y; bot = y; } prof.push(top < 0 ? null : [top, bot]); }
+  return (c.prof = prof);
+}
+// six frames of flame over one sprite frame, 6px of headroom on top; null until the outline has been read
+function burnFrames(fr) {
+  if (fr.burn) return fr.burn;
+  const prof = frameProfile(fr); if (!prof) return null;
+  const w = fr.width, h = fr.height + 6, out = [];
+  for (let fl = 0; fl < 6; fl++) {
+    const c = mkCanvas(w, h), g = c.getContext('2d'), im = g.createImageData(w, h), a = im.data;
+    for (let x = 0; x < w; x++) {
+      const p = prof[x]; if (!p || hsh3(x, 17, fl) > 0.55) continue;
+      const y0 = p[0] + Math.floor(hsh3(x, 24, fl >> 1) * Math.max(1, (p[1] - p[0]) * 0.6)), H = 2 + Math.floor(hsh3(x, 20, fl) * 4);
+      for (let j = 0; j < H; j++) { const y = y0 + 6 - j; if (y < 0) break; const f = j / H, [rr, gg, bb] = hex2rgb(f < 0.34 ? '#ffe08a' : f < 0.67 ? '#ff8a2a' : '#d8401a'), i = (y * w + x) * 4; a[i] = rr; a[i + 1] = gg; a[i + 2] = bb; a[i + 3] = Math.round(255 * (1 - f * 0.4)); }
+    }
+    g.putImageData(im, 0, 0); out.push(c);
+  }
+  return (fr.burn = out);
+}
+function burnFlames(g, fr, ax, sx, sy, flip, t, id, k) {
+  const bf = burnFrames(fr); if (!bf || k <= 0.02) return;
+  const im = bf[(Math.floor(t * 12) + id) % 6];
+  g.globalAlpha = k;
+  if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx, sy - 6); g.restore(); } else g.drawImage(im, sx, sy - 6);
+  g.globalAlpha = 1;
+}
+const charFrames = v => v.char || (v.char = v.frames.map(c => silhouette(c, '#1a0c06')));
+function drawBurning(g, e, t, v, fi, ax, sx, sy, flip) {
+  const k = clamp(e.burnT / 0.4, 0, 1), fr = v.frames[fi];
+  g.globalAlpha = 0.35 * k;
+  if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(charFrames(v)[fi], sx, sy); g.restore(); } else g.drawImage(charFrames(v)[fi], sx, sy);
+  burnFlames(g, fr, ax, sx, sy, flip, t, (e.wob * 1000) | 0, k);
+  if (!M.paused && M.parts.length < 400 && rnd() < 0.06 * k) addPart({ x: e.x + (rnd() - 0.5) * e.r, y: e.y - fr.height * AP * 0.6, vx: (rnd() - 0.5) * 8, vy: -14 - rnd() * 10, r: 0.5, grow: 2, life: 0.8, max: 0.8, col: '#3a3236', layer: 'px', alpha: 0.6 });
+}
+// ---------- burnt to the bone: a humanoid that dies on fire chars, flakes to ash, and its skeleton collapses ----------
+const BONE = '#e8e0cc', BONE_SH = '#b4a88e', SOOT = '#1a1210';
+function burnDeath(e) {
+  const v = e.v, fi = Math.floor(e.dist / 5) % v.frames.length;
+  (M.burnDeaths = M.burnDeaths || []).push({ x: Math.round(e.x / AP), y: Math.round(e.y / AP) + 4, v, fi, flip: e.face < 0, t0: M.t, seed: (rnd() * 1000) | 0 });
+  smoke(e.x, ecy(e), 2);
+}
+// the bones, from the feet up: [kind, x offset, top, length]; the skull lands last and rolls
+function skeletonParts(top, feet) {
+  const Ht = feet - top, sh = top + 5, pel = top + Math.round(Ht * 0.56);
+  return [
+    ['leg', -1, pel + 2, feet - pel - 2, 0, -1], ['leg', 1, pel + 2, feet - pel - 2, 0.04, 1],
+    ['pelvis', 0, pel, 2, 0.08, 0], ['spine', 0, sh, pel - sh, 0.12, -1], ['ribs', 0, sh + 1, Math.max(3, Math.round(Ht * 0.24)), 0.12, 1],
+    ['arm', -3, sh, Math.round(Ht * 0.34), 0.15, -1], ['arm', 3, sh, Math.round(Ht * 0.34), 0.17, 1], ['skull', 0, top, 4, 0.22, 1],
+  ];
+}
+function drawBone(g, kind, x, y, len, flat, a) {
+  g.globalAlpha = a;
+  if (kind === 'skull') { px(g, x - 2, y, 4, 3, BONE); px(g, x - 2, y + 2, 4, 1, BONE_SH); px(g, x - 1, y + 3, 3, 1, BONE); px(g, x - 1, y + 1, 1, 1, SOOT); px(g, x + 1, y + 1, 1, 1, SOOT); }
+  else if (kind === 'pelvis') { px(g, x - 2, y, 5, 1, BONE); px(g, x - 2, y + 1, 1, 1, BONE_SH); px(g, x + 2, y + 1, 1, 1, BONE_SH); }
+  else if (kind === 'ribs') { if (flat) { px(g, x - 2, y, 5, 2, BONE_SH); px(g, x - 2, y, 5, 1, BONE); } else for (let j = 0; j < len; j += 2) px(g, x - 2, y + j, 5, 1, j ? BONE_SH : BONE); }
+  else if (flat) { px(g, x, y, len, 1, BONE); px(g, x + (len > 0 ? len - 1 : 0), y, 1, 1, BONE_SH); }
+  else { px(g, x, y, 1, len, BONE); px(g, x, y + len - 1, 1, 1, BONE_SH); }
+  g.globalAlpha = 1;
+}
+function drawBurnDeath(g, b, t) {
+  const age = M.t - b.t0, v = b.v, fr = v.frames[b.fi], ax = b.x, sx = ax - v.ax, sy = b.y - v.ay, flip = b.flip;
+  const blit = (im, dx = 0) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx - dx, sy); g.restore(); } else g.drawImage(im, sx + dx, sy); };
+  const prof = frameProfile(fr); if (b.top == null && prof) { const cols = prof.filter(Boolean); b.top = cols.length ? Math.min(...cols.map(p => p[0])) : 1; }
+  const top = sy + (b.top ?? 1), feet = b.y - 1;
+  const fade = age > 5.5 ? clamp(1 - (age - 5.5) / 1.5, 0, 1) : 1, live = !M.paused;
+  // a scorch mark where they fell
+  g.globalAlpha = 0.35 * fade; for (let x = -5; x <= 5; x++) for (let y = -1; y <= 1; y++) if (x * x / 25 + y * y <= 1 && ((x + y) & 1) === 0) px(g, ax + x, feet + 1 + y, 1, 1, SOOT); g.globalAlpha = 1;
+  if (age < 0.9) {
+    // engulfed: writhing, blackening
+    const k = age / 0.9, wr = Math.round(Math.sin(age * 30) * (1 - k) * 1.5);
+    blit(fr, wr); g.globalAlpha = k; blit(charFrames(v)[b.fi], wr); g.globalAlpha = 1;
+    burnFlames(g, fr, ax + wr, sx + wr, sy, flip, t, b.seed, 1);
+    return;
+  }
+  const parts = skeletonParts(top, feet);
+  if (age < 1.6) {
+    // the char flakes away to ash, and the skeleton shows through
+    const k = (age - 0.9) / 0.7;
+    for (const [kind, ox, y, len] of parts) drawBone(g, kind, ax + ox, y, len, false, 1);
+    g.globalAlpha = 1 - k; blit(charFrames(v)[b.fi]); g.globalAlpha = 1;
+    if (prof) for (let x = 0; x < fr.width; x++) { const p = prof[x]; if (!p || hsh3(x, b.seed, Math.floor(t * 10)) > 0.3 * (1 - k)) continue; const gx = flip ? 2 * ax - (sx + x) - 1 : sx + x; px(g, gx, sy + p[0] + Math.floor(hsh3(x, b.seed + 1, 3) * (p[1] - p[0] + 1)), 1, 1, hsh3(x, 9, Math.floor(t * 8)) < 0.5 ? '#ff8a2a' : '#ffd060'); }
+    burnFlames(g, fr, ax, sx, sy, flip, t, b.seed, 1 - k);
+    if (live && M.parts.length < 400 && rnd() < 0.25) addPart({ x: (ax + (rnd() - 0.5) * 8) * AP, y: (top + rnd() * (feet - top)) * AP, vx: (rnd() - 0.5) * 16, vy: -18 - rnd() * 18, life: 0.9, max: 0.9, col: rnd() < 0.6 ? '#3a3236' : '#6a5e5a', size: 1, layer: 'px' });
+    return;
+  }
+  // the skeleton gives way: legs buckle first, everything above drops onto them, the skull lands last and rolls
+  const ct = age - 1.6;
+  for (const [kind, ox, y, len, delay, dir] of parts) {
+    const tt = ct - delay; if (tt <= 0) { drawBone(g, kind, ax + ox, y, len, false, fade); continue; }
+    const long = kind === 'leg' || kind === 'arm' || kind === 'spine', h = long ? len : kind === 'ribs' ? 2 : kind === 'skull' ? 4 : 2;
+    const ground = feet - (long ? 0 : h - 1) - (kind === 'skull' ? 1 : 0), drop = Math.max(0, ground - (y + (long ? len - 1 : 0)));
+    const fall = Math.min(drop, 0.5 * 420 * tt * tt), landed = fall >= drop, tl = Math.sqrt(2 * drop / 420);
+    let x = ax + ox + Math.round(dir * Math.min(tt, tl) * 14), yy = y + Math.round(fall);
+    if (kind === 'skull' && landed) { const s = tt - tl; yy -= Math.round(Math.max(0, Math.sin(s * 12)) * 2 * Math.exp(-s * 5)); x += Math.round(dir * Math.min(3, s * 8)); }
+    if (long && landed) drawBone(g, kind, dir < 0 ? x - len + 1 : x, feet, len, true, fade);
+    else drawBone(g, kind, x, yy, len, landed && kind === 'ribs', fade);
+  }
+  if (live && age < 3 && M.parts.length < 400 && rnd() < 0.08) addPart({ x: ax * AP, y: feet * AP, vx: (rnd() - 0.5) * 6, vy: -10 - rnd() * 6, r: 0.5, grow: 2, life: 1.2, max: 1.2, col: '#3a3236', layer: 'px', alpha: 0.5 });
 }
 
 function isPortrait() { const r = $('#stage').getBoundingClientRect(); return r.height > r.width * 1.05; }
@@ -3521,6 +3707,7 @@ function startMission(contract) {
   if (!contract.ship) { B3.assignTypes(map, contract.biomeKey, contract.facKey); if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map); }
   const gr = contract.ship ? shipDeck(map.deck, map.tier, { guns: map.guns, doors: map.doors, props: map.obstacles }) : renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
+  M.water = buildWaterFrames(gr.liquidTiles, contract.ship ? LIQUIDS.coolant : LIQUIDS[BIOME_ART[contract.biomeKey].liquid.kind], !!contract.ship);
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade; M.act = actOf(contract.idx);
   S.selCrew = -1; S.selTower = null;
   RUN.roster.forEach(c => { c.snooze = false; });
@@ -4065,6 +4252,7 @@ function stepMission(dt) {
   for (const e of m.enemies) {
     if (e.dead) continue;
     if (e.hitT > 0) e.hitT -= dt;
+    if (e.burnT > 0) e.burnT -= dt;
     if (e.beamT > 0) { e.beamT -= dt; continue; }
     stepCancel(e, dt);
     if (e.uploading != null) { stepUpload(e, dt); continue; }
@@ -4262,7 +4450,7 @@ function stepMission(dt) {
     if (type === 'flamer') {
       tw.pulses = (tw.pulses || 0) + 1;
       const a0 = tw.ang, cone = s.cone || 0.62;
-      for (const e of inAll) { if (e.fly) continue; const a = Math.atan2(ecy(e) - tw.y, e.x - tw.x); const da = Math.abs(((a - a0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (da <= cone) hitEnemy(e, s.dmg, s, tw); }
+      for (const e of inAll) { if (e.fly) continue; const a = Math.atan2(ecy(e) - tw.y, e.x - tw.x); const da = Math.abs(((a - a0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (da <= cone) { e.burnT = Math.max(e.burnT || 0, 1.1); hitEnemy(e, s.dmg, s, tw); } }
       if (tw.pulses % s.patch === 0) m.zones.push({ x: tgt.x, y: tgt.y, r: 13, life: s.patchLife, max: s.patchLife, dps: s.burn * s.burnMult, kind: 'fire', tw });
       if (s.inferno && m.t - (tw.infAt ?? -99) >= 8) { tw.infAt = m.t; m.zones.push({ x: tgt.x, y: tgt.y, r: 2 * TILE, life: 3, max: 3, dps: s.burn * s.burnMult * 2.5, kind: 'fire', tw }); shake(3); sfx('bigboom', tgt.x); }
       for (let k = 0; k < 7; k++) { const a = a0 + (rnd() - 0.5) * cone * 1.6, v = 90 + rnd() * 80; addPart({ x: mz.x, y: mz.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.22 + rnd() * 0.12, max: 0.34, col: pick(['#ffd060', '#ff7a2a', '#ff4a1a', '#fff0b0']), size: 2, layer: 'fx' }); }
@@ -4355,6 +4543,7 @@ function stepMission(dt) {
     z.life -= dt;
     for (const e of m.enemies) {
       if (e.dead || e.fly || Math.hypot(e.x - z.x, e.y - z.y) > z.r) continue;
+      if (z.kind === 'fire') e.burnT = Math.max(e.burnT || 0, 0.9);
       if (z.dps) damage(e, z.dps * dt, true, z.tw, true);
       if (z.slow && !e.dead) applySlow(e, z.slow, 0.2);
       if (z.vuln && !e.dead) markE(e, z.vuln, 0.2);
@@ -4397,6 +4586,7 @@ function casing(tw) { const f = tw.face || 1; addPart({ x: tw.x + f * 6, y: tw.y
 function shake(v) { M.shake = Math.max(M.shake, v); }
 function foam(x, y, r) { M.decals.push({ x, y, life: 6, blobs: Array.from({ length: 7 }, () => ({ x: (rnd() - 0.5) * r / AP * 1.3, y: (rnd() - 0.5) * r / AP * 0.7, r: 1 + rnd() * 2.6, c: pick(['#f2f6fa', '#d8e8f2', '#ffffff', '#c8dcea']) })) }); }
 function deathFx(e) {
+  if (e.dead && e.burnT > 0 && e.v && e.v.kind === 'human' && !e.boss && !e.fly && !e.inTunnel && (M.burnDeaths || []).length < 10) { burnDeath(e); return; }
   const y = ecy(e), n = e.boss ? 34 : 9;
   for (let i = 0; i < n; i++) addPart({ x: e.x, y, vx: (rnd() - 0.5) * 130, vy: -40 - rnd() * 100, g: 330, floor: e.y + 4 + rnd() * 8, life: 0.8 + rnd() * 0.5, max: 1.3, col: rnd() < 0.5 ? e.color : shade(e.color, -0.4), size: 1, layer: 'px' });
   smoke(e.x, y, e.boss ? 12 : 3);
@@ -4442,6 +4632,7 @@ function renderMission(now) {
   for (const dc of m.decals) { g.globalAlpha = clamp(dc.life / 2, 0, 0.9); for (const b of dc.blobs) pxCircle(g, dc.x / AP + b.x, dc.y / AP + b.y, b.r, b.c); }
   // burning and foam patches, dithered
   for (const z of m.zones) {
+    if (z.kind === 'fire') { drawFireZone(g, z, t); continue; }
     const cx = Math.round(z.x / AP), cy = Math.round(z.y / AP), r = Math.round(z.r / AP), fl = Math.floor(t * 12);
     g.globalAlpha = clamp(z.life / 0.6, 0, 1) * (z.kind === 'fire' ? 0.75 : 0.55);
     for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) {
@@ -4469,6 +4660,7 @@ function renderMission(now) {
   for (const e of m.enemies) if (!e.fly) list.push([e.y, () => { drawEnemyPx(g, e, t); drawDealMark(g, e, t); drawThreatMarks(g, e, t); }]);
   for (const a of m.allies || []) list.push([a.y, () => drawAllyPx(g, a, t)]);
   list.push([m.dep.y, () => drawDepositPx(g, t)]);
+  if (m.burnDeaths) { m.burnDeaths = m.burnDeaths.filter(b => m.t - b.t0 < 7); for (const b of m.burnDeaths) list.push([b.y * AP - 6, () => drawBurnDeath(g, b, t)]); }
   list.sort((a, b) => a[0] - b[0]);
   for (const it of list) it[1]();
   // placement ghost
@@ -4538,6 +4730,10 @@ function renderMission(now) {
   for (const l of m.lights) glow(l.x, l.y, l.r, l.color, (l.flicker ? 0.3 + 0.2 * Math.sin(t * 7 + l.x) : 0.4) * (l.pulse ? 0.45 + 0.4 * Math.sin(t * 4) : 1) * (l.kin ? dim : 1));
   for (const a of m.arts || []) if (a.deployed) { const A = ARTIFACTS[a.id], lx = A.kind === 'heli' ? a.hx : a.x, ly = A.kind === 'heli' ? a.hy : A.kind === 'blimp' ? a.y - 32 : a.y; glow(lx, ly, A.kind === 'van' || A.kind === 'blimp' ? 22 : 14, A.col, 0.3 + 0.1 * Math.sin(t * 3)); if (A.kind === 'van' || A.kind === 'blimp') glow(a.x, a.y, ((A.kind === 'van' ? 2.5 : 3.2) + 0.3 * (a.level - 1)) * TILE, A.col, 0.06); }
   for (const p of m.portals || []) { const cx = p.tx * TILE + TILE / 2, cy = p.ty * TILE + TILE / 2; glow(cx, cy, 26 + 40 * p.open, '#3af0ff', 0.12 + 0.45 * p.open + (p.beam > 0 ? 0.3 : 0)); }
+  for (const z of m.zones) if (z.kind === 'fire') glow(z.x, z.y - 6, z.r * 1.9 + 10, '#ff7a2a', (0.38 + 0.1 * Math.sin(t * 13 + z.x)) * clamp(z.life / 0.6, 0, 1));
+  let lit = 0;
+  for (const e of m.enemies) if (e.burnT > 0 && !e.dead && lit++ < 12) glow(e.x, ecy(e), 16, '#ff8a2a', 0.4 * clamp(e.burnT / 0.4, 0, 1) * (0.85 + 0.15 * Math.sin(t * 17 + e.wob)));
+  for (const b of m.burnDeaths || []) { const age = m.t - b.t0; if (age < 1.8) glow(b.x * AP, (b.y - 8) * AP, 22, '#ff7a2a', 0.55 * (age < 0.9 ? 1 : 1 - (age - 0.9) / 0.9)); }
   glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);
   for (const tw of m.towers) {
     if (tw.down) continue;
@@ -4947,6 +5143,7 @@ function drawEnemyPx(g, e, t) {
   if (e.deal) { const ol = v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6'))); for (const [dx, dy] of OFF4) blit(ol[fi], dx, dy); }
   if (e.slowT > 0) { g.globalAlpha = 0.5; for (const [dx, dy] of OFF4) blit(v.slow[fi], dx, dy); g.globalAlpha = 1; }
   blit(img, 0, 0);
+  if (e.burnT > 0) drawBurning(g, e, t, v, fi, ax, sx, sy, flip);
   // badly hurt hostiles trail smoke and sparks
   if (stage >= 2 && !M.paused && rnd() < (stage === 3 ? 0.1 : 0.04) * (e.boss ? 2.5 : 1)) {
     const h = v.frames[0].height, px0 = e.x + (rnd() - 0.5) * e.r, py0 = e.y - (h * AP) * (0.3 + rnd() * 0.4) + (e.fly ? -12 : 8);
@@ -11351,7 +11548,7 @@ SECTOR_BIOMES[4] = ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'vol
 SECTOR_BIOMES[5] = ['hq', 'hq', 'cyber', 'cloud', 'tomb', 'volcanic'];
 SECTOR_NAMES[4] = ['The Contested Belt', 'Supply Line Zero', 'The Quiet War']; SECTOR_NAMES[5] = ['Headquarters Approach', 'The Last Quarter'];
 
-window.__AL = { planetScene, perchAt, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, deathFx, buildWaterFrames, perchAt, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
