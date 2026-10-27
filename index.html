@@ -386,6 +386,9 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 .intranet .wbody{flex:1}
 .slip.mini{font-size:17px}
 .slip.mini td{padding:3px 0}
+.slip tr.sub td{color:var(--muted);font-size:.85em;padding-left:10px}
+.ledger{margin-top:8px}.ledger .slip tr.tot td{color:var(--danger)}
+.reclaim{color:var(--danger);text-transform:none;letter-spacing:0}
 .notes{margin:0;padding:0 0 0 16px;font-size:13px;line-height:1.35;color:var(--muted);display:flex;flex-direction:column;gap:3px}
 .feed .titlebar{background:var(--fc);color:#0b0c12}
 .feed .titlebar i{background:repeating-linear-gradient(180deg,rgba(0,0,0,.35) 0 1px,transparent 1px 3px)}
@@ -652,6 +655,24 @@ const RELICS = {
 
 const CREW_NAMES = ['Gary', 'Deb', 'Kowalski', 'Priya', 'Big Tomás', 'Steve (3)', 'Marguerite', 'Zed', 'Olu', 'Hank', 'Yusuf', 'Brenda', 'Ito', 'Rook', 'Svetlana', 'Dez', 'Unit 7', 'Moira', 'Pip', 'Lars', 'Ngozi', 'Carl', 'Imogen', 'Ramón', 'Fitz', 'Agnes', 'Bao', 'Dmitri', 'Tess', 'Kwame'];
 const DEDUCTIONS = ['Uniform rental', 'Oxygen (metered)', 'Helmet depreciation', 'Mandatory fun committee', 'Death insurance premium', 'Shuttle seat lease', 'Morale survey processing', 'Gravity surcharge', 'Ammunition you used', 'Ammunition colleagues used', 'Wellness hotline (on hold)', 'Payslip printing fee', 'Hazard pay processing'];
+// What happens to the money. The field budget you don't spend is not a bug: Kindly reclaims it. The client
+// is billed many times what you're paid. The debrief itemises both, and your share of the value delivered.
+const EXEC_SPEND = ['Board yacht fund (third yacht)', 'CEO portrait, oil, fourth draft', '"Synergy" consultants', 'Lobbying: the Oxygen Is Optional Act', 'Executive wellness retreat', 'Rebranding the word "layoffs"', 'Golden parachute polish', 'Shareholder gift baskets', 'Board Member Q\'s legal fees', 'A second, better HR-BOT', 'Quarterly pizza party (executives only)', 'Offshore account maintenance'];
+function companyLedger(c, m, net) {
+  const billed = Math.round((50 + 12 * c.idx) * c.pay * (34 + 6 * sectorOf(c.idx)) * (c.client.good ? 0.8 : 1.35));
+  const leftover = Math.max(0, Math.round(m.budget));
+  // the reclaimed budget, split between three line items
+  const items = shuffle([...EXEC_SPEND]).slice(0, 3), w = [0.5 + rnd() * 0.2, 0.2 + rnd() * 0.1]; w.push(Math.max(0.05, 1 - w[0] - w[1]));
+  const spend = items.map((k, i) => [k, Math.round(leftover * w[i])]);
+  if (spend.length) spend[0][1] += leftover - spend.reduce((s, x) => s + x[1], 0);
+  const share = net / Math.max(1, billed + leftover) * 100;
+  return { billed, leftover, spend: leftover ? spend : [], share };
+}
+const ledgerHtml = L => `<div class="ledger"><div class="lbl">Where the money went</div><table class="slip mini"><tbody>
+  <tr><td>Billed to client</td><td>$${L.billed.toLocaleString('en-GB')}</td></tr>
+  <tr><td>Unspent field budget, reclaimed</td><td>$${L.leftover.toLocaleString('en-GB')}</td></tr>
+  ${L.spend.map(([k, v]) => `<tr class="sub"><td>↳ ${esc(k)}</td><td>$${v.toLocaleString('en-GB')}</td></tr>`).join('')}
+  <tr class="tot"><td>Your share of the value delivered</td><td>${L.share < 0.1 ? L.share.toFixed(2) : L.share.toFixed(1)}%</td></tr></tbody></table></div>`;
 const EARTH = ['Neo-Rotterdam Arcology', 'Greater Phoenix Heat Dome', 'Old Lagos Free Port', 'Sub-Shanghai Level 40', 'Antarctic Lithium Strip', 'New Detroit Megablock'];
 const SYL_A = ['Var', 'Kes', 'Ox', 'Thal', 'Mor', 'Ny', 'Zeb', 'Cal', 'Dru', 'Quor', 'Ise', 'Pel', 'Ab', 'Tor', 'Gha'];
 const SYL_B = ['n', 'sel', 'ara', 'ion', 'ux', 'eth', 'imo', 'oss', 'ari', 'ec', 'ul', 'yr'];
@@ -4799,7 +4820,7 @@ function buildMissionHud() {
     <div class="hud-block"><div class="lbl">${c.ship ? `Ship defence · Raid ${c.ship.stage} of 3 · ${esc(FACTIONS[c.ship.fac].short)}` : c.boss ? (sectorOf(c.idx) >= MAX_SECTOR ? 'Board contract' : 'Executive contract') : `Sector ${sectorOf(c.idx)} · Contract ${sectorPos(c.idx) + 1} of ${CONTRACTS_PER_SECTOR}`} · ${esc(c.biome.name)}</div><div class="val" title="${esc(c.planet)}">${esc(c.planet)}</div></div>
     <div class="hud-meter"><div class="lbl">${c.ship ? 'Raid' : 'Extraction'} <span id="hDrillTxt" class="mono"></span></div><div class="meter"><i id="hDrill"></i></div></div>
     <div class="hud-meter"><div class="lbl">${c.ship ? 'Fuel reserve' : 'Profit margin'} <span id="hMarginTxt" class="mono"></span></div><div class="meter m-margin" id="hMarginBox"><i id="hMargin"></i></div></div>
-    <div class="hud-block"><div class="lbl">Budget</div><div class="val mono" id="hBudget"></div></div>
+    <div class="hud-block" title="Field budget for deploying crew. Whatever you don't spend is reclaimed by Kindly at the end of the contract."><div class="lbl">Budget <span class="reclaim">unspent → Kindly</span></div><div class="val mono" id="hBudget"></div></div>
     <div class="hud-ctrl">
       <button class="btn sm" id="bStart" data-act="start">Begin extraction</button>
       <button class="btn sm ghost" id="bPause" data-act="pause" aria-label="Pause">Pause</button>
@@ -7025,7 +7046,7 @@ ARCH.hq = function (P, c) {
 };
 
 // ---------- the sector break ----------
-function showSectorComplete(c, net) {
+function showSectorComplete(c, net, ledger) {
   S.screen = 'sector'; M = null; clearMissionUi(); backdropView(); sfx('victory'); setMusic('menu');
   const sector = sectorOf(RUN.idx), loan = Math.min(20, 100 - RUN.margin);
   RUN.margin += loan;
@@ -7040,6 +7061,7 @@ function showSectorComplete(c, net) {
     ${worldMontage(ws, `Sector ${sector - 1}, as you left it`)}
     ${actIntroHtml(actOf(RUN.idx))}
     ${statLine([['Contracts', RUN.history.length], ['Pacified', RUN.kills], ['Margin', RUN.margin + '%'], ['Bonus', '+' + net]])}
+    ${ledger ? ledgerHtml(ledger) : ''}
     <div class="row"><button class="btn" data-act="tostore">Proceed to Sector ${sector}</button></div>
   </div></div>`;
   juiceScreen(); confetti(null, null, 90); banner(`Sector ${sector - 1} cleared`, `Next: Sector ${sector} · ${RUN.sectorName}`, '#ffd23f');
@@ -7555,9 +7577,10 @@ function finishMission(success) {
   if (st.heat >= 75) { const fee = Math.min(25, net); all.push(['Internal audit (suspicion surcharge)', -fee]); net -= fee; st.heat -= 30; story.push({ audit: true }); }
   st.heat = Math.max(0, st.heat - 5);
   RUN.scrip += net;
-  if (c.boss) { if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; showSectorComplete(c, net); } else showVictory(); return; }
+  const ledger = companyLedger(c, m, net);
+  if (c.boss) { if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; showSectorComplete(c, net, ledger); } else showVictory(); return; }
   RUN.idx++;
-  showDebrief({ c, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], quits, dividend: m.dividendPaid || 0, slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
+  showDebrief({ c, ledger, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], quits, dividend: m.dividendPaid || 0, slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
 }
 
 // ---------- screens ----------
@@ -7949,9 +7972,8 @@ function showDebrief(d) {
   if (d.promos.length) notes.push('Promoted (no raise): ' + d.promos.map(p => `${p.name}, ${p.rank}`).join('; ') + '.');
   if (d.replacements.length) notes.push(d.replacements.map(r => `${r.old} replaced by ${r.name}`).join('; ') + '. Same kit, new face.');
   if (RUN.story.heat >= 50) notes.push('Your Loyalty Score is under review.');
-  // a compact payslip: earnings line by line, the deductions as one total
-  const earn = d.slip.filter(([, v]) => v > 0), dedTot = d.slip.filter(([, v]) => v < 0).reduce((s, [, v]) => s + v, 0), nDed = d.slip.filter(([, v]) => v < 0).length;
-  const slip = earn.map(([k, v]) => [k.replace(/ \(.*\)/, ''), v]).concat(nDed ? [[`Deductions (${nDed}, non-negotiable)`, dedTot]] : []);
+  // the payslip: earnings, then every deduction on its own line, so you can see where your pay went
+  const slip = d.slip.map(([k, v]) => [v > 0 ? k.replace(/ \(.*\)/, '') : k, v]);
   const am = avgMorale(), plant = am >= 60 ? 0 : am >= 35 ? 1 : 2;
   for (const q of d.quits || []) notes.push(q.kept ? `${q.name} tried to quit. The Retention Bonus talked them round.` : `${q.name} quit and joined ${FACTIONS[q.fac] ? FACTIONS[q.fac].short : 'the Colony'}. Their kit went with them.`);
   if (d.dividend) notes.push(`Loyalty Dividend paid: +$${d.dividend} budget.`);
@@ -7969,7 +7991,8 @@ function showDebrief(d) {
             <div class="paybox"><span class="lbl">Net pay</span><b>${d.net}</b><small>scrip</small></div>
           </div>
           <div class="moodline">Crew morale ${moraleBar({ morale: am, value: 'company' })} <b>${am}</b> · ${esc((MORALE_TIERS.find(t => am >= t.min) || MORALE_TIERS[4]).name)}${RUN.dividend ? ` · Dividend banked $${RUN.dividend}` : ''}</div>
-          <table class="slip mini"><tbody>${slip.map(([k, v]) => `<tr class="${v < 0 ? 'neg' : ''}"><td>${esc(k)}</td><td>${v < 0 ? '−' : '+'}${Math.abs(v)}</td></tr>`).join('')}</tbody></table>
+          <table class="slip mini"><tbody>${slip.map(([k, v]) => `<tr class="${v < 0 ? 'neg' : ''}"><td>${esc(k)}</td><td>${v < 0 ? '−' : '+'}${Math.abs(v)}</td></tr>`).join('')}<tr class="tot"><td>Net pay</td><td>${d.net}</td></tr></tbody></table>
+          ${d.ledger ? ledgerHtml(d.ledger) : ''}
           ${notes.length ? `<ul class="notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
           <div class="cnews"><div class="lbl">Kindly News</div><p><b>${esc(corpHeadline(c, d, w))}</b></p><p>${esc(pick(TICKER))}</p></div>
         </div>
