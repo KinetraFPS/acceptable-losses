@@ -2698,7 +2698,7 @@ function returnReason(f) {
 function factionWeights(idx) {
   const act = actOf(idx), w = {};
   for (let a = 1; a <= act; a++) for (const f of ACTS[a].factions) {
-    if (!FACTIONS[f]) continue;
+    if (!FACTIONS[f] || dissolved(f)) continue;
     if (a === act) { w[f] = 3; continue; }
     const st = RUN.story, arc = st.arcs[f];
     let k = 0.3;
@@ -2709,14 +2709,17 @@ function factionWeights(idx) {
     k += 0.2 * ws.filter(x => x.state === 'helped').length + 0.1 * ws.filter(x => x.state === 'crushed').length;
     w[f] = k;
   }
+  // if every faction the act could field is gone, anyone left will do
+  if (!Object.keys(w).length) for (const f of Object.keys(FACTIONS)) if (!dissolved(f)) w[f] = 1;
+  if (!Object.keys(w).length) for (const f of Object.keys(FACTIONS)) w[f] = 1;
   return w;
 }
 // the boss of an act comes from whoever you fought most in it
 function actBossFaction(idx) {
   const sec = sectorOf(idx), cnt = {};
-  for (const h of RUN.history) if (sectorOf(h.idx) === sec) cnt[h.faction] = (cnt[h.faction] || 0) + 1;
+  for (const h of RUN.history) if (sectorOf(h.idx) === sec && !dissolved(h.faction)) cnt[h.faction] = (cnt[h.faction] || 0) + 1;
   const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
-  return best || ACTS[actOf(idx)].factions.find(f => FACTIONS[f]) || pick(Object.keys(FACTIONS));
+  return best || ACTS[actOf(idx)].factions.find(f => FACTIONS[f] && !dissolved(f)) || pick(Object.keys(FACTIONS).filter(f => !dissolved(f))) || pick(Object.keys(FACTIONS));
 }
 // the act's light over a finished frame: a soft-light grade, a haze, and slow bands of smog
 function actGrade(g, W, H, act, t = 0) {
@@ -3389,7 +3392,7 @@ function transposeMap(map) {
   const grid = Array.from({ length: GW }, (_, y) => Array.from({ length: GH }, (_, x) => map.grid[x][y])), sw = q => ({ ...q, x: q.y, y: q.x });
   return {
     grid, dep: sw(map.dep), spawns: map.spawns.map(sw), landmarks: map.landmarks.map(sw), obstacles: map.obstacles.map(sw), bridges: map.bridges.map(sw),
-    buildings: map.buildings.map(b => ({ x: b.y, y: b.x, w: b.h, h: b.w })), paths: map.paths.map(p => p.map(sw)),
+    buildings: map.buildings.map(b => ({ ...b, x: b.y, y: b.x, w: b.h, h: b.w })), paths: map.paths.map(p => p.map(sw)),
   };
 }
 function startMission(contract) {
@@ -3397,7 +3400,7 @@ function startMission(contract) {
   $('#bar').innerHTML = ''; $('#overlay').innerHTML = ''; hudCache = {};
   const portrait = isPortrait();
   GW = 22; GH = 13;
-  let map = genMap(contract.spawns, contract.biomeKey);
+  let map = contract.ship ? shipMap(contract.ship.stage) : genMap(contract.spawns, contract.biomeKey);
   if (portrait) { map = transposeMap(map); GW = 13; GH = 22; }
   M = {
     c: contract, biome: contract.biome, map, grid: map.grid, paths: map.paths,
@@ -3414,8 +3417,7 @@ function startMission(contract) {
   const dividend = RUN.dividend || 0; RUN.dividend = 0;
   if (dividend) { M.budget += dividend; M.dividendPaid = dividend; setTimeout(() => toast(`Loyalty Dividend: +$${dividend} budget, to cover your crew's attitude.`, 2600), 900); }
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
-  B3.assignTypes(map, contract.biomeKey, contract.facKey);
-  if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map);
+  if (!contract.ship) { B3.assignTypes(map, contract.biomeKey, contract.facKey); if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map); }
   const gr = renderGround(map, contract.biomeKey);
   M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade; M.act = actOf(contract.idx);
@@ -3889,6 +3891,11 @@ function loseMargin(n, x, y) {
   let take = n;
   if (M.insured > 0) { const a = Math.min(M.insured, take); M.insured -= a; take -= a; if (a > 0) fxText(x, y - 14, 'insured', '#4fd1a1'); }
   if (take <= 0) return;
+  if (M.c.ship) {
+    take = Math.max(1, Math.round(take * 0.8)); M.fuel -= take; M.lost += take; sfx('leak', x); fxText(M.dep.x, M.dep.y - 28, `-${take}% fuel`, '#ff4d5e');
+    if (M.fuel <= 0) { M.fuel = 0; M.phase = 'failed'; M.endTimer = 2.2; sfx('fail'); setMusic(null); toast('The fuel crystals are gone', 2200); }
+    return;
+  }
   RUN.margin -= take; M.lost += take; RUN.lostTotal += take; sfx('leak', x);
   if (has('pill') && !M.pillUsed && RUN.margin < 30) { M.pillUsed = true; for (const e of M.enemies) if (!e.dead && !e.deal) stunE(e, 3); toast('Poison Pill: every hostile stunned', 2000); shake(4); }
   fxText(M.dep.x, M.dep.y - 28, `-${take}% margin`, '#ff4d5e');
@@ -4563,7 +4570,7 @@ function crystalSprite(h, w, lean) {
   postProcess(P.c, { shadeIt: false, outlineCol: '#1a0f30' });
   return (CRYSTAL_CACHE[key] = { c: P.c, ox: base });
 }
-function depositShown() { return Math.max(0, Math.ceil(DEP_CRYSTALS.length * clamp(RUN.margin, 0, 100) / 100)); }
+function depositShown() { return Math.max(0, Math.ceil(DEP_CRYSTALS.length * clamp(M && M.c.ship ? M.fuel : RUN.margin, 0, 100) / 100)); }
 function drawDepositPx(g, t) {
   const ax = Math.round(M.dep.x / AP), ay = Math.round(M.dep.y / AP) + 2, n = depositShown();
   const keep = new Set(DEP_KEEP.slice(0, n));
@@ -4718,9 +4725,9 @@ function drawEnemyPx(g, e, t) {
 function buildMissionHud() {
   const c = M.c;
   $('#hud').innerHTML = `
-    <div class="hud-block"><div class="lbl">${c.boss ? (sectorOf(c.idx) >= MAX_SECTOR ? 'Board contract' : 'Executive contract') : `Sector ${sectorOf(c.idx)} · Contract ${sectorPos(c.idx) + 1} of ${CONTRACTS_PER_SECTOR}`} · ${esc(c.biome.name)}</div><div class="val" title="${esc(c.planet)}">${esc(c.planet)}</div></div>
-    <div class="hud-meter"><div class="lbl">Extraction <span id="hDrillTxt" class="mono"></span></div><div class="meter"><i id="hDrill"></i></div></div>
-    <div class="hud-meter"><div class="lbl">Profit margin <span id="hMarginTxt" class="mono"></span></div><div class="meter m-margin" id="hMarginBox"><i id="hMargin"></i></div></div>
+    <div class="hud-block"><div class="lbl">${c.ship ? `Ship defence · Raid ${c.ship.stage} of 3 · ${esc(FACTIONS[c.ship.fac].short)}` : c.boss ? (sectorOf(c.idx) >= MAX_SECTOR ? 'Board contract' : 'Executive contract') : `Sector ${sectorOf(c.idx)} · Contract ${sectorPos(c.idx) + 1} of ${CONTRACTS_PER_SECTOR}`} · ${esc(c.biome.name)}</div><div class="val" title="${esc(c.planet)}">${esc(c.planet)}</div></div>
+    <div class="hud-meter"><div class="lbl">${c.ship ? 'Raid' : 'Extraction'} <span id="hDrillTxt" class="mono"></span></div><div class="meter"><i id="hDrill"></i></div></div>
+    <div class="hud-meter"><div class="lbl">${c.ship ? 'Fuel reserve' : 'Profit margin'} <span id="hMarginTxt" class="mono"></span></div><div class="meter m-margin" id="hMarginBox"><i id="hMargin"></i></div></div>
     <div class="hud-block"><div class="lbl">Budget</div><div class="val mono" id="hBudget"></div></div>
     <div class="hud-ctrl">
       <button class="btn sm" id="bStart" data-act="start">Begin extraction</button>
@@ -4738,13 +4745,14 @@ function updateHud() {
   const set = (id, k, v) => { if (hudCache[id + k] !== v) { hudCache[id + k] = v; const el = document.getElementById(id); if (el) { if (k === 'w') el.style.width = v; else if (k === 'cls') el.className = v; else el.textContent = v; } } };
   set('hDrill', 'w', (prog * 100).toFixed(1) + '%');
   set('hDrillTxt', 't', m.phase === 'prep' ? `${Math.floor(m.T / 60)}:${String(Math.round(m.T % 60)).padStart(2, '0')} total` : m.phase === 'drill' ? `${Math.floor(prog * 100)}% · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'complete');
-  set('hMargin', 'w', clamp(RUN.margin, 0, 100) + '%');
-  set('hMarginTxt', 't', RUN.margin + '%');
-  set('hMarginBox', 'cls', 'meter m-margin' + (RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''));
+  const mv = m.c.ship ? Math.round(m.fuel) : RUN.margin;
+  set('hMargin', 'w', clamp(mv, 0, 100) + '%');
+  set('hMarginTxt', 't', mv + '%');
+  set('hMarginBox', 'cls', 'meter m-margin' + (mv <= 25 ? ' crit' : mv <= 50 ? ' warn' : ''));
   set('hBudget', 't', '$' + m.budget);
   if (hudCache.lastB != null && m.budget > hudCache.lastB) bump(document.getElementById('hBudget'));
-  if (hudCache.lastM != null && RUN.margin < hudCache.lastM) bump(document.getElementById('hMarginBox'), 'hurt');
-  hudCache.lastB = m.budget; hudCache.lastM = RUN.margin;
+  if (hudCache.lastM != null && mv < hudCache.lastM) bump(document.getElementById('hMarginBox'), 'hurt');
+  hudCache.lastB = m.budget; hudCache.lastM = mv;
   const bs = document.getElementById('bStart'); if (bs) bs.hidden = m.phase !== 'prep';
   set('bPause', 't', m.paused ? 'Resume' : 'Pause');
   document.querySelectorAll('[data-act="speed"]').forEach(b => b.classList.toggle('on', +b.dataset.v === m.speed));
@@ -6483,9 +6491,10 @@ function pickEnding() {
 }
 function storyRecap() {
   const st = RUN.story;
-  if (!st.log.length) return 'No envoys reached you. Or you never picked up.';
+  const gone = Object.keys(st.dissolved || {}).map(f => `Your ship · ${FACTIONS[f].name} · DISSOLVED after three raids`);
+  if (!st.log.length && !gone.length) return 'No envoys reached you. Or you never picked up.';
   const verb = { accept: 'accepted', refuse: 'refused', report: 'reported to HR', honoured: 'honoured', betrayed: 'BETRAYED', collateral: 'broke by accident' };
-  return st.log.filter(l => l.choice !== 'accept').map(l => `${l.planet} · ${ARCS[l.fac].envoy} · ${beatDef(l.fac, l.beat).name} · ${verb[l.choice]}`).join('\n');
+  return st.log.filter(l => l.choice !== 'accept').map(l => `${l.planet} · ${ARCS[l.fac].envoy} · ${beatDef(l.fac, l.beat).name} · ${verb[l.choice]}`).concat(gone).join('\n');
 }
 // some factions come back for you when Kindly doesn't
 function rescuer() {
@@ -7356,6 +7365,7 @@ for (const f of Object.keys(FACTIONS)) fullRoster(FACTIONS[f]);
 // ---------- finishing a mission ----------
 function finishMission(success) {
   const m = M, c = m.c;
+  if (c.ship) { finishSiege(success); return; }
   if (!success) { showGameOver(); return; }
   const story = resolveDeal(m);
   RUN.lastDowned = m.downed.slice();
@@ -7913,7 +7923,7 @@ function showVictory() {
     ${titlebar('Final_Transmission.msg')}
     <div class="lbl" style="color:var(--brand)">${esc(c.bossDef.name)} neutralised · Ending ${ENDING_ORDER.indexOf(key) + 1}/${ENDING_ORDER.length} · found ${found.length}</div>
     <h2>${esc(E.name)}</h2>
-    <div class="mailbody">${(ENDING_KEEP[key] || [0, 1]).map(k => E.paras(x)[k]).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join('')}<p style="color:var(--muted);font-size:14px">${esc(E.sign)}</p></div>
+    <div class="mailbody">${(ENDING_KEEP[key] || [0, 1]).map(k => E.paras(x)[k]).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join('')}<p style="color:var(--muted);font-size:14px">${esc(E.sign)}</p></div>${Object.keys(st.dissolved || {}).length ? `<p class="colony">Dissolved on your watch: ${esc(andList(Object.keys(st.dissolved).map(f => FACTIONS[f].name)))}.</p>` : ''}
     ${worldMontage(RUN.worlds)}
     ${statLine([['Contracts', RUN.history.length], ['Pacified', RUN.kills], ['Final margin', RUN.margin + '%'], ['Crew', RUN.roster.length]])}
     ${RUN.fallen && RUN.fallen.length ? `<p class="lede dim">In memoriam: ${esc(RUN.fallen.map(f => f.name).join(', '))}.</p>` : ''}
@@ -7964,7 +7974,10 @@ document.addEventListener('click', ev => {
   else if (act === 'buy') buy(i);
   else if (act === 'promote') { const cr = RUN.roster[i]; S.promotePick = false; if (cr && cr.level < MAXL) { cr.level++; cr.xp = Math.max(cr.xp, XP_TH[cr.level - 1]); cr.reviews.push(cr.level); showReview(cr); } else showStore(); }
   else if (act === 'dismiss') { if (RUN.roster.length > 1) { RUN.roster.splice(i, 1); showStore(); } }
-  else if (act === 'tomap') { RUN.options = genOptions(); showMap(); }
+  else if (act === 'tomap') { const f = siegeDue(); if (f) showDemand(f); else { RUN.options = genOptions(); showMap(); } }
+  else if (act === 'demand') demandChoice(b.dataset.v);
+  else if (act === 'demandgo') demandGo(b.dataset.v);
+  else if (act === 'siegedone') { RUN.options = genOptions(); showMap(); }
 });
 cv.addEventListener('pointermove', ev => {
   const p = toLogical(ev);
@@ -9134,6 +9147,8 @@ const BKIT = {
   tomb:   { wall: '#3e4a4c', trim: '#ff5ad1', roof: '#4a5654', win: '#ff5ad1', winOff: '#14181a', door: '#0e1214', step: '#5a6664', tex: 'stone', church: 'temple', alienCivic: true,
             cap: '#4a5654', cap2: '#5a6664', glow: '#ff5ad1', spot: '#3ae8d0',
             roofs: { house: 'step', shop: 'step', school: 'step', clinic: 'step', church: 'step', depot: 'step', office: 'step' }, sign: '#ff5ad1', accent: '#3ae8d0' },
+  ship:   { wall: '#5a6270', trim: '#ffd23f', roof: '#3a4250', roofFlat: '#4a5262', win: '#9fe0ff', winOff: '#1a2230', door: '#1a1e28', step: '#6a7280', tex: 'panel', glass: '#9fe0ff',
+            roofs: { house: 'flat', shop: 'flat', school: 'flat', clinic: 'flat', church: 'flat', depot: 'saw', office: 'flat' }, sign: '#ffd23f', accent: '#ffd23f' },
   toxic:  { alien: true, wall: '#c8bc9c', trim: '#8aff4a', roof: '#8a7a44', roofFlat: '#7a6e48', win: '#c8ff7a', winOff: '#2a3420', door: '#2a2018', step: '#9a8c6a', tex: 'mycelium',
             cap: '#7a6a3a', cap2: '#9a8a52', glow: '#a8ff6a', spot: '#e8e0c0', accent: '#8a7a44', sign: '#c8ff7a', alienCivic: true,
             roofs: { house: 'shelf', shop: 'shelf', school: 'shelf', clinic: 'flat', church: 'shelf', depot: 'barrel', office: 'shelf' } },
@@ -9636,6 +9651,17 @@ Object.assign(BT, {
     for (let k = 0; k < Math.max(3, (W / 8) | 0); k++) { const x = 5 + rnd() * (W - 10), y = H * 0.35 + rnd() * H * 0.45; P.ell(x, y, 1.8, 1.4, '#1a120a'); P.p(Math.round(x), Math.round(y), '#7bdc6a'); c.L.push({ x, y, color: '#7bdc6a', r: 6, pulse: true }); anim({ kind: 'pod', x, y, col: '#7bdc6a', ph: k }); }
     for (let x = 2; x < W - 2; x += ri(3, 5)) P.line(x, H - 2, x + ri(-2, 2), H - ri(5, 10), '#3f7a3a');
   },
+  // the ship's reactor: a glowing fuel cell set into the deck, hazard paint, cooling fins
+  reactor(P, c) {
+    const { W, H, RH, FH, K } = c, cx = W / 2, cy = RH * 0.5;
+    roofFlat(P, 0, 0, W, RH, K);
+    for (let x = 0; x < W; x += 4) { P.r(x, 0, 2, 2, '#ffd23f'); P.r(x + 2, 0, 2, 2, '#1a1a1e'); }
+    P.ell(cx, cy + 2, W / 2 - 3, RH * 0.34, dk(K.roof, 0.45)); sculptBall(P, cx, cy, W / 2 - 4, RH * 0.3, '#6ff0ff', { lift: 0.2 }); P.p(Math.round(cx - 2), Math.round(cy - 2), '#ffffff');
+    c.L.push({ x: cx, y: cy, color: '#6ff0ff', r: 24, pulse: true }); anim({ kind: 'pod', x: cx, y: cy, col: '#6ff0ff', ph: 0 });
+    wallFace(P, 0, RH, W, FH, K);
+    for (let x = 3; x < W - 5; x += 5) { P.r(x, RH + 4, 3, FH - 8, dk(K.wall, 0.35)); for (let y = RH + 5; y < RH + FH - 4; y += 2) P.p(x + 1, y, '#6ff0ff'); }
+    P.r(1, RH + 2, W - 4, 1, '#ffd23f');
+  },
   // Wildlife: an ordinary local building the colony has moved into: hive growths bursting from the
   // roof, resin running down the walls, egg-sacs glowing in the windows
   infested(P, c) {
@@ -9773,7 +9799,205 @@ function assignTypes(map, bk, fac) {
 return { BKIT, BT, BTYPES_HUMAN, BTYPES_ALIEN, BTYPE_NAME, TALL, FAC_BUILD, building3d, buildingShadow, drawOpenings, assignTypes };
 })();
 
-window.__AL = { planetScene, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+
+// ================================================================
+// SHIP DEFENCE. Push a faction to Vendetta and its envoy calls with a demand: pay up and the bond
+// is repaired, or refuse and they board your ship for its fuel crystals. Three raids, each harder,
+// the last led by the faction's apex boss. Beat all three and the faction is finished for good.
+// These are bonus levels, not contracts: they don't advance the run.
+// ================================================================
+const SHIP_NAME = 'KSS Due Diligence (your ship)';
+// one ship, drawn by hand: three airlocks, corridors to the fuel core, crew decks between the rooms
+//  = corridor   A airlock   C fuel core   ~ coolant   q quarters  m medbay  r/e reactor  c cargo  b bridge
+const SHIP_LAYOUT = [
+  '.....A................',
+  '.....=................',
+  '.....=============....',
+  '.......qqq.mmm...=.rr.',
+  '.......qqq.mmm...=.rr.',
+  '.~~..............=.rr.',
+  'A================C....',
+  '.~~....cccc.bbb..=.ee.',
+  '.......cccc.bbb..=.ee.',
+  '.................=.ee.',
+  '.....=============....',
+  '.....=................',
+  '.....A................',
+];
+const SHIP_ROOMS = { q: 'house', m: 'clinic', r: 'reactor', e: 'reactor', c: 'depot', b: 'office' };
+const SHIP_PROPS = [[1, 1, 'locker'], [3, 3, 'crate'], [14, 0, 'pipes'], [2, 9, 'crate'], [13, 12, 'locker'], [21, 0, 'pipes'], [21, 12, 'pipes'], [9, 11, 'crate'], [19, 11, 'locker'], [19, 1, 'crate']];
+const SHIP_LANES = { top: [[5, 0], [5, 2], [17, 2], [17, 6]], mid: [[0, 6], [17, 6]], low: [[5, 12], [5, 10], [17, 10], [17, 6]] };
+// which airlocks each raid breaches
+const SHIP_RAIDS = { 1: ['mid', 'top'], 2: ['top', 'low'], 3: ['top', 'mid', 'low'] };
+function shipMap(stage) {
+  const grid = SHIP_LAYOUT.map(r => [...r].map(ch => ch === '=' || ch === 'A' ? 1 : ch === 'C' ? 3 : ch === '~' ? 5 : SHIP_ROOMS[ch] ? 6 : 0));
+  const expand = pts => { const out = []; for (let i = 0; i < pts.length - 1; i++) { let [x, y] = pts[i]; const [x1, y1] = pts[i + 1]; while (x !== x1 || y !== y1) { out.push({ x, y }); x += Math.sign(x1 - x); y += Math.sign(y1 - y); } } const [lx, ly] = pts[pts.length - 1]; out.push({ x: lx, y: ly }); return out; };
+  const paths = SHIP_RAIDS[stage].map(k => expand(SHIP_LANES[k]));
+  const spawns = paths.map(p => ({ x: p[0].x, y: p[0].y })); for (const s of spawns) grid[s.y][s.x] = 4;
+  // each room is the box its letter covers
+  const buildings = [], seen = new Set();
+  SHIP_LAYOUT.forEach((r, y) => [...r].forEach((ch, x) => {
+    if (!SHIP_ROOMS[ch] || seen.has(ch + x + ',' + y)) return;
+    let w = 0, h = 0; while (SHIP_LAYOUT[y][x + w] === ch) w++; while (SHIP_LAYOUT[y + h] && SHIP_LAYOUT[y + h][x] === ch) h++;
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) seen.add(ch + xx + ',' + yy);
+    buildings.push({ x, y, w, h, type: SHIP_ROOMS[ch], row: false });
+  }));
+  const obstacles = SHIP_PROPS.map(([x, y, kind]) => { grid[y][x] = 2; return { x, y, kind }; });
+  return { grid, dep: { x: 17, y: 6 }, spawns, buildings, bridges: [], obstacles, landmarks: [], paths: paths.map(p => p.map(t => ({ x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 }))) };
+}
+// the ship as a place
+Object.assign(BIOMES, { ship: { name: 'Your ship', mod: {}, hazard: 'Boarders are after the fuel crystals. Hold until the raid is spent.' } });
+Object.assign(BIOME_ART, { ship: { g: ['#3a4250', '#404858', '#363e4c'], p: ['#2a2e38', '#30343e', '#262a34'], edge: '#1a1e28', path: 'grate', deco: 'hq',
+  obst: { road: ['crate'], building: ['crate'], shore: ['crate'], grove: ['crate'], open: ['crate'] }, liquid: { kind: 'coolant', river: 0, pools: [0, 0] }, land: [], weather: 'motes', grade: ['#9fd3ff', '#1a2a4a', 0.12] } });
+Object.assign(LIQUIDS, { coolant: { name: 'the coolant', a: '#1a4a6a', b: '#22587a', shore: '#5a6270', hi: '#9fe0ff', feat: 'sparkle', glow: '#6ff0ff' } });
+BUILD_STYLE.ship = BUILD_STYLE.hq; PLANET_STYLES.ship = PLANET_STYLES.hq; LAMP_COL.ship = '#9fe0ff';
+TROPES.ship = 'Home. Smells of coffee and coolant. The fuel crystals are the only thing on board worth stealing.';
+Object.assign(OBST_EXTRA, {
+  locker: () => { const P = painter(18, 22); P.r(4, 4, 10, 16, '#5a6270'); P.r(4, 4, 10, 1, '#8a92a6'); P.r(9, 5, 1, 15, '#3a4250'); for (const x of [6, 11]) { P.r(x, 7, 2, 1, '#2a3040'); P.r(x, 9, 2, 1, '#2a3040'); } P.p(8, 12, '#ffd23f'); P.r(3, 20, 12, 1, '#2a2e38'); postProcess(P.c); return { c: P.c, lights: [], props: [] }; },
+  pipes: () => { const P = painter(18, 18); for (const [x, c] of [[3, '#7a8290'], [8, '#8a6a4a'], [13, '#6a7a8a']]) { P.r(x, 2, 3, 15, c); P.r(x, 2, 1, 15, shade(c, 0.25)); P.r(x + 2, 2, 1, 15, shade(c, -0.3)); P.r(x - 1, 6, 5, 2, shade(c, -0.2)); P.r(x - 1, 12, 5, 2, shade(c, -0.2)); } P.p(9, 9, '#ff4d5e'); postProcess(P.c); return { c: P.c, lights: [{ x: 9, y: 9, color: '#ff4d5e', r: 6, pulse: true }], props: [{ kind: 'steam', x: 4, y: 3 }] }; },
+});
+// ---------- the state of each faction's grudge ----------
+function siegeOf(f) { const st = RUN.story; st.siege = st.siege || {}; return st.siege[f] || (st.siege[f] = { stage: 0, lastDemand: -9 }); }
+const dissolved = f => !!(RUN && RUN.story && RUN.story.dissolved && RUN.story.dissolved[f]);
+// a faction at Vendetta calls with a demand, at most once every two contracts
+function siegeDue() {
+  if (!RUN || !RUN.story) return null;
+  for (const f of Object.keys(FACTIONS)) { if (dissolved(f) || !ARCS[f] || standingOf(f) > -3) continue; if (RUN.idx - siegeOf(f).lastDemand >= 2) return f; }
+  return null;
+}
+const demandPrice = f => 60 + 40 * siegeOf(f).stage + 15 * (actOf(RUN.idx) - 1);
+const DEMAND_LINES = {
+  union: 'Local 404 has voted. You owe the strike fund, and the strike fund is collecting.',
+  activists: 'We have footage of everything you did. Pay, or we come and film the rest from inside your ship.',
+  fauna: 'THE MOTHER IS ANGRY. SHE WANTS PAYMENT. SHE ALSO WANTS YOUR CRYSTALS. WREN-7 IS TRANSLATING THIS POLITELY.',
+  lumen: 'You took our light. We will take yours, from the tanks that keep your ship warm.',
+  rival: 'VectorCorp is offering you a settlement. The alternative is a hostile boarding.',
+  abandoned: 'We know your ship\'s layout, dear. We used to clean it.',
+  haulers: 'There\'s a toll on this lane now. Pay it, or the Guild comes aboard and takes it in fuel.',
+  precursors: 'YOUR DEBT TO THE ARCHIVE IS RECORDED. SETTLE IT, OR WE WILL READ YOUR FUEL TANKS EMPTY.',
+  kindly: 'Asset Protection is recalling company property. That includes the crystals in your tanks.',
+  church: 'A tithe, child. Or the faithful will come and bless your fuel tanks. Empty.',
+};
+const DEMAND_STAGE = [`Pay, or we come aboard.`, `We left your ship standing last time. We won't again.`, `This is the last call. Next time, everyone comes, and so does our best.`];
+// ---------- the demand call ----------
+function showDemand(f) {
+  const A = ARCS[f], F = FACTIONS[f], s = siegeOf(f), price = demandPrice(f), can = RUN.scrip >= price, raid = s.stage + 1;
+  s.lastDemand = RUN.idx;
+  S.screen = 'envoy'; S.envoy = { fac: f, beat: 'demand', t0: performance.now(), done: false, demand: { price } };
+  clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
+  const lead = raid === 3 ? ` ${F.apex.name} leads it, at full force.` : raid === 2 ? ` One of their bosses leads it.` : '';
+  $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
+    ${titlebar('Encrypted_Channel · origin: hostile')}
+    <div class="envoy-scene"><canvas id="envcv" width="200" height="112" aria-label="${esc(A.envoy)} on a video call"></canvas>
+      <div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div>
+      <div class="envoy-beat">Demand · Raid ${raid} of 3 if refused</div></div>
+    <div class="envoy-grid">
+      <div class="envoy-talk"><h3>Protection money</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
+      <div class="envoy-offer">
+        <div class="deal standing"><div class="lbl">Your standing with them</div>${standingHtml(f)}</div>
+        <div class="deal ask"><div class="lbl">The demand</div><p>${price} scrip. You have ${RUN.scrip}.</p></div>
+        <div class="deal reward"><div class="lbl">If you pay</div><p>Standing back to Wary. The grudge is dropped and the raids stop.</p></div>
+        <div class="deal risk"><div class="lbl">If you refuse</div><p>They board your ship for its fuel crystals: raid ${raid} of 3.${esc(lead)} Win the third and the ${esc(F.short)} are finished for good.</p></div>
+        <div class="row" id="envBtns"><button class="btn" data-act="demand" data-v="pay" ${can ? '' : 'disabled title="Not enough scrip"'}>Pay ${price} scrip</button><button class="btn ghost" data-act="demand" data-v="refuse">Refuse</button></div>
+      </div>
+    </div>
+  </div></div>`;
+  const x = { lastPlanet: ([...(RUN.worlds || [])].reverse().find(w => w.fac === f) || {}).planet || 'that rock', planet: SHIP_NAME, sector: RUN.sectorName };
+  typeLines([standingOpener(f, x) || `It's ${A.envoy}.`, DEMAND_LINES[f] || `You owe us.`, `${price} scrip. ${DEMAND_STAGE[Math.min(2, s.stage)]}`].filter(Boolean));
+}
+function demandChoice(v) {
+  const E = S.envoy; if (!E || E.done || !E.demand) return;
+  if (v === 'pay' && RUN.scrip < E.demand.price) return;
+  E.done = true; E.react = { kind: v === 'pay' ? 'accept' : 'report', t0: (performance.now() - E.t0) / 1000 };
+  const st = RUN.story;
+  if (v === 'pay') {
+    RUN.scrip -= E.demand.price; st.standing[E.fac] = -1; delete st.grudge[E.fac]; siegeOf(E.fac).stage = 0;
+    (st.standLog = st.standLog || []).push({ f: E.fac, d: 2, why: 'paid their demand', idx: RUN.idx }); moraleEvent('bribe', E.fac);
+    sfx('buy'); typeLines([`Pleasure doing business. Stay out of our way.`]);
+    const sp = document.querySelector('.deal.standing'); if (sp) sp.innerHTML = `<div class="lbl">Your standing with them</div>${standingHtml(E.fac)}`;
+  } else { sfx('click'); typeLines([`Then we're coming aboard.`]); }
+  $('#envSkip').textContent = v === 'pay' ? 'Paid. The bond is mended, for now.' : 'Channel cut. Boarding alarm.';
+  $('#envBtns').innerHTML = `<button class="btn" data-act="demandgo" data-v="${v}">${v === 'pay' ? 'Back to the star map' : 'Man the ship'}</button>`;
+}
+function demandGo(v) {
+  const E = S.envoy; clearInterval(typeTimer); S.envoy = null;
+  if (v === 'pay' || !E) { RUN.options = genOptions(); showMap(); return; }
+  startSiege(E.fac);
+}
+// ---------- the raid ----------
+function startSiege(f) {
+  const s = siegeOf(f), stage = s.stage + 1, F = FACTIONS[f];
+  const c = genContract(RUN.idx, stage - 1, stage >= 2, f);
+  Object.assign(c, { ship: { fac: f, stage }, biomeKey: 'ship', biome: BIOMES.ship, planet: SHIP_NAME, envoy: null, grudge: null,
+    boss: stage >= 2, bossDef: stage === 3 ? F.apex : stage === 2 ? pick(F.bosses) : null,
+    mod: c.mod * (0.9 + 0.1 * stage), T: 130 + 30 * stage, pay: 1, diffLabel: `Raid ${stage} of 3`, stars: stage + 1 });
+  startMission(c);
+  M.fuel = 100;
+  banner('Boarding alarm', `${F.name} · raid ${stage} of 3`, F.color, true);
+}
+// a faction finished: what changes, and who notices
+const DISSOLVE = {
+  union: { line: 'Local 404 is no more. The Abandoned take in its last members; the activists lose their loudest allies.', ripple: { abandoned: 1, activists: -1 } },
+  activists: { line: 'The stream goes dark. The union misses the cameras.', ripple: { union: -1 } },
+  fauna: { line: 'The hive is gone. The Kin say the seam has gone quiet; the Archive notes another extinction.', ripple: { lumen: -1, precursors: -1 } },
+  lumen: { line: 'The last lantern is out. The wildlife roams the dark villages.', ripple: { fauna: -1 } },
+  rival: { line: 'VectorCorp is liquidated. The Guild buys its ships for scrap; the Abandoned cheer.', ripple: { haulers: 1, abandoned: 1 } },
+  abandoned: { line: 'The Colony scatters. The Church takes in the survivors and blames you in every sermon.', ripple: { church: -1, union: -1 } },
+  haulers: { line: 'The Guild is broken up. VectorCorp moves into its shipping lanes.', ripple: { rival: 1 } },
+  precursors: { line: 'The Archive is silent. The Kin feel the old stones go cold.', ripple: { lumen: -1 } },
+  kindly: { line: 'Asset Protection is shut down. The Church and the Abandoned both claim the victory.', ripple: { church: 1, abandoned: 1 } },
+  church: { line: 'The Eternal Quarter ends. Asset Protection files it under "resolved". The Abandoned lose their shelter.', ripple: { kindly: 1, abandoned: -1 } },
+};
+function dissolveFaction(f) {
+  const st = RUN.story; st.dissolved = st.dissolved || {}; st.dissolved[f] = true;
+  arcOf(f).state = 'dissolved';
+  for (const w of RUN.worlds || []) if (w.fac === f) w.state = 'crushed';
+  for (const d of RUN.defectors || []) if (d.fac === f) d.dead = true;
+  for (const cr of RUN.roster) { giveConscience(cr); cr.morale = clamp((cr.morale ?? 65) + (cr.value === 'sympath' && cr.sym === f ? -30 : cr.value === 'idealist' ? -8 : cr.value === 'company' ? 8 : 0), 0, 100); }
+  const D = DISSOLVE[f] || { line: '', ripple: {} };
+  const ripples = [];
+  for (const [g, d] of Object.entries(D.ripple)) if (FACTIONS[g] && !dissolved(g) && shiftStanding(g, d, `${FACTIONS[f].short} dissolved`)) ripples.push([g, d]);
+  return { line: D.line, ripples };
+}
+function finishSiege(success) {
+  const m = M, c = m.c, f = c.ship.fac, F = FACTIONS[f], s = siegeOf(f);
+  RUN.lastDowned = m.downed.slice();
+  const repl = [];
+  for (const cr of RUN.roster) if (cr.dead) { const old = cr.name; replaceCrew(cr, true); repl.push(old); }
+  if (!success) {
+    RUN.margin -= 20;
+    if (RUN.margin <= 0) { RUN.margin = 0; showGameOver(); return; }
+  }
+  let head, lede, extra = '', col = F.color;
+  if (success) {
+    s.stage++; const bounty = 40 + 30 * s.stage; RUN.scrip += bounty; moraleEvent('clean');
+    if (s.stage >= 3) {
+      const D = dissolveFaction(f);
+      head = `${F.name} dissolved`; col = '#ffd23f';
+      lede = `You held the ship against their last raid, and ${esc(F.apex.name)} with it. The ${esc(F.short)} are finished. They will not appear on the books again. Salvage bounty: +${bounty} scrip.`;
+      extra = `<p class="lede">${esc(D.line)}</p>` + (D.ripples.length ? `<div class="facrow">${D.ripples.map(([g, d]) => `<div class="fac" style="--fc:${FACTIONS[g].color}"><b>${esc(FACTIONS[g].short)}</b><span>${d > 0 ? 'Warmer to you' : 'Colder to you'} · ${standingTier(g).name}</span></div>`).join('')}</div>` : '');
+    } else {
+      head = 'Ship defended';
+      lede = `The ${esc(F.short)} raid is over and the fuel crystals are safe. Salvage bounty: +${bounty} scrip. They will be back: raid ${s.stage + 1} of 3, unless you pay them off when they call.`;
+    }
+  } else {
+    head = 'Fuel stolen'; col = '#ff4d5e';
+    lede = `The ${esc(F.short)} made off with the fuel crystals. Kindly bought replacement fuel at market rates and took it out of your margin: −20% (now ${RUN.margin}%). The raid will come again.`;
+  }
+  S.screen = 'siege'; M = null; clearMissionUi(); backdropView(); sfx(success ? 'victory' : 'fail'); setMusic('menu');
+  $('#overlay').innerHTML = `<div class="screen"><div class="paper sector-paper">
+    ${titlebar('Ship_Log.txt')}
+    <div class="lbl" style="color:${col}">Ship defence · raid ${c.ship.stage} of 3</div>
+    <h2>${esc(head)}</h2>
+    <p class="lede">${lede}</p>${extra}
+    ${repl.length ? `<p class="colony">Replaced: ${esc(repl.join(', '))}.</p>` : ''}
+    ${statLine([['Pacified', m.kills], ['Fuel left', Math.max(0, Math.round(m.fuel)) + '%'], ['Margin', RUN.margin + '%'], ['Scrip', RUN.scrip]])}
+    <div class="row"><button class="btn" data-act="siegedone">Back to the star map</button></div>
+  </div></div>`;
+  juiceScreen(); if (success) confetti(null, null, s.stage >= 3 ? 120 : 60);
+}
+
+window.__AL = { planetScene, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };

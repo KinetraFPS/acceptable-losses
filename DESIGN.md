@@ -325,6 +325,29 @@ Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on co
   - **Favour:** a Friendly faction can offer one on someone else's contract: a free squad of their fighters.
   - **Openers:** every envoy opens with a line that fits your standing, from "Don't hang up" to "Every village on the seam knows your name".
 
+## Ship defence
+A bonus level, not a contract: it doesn't advance the run (`showDemand`, `startSiege`, `finishSiege`).
+- **The demand:** when a faction reaches Vendetta (−3), its envoy calls on the way back to the star map (at most once every two contracts) and demands scrip on the usual animated video call: 60 + 40 per raid already fought + 15 per act.
+  - **Pay:** standing goes back to Wary, the grudge is dropped and the raid count resets.
+  - **Refuse (or can't afford it):** the envoy's feed cuts to static and they board your ship.
+- **The ship:** one hand-drawn interior, the same every time (`SHIP_LAYOUT`).
+  - Three airlocks (top, side, bottom) lead down corridors to the fuel core.
+  - Crew decks lie between six rooms you can stand on: quarters, medbay, cargo bay, bridge and two reactors with glowing fuel cells.
+  - Coolant pools, lockers, crates and steaming pipes.
+- **The raids:** boarders go for the fuel crystals; leaks drain a fuel meter instead of your margin.
+  - **Raid 1:** two airlocks, no boss.
+  - **Raid 2:** two airlocks and one of the faction's bosses.
+  - **Raid 3:** all three airlocks and the faction's apex boss at full force.
+  - Each raid is a little stronger, and a little gentler than a contract at the same point in the run.
+  - **Win:** a salvage bounty (+70/+100/+130 scrip), and the next demand comes later.
+  - **Lose:** Kindly buys replacement fuel out of your margin (−20%; at 0% you're abandoned), and the raid comes again.
+- **Dissolution:** win raid 3 and the faction is gone for good:
+  - It's off the contract pool and act bosses, and its storyline ends.
+  - Its worlds read as crushed, and its defectors are gone.
+  - Sympathetic crew take it hard (−30 morale), idealists a little (−8), and company men are pleased (+8).
+  - Connected factions shift: e.g. dissolving the Union warms the Abandoned and cools the Activists; dissolving Asset Protection warms the Church and the Abandoned.
+  - The victory screen lists every faction dissolved on your watch.
+
 ## Architecture
 Buildings are drawn as solid forms seen at three-quarters, from a **type** (what the building is for) in a **biome's materials** (`B3`: `BT`, `BKIT`).
 - **Reading as 3D:**
