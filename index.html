@@ -44,6 +44,8 @@ img{max-width:100%}
 }
 *{box-sizing:border-box}
 html,body{height:100%}
+*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+img,canvas{-webkit-user-drag:none}
 body{background-color:var(--bg);background-image:radial-gradient(rgba(140,150,220,.07) 1px,transparent 1.2px);background-size:9px 9px;color:var(--fg);font:15px/1.5 var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:none;font-variant-ligatures:none}
 button,input{font-variant-ligatures:none}
 button{font:inherit;color:inherit}
@@ -696,6 +698,9 @@ function toLogical(ev) { const r = cv.getBoundingClientRect(); return { x: (ev.c
 function backdropView() { const r = $('#stage').getBoundingClientRect(); setView(Math.max(100, Math.round(r.width)), Math.max(100, Math.round(r.height))); }
 function onStageResize() { if (S.screen === 'map' && RUN) mapView(); else if (S.screen === 'mission') resize(); else backdropView(); }
 window.addEventListener('resize', onStageResize);
+// nothing in the game is text to copy: no selection highlights and no ghost images when a drag starts on a sprite
+document.addEventListener('selectstart', e => e.preventDefault());
+document.addEventListener('dragstart', e => e.preventDefault());
 if (window.ResizeObserver) new ResizeObserver(onStageResize).observe($('#stage'));
 
 // ---------- pixel space: star map and menu backdrops ----------
