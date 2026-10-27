@@ -3358,6 +3358,7 @@ function renderGround(map, biomeKey) {
       // a short paved walk from each door down to the open ground in front
       for (const d of o.doors) { const tx = b.x + Math.floor(d / ATILE); if (code(tx, b.y + b.h) === 0) { const wx = ox + Math.round(d) - 3, wy = oy + b.h * ATILE + 1; P.r(wx, wy, 6, ATILE - 4, shade(A.p[0], 0.1)); P.r(wx - 1, wy, 1, ATILE - 4, shade(A.p[0], -0.25)); P.r(wx + 6, wy, 1, ATILE - 4, shade(A.p[0], -0.25)); for (let y = wy + 3; y < wy + ATILE - 4; y += 4) P.r(wx, y, 6, 1, shade(A.p[0], -0.1)); } }
       g.drawImage(o.c, ox + o.ox, oy + o.oy); addAll(o, ox, oy);
+      b.spr = { c: o.c, x: ox + o.ox, y: oy + o.oy, deck: o.deck };
       continue;
     }
     const o = buildingSprite(biomeKey, b, openings), ox = b.x * ATILE, oy = b.y * ATILE;
@@ -4611,10 +4612,54 @@ function drawDepositPx(g, t) {
   px(g, ax - 2, ay - 31, 5, 3, '#0c0e14'); px(g, ax - 1, ay - 30, 3, 1, M.phase === 'drill' && Math.floor(t * 4) % 2 ? '#fff0a0' : '#ffd23f');
 }
 
-// ride: pixels to lift the crew member onto a platform's deck (the platform draws its own shadow)
+// ---------- where a crew member stands against the architecture ----------
+// facade: on the pavement at the foot of the wall, casting a shadow onto it. roof edge: boots tucked
+// behind the roof's front lip. cover: leaning a couple of pixels into the wall beside them, either
+// shaded by it (wall between them and the light, upper left) or throwing their shadow onto it.
+const buildingAt = (tx, ty) => (M.map.buildings || []).find(b => b.spr && tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h);
+function perchAt(tx, ty) {
+  if (platformAt(tx, ty)) return null;
+  const b = buildingAt(tx, ty), feet = ty * ATILE + ATILE / 2 + 5;   // the crew sprite's lowest row, in world pixels
+  if (b) {
+    const bottom = (b.y + b.h) * ATILE;
+    if (ty === b.y + b.h - 1) return { kind: 'facade', dx: 0, dy: bottom - 2 - feet, cast: [3, -2] };
+    const lx = (tx - b.x) * ATILE + ATILE / 2, ly = (ty - b.y) * ATILE + ATILE / 2, r = b.spr.deck.find(([x, y, w, h]) => lx >= x && lx < x + w && ly >= y && ly < y + h);
+    if (!r) return null;
+    const edge = b.y * ATILE + r[1] + r[3];
+    if (edge - feet > 7) return { kind: 'roof', dx: 0, dy: 0 };
+    const sx = Math.max(0, lx - 9 - (b.spr.x - b.x * ATILE)), sy = edge - 1 - b.spr.y;
+    return { kind: 'roof', dx: 0, dy: edge - 1 - feet, lip: { sx, sy, w: Math.min(18, b.spr.c.width - sx), h: 3, x: b.spr.x + sx, y: b.spr.y + sy, c: b.spr.c } };
+  }
+  if (M.grid[ty][tx] !== 0) return null;
+  // the wall that gives cover; walls to the left or above stand between the crew and the light
+  for (const [dx, dy] of [[-1, 0], [0, -1], [1, 0], [0, 1]]) {
+    const v = M.grid[ty + dy] && M.grid[ty + dy][tx + dx];
+    if (!blocksSight(v)) continue;
+    return { kind: 'cover', dx: dx * 3, dy: dy * 2, shaded: dx < 0 || dy < 0, cast: dx > 0 ? [2, -1] : dy > 0 ? [1, 2] : null };
+  }
+  return null;
+}
+function perchOf(tw) {
+  const key = tw.tx + ',' + tw.ty;
+  if (tw.perchKey !== key) { tw.perchKey = key; tw.perch = perchAt(tw.tx, tw.ty); }
+  return tw.perch;
+}
 function drawTowerPx(g, tw, t, ride) {
-  const sp = crewSprites(tw.crew), ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6 + (ride || 0), type = tw.crew.type;
-  if (ride == null) { g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(ax - 6, ay - 1, 12, 2); g.fillRect(ax - 4, ay + 1, 8, 1); }
+  const pc = ride == null && !tw.down ? perchOf(tw) : null;
+  if (!pc) return drawTowerBody(g, tw, t, ride);
+  const sp = crewSprites(tw.crew), bob = Math.floor(t * 2 + tw.tx * 0.7) % 2, face = tw.face || 1, shad = sp.shad || (sp.shad = sp.f.map(c => silhouette(c, '#000000')));
+  const ax = Math.round(tw.x / AP) + pc.dx, ay = Math.round(tw.y / AP) + 6 + pc.dy, sx = ax - 7, sy = ay - 17;
+  const blit = (im, ox, oy) => { if (face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx - ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
+  if (pc.cast) { g.globalAlpha = 0.38; blit(shad[bob], pc.cast[0], pc.cast[1]); g.globalAlpha = 1; }   // the light is fixed, so the shadow ignores facing
+  drawTowerBody(g, tw, t, pc.dy, pc.dx, pc.kind === 'cover' ? 'full' : 'small');
+  if (pc.shaded) { g.globalAlpha = 0.22; blit(shad[bob], 0, 0); g.globalAlpha = 1; }
+  if (pc.lip) g.drawImage(pc.lip.c, pc.lip.sx, pc.lip.sy, pc.lip.w, pc.lip.h, pc.lip.x, pc.lip.y, pc.lip.w, pc.lip.h);
+}
+// ride: pixels to lift the crew member onto a platform's deck; shiftX nudges them sideways; foot: the contact
+// shadow under them ('full' on open ground, 'small' on a roof or pavement, none on a platform, which draws its own)
+function drawTowerBody(g, tw, t, ride, shiftX = 0, foot = ride == null ? 'full' : null) {
+  const sp = crewSprites(tw.crew), ax = Math.round(tw.x / AP) + shiftX, ay = Math.round(tw.y / AP) + 6 + (ride || 0), type = tw.crew.type;
+  if (foot) { g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(ax - 6, ay - 1, 12, 2); if (foot === 'full') g.fillRect(ax - 4, ay + 1, 8, 1); }
   if (tw.down) {
     // under a sheet, with a marker flag; the crew card offers a replacement
     px(g, ax - 8, ay - 7, 15, 5, '#c8ccd4'); px(g, ax - 8, ay - 7, 15, 1, '#f2f4f8'); px(g, ax - 9, ay - 3, 17, 1, '#8a8e96'); px(g, ax - 7, ay - 8, 4, 1, '#d8dce2');
@@ -9825,9 +9870,22 @@ function building3d(biomeKey, b, type) {
   const ctx = { W, H, RH: H - FH, FH, K, L, props, variant: b.variant };
   BT[type](P, ctx);
   const doors = DOORS, anims = ANIMS; DOORS = null; ANIMS = null;
+  if (type !== 'broodmound') footing(P, W, H, K, doors);
   P.g.setTransform(1, 0, 0, 1, 0, 0);
   postProcess(P.c, { shadeIt: false, outlineCol: '#0a0b10' });
   return { c: P.c, ox: -MARGIN, oy: -MARGIN, W, H, FH, doors, deck: ctx.deck || deckOf(type, W, H, H - FH), lights: L, props: props.concat(anims) };
+}
+// the pavement along the foot of the front wall: crew on the front row stand on it rather than on the
+// wall face. Door steps are left showing; the wall gets a little contact shadow where it meets the slab.
+const FOOT = 3;
+function footing(P, W, H, K, doors) {
+  const base = K.step || shade(K.wall, 0.15), y = H - FOOT;
+  const open = x => doors.some(d => Math.abs(x + 0.5 - d) < 5);
+  for (let x = 0; x < W; x++) {
+    if (open(x)) continue;
+    P.r(x, y - 1, 1, 1, 'rgba(0,0,0,0.28)');
+    P.r(x, y, 1, 1, shade(base, 0.22)); P.r(x, y + 1, 1, 1, (x % 6) ? base : shade(base, -0.15)); P.r(x, y + 2, 1, 1, shade(base, -0.35));
+  }
 }
 // the shadow thrown onto the ground, lower right, longer for taller things
 function buildingShadow(g, x, y, W, H, tall = 1) {
@@ -9884,7 +9942,7 @@ function assignTypes(map, bk, fac) {
   const fb = FAC_BUILD[fac];
   if (fb) { const [t, n] = fb, cand = shuffle(bs.filter(b => fit(t, b))).sort((a, b) => (a.row ? 1 : 0) - (b.row ? 1 : 0)); for (const b of cand.slice(0, n)) b.type = t; }
 }
-return { BKIT, BT, BTYPES_HUMAN, BTYPES_ALIEN, BTYPE_NAME, TALL, FAC_BUILD, building3d, buildingShadow, drawOpenings, assignTypes };
+return { FOOT, BKIT, BT, BTYPES_HUMAN, BTYPES_ALIEN, BTYPE_NAME, TALL, FAC_BUILD, building3d, buildingShadow, drawOpenings, assignTypes };
 })();
 
 
