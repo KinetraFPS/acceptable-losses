@@ -1265,7 +1265,7 @@ function sculptHuman(c) {
   g.putImageData(im, 0, 0);
   return c;
 }
-const humanLit = (L, of, legs, yo) => sculptHuman(drawHuman(L, of, legs, yo));
+const humanLit = (L, of, legs, yo) => { const c = sculptHuman(drawHuman(L, of, legs, yo)); c.lit = true; return c; };
 function crewSprites(cr) {
   let s = SPR.get(cr.id); const vis = crewVis(cr);
   if (s && s.look === cr.look && s.type === cr.type && s.vk === vis.key) return s;
@@ -1853,7 +1853,7 @@ function drawThreatMarks(g, e, t) {
 }
 
 function finishVariant(kind, r, frames) {
-  frames = frames || r.map(x => x.c);
+  frames = (frames || r.map(x => x.c)).map(c => { if (!c.lit) { sculptHuman(c); c.lit = true; } return c; });
   return {
     kind, frames, white: frames.map(c => silhouette(c, '#ffffff')), vet: frames.map(c => silhouette(c, '#e8eef5')), elite: frames.map(c => silhouette(c, '#ffd23f')), slow: frames.map(c => silhouette(c, '#5fd4ff')),
     ax: r[0].ax, ay: r[0].ay, lights: r[0].lights || [],
@@ -9110,13 +9110,14 @@ const BKIT = {
   tomb:   { wall: '#3e4a4c', trim: '#ff5ad1', roof: '#4a5654', win: '#ff5ad1', winOff: '#14181a', door: '#0e1214', step: '#5a6664', tex: 'stone', church: 'temple', alienCivic: true,
             cap: '#4a5654', cap2: '#5a6664', glow: '#ff5ad1', spot: '#3ae8d0',
             roofs: { house: 'step', shop: 'step', school: 'step', clinic: 'step', church: 'step', depot: 'step', office: 'step' }, sign: '#ff5ad1', accent: '#3ae8d0' },
-  toxic:  { alien: true, roof: '#6a5a7a', roofFlat: '#8a7a6a', accent: '#9a3a7a', sign: '#c8ff7a', tex: 'adobe',
-            roofs: { house: 'gable', shop: 'flat', school: 'hip', clinic: 'flat', church: 'gable', depot: 'barrel', office: 'flat' }, wall: '#d8c8a8', trim: '#8aff4a', cap: '#9a3a7a', cap2: '#c86aa0', win: '#c8ff7a', winOff: '#2a3a1a', door: '#2a1a24', step: '#8a7a5a', glow: '#8aff4a', spot: '#f2e0ea' },
+  toxic:  { alien: true, wall: '#c8bc9c', trim: '#8aff4a', roof: '#8a7a44', roofFlat: '#7a6e48', win: '#c8ff7a', winOff: '#2a3420', door: '#2a2018', step: '#9a8c6a', tex: 'mycelium',
+            cap: '#7a6a3a', cap2: '#9a8a52', glow: '#a8ff6a', spot: '#e8e0c0', accent: '#8a7a44', sign: '#c8ff7a', alienCivic: true,
+            roofs: { house: 'shelf', shop: 'shelf', school: 'shelf', clinic: 'flat', church: 'shelf', depot: 'barrel', office: 'shelf' } },
 };
 const BTYPES_HUMAN = ['house', 'shop', 'school', 'clinic', 'church', 'depot', 'office'];
 const BTYPES_ALIEN = ['sporehome', 'sporemarket', 'creche', 'mender', 'shrine', 'growhouse', 'elderhall'];
 const BTYPE_NAME = { house: 'Housing', shop: 'Shop', school: 'School', clinic: 'Clinic', church: 'Church', depot: 'Depot', office: 'Office', skyscraper: 'Skyscraper', unionhall: 'Union Hall',
-  sporehome: 'Spore home', sporemarket: 'Spore market', creche: 'Creche', mender: 'Mender pool', shrine: 'Spore pavilion', growhouse: 'Grow-house', elderhall: 'Elder hall' };
+  sporehome: 'Spore home', sporemarket: 'Spore market', creche: 'Creche', mender: 'Mender pool', shrine: 'Spore temple', growhouse: 'Grow-house', elderhall: 'Elder hall' };
 
 // ---------- shading primitives ----------
 const dk = (c, k = 0.25) => shade(c, -k), lt = (c, k = 0.2) => shade(c, k);
@@ -9129,6 +9130,7 @@ function wallFace(P, x, y, w, h, K, o = {}) {
     if (K.tex === 'panel' && (xx - x) % 6 === 0) c = dk(c, 0.1);
     if (K.tex === 'concrete' && dith(xx, yy) && (xx * 7 + yy * 3) % 11 === 0) c = dk(c, 0.12);
     if (K.tex === 'glass' && (xx - x) % 4 === 0) c = lt(c, 0.08);
+    if (K.tex === 'mycelium') { const row = (yy - y) / 4 | 0, off = (row % 2) * 3; if ((yy - y) % 4 === 0 || (xx - x + off + (row * 7 % 3)) % 7 === 0) c = dk(c, 0.13); else if ((xx * 17 + yy * 31) % 23 === 0) c = lt(c, 0.12); }
     if (K.tex === 'adobe' && (xx * 13 + yy * 7) % 9 === 0) c = dith(xx, yy) ? lt(c, 0.06) : dk(c, 0.08);
     if (K.tex === 'timber' && (xx - x) % 4 === 0) c = dk(c, 0.16);
     if (K.tex === 'stone' && ((yy - y) % 5 === 0 || (xx + ((yy - y) / 5 | 0) * 4) % 8 === 0)) c = dk(c, 0.14);
@@ -9227,7 +9229,24 @@ function roofStep(P, x, y, w, h, K) {
   }
   const gx = Math.round(x + w / 2), gy = Math.round(y + h * 0.4); P.r(gx - 2, gy, 5, 1, K.glow || K.win); P.p(gx, gy - 1, K.glow || K.win);
 }
-const roofBy = { flat: roofFlat, gable: roofGable, hip: roofHip, barrel: roofBarrel, saw: roofSaw, dome: roofDome, green: roofGreen, step: roofStep };
+// shelf fungus grown over the roof: overlapping fan-shaped plates, row after row, gills dark underneath
+function roofShelf(P, x, y, w, h, K) {
+  const c = K.roof, R = toneRamp(c);
+  P.r(x - 1, y, w + 2, h, R[1]);
+  for (let row = 0, yy = y; yy < y + h - 2; row++, yy += 4) {
+    for (let xx = x - 1 + (row % 2) * 3; xx < x + w + 1; xx += 6) {
+      for (let dy = 0; dy < 4; dy++) for (let dx = -3; dx <= 3; dx++) { const nx = dx / 3.5, ny = dy / 4; if (nx * nx + ny * ny * 0.6 > 1 || xx + dx < x - 1 || xx + dx > x + w) continue; P.p(xx + dx, yy + dy, rampPick(R, 0.85 - ny * 0.5 - Math.max(0, nx) * 0.25, xx + dx, yy + dy)); }
+      P.p(xx - 1, yy, R[4]); P.p(xx, yy, R[4]);
+    }
+  }
+  P.r(x - 1, y + h - 2, w + 2, 1, R[0]); for (let xx = x; xx < x + w; xx += 2) P.p(xx, y + h - 1, dk(c, 0.55));   // gills along the eave
+  P.r(x - 1, y, 1, h, R[3]); P.r(x + w, y, 1, h, R[0]);
+}
+// a puffball on the roof, breathing spores
+const puffball = (P, x, y, K) => { P.g.globalAlpha = 0.35; P.ell(x + 2, y + 4, 4, 1.6, '#000000'); P.g.globalAlpha = 1; sculptBall(P, x, y, 3.5, 3, K.spot); P.p(x - 1, y - 1, '#ffffff'); anim({ kind: 'spore', x, y: y - 2, r: 5, col: K.glow }); };
+// a round window glowing from inside
+const glowWin = (P, x, y, r, K, L) => { P.ell(x, y, r + 1, r + 1, dk(K.wall, 0.5)); P.ell(x, y, r, r, K.win); P.p(Math.round(x - r / 2), Math.round(y - r / 2), '#ffffff'); if (L && rnd() < 0.6) L.push({ x, y, color: K.win, r: 6 + r * 2 }); };
+const roofBy = { shelf: roofShelf, flat: roofFlat, gable: roofGable, hip: roofHip, barrel: roofBarrel, saw: roofSaw, dome: roofDome, green: roofGreen, step: roofStep };
 // rooftop objects: each a small block with a lit top, a dark side and a shadow on the roof
 function blockOn(P, x, y, w, h, top, depth = 3, col) {
   P.g.globalAlpha = 0.35; P.r(x + 2, y + 2, w + depth - 1, h + depth - 1, '#000000'); P.g.globalAlpha = 1;
@@ -9467,17 +9486,25 @@ function towerNeedle(P, c) {
   c.deck = [];
   door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
 }
-// tiers: three stacked blocks, each with an overhanging ledge; in the megacity the ledges glow like a pagoda's eaves
+// tiers: one stacked block per tile row, each a little wider than the one above, each topped by
+// a lit terrace you can stand on (glowing like a pagoda's eaves in the megacity)
 function towerTiers(P, c) {
-  const { W, H, K } = c, n = 3, tierH = Math.floor((H - 8) / n);
-  for (let k = 0; k < n; k++) {
-    const inset = (n - 1 - k) * 3, x = inset, w = W - inset * 2, y = 8 + k * tierH - (k === 0 ? 6 : 0), hh = tierH + (k === 0 ? 6 : 0);
-    wallFace(P, x, y, w, hh, K); floors(P, x + 2, y + 4, x + w - 4, y + hh - 2, K, c, { stepY: 4 });
-    P.r(x - 2, y - 1, w + 4, 2, K.neon ? pick(K.neon) : lt(K.roof, 0.2)); P.r(x - 2, y + 1, w + 4, 1, dk(K.roof, 0.4));
-    if (K.neon) anim({ kind: 'neon', x: x - 2, y: y - 1, w: w + 4, h: 1, col: K.neon[k % K.neon.length] });
+  const { W, H, K } = c, rows = Math.round(H / ATILE), deck = [];
+  for (let k = 0; k < rows; k++) {
+    const inset = (rows - 1 - k) * 3, x = inset, w = W - inset * 2, ty = k === 0 ? 1 : k * ATILE + 5, wy = k * ATILE + 11, wb = k === rows - 1 ? H : (k + 1) * ATILE + 5;
+    // the wall of this tier, then its terrace on top
+    wallFace(P, x, wy, w, wb - wy, K); floors(P, x + 2, wy + 3, x + w - 4, wb - (k === rows - 1 ? 9 : 1), K, c, { stepY: 4 });
+    const tc = lt(K.roofFlat || K.roof, 0.12);
+    P.r(x - 1, ty, w + 2, wy - ty, tc); P.r(x - 1, ty, w + 2, 1, lt(tc, 0.25)); P.r(x - 1, ty, 1, wy - ty, lt(tc, 0.15)); P.r(x + w, ty, 1, wy - ty, dk(tc, 0.35));
+    for (let xx = x + 1; xx < x + w; xx += 3) P.p(xx, ty + 1, dk(tc, 0.3));                            // the railing
+    const edge = K.neon ? K.neon[k % K.neon.length] : lt(K.roof, 0.3);
+    P.r(x - 2, wy - 1, w + 4, 1, edge); P.r(x - 2, wy, w + 4, 1, dk(K.roof, 0.45));
+    if (K.neon) { anim({ kind: 'neon', x: x - 2, y: wy - 1, w: w + 4, h: 1, col: edge }); c.L.push({ x: W / 2, y: wy, color: edge, r: 16 }); }
+    if (k < rows - 1) deck.push([x + 1, k * ATILE, w - 2, ATILE]);
   }
-  roofFlat(P, 6, 0, W - 12, 4, K); beaconMast(P, W >> 1, 1, 4, c);
+  beaconMast(P, W >> 1, 1, 4, c); if (W >= 54) acUnit(P, W - 16, 3);
   door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
+  c.deck = deck;
 }
 // ---------- the alien (fungal) types: caps, stalks, pods and glow ----------
 const capRoof = (P, cx, cy, rx, ry, K, o = {}) => {
@@ -9496,79 +9523,76 @@ const stalkWall = (P, x, y, w, h, K) => { sculptCyl(P, x, y, w, h, K.wall, 0.25)
 const roundDoor = (P, x, y, r, K, L) => { if (DOORS) DOORS.push(x); P.ell(x, y, r + 1, r + 1.5, dk(K.wall, 0.5)); P.ell(x, y, r, r + 0.5, K.door); P.g.globalAlpha = 0.6; P.ell(x, y + 1, r - 1, r - 1, K.glow); P.g.globalAlpha = 1; if (L) L.push({ x, y, color: K.glow, r: 10 }); P.r(x - r - 1, y + r + 1, r * 2 + 3, 1, K.step); };
 const podWin = (P, x, y, K, L) => { P.ell(x, y, 2, 1.6, dk(K.wall, 0.45)); P.ell(x, y, 1.2, 1, K.win); if (L && rnd() < 0.5) L.push({ x, y, color: K.win, r: 6 }); };
 Object.assign(BT, {
+  // a grown cottage: mycelium brick, a shelf-fungus roof, round glowing windows and a puffball chimney
   sporehome(P, c) {
-    const { W, H, RH, K } = c, n = W >= 54 ? 2 : 1;
-    if (n > 1) basePad(P, W, H, dk(K.wall, 0.55), K.glow);
-    for (let k = 0; k < n; k++) {
-      const cx = W / n * (k + 0.5), sw = Math.min(16, W / n - 6);
-      stalkWall(P, Math.round(cx - sw / 2), RH - 2, sw, H - RH, K);
-      capRoof(P, cx, RH - 6, W / n / 2 - 1, RH - 4, K);
-      roundDoor(P, Math.round(cx), H - 6, 2, K, c.L); podWin(P, Math.round(cx - sw / 2) + 3, RH + 4, K, c.L);
-    }
+    const { W, H, RH, FH, K } = c;
+    roofShelf(P, 0, 0, W, RH, K); puffball(P, W - 7, 5, K);
+    wallFace(P, 0, RH, W, FH, K);
+    glowWin(P, 6, RH + 7, 2, K, c.L); if (W > 40) glowWin(P, W - 10, RH + 7, 2, K, c.L);
+    door(P, Math.round(W * 0.55), RH + FH - 10, 5, 8, K, { arch: true });
   },
+  // the market hall: an open front under a gill-striped shelf awning, lantern pods hung along it
   sporemarket(P, c) {
-    const { W, H, RH, K } = c; basePad(P, W, H, dk(K.wall, 0.55), K.glow);
-    // three small caps over stalls, hung with lantern pods
-    for (let k = 0; k < 3; k++) { const cx = 6 + k * ((W - 12) / 2), cy = RH - 2 + (k % 2) * 3; stalkWall(P, Math.round(cx - 2), cy, 4, H - cy - 2, K); capRoof(P, cx, cy - 4, 8, 6, K, { col: k % 2 ? K.cap2 : K.cap, spots: 3 }); }
-    for (let x = 4; x < W - 4; x += 5) { P.r(x, RH + 6, 1, 3, '#5a4a3a'); sculptBall(P, x + 0.5, RH + 10, 1.6, 1.8, K.glow); c.L.push({ x, y: RH + 10, color: K.glow, r: 6 }); }
-    P.r(2, H - 6, W - 4, 3, '#6a4a2a'); for (let x = 4; x < W - 4; x += 3) P.p(x, H - 6, pick(['#ff6fae', '#ffd23f', '#c8ff7a', '#9a6aff']));
+    const { W, H, RH, FH, K } = c;
+    roofShelf(P, 0, 0, W, RH, K);
+    wallFace(P, 0, RH, W, FH, K);
+    for (let x = 0; x < W - 3; x++) { P.r(x, RH + 2, 1, 4, x % 3 ? K.cap2 : K.cap); P.p(x, RH + 6, dk(K.cap, 0.5)); }
+    P.g.globalAlpha = 0.35; P.r(1, RH + 7, W - 4, 2, '#000000'); P.g.globalAlpha = 1;
+    win(P, 3, RH + 9, W - 16, FH - 13, { ...K, win: '#6a5a3a' }, true); for (let x = 5; x < W - 14; x += 3) P.p(x, RH + 10, pick(['#ff6fae', '#ffd23f', '#c8ff7a', '#9a6aff']));
+    for (let x = 5; x < W - 6; x += 7) { sculptBall(P, x, RH + 8, 1.5, 1.8, K.glow); anim({ kind: 'pod', x, y: RH + 8, col: K.glow, ph: x }); c.L.push({ x, y: RH + 8, color: K.glow, r: 6 }); }
+    door(P, W - 11, RH + FH - 9, 5, 7, K, { arch: true });
   },
+  // the creche: a long low nursery, egg-pods glowing in a row of round windows, a lantern stalk instead of a flagpole
   creche(P, c) {
-    const { W, H, RH, K } = c;
-    // a low, wide cap sheltering a nest of glowing egg-pods with young curled inside
-    capRoof(P, W / 2, RH - 4, W / 2 - 1, RH - 3, K, { col: K.cap2 });
-    P.r(2, RH + 1, W - 4, H - RH - 3, dk(K.wall, 0.35));
-    for (let k = 0; k < Math.max(3, (W / 9) | 0); k++) {
-      const px0 = 6 + k * ((W - 12) / Math.max(2, ((W / 9) | 0) - 1)), py = H - 7 - (k % 2) * 2;
-      sculptBall(P, px0, py, 3.4, 4, '#e8f8c8', { rim: K.glow }); P.ell(px0 + 0.5, py + 0.5, 1.4, 1.2, dk(K.glow, 0.4)); c.L.push({ x: px0, y: py, color: K.glow, r: 9, pulse: true }); anim({ kind: 'pod', x: px0, y: py, col: K.glow, ph: k * 1.3 });
-    }
-    P.r(2, H - 2, W - 4, 1, K.step);
+    const { W, H, RH, FH, K } = c;
+    (K.tex === 'mycelium' ? roofShelf : roofStep)(P, 0, 0, W, RH, K);
+    wallFace(P, 0, RH, W, FH, K);
+    const dx = (W >> 1) - 3;
+    for (let x = 6; x < W - 6; x += 7) { if (Math.abs(x - dx - 3) < 6) continue; glowWin(P, x, RH + 8, 2.4, { ...K, win: '#e8f8c8' }, c.L); P.p(x, RH + 8, dk(K.glow, 0.3)); anim({ kind: 'pod', x, y: RH + 8, col: K.glow, ph: x * 0.4 }); }
+    door(P, dx, RH + FH - 9, 6, 7, K, { arch: true });
+    P.r(4, RH - 9, 1, 10, dk(K.wall, 0.3)); sculptBall(P, 4.5, RH - 10, 2.2, 2.2, K.glow); c.L.push({ x: 4, y: RH - 10, color: K.glow, r: 10, pulse: true });
   },
+  // the mender: a flat roof with a healing pool set into it, a four-petal glyph over the door
   mender(P, c) {
-    const { W, H, RH, K } = c;
-    // a ring wall around a glowing pool, open to the sky
-    stalkWall(P, 1, RH, W - 2, H - RH - 1, K);
-    sculptBall(P, W / 2, RH / 2 + 1, W / 2 - 1, RH / 2, K.wall);
-    P.ell(W / 2, RH / 2 + 2, W / 2 - 5, RH / 2 - 4, dk(K.wall, 0.4)); P.ell(W / 2, RH / 2 + 3, W / 2 - 7, RH / 2 - 6, '#3ae8c8'); P.ell(W / 2 - 3, RH / 2 + 1, 3, 1.5, '#c8fff0'); anim({ kind: 'ripple', x: W / 2, y: RH / 2 + 3, rx: W / 2 - 8, ry: RH / 2 - 7 });
-    c.L.push({ x: W / 2, y: RH / 2 + 3, color: '#3ae8c8', r: 22, pulse: true });
-    // a four-petal glyph over the door: the alien red cross
-    const cx = W >> 1; for (const [dx, dy] of [[0, -2], [0, 2], [-2, 0], [2, 0]]) P.ell(cx + dx, RH + 6 + dy, 1.2, 1.2, '#3ae8c8');
-    roundDoor(P, cx, H - 6, 3, { ...K, glow: '#3ae8c8' }, c.L);
+    const { W, H, RH, FH, K } = c;
+    roofFlat(P, 0, 0, W, RH, K);
+    P.ell(W / 2, RH / 2, W / 2 - 6, RH / 2 - 4, dk(K.roofFlat || K.roof, 0.35)); P.ell(W / 2, RH / 2 + 0.5, W / 2 - 8, RH / 2 - 6, '#3ae8c8'); P.ell(W / 2 - 3, RH / 2 - 1, 3, 1.2, '#c8fff0');
+    c.L.push({ x: W / 2, y: RH / 2, color: '#3ae8c8', r: 22, pulse: true }); anim({ kind: 'ripple', x: W / 2, y: RH / 2 + 0.5, rx: W / 2 - 9, ry: RH / 2 - 7 });
+    wallFace(P, 0, RH, W, FH, K);
+    const cx = W >> 1; for (const [ddx, ddy] of [[0, -2], [0, 2], [-2, 0], [2, 0]]) P.ell(cx + ddx, RH + 6 + ddy, 1.2, 1.2, '#3ae8c8');
+    glowWin(P, 7, RH + 8, 2, K, c.L); glowWin(P, W - 11, RH + 8, 2, K, c.L);
+    door(P, cx - 4, RH + FH - 9, 8, 7, K, { arch: true });
   },
-  // a pavilion: a broad cap on stalk pillars over a glowing spore-heart, ringed by small glowing mushrooms
+  // the temple: a gill-ribbed hall with a tall spore tower capped by a puffball, a glowing gill disc for a rose window
   shrine(P, c) {
-    const { W, H, RH, K } = c, cx = W / 2, capY = Math.round(H * 0.3), capRx = W / 2 - 1, capRy = Math.max(6, Math.round(H * 0.22));
-    basePad(P, W, H, mixHex(dk(K.cap, 0.6), '#1e161e', 0.4), K.glow);
-    // the open floor under the cap, in deep shade
-    P.g.globalAlpha = 0.55; P.ell(cx, capY + capRy * 0.9, capRx - 2, capRy * 0.9, '#0a060a'); P.g.globalAlpha = 1;
-    // the fairy ring round the edge of the plot
-    for (let k = 0; k < 10; k++) { const a = k / 10 * 6.283, x = Math.round(cx + Math.cos(a) * (W / 2 - 4)), y = Math.round(H * 0.66 + Math.sin(a) * H * 0.22); P.r(x, y, 1, 2, lt(K.wall, 0.1)); P.r(x - 1, y - 1, 3, 1, k % 2 ? K.cap2 : K.cap); P.p(x, y - 2, K.glow); if (k % 3 === 0) anim({ kind: 'pod', x, y: y - 1, col: K.glow, ph: k }); }
-    // pillars, darker at the back
-    stalkWall(P, Math.round(cx) - 1, capY + 2, 3, H - capY - 14, { ...K, wall: dk(K.wall, 0.35) });          // the back pillar, in shadow
-    for (const px0 of [cx - capRx * 0.62, cx + capRx * 0.62]) stalkWall(P, Math.round(px0) - 2, capY + 2, 4, H - capY - 6, K);
-    // the heart, glowing under the cap
-    sculptBall(P, cx, H - 11, 4, 4, K.glow, { lift: 0.25 }); P.p(Math.round(cx) - 1, H - 13, '#ffffff');
-    c.L.push({ x: cx, y: H - 11, color: K.glow, r: 22, pulse: true }); anim({ kind: 'pod', x: cx, y: H - 11, col: K.glow, ph: 0 });
-    capRoof(P, cx, capY, capRx, capRy, K, { cut: 0.45 });
-    P.r(Math.round(cx) - 2, H - 4, 5, 1, K.step);
+    const { W, H, RH, FH, K } = c, tw = 11, tx = 2;
+    roofShelf(P, 0, 0, W, RH, { ...K, roof: dk(K.roof, 0.15) });
+    wallFace(P, 0, RH, W, FH, K);
+    P.g.globalAlpha = 0.4; P.r(tx + tw, 4, 4, RH + FH - 6, '#000000'); P.g.globalAlpha = 1;
+    wallFace(P, tx, 6, tw, RH + FH - 8, K); sculptBall(P, tx + tw / 2, 5, tw / 2 + 1, 4, K.spot); anim({ kind: 'spore', x: tx + tw / 2, y: 2, r: 5, col: K.glow });
+    glowWin(P, tx + tw / 2, 12, 1.5, K, c.L);
+    const rx = Math.round((tx + tw + W) / 2) - 1, ry = RH + 7;
+    P.ell(rx, ry, 4.5, 4.5, dk(K.wall, 0.5)); for (let a = 0; a < 12; a++) P.line(rx, ry, Math.round(rx + Math.cos(a * 0.524) * 3.5), Math.round(ry + Math.sin(a * 0.524) * 3.5), a % 2 ? K.glow : dk(K.glow, 0.3));
+    c.L.push({ x: rx, y: ry, color: K.glow, r: 14, pulse: true }); anim({ kind: 'pod', x: rx, y: ry, col: K.glow, ph: 1 });
+    door(P, rx - 3, RH + FH - 9, 7, 7, K, { arch: true });
   },
+  // the grow-house: a long hall under a glass barrel roof, the crop glowing through it
   growhouse(P, c) {
-    const { W, H, RH, K } = c;
-    // a glassy dome over beds of plants
-    stalkWall(P, 1, H - 8, W - 2, 7, K);
-    for (let y = 1; y < H - 7; y++) for (let x = 1; x < W - 1; x++) {
-      const nx = (x - W / 2) / (W / 2 - 1), ny = (y - (H - 8)) / (H - 9); if (nx * nx + ny * ny > 1) continue;
-      P.p(x, y, (x * 3 + y * 5) % 9 === 0 ? pick(['#5aa04a', '#c8ff7a', '#ff6fae']) : 'rgba(170,255,210,0.28)');
-    }
-    for (let x = 4; x < W - 4; x += 6) P.line(x, H - 8, Math.round(W / 2 + (x - W / 2) * 0.4), 2, 'rgba(232,255,240,0.55)');
-    sculptBall(P, W / 2 - W / 5, H / 4, 3, 2, '#ffffff', { k: 1.2 });
+    const { W, H, RH, FH, K } = c;
+    for (let yy = 0; yy < RH; yy++) { const ny = yy / RH * 2 - 1; for (let xx = -1; xx < W + 1; xx++) P.p(xx, yy, (xx * 3 + yy * 5) % 11 === 0 ? pick(['#5aa04a', '#c8ff7a', '#8a6aaa']) : mixHex('#5a7a5a', '#c8f0d8', clamp(0.55 - ny * 0.35 - (xx > W * 0.7 ? 0.2 : 0), 0, 1))); }
+    for (let xx = 3; xx < W - 2; xx += 6) P.r(xx, 0, 1, RH, dk(K.wall, 0.2)); P.r(-1, RH - 1, W + 2, 1, dk(K.wall, 0.4)); P.r(Math.round(W * 0.25), 2, Math.round(W * 0.2), 1, '#ffffff');
+    c.L.push({ x: W / 2, y: RH / 2, color: '#c8ff7a', r: 18 });
+    wallFace(P, 0, RH, W, FH, K);
+    for (let k = 0; k < Math.max(1, (W / 26) | 0); k++) { const ddx = 5 + k * 26; win(P, ddx, RH + 4, 14, FH - 8, { ...K, win: '#7aa86a' }, true); for (let x = ddx + 1; x < ddx + 13; x += 3) P.p(x, RH + FH - 6, '#c8ff7a'); }
+    door(P, W - 9, RH + FH - 9, 5, 7, K);
   },
+  // the elder hall: tall and narrow, shelf fungus grown out of the wall at every floor
   elderhall(P, c) {
-    const { W, H, RH, K } = c; basePad(P, W, H, dk(K.wall, 0.55), K.glow);
-    // shelf fungus stacked up a trunk, each shelf lit on top
-    stalkWall(P, (W >> 1) - 6, 2, 12, H - 3, K);
-    for (let k = 0; k < 3; k++) { const y = 6 + k * ((H - 16) / 3), side = k % 2 ? 1 : -1; sculptBall(P, W / 2 + side * 6, y, W / 2 - 4, 4, k % 2 ? K.cap : K.cap2, { clip: (x, yy) => yy <= y + 1 }); podWin(P, (W >> 1) - 2, y + 5, K, c.L); }
-    roundDoor(P, W >> 1, H - 6, 3, K, c.L);
+    const { W, H, RH, FH, K } = c;
+    roofShelf(P, 0, 0, W, RH, K); puffball(P, W / 2, 4, K);
+    wallFace(P, 0, RH, W, FH, K);
+    for (let y = RH + 4; y < H - 11; y += 6) { glowWin(P, 7, y + 2, 1.6, K, c.L); glowWin(P, W - 11, y + 2, 1.6, K, c.L); for (let x = -1; x < W - 2; x++) P.p(x, y + 5, x % 2 ? K.cap2 : K.cap); P.r(-1, y + 6, W - 2, 1, dk(K.cap, 0.5)); }
+    door(P, (W >> 1) - 3, H - 9, 6, 7, K, { arch: true });
   },
 });
 // ---------- each faction's own building, drawn in the local materials ----------
@@ -9585,6 +9609,16 @@ Object.assign(BT, {
     for (let k = 0; k < 5; k++) sculptBall(P, 5 + rnd() * (W - 10), H * 0.35 + rnd() * H * 0.4, W / 4 + rnd() * 3, H / 4 + rnd() * 3, pick(['#6a5a3a', '#5a4a30', '#7a6a42']));
     for (let k = 0; k < Math.max(3, (W / 8) | 0); k++) { const x = 5 + rnd() * (W - 10), y = H * 0.35 + rnd() * H * 0.45; P.ell(x, y, 1.8, 1.4, '#1a120a'); P.p(Math.round(x), Math.round(y), '#7bdc6a'); c.L.push({ x, y, color: '#7bdc6a', r: 6, pulse: true }); anim({ kind: 'pod', x, y, col: '#7bdc6a', ph: k }); }
     for (let x = 2; x < W - 2; x += ri(3, 5)) P.line(x, H - 2, x + ri(-2, 2), H - ri(5, 10), '#3f7a3a');
+  },
+  // Wildlife: an ordinary local building the colony has moved into: hive growths bursting from the
+  // roof, resin running down the walls, egg-sacs glowing in the windows
+  infested(P, c) {
+    (c.W >= 54 && !c.K.neon && c.K.tex !== 'glass' ? BT.depot : BT.house)(P, c);
+    const { W, H, RH, FH } = c, resin = '#6a5a32';
+    for (let k = 0; k < Math.max(2, (W / 14) | 0); k++) { const x = 5 + rnd() * (W - 10), y = 3 + rnd() * (RH - 8), r = 3 + rnd() * 3; sculptBall(P, x, y, r, r * 0.8, pick([resin, '#5a4a2a', '#7a6a3a'])); P.ell(x, y, 1.2, 1, '#1a120a'); P.p(Math.round(x), Math.round(y), '#7bdc6a'); c.L.push({ x, y, color: '#7bdc6a', r: 6, pulse: true }); anim({ kind: 'pod', x, y, col: '#7bdc6a', ph: k }); }
+    for (let x = 2; x < W - 4; x += ri(4, 7)) { const len = ri(3, FH - 4); P.r(x, RH, 2, len, resin); P.p(x, RH + len, '#8a7a4a'); P.p(x + 1, RH + 1, '#8a7a4a'); }
+    for (let x = 4; x < W - 6; x += ri(8, 12)) { sculptBall(P, x, RH + FH - 6, 2, 2.2, '#c8e8a0', { rim: '#7bdc6a' }); anim({ kind: 'pod', x, y: RH + FH - 6, col: '#7bdc6a', ph: x }); }
+    for (let x = 1; x < W - 3; x += ri(3, 5)) P.line(x, H - 1, x + ri(-1, 1), H - ri(3, 7), '#3f7a3a');
   },
   // Lumen Kin: a glass lodge, its crown of crystal lit from inside
   lodge(P, c) {
@@ -9637,9 +9671,9 @@ const MARGIN = 6;
 const DECK = {
   skyscraper: (W, H, RH) => [[4, 0, W - 8, 12]],
   church: (W, H, RH) => [[16, 0, W - 16, RH]], chapel: (W, H, RH) => [[16, 0, W - 16, RH]],
-  sporehome: (W, H, RH) => [[3, 0, W - 6, RH - 4]], creche: (W, H, RH) => [[3, 0, W - 6, RH - 3]],
+  shrine: (W, H, RH) => [[16, 0, W - 16, RH]],
   ziggurat: (W, H) => [[W * 0.28, 0, W * 0.44, H * 0.5]],
-  sporemarket: null, mender: null, shrine: null, growhouse: null, elderhall: null, broodmound: null, lodge: null,
+  growhouse: null, broodmound: null, lodge: null,
 };
 const deckOf = (type, W, H, RH) => type in DECK ? (DECK[type] ? DECK[type](W, H, RH) : []) : [[2, 0, W - 4, RH]];
 // the building sprite: margins all round for the outline and anything poking above the roofline
@@ -9678,8 +9712,8 @@ function drawOpenings(o, openings) {
 }
 const TALL = { skyscraper: 2.6, office: 1.4, branch: 1.4, shrine: 1.2, elderhall: 1.4, church: 1.3, chapel: 1.3, ziggurat: 1.3 };
 // each faction puts up its own buildings: how many, and which
-const FAC_BUILD = { union: ['unionhall', 1], activists: ['squat', 2], fauna: ['broodmound', 2], rival: ['branch', 1], abandoned: ['prefab', 2], haulers: ['warehouse', 1], precursors: ['ziggurat', 1], kindly: ['barracks', 1], church: ['chapel', 1] };
-Object.assign(BTYPE_NAME, { squat: 'Squat', broodmound: 'Brood mound', lodge: 'Glass lodge', branch: 'VectorCorp branch', prefab: 'Abandoned prefab', warehouse: 'Guild warehouse', ziggurat: 'Ziggurat', barracks: 'AP barracks', chapel: 'Chapel' });
+const FAC_BUILD = { union: ['unionhall', 1], activists: ['squat', 2], fauna: ['infested', 2], rival: ['branch', 1], abandoned: ['prefab', 2], haulers: ['warehouse', 1], precursors: ['ziggurat', 1], kindly: ['barracks', 1], church: ['chapel', 1] };
+Object.assign(BTYPE_NAME, { squat: 'Squat', broodmound: 'Brood mound', infested: 'Infested block', lodge: 'Glass lodge', branch: 'VectorCorp branch', prefab: 'Abandoned prefab', warehouse: 'Guild warehouse', ziggurat: 'Ziggurat', barracks: 'AP barracks', chapel: 'Chapel' });
 // which building is which: a landmark, matching houses or shops along the planned street,
 // and a mix of everything else that fits
 const FITS = {
@@ -9687,7 +9721,7 @@ const FITS = {
   depot: b => b.w >= 3, office: b => b.h >= 3 || (b.w === 2 && b.h === 2), skyscraper: b => b.h >= 3 || (b.w === 2 && b.h === 2), unionhall: b => b.w >= 3,
   sporehome: b => true, sporemarket: b => b.w >= 3, creche: b => b.w >= 3, mender: b => b.w >= 3, shrine: b => b.h >= 3 || b.w === 2,
   growhouse: b => b.w >= 3, elderhall: b => b.h >= 3,
-  squat: b => true, broodmound: b => true, lodge: b => b.w <= 3, branch: b => b.h >= 3 || b.w === 2, prefab: b => true, warehouse: b => b.w >= 3, ziggurat: b => b.w >= 2, barracks: b => b.w >= 3, chapel: b => b.w >= 3 || b.h >= 3,
+  squat: b => true, broodmound: b => true, infested: b => true, lodge: b => b.w <= 3, branch: b => b.h >= 3 || b.w === 2, prefab: b => true, warehouse: b => b.w >= 3, ziggurat: b => b.w >= 2, barracks: b => b.w >= 3, chapel: b => b.w >= 3 || b.h >= 3,
 };
 function assignTypes(map, bk, fac) {
   const K = BKIT[bk], bs = map.buildings || []; if (!K || !bs.length) return;
@@ -9705,7 +9739,7 @@ function assignTypes(map, bk, fac) {
   for (const b of rest.slice(1)) { const opts = set.filter(t => fit(t, b)), fresh = opts.filter(t => !used.has(t)); b.type = city && fit('skyscraper', b) && rnd() < 0.55 ? 'skyscraper' : pick(fresh.length ? fresh : opts); used.add(b.type); }
   if (city) for (const b of bs) if (!b.row && b.type !== 'church' && (b.h >= 3 ? rnd() < 0.7 : b.w === 2 && b.h === 2 && rnd() < 0.3)) b.type = 'skyscraper';
   // each tower its own shape, avoiding repeats where possible
-  const shapes = shuffle([0, 1, 2, 3, 4]); let si = 0; for (const b of bs) if (b.type === 'skyscraper') b.variant = b.w === 2 && b.h === 2 ? pick([0, 2, 4]) : shapes[si++ % 5];
+  const shapes = shuffle([0, 1, 2, 3, 4, 4]); let si = 0; for (const b of bs) if (b.type === 'skyscraper') b.variant = b.w === 2 && b.h === 2 ? pick([0, 2, 4, 4]) : shapes[si++ % 6];
   // a faction puts up its own building
   const fb = FAC_BUILD[fac];
   if (fb) { const [t, n] = fb, cand = shuffle(bs.filter(b => fit(t, b))).sort((a, b) => (a.row ? 1 : 0) - (b.row ? 1 : 0)); for (const b of cand.slice(0, n)) b.type = t; }
