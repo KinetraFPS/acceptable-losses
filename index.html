@@ -4714,15 +4714,29 @@ function drawTowerPx(g, tw, t, ride) {
   const ax = Math.round(tw.x / AP) + pc.dx, ay = Math.round(tw.y / AP) + 6 + pc.dy, sx = ax - 7, sy = ay - 17;
   const blit = (im, ox, oy) => { if (face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx - ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
   if (pc.cast) { g.globalAlpha = 0.38; blit(shad[bob], pc.cast[0], pc.cast[1]); g.globalAlpha = 1; }   // the light is fixed, so the shadow ignores facing
-  drawTowerBody(g, tw, t, pc.dy, pc.dx, pc.kind === 'cover' ? 'full' : 'small');
+  const foot = pc.kind === 'cover' ? 'full' : 'small';
+  drawTowerBody(g, tw, t, pc.dy, pc.dx, foot, 'body');
   if (pc.shaded) { g.globalAlpha = 0.22; blit(shad[bob], 0, 0); g.globalAlpha = 1; }
-  if (pc.lip) g.drawImage(pc.lip.c, pc.lip.sx, pc.lip.sy, pc.lip.w, pc.lip.h, pc.lip.x, pc.lip.y, pc.lip.w, pc.lip.h);
+  // the ledge over the boots, cut to the crew member's own outline so it never adds pixels around them
+  if (pc.lip && !tw.down) {
+    const L = pc.lip, tmp = LIP_BUF || (LIP_BUF = mkCanvas(24, 8)), tg = tmp.getContext('2d');
+    tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, 24, 8); tg.drawImage(L.c, L.sx, L.sy, L.w, L.h, 0, 0, L.w, L.h);
+    tg.globalCompositeOperation = 'destination-in';
+    if (face < 0) { tg.save(); tg.translate(2 * (ax - L.x), 0); tg.scale(-1, 1); tg.drawImage(sp.f[bob], sx - L.x, sy - L.y); tg.restore(); } else tg.drawImage(sp.f[bob], sx - L.x, sy - L.y);
+    tg.globalCompositeOperation = 'source-over';
+    g.drawImage(tmp, 0, 0, L.w, L.h, L.x, L.y, L.w, L.h);
+  }
+  // the gun is held out over the ledge
+  drawTowerBody(g, tw, t, pc.dy, pc.dx, foot, 'weapon');
 }
+let LIP_BUF = null;
 // ride: pixels to lift the crew member onto a platform's deck; shiftX nudges them sideways; foot: the contact
 // shadow under them ('full' on open ground, 'small' on a roof or pavement, none on a platform, which draws its own)
-function drawTowerBody(g, tw, t, ride, shiftX = 0, foot = ride == null ? 'full' : null) {
+// part: 'all', or 'body' then 'weapon' when something (a roof's ledge) is drawn between them
+function drawTowerBody(g, tw, t, ride, shiftX = 0, foot = ride == null ? 'full' : null, part = 'all') {
   const sp = crewSprites(tw.crew), ax = Math.round(tw.x / AP) + shiftX, ay = Math.round(tw.y / AP) + 6 + (ride || 0), type = tw.crew.type;
-  if (foot) { g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(ax - 6, ay - 1, 12, 2); if (foot === 'full') g.fillRect(ax - 4, ay + 1, 8, 1); }
+  if (part === 'weapon' && tw.down) return;
+  if (foot && part !== 'weapon') { g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(ax - 6, ay - 1, 12, 2); if (foot === 'full') g.fillRect(ax - 4, ay + 1, 8, 1); }
   if (tw.down) {
     // under a sheet, with a marker flag; the crew card offers a replacement
     px(g, ax - 8, ay - 7, 15, 5, '#c8ccd4'); px(g, ax - 8, ay - 7, 15, 1, '#f2f4f8'); px(g, ax - 9, ay - 3, 17, 1, '#8a8e96'); px(g, ax - 7, ay - 8, 4, 1, '#d8dce2');
@@ -4732,8 +4746,11 @@ function drawTowerBody(g, tw, t, ride, shiftX = 0, foot = ride == null ? 'full' 
   }
   const face = tw.face || 1, bob = Math.floor(t * 2 + tw.tx * 0.7) % 2, sx = ax - 7, sy = ay - 17;
   const blit = im => { if (face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx, sy); g.restore(); } else g.drawImage(im, sx, sy); };
-  if (S.selTower === tw) for (const [dx, dy] of OFF4) { g.save(); g.translate(dx, dy); blit(sp.sel[bob]); g.restore(); }
-  blit(tw.flash > 0 && Math.floor(t * 30) % 2 ? sp.red[bob] : sp.f[bob]);
+  if (part !== 'weapon') {
+    if (S.selTower === tw) for (const [dx, dy] of OFF4) { g.save(); g.translate(dx, dy); blit(sp.sel[bob]); g.restore(); }
+    blit(tw.flash > 0 && Math.floor(t * 30) % 2 ? sp.red[bob] : sp.f[bob]);
+  }
+  if (part === 'body') return;
   if (type === 'drone') {
     const n = (tw.st && tw.st.drones) || 1;
     for (let k = 0; k < n; k++) {
@@ -9767,7 +9784,8 @@ function towerLevels(P, c, o) {
       P.r(x - 2 + r, wy - 1, w + 4 - r * 2, 1, edge); P.r(x - 2 + r, wy, w + 4 - r * 2, 1, dk(K.roof, 0.45));
       if (K.neon) { anim({ kind: 'neon', x: x - 2 + r, y: wy - 1, w: w + 4 - r * 2, h: 1, col: edge }); c.L.push({ x: W / 2, y: wy, color: edge, r: 14 }); }
     }
-    if (k < rows - 1 && !(o.skip && o.skip.includes(k))) deck.push([x + 1, k * ATILE, w - 2, ATILE]);
+    // the standable part of a level is its terrace, so feet land on it and the lit edge tucks over the boots
+    if (k < rows - 1 && !(o.skip && o.skip.includes(k))) deck.push([x + 1, ty, w - 2, wy - ty]);
   }
   if (o.top) o.top(P, c, rows);
   door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
@@ -9813,7 +9831,7 @@ function towerTiers(P, c) {
     const edge = K.neon ? K.neon[k % K.neon.length] : lt(K.roof, 0.3);
     P.r(x - 2, wy - 1, w + 4, 1, edge); P.r(x - 2, wy, w + 4, 1, dk(K.roof, 0.45));
     if (K.neon) { anim({ kind: 'neon', x: x - 2, y: wy - 1, w: w + 4, h: 1, col: edge }); c.L.push({ x: W / 2, y: wy, color: edge, r: 16 }); }
-    if (k < rows - 1) deck.push([x + 1, k * ATILE, w - 2, ATILE]);
+    if (k < rows - 1) deck.push([x + 1, ty, w - 2, wy - ty]);
   }
   beaconMast(P, W >> 1, 1, 4, c); if (W >= 54) acUnit(P, W - 16, 3);
   door(P, (W >> 1) - 4, H - 8, 8, 6, K, { glass: true });
@@ -11211,7 +11229,7 @@ SECTOR_BIOMES[4] = ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'vol
 SECTOR_BIOMES[5] = ['hq', 'hq', 'cyber', 'cloud', 'tomb', 'volcanic'];
 SECTOR_NAMES[4] = ['The Contested Belt', 'Supply Line Zero', 'The Quiet War']; SECTOR_NAMES[5] = ['Headquarters Approach', 'The Last Quarter'];
 
-window.__AL = { planetScene, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, perchAt, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
