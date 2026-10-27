@@ -210,6 +210,15 @@ The final screen also shows the ending number and a **Your Story** recap of ever
 - Activists: Glitch crowdfunds a sponsored shuttle.
 - VectorCorp: Mr. Sable "acquires your debt".
 
+- **How the ending is chosen** (`pickEnding`), in order:
+  1. Two or more betrayals: Broken Promises.
+  2. Defected: Coalition (Hostile Work Environment) if any other faction is still your ally, otherwise your faction's own ending.
+  3. Loyal, every faction purged: Total Market Share (new).
+  4. Two finished storylines: Coalition. One: that faction's ending.
+  5. Two or more reports to HR: Employee of the Quarter (the informant's Loyalist ending).
+  6. No reports and no honoured deals: Clean Hands (new; the bystander who chose nothing).
+  7. Otherwise: Acceptable Losses.
+
 ## Worlds
 Seven trope worlds, each with its own ground and path palette, path treatment, ground decor, props sorted by context, a liquid, its own building style, a 2x2 landmark (0–1 per map), animated props, weather, a colour grade, and 2–3 planet colour schemes on the star map.
 
@@ -392,7 +401,7 @@ A bonus level, not a contract: it doesn't advance the run (`showDemand`, `startS
   - **Refuse (or can't afford it):** the envoy's feed cuts to static and they board your ship.
 - **The map is the ship itself** (`shipMap`, same interior and fit-out as the walk). Three airlocks lead down corridors to the fuel core; crew stand anywhere off the corridors, in the rooms or on open deck.
 - **Built-in defences:** hull guns on hardpoints track and shoot anything within 3.2 tiles (damage 10 + 3 per difficulty level, scaled by fit-out); blast doors on the three approaches slow anything squeezing through by 35% (`stepShipDefences`).
-- **A test of the crew:** waves are much bigger than a contract at the same point (difficulty ×1.6/1.75/1.9 for raids 1–3). Big boarders (55+ base HP: armoured, shields, carriers, berserkers, gunships) get +45% HP and move 22% slower; bosses +25% HP and 18% slower. Every mood effect is 1.5× as strong, and crew call out as the airlocks blow.
+- **A test of the crew:** waves are much bigger than a contract at the same point (difficulty ×1.6/1.75/1.75 for raids 1–3). Big boarders (55+ base HP: armoured, shields, carriers, berserkers, gunships) get +45% HP and move 22% slower; bosses move 18% slower, and raid 2's boss also gets +25% HP. Every mood effect is 1.5× as strong, and crew call out as the airlocks blow.
 - **The raids:** boarders go for the fuel crystals; leaks drain a fuel meter instead of your margin.
   - **Raid 1:** two airlocks, no boss.
   - **Raid 2:** two airlocks and one of the faction's bosses.
@@ -457,12 +466,53 @@ Each sector is an act, with its own cast and its own light (`ACTS`).
 | 1 (Sector 1) | Onboarding: local grievances | Union, Activists, Wildlife, Lumen Kin | Bright daylight |
 | 2 (Sector 2) | Restructuring: competition and fallout | VectorCorp, the Abandoned, Free Haulers, Precursors | Dusk and smog: warm skies over purple shadow, drifting smog, rusting abandoned Kindly rigs on the map and in scenes, a red nebula on the star map, a flickering lamp on the desk |
 | 3 (Sector 3) | The Endless Quarter: reckoning | Kindly Asset Protection, the Church of the Eternal Quarter | Corporate night: cold blue-black light, company yellow windows and alarm red, a blue banner on the star map |
+| 4 (Sector 4) | The Uprising (defected) or Homogenisation (loyal) | Everyone still standing | War light: red-orange over deep crimson |
+| 5 (Sector 5) | Overthrow (defected) or Total Market Share (loyal) | Everyone still standing; the final contract is at headquarters | Gold over violet |
 
 - **Unlocking:** a faction first appears when its act arrives. VectorCorp no longer shows up in Act 1.
 - **Weighting:** the act's own factions get weight 3. Factions from earlier acts start at 0.3 and gain weight from your history with them: +1.4 for an unfinished envoy arc, +1 for a grudge, +0.6 for a finished arc, and a little per planet you helped or crushed. A fresh Act 2 is about 80% VectorCorp; a run with unfinished business sees old factions much more (`factionWeights`).
 - **Bosses:** an act's boss comes from the faction you fought most in that act (`actBossFaction`).
 - **Showing it:** contract cards mark factions as "New this act" or give a reason they're back ("Unfinished business", "They remember you", "Old friends", "Back for more"). The sector-cleared screen introduces the next act's cast. The star map opens with an "Act 2: Restructuring" banner.
 - **Palette:** `actGrade` lays a soft-light gradient, a multiply tint, a light haze and slow smog bands over the mission, the star map and planet scenes. Planet scenes also swap to the act's sky. Each planet remembers the act it was played in, so the montages show the run's change of light.
+
+## Sides and the endgame
+A run is five acts of five contracts (`MAX_SECTOR = 5`); difficulty growth flattens after contract 15 (`diffLevel`).
+- **Storyline finales** now come before the boss contract of each of acts 1–3, not only the run's last, so a run can finish more than one storyline (`rollEnvoy`).
+- **The invitation:** finish a faction's storyline and, after that act's boss, its envoy invites you to their colony on their own channel (`showInvitation`). The screen shows exactly who would come with you and who would stay. Decline, and they never ask again.
+- **Who follows you** (`wouldFollow`): crew at 60+ morale. Sympathisers of that faction always follow; others need 70. Company Men need 85, and crew whose lean opposes the faction's morals (good crew to an evil faction or the reverse) need 82.
+- **Defecting** (`defect`):
+  - Followers gain 10 morale.
+  - The rest go back to Kindly and are added to its defectors, so they turn up against you as named elites.
+  - Two of the faction's people join as troops.
+  - Your standing with the faction goes to Allied, and Asset Protection's to Vendetta.
+  - Douglas Pryce revokes your badge.
+- **Faction troops** (`comrade`, `FACTION_KIT`): crew in the faction's colours with an archetype that fits its morals and a kit that improves with rank:
+  - Union: Picket Training, damage plus a stun from rank 3.
+  - Wildlife: Hive Bond, slowing hits.
+  - VectorCorp: Black-Market Optics, range and crit.
+  - Activists: Crowdfunded Kit, fire rate and experience.
+  - Lumen Kin: Lamp-Blessed, HP and range.
+  - Abandoned: Old Kindly Training, cheaper and faster.
+  - Free Haulers: Smuggler's Cut, money per kill.
+  - Precursors: Archive Sight, damage and crit.
+  - Asset Protection: armour.
+  - The Church: Choir-Backed.
+  - After defecting, the store only hires the faction's troops.
+- **Working for them** (`employer`, `sideClient`, `causeMorale`):
+  - Your faction is the client on every contract.
+  - Enemies are mostly Kindly's Asset Protection, plus anyone not on good terms with your side; allies are never targets.
+  - The store becomes their Commissary and the desk their Commons, and unspent budget goes to the common fund (strike funds, clinics, lamp oil).
+  - Morale follows the cause: crew whose lean matches the faction's morals gain 4 per contract, opposed crew lose 5, and a neutral cause pleases mercenaries.
+  - Pryce's quarterly reviews stop.
+- **Faction morals** (`FACTION_MORAL`): good for the Union, the Wildlife, the Lumen Kin, the Abandoned and the Activists. Neutral for the Free Haulers and the Precursors. Evil for VectorCorp, Asset Protection and the Church.
+- **Between acts** (`showCrossroads`):
+
+| Moment | Defected | Loyal |
+|---|---|---|
+| Entering Act 4 | Your faction's council: "Kindly is coming for us. Time we went for them first." | Pryce promotes you to Director of Market Homogenisation |
+| Entering Act 5 | Pryce calls, furious: the board is coming for you in person | Pryce: "A few holdouts left. Finish them." |
+| Act 4–5 contracts | Mostly against Asset Protection and Kindly loyalists | Every contract you win **purges** that faction for good (`purgeAfter`) |
+| Final contract | The Board: Kindly's board out of the sub-basement with Pryce at the controls (Asset Protection's apex, +35% HP) | The last faction standing's apex, +20% HP |
 
 ## Planet scenes and the desk
 - **Planet scenes:** each of the 9 worlds has a pixel-art postcard for each of the 4 factions, in 3 states: unresolved (the faction is on site and the drill is contested), helped (you honoured their deal, so the site is theirs and the rig is repainted) and crushed (Kindly flags, guards and the faction's wreckage). That is 108 scenes, built in code from each biome's own sky, ground, road, liquid, building, landmark, props and weather, plus the faction's real unit sprites (`planetScene`, `SCENE_FAC`).

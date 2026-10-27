@@ -23,6 +23,8 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 - Your ship: minimise the star map to walk its decks, talk to the crew and spend scrip on coffee, parties, hazard pay and counselling. Its fit-out, from Executive to Condemned, follows your standing with the company
 - Douglas Pryce, your Regional Manager: onboards you on day one, then comes aboard every quarter to grade your crew's morale, HR suspicion and star ratings, set corporate tasks (pillage, fraud, informing), and hand out anything from Executive Technology that feels like cheating to termination
 - Payslips that show where the money went: every deduction, what Kindly billed the client, and the unspent budget it reclaims
+- Sides: finish a faction's storyline and they invite you to their colony. Defect, and the crew who like you follow, their people join as troops with their own kit, and Acts 4 and 5 become a plan to overthrow Kindly. Stay, and you are promoted to purge every faction in the galaxy
+- Five acts and 16 endings, from a coalition revolution to total market share
 - Store rerolls for scrip
 - Randomly generated crew with quirks who keep their look through the run and can be injured
 - Roguelike performance reviews: perk cards each rank, a permanent specialisation at rank 4, capstones at rank 5, and executive perks beyond, with rerolls (appeals) and declines

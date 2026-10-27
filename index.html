@@ -666,15 +666,15 @@ function companyLedger(c, m, net) {
   const billed = Math.round((50 + 12 * c.idx) * c.pay * (34 + 6 * sectorOf(c.idx)) * (c.client.good ? 0.8 : 1.35));
   const leftover = Math.max(0, Math.round(m.budget));
   // the reclaimed budget, split between three line items
-  const items = shuffle([...EXEC_SPEND]).slice(0, 3), w = [0.5 + rnd() * 0.2, 0.2 + rnd() * 0.1]; w.push(Math.max(0.05, 1 - w[0] - w[1]));
+  const items = shuffle([...(RUN.side ? COMMON_SPEND[RUN.side] : EXEC_SPEND)]).slice(0, 3), w = [0.5 + rnd() * 0.2, 0.2 + rnd() * 0.1]; w.push(Math.max(0.05, 1 - w[0] - w[1]));
   const spend = items.map((k, i) => [k, Math.round(leftover * w[i])]);
   if (spend.length) spend[0][1] += leftover - spend.reduce((s, x) => s + x[1], 0);
   const share = net / Math.max(1, billed + leftover) * 100;
   return { billed, leftover, spend: leftover ? spend : [], share };
 }
 const ledgerHtml = L => `<div class="ledger"><div class="lbl">Where the money went</div><table class="slip mini"><tbody>
-  <tr><td>Billed to client</td><td>$${L.billed.toLocaleString('en-GB')}</td></tr>
-  <tr><td>Unspent field budget, reclaimed</td><td>$${L.leftover.toLocaleString('en-GB')}</td></tr>
+  <tr><td>${RUN.side ? 'Value secured for the cause' : 'Billed to client'}</td><td>$${L.billed.toLocaleString('en-GB')}</td></tr>
+  <tr><td>${RUN.side ? 'Unspent budget, back to the common fund' : 'Unspent field budget, reclaimed'}</td><td>$${L.leftover.toLocaleString('en-GB')}</td></tr>
   ${L.spend.map(([k, v]) => `<tr class="sub"><td>↳ ${esc(k)}</td><td>$${v.toLocaleString('en-GB')}</td></tr>`).join('')}
   <tr class="tot"><td>Your share of the value delivered</td><td>${L.share < 0.1 ? L.share.toFixed(2) : L.share.toFixed(1)}%</td></tr></tbody></table></div>`;
 const EARTH = ['Neo-Rotterdam Arcology', 'Greater Phoenix Heat Dome', 'Old Lagos Free Port', 'Sub-Shanghai Level 40', 'Antarctic Lithium Strip', 'New Detroit Megablock'];
@@ -1201,6 +1201,8 @@ function crewOutfit(cr, vis = crewVis(cr)) {
   if (vis.tier >= 1) of.pin = vis.tier >= 3 ? '#ffd23f' : '#c8ccd4';
   if (vis.tier >= 3) of.armor = vis.accent;
   if (vis.tier >= 4) of.trim = '#ffd23f';
+  // faction troops wear their own colours
+  if (cr.fac && FACTIONS[cr.fac]) { const c = FACTIONS[cr.fac].color; of.vest = shade(c, -0.3); of.stripe = c; of.pin = c; }
   return of;
 }
 // weapons: the base gun for the role, then a sight, a branch-specific build and finally a glowing finish
@@ -2721,7 +2723,7 @@ const ACTS = {
     sky: ['#02040e', '#1a2a5a'],
     space: { base: '#04060e', cols: ['#0a1030', '#121c48', '#3a3410', '#3a0a14'] } },
 };
-const actOf = idx => clamp(sectorOf(idx), 1, 3);
+const actOf = idx => clamp(sectorOf(idx), 1, 5);
 const curAct = () => RUN ? actOf(RUN.idx) : 1;
 const actOfFaction = f => +Object.keys(ACTS).find(a => ACTS[a].factions.includes(f)) || 1;
 // why an older faction is back on the books (null if it isn't)
@@ -2736,6 +2738,13 @@ function returnReason(f) {
 // how likely each faction is to be on a contract in this act
 function factionWeights(idx) {
   const act = actOf(idx), w = {};
+  // working for a faction: Kindly's Asset Protection first, then whoever isn't on good terms with your side
+  if (RUN.side) {
+    for (const f of Object.keys(FACTIONS)) { if (f === RUN.side || dissolved(f)) continue; const sd = standingOf(f); w[f] = f === 'kindly' ? 4 : sd >= 2 ? 0 : sd >= 1 ? 0.4 : 1 + (RUN.story.grudge[f] ? 1 : 0); if (!w[f]) delete w[f]; }
+    if (Object.keys(w).length) return w;
+  }
+  // the loyal endgame: every faction still standing is a target
+  if (act >= 4 && !RUN.side) { for (const f of Object.keys(FACTIONS)) if (!dissolved(f)) w[f] = 1; if (Object.keys(w).length) return w; }
   for (let a = 1; a <= act; a++) for (const f of ACTS[a].factions) {
     if (!FACTIONS[f] || dissolved(f)) continue;
     if (a === act) { w[f] = 3; continue; }
@@ -2755,6 +2764,7 @@ function factionWeights(idx) {
 }
 // the boss of an act comes from whoever you fought most in it
 function actBossFaction(idx) {
+  if (RUN.side && RUN.side !== 'kindly' && FACTIONS.kindly && !dissolved('kindly')) return 'kindly';
   const sec = sectorOf(idx), cnt = {};
   for (const h of RUN.history) if (sectorOf(h.idx) === sec && !dissolved(h.faction)) cnt[h.faction] = (cnt[h.faction] || 0) + 1;
   const best = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
@@ -2784,7 +2794,7 @@ function derelictSprite() {
   postProcess(P.c); return { c: P.c, lights: [], props: [] };
 }
 function actIntroHtml(act) {
-  const A = ACTS[act]; if (!A) return '';
+  const A = actInfo(act); if (!ACTS[act]) return '';
   const fresh = A.factions.filter(f => FACTIONS[f]);
   const back = [];
   for (let a = 1; a < act; a++) for (const f of ACTS[a].factions) { const r = FACTIONS[f] && returnReason(f); if (r) back.push([f, r]); }
@@ -2802,13 +2812,13 @@ function genContract(idx, diff, boss, forceFac) {
   else if (boss) facKey = actBossFaction(idx);
   else facKey = wpick(factionWeights(idx));
   const fac = FACTIONS[facKey];
-  const client = pick(fac.clients);
+  const client = RUN.side && facKey !== RUN.side ? sideClient() : pick(fac.clients);
   const D = DIFFS[diff];
   const prev = [...RUN.history].reverse().find(h => h.faction === facKey);
   let spawns = (idx >= 2 ? 2 : 1) + (diff === 2 ? 1 : 0) + (idx === 1 && rnd() < 0.5 ? 1 : 0);
   if (boss) spawns = 2;
   const o = {
-    idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? (sector >= MAX_SECTOR ? fac.apex : pick(fac.bosses)) : null,
+    idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? (sector >= MAX_SECTOR ? endgameBoss(facKey) : sector >= 3 ? fac.apex : pick(fac.bosses)) : null,
     planet: biomeKey === 'hq' ? pick(HQ_NAMES) : biomeKey === 'cloud' ? pick(CLOUD_NAMES) : biomeKey === 'tomb' ? pick(TOMB_NAMES) : biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
     pstyle: ri(0, PLANET_STYLES[biomeKey].length - 1),
     mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? (sector >= MAX_SECTOR ? 'Board Priority' : 'Executive Priority') : D.label, stars: boss ? 4 : D.stars,
@@ -3604,6 +3614,7 @@ function crewPeekHtml(cr) {
     <div class="pk-row"><span>Hits</span><div>${T.air ? 'Ground and air' : 'Ground only'}${cr.type === 'mortar' ? ' · lobs over buildings' : cr.type === 'drone' ? ' · flies over buildings' : ''}</div></div>
     <div class="pk-row"><span>Good vs</span><div>${esc(GOOD_VS[cr.type])}</div></div>
     <div class="pk-row"><span>Targets</span><div>${esc(pr.name)}: ${esc(pr.desc.toLowerCase())}</div></div>
+    ${cr.fac && FACTION_KIT[cr.fac] ? `<div class="pk-row"><span>Kit</span><div><b style="color:${FACTIONS[cr.fac].color}">${esc(FACTION_KIT[cr.fac].name)}</b> (${esc(FACTIONS[cr.fac].short)}, rank ${cr.level}): ${esc(FACTION_KIT[cr.fac].desc)}</div></div>` : ''}
     <div class="pk-row"><span>Quirk</span><div><b>${esc(QUIRKS[cr.quirk].name)}</b>: ${esc(QUIRKS[cr.quirk].desc)}</div></div>
     <div class="pk-row"><span>Morale</span><div>${moraleBar(cr)} <b style="color:${moraleTier(cr).col}">${cr.morale} · ${moraleTier(cr).name}</b>${moodEffects(cr).map(f => `<br><small style="color:${f.min >= 80 ? 'var(--ok)' : 'var(--warn, #ffd23f)'}">${esc(f.name)}: ${esc(f.desc)}</small>`).join('')}<br><small>${archHtml(archOf(cr) === PERSONA[cr.arch] ? cr.arch : ARCH_OF_VALUE[cr.value], cr.sym)}</small></div></div>
     <div class="pk-row"><span>Status</span>${conditionsHtml(crewConditions(cr, tw))}</div>
@@ -3682,6 +3693,7 @@ function towerStats(crew, tw) {
   if (has('tactical')) s.maxhp *= 1.15;
   if (has('sidearms')) s.dmg *= 1.1;
   if (has('exec_overclock')) { s.rate *= 1.35; s.dmg *= 1.15; }
+  if (crew.fac && FACTION_KIT[crew.fac]) FACTION_KIT[crew.fac].mod(s, crew.level || 1);
   if (tw && tw.roof) s.range *= 1.15;
   if (tw && tw.plat && M) { const pa = platformAt(tw.tx, tw.ty); s.range *= 1 + (tw.plat === 'boat' ? 0.2 : 0.15) + 0.05 * (((pa && pa.level) || 1) - 1); }
   if (has('ammo') && (crew.type === 'gunner' || crew.type === 'drone')) s.dmg *= 1.2;
@@ -3919,7 +3931,8 @@ function spawnBoss(B, mini, child) {
     charge: iv(B.charge), shockwave: iv(B.shockwave), barrage: iv(B.barrage), blink: iv(B.blink), bubble: B.bubble, shed: B.shed, splitDeath: B.splitDeath, secondWind: B.secondWind,
   };
   if (child) { e.name = B.name; e.child = true; }
-  if (M.c.ship) { e.hp *= 1.25; e.maxhp = e.hp; e.spd *= 0.82; }
+  // on the ship bosses are slower; raid 2's are also tougher (the apex in raid 3 is tough enough already)
+  if (M.c.ship) { if (M.c.ship.stage < 3) { e.hp *= 1.25; e.maxhp = e.hp; } e.spd *= 0.82; }
   if (e.fly) { e.sx = e.x; e.sy = e.y; }
   M.enemies.push(e); if (!child) { sfx('bossIn'); portalSpawn(e); }
   if (mini) { if (!child) toast(`Mini-boss: ${e.name}`, 2600); return e; }
@@ -4826,7 +4839,7 @@ function buildMissionHud() {
     <div class="hud-block"><div class="lbl">${c.ship ? `Ship defence · Raid ${c.ship.stage} of 3 · ${esc(FACTIONS[c.ship.fac].short)}` : c.boss ? (sectorOf(c.idx) >= MAX_SECTOR ? 'Board contract' : 'Executive contract') : `Sector ${sectorOf(c.idx)} · Contract ${sectorPos(c.idx) + 1} of ${CONTRACTS_PER_SECTOR}`} · ${esc(c.biome.name)}</div><div class="val" title="${esc(c.planet)}">${esc(c.planet)}</div></div>
     <div class="hud-meter"><div class="lbl">${c.ship ? 'Raid' : 'Extraction'} <span id="hDrillTxt" class="mono"></span></div><div class="meter"><i id="hDrill"></i></div></div>
     <div class="hud-meter"><div class="lbl">${c.ship ? 'Fuel reserve' : 'Profit margin'} <span id="hMarginTxt" class="mono"></span></div><div class="meter m-margin" id="hMarginBox"><i id="hMargin"></i></div></div>
-    <div class="hud-block" title="Field budget for deploying crew. Whatever you don't spend is reclaimed by Kindly at the end of the contract."><div class="lbl">Budget <span class="reclaim">unspent → Kindly</span></div><div class="val mono" id="hBudget"></div></div>
+    <div class="hud-block" title="Field budget for deploying crew. Whatever you don't spend goes back to your employer at the end of the contract."><div class="lbl">Budget <span class="reclaim">unspent → ${RUN.side ? 'common fund' : 'Kindly'}</span></div><div class="val mono" id="hBudget"></div></div>
     <div class="hud-ctrl">
       <button class="btn sm" id="bStart" data-act="start">Begin extraction</button>
       <button class="btn sm ghost" id="bPause" data-act="pause" aria-label="Pause">Pause</button>
@@ -5480,8 +5493,8 @@ function rollEnvoy(o) {
   if (!RUN.story) return null;
   const se = standingEnvoy(o); if (se) return se;
   if (o.boss) {
-    if (sectorOf(o.idx) < MAX_SECTOR) return null;
-    // the reckoning comes before the final contract, whoever the final target is
+    if (sectorOf(o.idx) > 3) return null;
+    // a storyline's reckoning comes before an act's boss contract, whoever the target is
     const ready = Object.keys(ARCS).filter(f => !ARCS[f].oneOff && envoyBeat(f, true) === 2);
     return ready.length ? { fac: pick(ready), beat: 2 } : null;
   }
@@ -6615,11 +6628,19 @@ const ALLY_PHRASE = { union: "Local 404's picket lines", rival: "VectorCorp's la
 const ENDING_ORDER = ['default', 'loyalist', 'union', 'rival', 'fauna', 'activists', 'coalition', 'doubledealer'];
 function pickEnding() {
   const st = RUN.story, done = Object.keys(st.arcs).filter(f => !ARCS[f].oneOff && st.arcs[f].state === 'done');
-  const honoured = st.log.filter(l => l.choice === 'honoured').length;
+  const honoured = st.log.filter(l => l.choice === 'honoured').length, reports = st.log.filter(l => l.choice === 'report').length;
   if ((st.flags.betrayed || 0) >= 2) return 'doubledealer';
+  // you went over to a faction and brought Kindly down: with allies it's a coalition, alone it's theirs
+  if (RUN.side) {
+    const allies = Object.keys(FACTIONS).filter(f => f !== RUN.side && !dissolved(f) && (standingOf(f) >= 2 || (st.arcs[f] && st.arcs[f].state === 'done')));
+    return allies.length || !ENDINGS[RUN.side] ? 'coalition' : RUN.side;
+  }
+  if (Object.keys(FACTIONS).every(f => dissolved(f))) return 'homogenised';
   if (done.length >= 2) return 'coalition';
   if (done.length === 1) return done[0];
-  if (st.loyalty >= 2 && !honoured) return 'loyalist';
+  // informants and bystanders end differently now
+  if (reports >= 2 || (reports >= 1 && st.loyalty >= 2 && !honoured)) return 'loyalist';
+  if (!honoured && !reports) return 'bystander';
   return 'default';
 }
 function storyRecap() {
@@ -6738,11 +6759,11 @@ function flightState(now) {
 // SECTOR 2. Contracts 6-10 continue the difficulty curve on two new worlds,
 // and each faction fields an apex boss for the finale.
 // ================================================================
-const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 3;
+const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 5;
 const sectorOf = idx => Math.floor(idx / SECTOR_LEN) + 1;
 const sectorPos = idx => idx % SECTOR_LEN;
 // how hard a contract is: full steps through sector 1, then gentler ones so sectors 2 and 3 stay beatable
-const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : 6.8 + (idx - 9) * 0.32;
+const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : idx <= 14 ? 6.8 + (idx - 9) * 0.32 : 8.4 + (idx - 14) * 0.18;
 const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
 Object.assign(BIOMES, {
   cloud: { name: 'Cloud City', mod: { flyers: 1.8, range: 1.1, espd: 1.05 }, hazard: 'High-altitude winds: far more flyers, enemies 5% faster, crew range +10%.' },
@@ -7011,7 +7032,7 @@ function showSectorComplete(c, net, ledger) {
     ${actIntroHtml(actOf(RUN.idx))}
     ${statLine([['Contracts', RUN.history.length], ['Pacified', RUN.kills], ['Margin', RUN.margin + '%'], ['Bonus', '+' + net]])}
     ${ledger ? ledgerHtml(ledger) : ''}
-    <div class="row"><button class="btn" data-act="tostore">Proceed to Sector ${sector}</button></div>
+    <div class="row"><button class="btn" data-act="${sector >= 4 ? 'crossroads' : 'tostore'}" data-n="${sector}">Proceed to Sector ${sector}</button></div>
   </div></div>`;
   juiceScreen(); confetti(null, null, 90); banner(`Sector ${sector - 1} cleared`, `Next: Sector ${sector} · ${RUN.sectorName}`, '#ffd23f');
 }
@@ -7509,7 +7530,7 @@ function finishMission(success) {
   moraleEvent(wstate, c.facKey);
   if (m.lost === 0) moraleEvent('clean'); else if (m.lost >= 25) moraleEvent('bloodbath');
   if (m.downed.length) moraleEvent('grief', null, Math.min(2, m.downed.length));
-  moraleEvent(c.client.good ? 'charity' : 'dirtywork', c.facKey);
+  causeMorale(c);
   moraleDrift();
   const quits = crewQuits();
   // payslip
@@ -7527,7 +7548,12 @@ function finishMission(success) {
   st.heat = Math.max(0, st.heat - 5);
   RUN.scrip += net;
   const ledger = companyLedger(c, m, net); noteContract(c, m, ledger, wstate);
-  if (c.boss) { if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; showSectorComplete(c, net, ledger); } else showVictory(); return; }
+  purgeAfter(c);
+  if (c.boss) {
+    if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; const inv = inviteDue(); if (inv) showInvitation(inv, () => showSectorComplete(c, net, ledger)); else showSectorComplete(c, net, ledger); }
+    else showVictory();
+    return;
+  }
   RUN.idx++;
   showDebrief({ c, ledger, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], quits, dividend: m.dividendPaid || 0, slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
 }
@@ -7567,7 +7593,7 @@ function showMap() {
     <div class="hud-meter"><div class="lbl">Profit margin <span class="mono">${RUN.margin}%</span></div><div class="meter m-margin${RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''}"><i style="width:${RUN.margin}%"></i></div></div>
     <div class="hud-meter" title="HR suspicion. Deals raise it; it cools by 5 each contract."><div class="lbl">Heat <span class="mono">${RUN.story.heat}</span></div><div class="meter m-heat"><i style="width:${RUN.story.heat}%"></i></div></div>
     <div class="hud-block"><div class="lbl">Scrip</div><div class="val mono">${RUN.scrip}</div></div>
-    <div class="hud-block"><div class="lbl">Employee</div><div class="val mono">#${RUN.empId}</div></div>`;
+    <div class="hud-block"><div class="lbl">${RUN.side ? `${esc(FACTIONS[RUN.side].short)} member` : 'Employee'}</div><div class="val mono">#${RUN.empId}</div></div>`;
 }
 const SHIP = { x: 120, y: 290 };
 function mapView() {
@@ -7931,7 +7957,7 @@ function showDebrief(d) {
   $('#overlay').innerHTML = `<div class="screen desk" data-act="${act}"><div class="deskwrap">
     <div class="monitor"><div class="glass">
       <section class="win intranet" aria-label="Kindly Intranet">
-        ${titlebar('Kindly Intranet · Employee #' + RUN.empId)}
+        ${titlebar(`${employer().intranet} · ${employer().member} #${RUN.empId}`)}
         <div class="wbody">
           <p class="quip">${esc(quip)}</p>
           <div class="kpis">
@@ -7970,7 +7996,7 @@ function genOffers() {
   // make sure a non-owned type shows up early
   const owned = new Set(RUN.roster.map(c => c.type));
   types.sort((a, b) => owned.has(a) - owned.has(b));
-  for (const t of types.slice(0, 2)) { const arch = pickArch(); offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook(), quirk: pickQuirk(), arch, sym: PERSONA[arch].value === 'sympath' ? pick(Object.keys(FACTIONS).filter(f => !dissolved(f))) : null }); }
+  for (const t of types.slice(0, 2)) { if (RUN.side) { const cm = comrade(RUN.side, t); offers.push({ kind: 'hire', type: t, name: cm.name, price: HIRE_COST[t], look: cm.look, quirk: cm.quirk, arch: cm.arch, sym: cm.sym, fac: RUN.side }); continue; } const arch = pickArch(); offers.push({ kind: 'hire', type: t, name: freshName(), price: HIRE_COST[t], look: genLook(), quirk: pickQuirk(), arch, sym: PERSONA[arch].value === 'sympath' ? pick(Object.keys(FACTIONS).filter(f => !dissolved(f))) : null }); }
   const relics = shuffle(Object.keys(RELICS).filter(r => !RUN.relics.includes(r) && !RELICS[r].special)).slice(0, 2);
   for (const r of relics) offers.push({ kind: 'relic', id: r, price: ri(70, 90) });
   if (RUN.story.flags.blackMarket) for (const r of shuffle(Object.keys(RELICS).filter(r => RELICS[r].black && !RUN.relics.includes(r))).slice(0, 2)) offers.push({ kind: 'relic', id: r, price: ri(55, 75), black: true });
@@ -7994,13 +8020,13 @@ function showStore() {
       <span class="k">${esc(k)}</span>${it.kind === 'hire' ? `<span class="row" style="gap:8px">${portraitImg({ id: 'offer-' + it.name, type: it.type, look: it.look })}<span class="t">${esc(t)}</span></span>` : `<span class="t">${esc(t)}</span>`}
       ${it.kind === 'hire' && it.arch ? archHtml(it.arch, it.sym) : ''}<span class="d">${esc(d)}${full ? ' Roster full (8).' : ''}</span><span class="p">${it.sold ? 'Purchased' : it.price + ' scrip'}</span></button>`;
   }).join('');
-  const rosterHtml = RUN.roster.map((cr, i) => `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)}<small>${esc(RANKS[cr.level - 1])} · ${esc(TOWERS[cr.type].name)} · Lv${cr.level} · ${cr.kills} kills</small><small style="color:var(--ok)" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}${cr.spec ? ` · <span style="color:var(--crystal)">${esc(BRANCH[cr.spec].name)}</span>` : ''}${cr.perks.length ? ` · ${cr.perks.length} perk${cr.perks.length > 1 ? 's' : ''}` : ''}</small><small style="color:${LEANS[leanOf(giveConscience(cr))].col}" title="${esc(archOf(cr).passive)}">${esc(valueName(cr))} · morale ${cr.morale} ${esc(moraleTier(cr).name)}</small></div>
+  const rosterHtml = RUN.roster.map((cr, i) => `<div class="ritem">${portraitImg(cr)}<div class="grow">${esc(cr.name)}<small>${esc(RANKS[cr.level - 1])} · ${esc(TOWERS[cr.type].name)} · Lv${cr.level} · ${cr.kills} kills</small><small style="color:var(--ok)" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}${cr.spec ? ` · <span style="color:var(--crystal)">${esc(BRANCH[cr.spec].name)}</span>` : ''}${cr.perks.length ? ` · ${cr.perks.length} perk${cr.perks.length > 1 ? 's' : ''}` : ''}</small>${cr.fac && FACTIONS[cr.fac] ? `<small style="color:${FACTIONS[cr.fac].color}" title="${esc(FACTION_KIT[cr.fac].desc)}">${esc(FACTIONS[cr.fac].short)} troop · ${esc(FACTION_KIT[cr.fac].name)}</small>` : ''}<small style="color:${LEANS[leanOf(giveConscience(cr))].col}" title="${esc(archOf(cr).passive)}">${esc(valueName(cr))} · morale ${cr.morale} ${esc(moraleTier(cr).name)}</small></div>
     ${S.promotePick ? (cr.level < MAXL ? `<button class="btn sm" data-act="promote" data-i="${i}">Promote</button>` : '') : cr.reviews.length ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Review</button>` : (RUN.roster.length > 1 ? `<button class="btn sm ghost" data-act="dismiss" data-i="${i}" aria-label="Dismiss ${esc(cr.name)}">Dismiss</button>` : '')}</div>`).join('');
   const relicHtml = RUN.relics.length ? RUN.relics.map(r => `<span class="relic" title="${esc(RELICS[r].desc)}">${esc(RELICS[r].name)}</span>`).join('') : '<span class="colony">No relics yet.</span>';
   $('#overlay').innerHTML = `<div class="screen"><div class="store">
     <div class="paper" style="width:100%">
-      ${titlebar('Company_Store.exe')}
-      <div class="row" style="justify-content:space-between"><div><div class="lbl">Kindly™ Company Store</div><h2>Spend it here.<br>Only here.</h2></div><div style="text-align:right"><div class="lbl">Balance</div><div class="scrip mono">${RUN.scrip}</div></div></div>
+      ${titlebar(RUN.side ? 'Commissary.exe' : 'Company_Store.exe')}
+      <div class="row" style="justify-content:space-between"><div><div class="lbl">${esc(employer().store)}</div><h2>${employer().storeHead}</h2></div><div style="text-align:right"><div class="lbl">Balance</div><div class="scrip mono">${RUN.scrip}</div></div></div>
       ${S.promotePick ? '<div class="intel">Choose a crew member to promote in the roster.</div>' : ''}
       <div class="offers">${offerHtml}</div>
       <div class="row"><button class="btn ghost sm" data-act="reroll" ${RUN.scrip < rerollCost() ? 'disabled' : ''}>Reroll the shelves · ${rerollCost()} scrip</button><span class="colony">Restocks everything you haven't bought.</span></div>
@@ -8028,6 +8054,7 @@ function buy(i) {
     if (RUN.roster.length >= 8) return;
     const cr = mkCrew(it.type, it.name, it.look, it.quirk);
     if (it.arch) { cr.arch = it.arch; cr.value = PERSONA[it.arch].value; cr.sym = it.sym || null; }
+    if (it.fac) cr.fac = it.fac;
     RUN.roster.push(cr);
   }
   else if (it.kind === 'relic') RUN.relics.push(it.id);
@@ -8120,6 +8147,10 @@ document.addEventListener('click', ev => {
   else if (act === 'appeal') { const cr = RUN.roster.find(c => c.id === S.reviewOpen), cost = appealCost(); if (cr && RUN.scrip >= cost) { RUN.scrip -= cost; RUN.appeals = (RUN.appeals || 0) + 1; cr.opts = null; showReview(cr); } }
   else if (act === 'buy') buy(i);
   else if (act === 'reroll') reroll();
+  else if (act === 'defect') defect(S.envoy && S.envoy.fac);
+  else if (act === 'stayloyal') stayLoyal();
+  else if (act === 'invitedone') { const then = S.inviteThen; S.inviteThen = null; S.envoy = null; if (then) then(); else showMap(); }
+  else if (act === 'crossroads') showCrossroads(+b.dataset.n);
   else if (act === 'walkship') showShip();
   else if (act === 'shipmap') showMap();
   else if (act === 'shipuse') { if (SW && SW.near) openStation(SW.near); }
@@ -10594,7 +10625,7 @@ function startSiege(f) {
   const c = genContract(RUN.idx, stage - 1, stage >= 2, f);
   Object.assign(c, { ship: { fac: f, stage }, biomeKey: 'ship', biome: BIOMES.ship, planet: SHIP_NAME, envoy: null, grudge: null,
     boss: stage >= 2, bossDef: stage === 3 ? F.apex : stage === 2 ? pick(F.bosses) : null,
-    mod: c.mod * (1.45 + 0.15 * stage), T: 130 + 30 * stage, pay: 1, diffLabel: `Raid ${stage} of 3`, stars: stage + 1 });
+    mod: c.mod * [1.6, 1.75, 1.75][stage - 1], T: 130 + 30 * stage, pay: 1, diffLabel: `Raid ${stage} of 3`, stars: stage + 1 });
   startMission(c);
   M.fuel = 100;
   setTimeout(() => { if (M && M.c.ship) for (const tw of M.towers) barkAs(tw, 'home', 0.5); }, 4000);
@@ -10701,7 +10732,7 @@ function noteContract(c, m, ledger, wstate) {
   const q = quarter(); q.stars.push(perfStars(m.lost)); q.kills += m.kills; q.downed += m.downed.length; q.unspent += ledger.leftover;
   if (m.lost === 0) q.zeroLoss++; if (wstate === 'crushed') q.crushed++;
 }
-const reviewDue = () => RUN && RUN.idx > 0 && RUN.idx % QUARTER === 0 && RUN.reviewedAt !== RUN.idx;
+const reviewDue = () => RUN && !RUN.side && RUN.idx > 0 && RUN.idx % QUARTER === 0 && RUN.reviewedAt !== RUN.idx;
 // how the quarter went, as numbers and a grade
 function grade() {
   const q = quarter(), stars = q.stars.length ? q.stars.reduce((a, b) => a + b, 0) / q.stars.length : 3, morale = avgMorale(), heat = RUN.story.heat;
@@ -10994,7 +11025,193 @@ function stepManagerTech(dt) {
   }
 }
 
-window.__AL = { planetScene, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+// ================================================================
+// SIDES AND THE ENDGAME. Finish a faction's storyline (its third beat, at the end of acts 1-3) and it
+// invites you to its colony. Defect, and the crew who think well of you follow, faction members join as
+// troops with their own kit, and you work for them from then on: their contracts, their morals, their
+// war on Kindly. Stay, and after Act 3 Douglas Pryce promotes you to purge every faction there is.
+// Act 4 and Act 5 are those two campaigns: overthrow Kindly, or homogenise the galaxy's crystals.
+// ================================================================
+const FACTION_MORAL = { union: 'good', fauna: 'good', lumen: 'good', abandoned: 'good', activists: 'good', haulers: 'neutral', precursors: 'neutral', rival: 'evil', kindly: 'evil', church: 'evil' };
+// faction troops' kit: improves with rank; shown on the crew card
+const FACTION_KIT = {
+  union: { name: 'Picket Training', desc: '+4% damage per rank; from rank 3, hits can stun', mod: (s, lv) => { s.dmg *= 1 + 0.04 * lv; if (lv >= 3) { s.stun = Math.max(s.stun, 0.1); s.stunDur = Math.max(s.stunDur, 0.6); } } },
+  fauna: { name: 'Hive Bond', desc: '+3% fire rate per rank; hits slow by 20%', mod: (s, lv) => { s.rate *= 1 + 0.03 * lv; s.slowHit = Math.max(s.slowHit, 0.2); } },
+  rival: { name: 'Black-Market Optics', desc: '+4% range per rank; +5% crit from rank 3', mod: (s, lv) => { s.range *= 1 + 0.04 * lv; if (lv >= 3) s.crit += 0.05; } },
+  activists: { name: 'Crowdfunded Kit', desc: '+4% fire rate per rank, +20% experience', mod: (s, lv) => { s.rate *= 1 + 0.04 * lv; s.xpMult *= 1.2; } },
+  lumen: { name: 'Lamp-Blessed', desc: '+8% HP and +2% range per rank', mod: (s, lv) => { s.maxhp *= 1 + 0.08 * lv; s.range *= 1 + 0.02 * lv; } },
+  abandoned: { name: 'Old Kindly Training', desc: 'Deploy fee -5% per rank, +2% fire rate per rank', mod: (s, lv) => { s.feeMult *= Math.max(0.7, 1 - 0.05 * lv); s.rate *= 1 + 0.02 * lv; } },
+  haulers: { name: 'Smuggler\'s Cut', desc: '+$1 per kill per rank, +3% fire rate per rank', mod: (s, lv) => { s.bountyAdd += lv; s.rate *= 1 + 0.03 * lv; } },
+  precursors: { name: 'Archive Sight', desc: '+5% damage and +3% crit per rank', mod: (s, lv) => { s.dmg *= 1 + 0.05 * lv; s.crit += 0.03 * lv; } },
+  kindly: { name: 'Asset Protection Armour', desc: '+10% HP and +2% damage per rank', mod: (s, lv) => { s.maxhp *= 1 + 0.1 * lv; s.dmg *= 1 + 0.02 * lv; } },
+  church: { name: 'Choir-Backed', desc: '+3% fire rate and +2% damage per rank', mod: (s, lv) => { s.rate *= 1 + 0.03 * lv; s.dmg *= 1 + 0.02 * lv; } },
+};
+const INVITE_LINES = {
+  union: ['You stood with us to the end, kid. The Union looks after its own.', 'Come to the Local. Bring anyone who\'d rather be a member than an asset.'],
+  fauna: ['[TRANSLATING] The Mother offers you a warm place in the nest.', '[YOUR CREW MAY COME. THE ONES WHO SMELL KIND.]'],
+  rival: ['VectorCorp would like to acquire you. Outright.', 'Better pay, worse ethics, a window that opens. Bring your best people.'],
+  activists: ['chat voted. you\'re officially one of us now lol', 'come work for the Coalition. bring the crew who\'d look good on camera.'],
+  lumen: ['The villages have lit a lamp for you.', 'Come and live on the seam. Bring those whose light is kind.'],
+  abandoned: ['The Colony has a bunk for you, dear. Everyone Kindly left behind does.', 'Bring your crew. We know what Kindly will do to them otherwise.'],
+  haulers: ['The Captain is offering you a berth, and a ship of your own.', 'Free port, free crew. Bring whoever wants to stay free.'],
+  precursors: ['THE ARCHIVE WILL KEEP YOU.', 'BRING THOSE WHO CAN BE TAUGHT. LEAVE THE REST.'],
+  kindly: ['Asset Protection is going independent. I want you running field operations.', 'Bring the ones who follow orders. I\'ll handle the paperwork.'],
+  church: ['The Eternal Quarter has a pew for you.', 'Bring the faithful. The rest will find their own way down.'],
+};
+// where the common fund goes, once you work for people who share it
+const COMMON_SPEND = {
+  union: ['Strike fund', 'Miners\' clinic', 'Kids\' winter coats'], fauna: ['Nursery warmth', 'Hatchling feed', 'WREN-7\'s batteries'], rival: ['Shareholder dividend', 'Mr. Sable\'s tailor', 'Legal retainer'],
+  activists: ['Server costs', 'Legal defence fund', 'Snacks for chat'], lumen: ['Lamp oil', 'Seam healing', 'The Menders\' songs'], abandoned: ['Medicine', 'A second kettle', 'Bunks for new arrivals'],
+  haulers: ['Fuel', 'Crew shares', 'The Captain\'s collection'], precursors: ['THE ARCHIVE', 'SLEEPER MAINTENANCE', 'UNKNOWN'], kindly: ['Armour', 'Audit software', 'Director Haldane\'s office'],
+  church: ['Candles', 'The choir', 'The Deacon\'s robes'],
+};
+// who you work for: Kindly, or the faction you went over to
+function employer() {
+  const f = RUN && RUN.side;
+  if (!f) return { kindly: true, name: 'Kindly Security Solutions', short: 'Kindly', store: 'Kindly™ Company Store', storeHead: 'Spend it here.<br>Only here.', intranet: 'Kindly Intranet', member: 'Employee', col: '#ffd23f' };
+  const F = FACTIONS[f];
+  return { kindly: false, fac: f, name: F.name, short: F.short, store: `${F.short} Commissary`, storeHead: 'Pooled resources.<br>Spend them well.', intranet: `${F.short} Commons`, member: 'Member', col: F.color };
+}
+// who would follow you out of Kindly
+function wouldFollow(cr, f) {
+  giveConscience(cr);
+  if (cr.value === 'sympath') return cr.sym === f || (cr.morale ?? 65) >= 70;
+  const mo = cr.morale ?? 65, moral = FACTION_MORAL[f], lean = leanOf(cr);
+  if (cr.value === 'company') return mo >= 85;
+  if ((moral === 'good' && lean === 'evil') || (moral === 'evil' && lean === 'good')) return mo >= 82;
+  return mo >= 60;
+}
+// a member of the faction, kitted out for your crew
+function comrade(f, type) {
+  const cr = mkCrew(type || pick(Object.keys(TOWERS)), freshName());
+  const moral = FACTION_MORAL[f], pool = Object.keys(PERSONA).filter(k => (moral === 'neutral' ? PERSONA[k].lean === 'neutral' : PERSONA[k].lean === moral) || (moral === 'good' && k === 'bleeding'));
+  cr.arch = pick(pool); cr.value = PERSONA[cr.arch].value; cr.sym = cr.value === 'sympath' ? f : null; cr.fac = f; cr.morale = 75;
+  const lv = Math.max(1, Math.round(RUN.roster.reduce((a, c) => a + c.level, 0) / Math.max(1, RUN.roster.length)) - 1); cr.level = lv; cr.xp = XP_TH[lv - 1] || 0;
+  return cr;
+}
+// the invitation, on the faction's own channel
+function showInvitation(f, then) {
+  const A = ARCS[f], F = FACTIONS[f], follow = RUN.roster.filter(c => wouldFollow(c, f)), stay = RUN.roster.filter(c => !wouldFollow(c, f));
+  S.screen = 'envoy'; S.envoy = { fac: f, beat: 2, t0: performance.now(), done: false, invite: true }; S.inviteThen = then;
+  clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
+  $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
+    ${titlebar(`Invitation · ${F.name}`)}
+    <div class="envoy-scene"><canvas id="envcv" width="200" height="112" aria-label="${esc(A.envoy)}"></canvas>
+      <div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div><div class="envoy-beat">Invitation</div></div>
+    <div class="envoy-grid">
+      <div class="envoy-talk"><h3>Join the ${esc(F.short)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
+      <div class="envoy-offer">
+        <div class="deal reward"><div class="lbl">If you defect</div><p>You work for the ${esc(F.short)} from now on: their contracts against Kindly and their rivals, their morals, their commissary. Two of their people join you as troops with their own kit (${esc(FACTION_KIT[f].name)}). Acts 4 and 5 become a plan to overthrow Kindly.</p></div>
+        <div class="deal ask"><div class="lbl">Who comes with you</div><p>${follow.length ? esc(andList(follow.map(c => c.name))) : 'Nobody. They like you that little.'}</p>${stay.length ? `<p class="colony">Staying with Kindly: ${esc(andList(stay.map(c => c.name)))}. Expect to see them again.</p>` : ''}</div>
+        <div class="deal risk"><div class="lbl">If you stay</div><p>Kindly never hears about this. After Act 3, Douglas Pryce has a promotion for you: purge every faction there is.</p></div>
+        <div class="row" id="envBtns"><button class="btn" data-act="defect">Defect to the ${esc(F.short)}</button><button class="btn ghost" data-act="stayloyal">Stay with Kindly</button></div>
+      </div>
+    </div></div></div>`;
+  typeLines(INVITE_LINES[f] || ['There is a place for you with us.']);
+}
+function defect(f) {
+  const E = S.envoy; if (!E || E.done) return; E.done = true; E.react = { kind: 'accept', t0: (performance.now() - E.t0) / 1000 };
+  const st = RUN.story, follow = RUN.roster.filter(c => wouldFollow(c, f)), stay = RUN.roster.filter(c => !wouldFollow(c, f));
+  RUN.side = f; RUN.sideAt = RUN.idx;
+  // the ones who stay go back to Kindly, and Kindly will send them after you
+  for (const cr of stay) (RUN.defectors = RUN.defectors || []).push({ name: cr.name, type: cr.type, level: cr.level, look: cr.look, spec: cr.spec, perks: cr.perks, quirk: cr.quirk, id: cr.id, fac: 'kindly', returned: false, dead: false });
+  RUN.roster = follow;
+  for (const cr of follow) bumpMorale(cr, 10, 'defected');
+  const types = shuffle(Object.keys(TOWERS));
+  for (let k = 0; k < 2 && RUN.roster.length < 8; k++) RUN.roster.push(comrade(f, types[k]));
+  if (!RUN.roster.length) RUN.roster.push(comrade(f, 'gunner'));
+  st.standing[f] = 3; if (f !== 'kindly' && FACTIONS.kindly && !dissolved('kindly')) st.standing.kindly = Math.min(st.standing.kindly ?? 0, -3);
+  (st.standLog = st.standLog || []).push({ f, d: 3, why: 'joined them', idx: RUN.idx });
+  sfx('promote'); typeLines([`Welcome home.`]);
+  $('#envSkip').textContent = `Douglas Pryce has revoked your badge.`;
+  $('#envBtns').innerHTML = `<button class="btn" data-act="invitedone">Continue</button>`;
+}
+function stayLoyal() {
+  const E = S.envoy; if (!E || E.done) return; E.done = true; E.react = { kind: 'refuse', t0: (performance.now() - E.t0) / 1000 };
+  (RUN.declined = RUN.declined || []).push(E.fac); sfx('click');
+  typeLines(['Then we will not ask again.']);
+  $('#envBtns').innerHTML = `<button class="btn" data-act="invitedone">Continue</button>`;
+}
+// a faction finished its storyline at this act's boss: invite, unless you've already gone over
+function inviteDue() {
+  const f = RUN.story.lastDone; if (!f || RUN.side || sectorOf(RUN.idx - 1) > 3) return null;
+  if ((RUN.declined || []).includes(f) || (RUN.invited || []).includes(f)) return null;
+  (RUN.invited = RUN.invited || []).push(f); return f;
+}
+// what each campaign is called, act by act
+function actInfo(act) {
+  const A = ACTS[act] || {};
+  if (act < 4) return A;
+  const side = RUN && RUN.side, F = side && FACTIONS[side];
+  if (side) return act === 4 ? { ...A, name: 'The Uprising', sub: `With the ${F.short}, against Kindly` } : { ...A, name: 'Overthrow', sub: 'Headquarters' };
+  return act === 4 ? { ...A, name: 'Homogenisation', sub: 'Every faction is a competitor' } : { ...A, name: 'Total Market Share', sub: 'The last holdouts' };
+}
+// the final contract's target
+function endgameBoss(facKey) {
+  if (RUN.side) { const ap = FACTIONS.kindly.apex; return { ...ap, name: 'The Board', hp: Math.round(ap.hp * 1.35), desc: 'Kindly\'s board, out of the sub-basement at last, with Douglas Pryce at the controls.' }; }
+  const ap = FACTIONS[facKey].apex; return { ...ap, name: `${ap.name} (Last Stand)`, hp: Math.round(ap.hp * 1.2), desc: `The last of the ${FACTIONS[facKey].short}, with nothing left to lose.` };
+}
+// the call between acts 3 and 4, and 4 and 5
+function showCrossroads(sector) {
+  const side = RUN.side, F = side && FACTIONS[side];
+  if (side && sector === 4) {
+    S.screen = 'envoy'; S.envoy = { fac: side, beat: 2, t0: performance.now(), done: true, invite: true }; clearMissionUi(); backdropView(); setMusic('envoy');
+    const A = ARCS[side];
+    $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">${titlebar(`Council · ${F.name}`)}
+      <div class="envoy-scene"><canvas id="envcv" width="200" height="112"></canvas><div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div><div class="envoy-beat">Act 4</div></div>
+      <div class="envoy-grid"><div class="envoy-talk"><h3>The Uprising</h3><div class="dialog" id="envDlg"></div></div>
+      <div class="envoy-offer"><div class="deal ask"><div class="lbl">Act 4 · The Uprising</div><p>Your contracts now hit Kindly's supply lines, mostly against Asset Protection and anyone still loyal to the company. Win the act, and the board has to come out of the basement.</p></div>
+      <div class="row"><button class="btn" data-act="tostore">To the commissary</button></div></div></div></div></div>`;
+    typeLines(['Kindly is coming for us. Time we went for them first.', 'Hit their supply lines hard enough and the board has to show its face.']);
+    return;
+  }
+  const lines = side
+    ? [{ t: 'You took my crew, my ship and my quarter.', pose: 'tablet', expr: 'angry' }, { t: 'The board is coming for you in person. So am I.', pose: 'slam', expr: 'angry' }]
+    : sector === 4
+      ? [{ t: 'Congratulations. You are now Director of Market Homogenisation.', pose: 'clap', expr: 'smile' }, { t: 'Every faction out there is a competitor for our crystals. Remove them. All of them.', pose: 'point', expr: 'smug' }]
+      : [{ t: 'Market share: nearly total. A few holdouts left.', pose: 'tablet', expr: 'smug' }, { t: 'Finish them, and the galaxy runs on Kindly crystals. Forever.', pose: 'spread', expr: 'smile' }];
+  const card = side
+    ? `<div class="deal risk"><div class="lbl">Act 5 · Overthrow</div><p>The last contract is at Kindly headquarters, against the Board itself.</p></div><div class="row"><button class="btn" data-act="tostore">Ready the crew</button></div>`
+    : `<div class="deal ask"><div class="lbl">Act ${sector} · ${esc(actInfo(sector).name)}</div><p>Every contract you win from now on purges that faction for good: off the books, its worlds crushed, its people scattered. Purge them all for the Homogenised ending.</p></div><div class="row"><button class="btn" data-act="tostore">${sector === 4 ? 'Accept the promotion' : 'Back to work'}</button></div>`;
+  managerScene({ title: side ? 'Final_Warning.mtg' : `Promotion_${sector === 4 ? 'Director' : 'Final'}.mtg`, head: side ? 'Douglas Pryce, uninvited' : actInfo(sector).name, lines, card, holo: null, mood: side ? 'down' : 'up', react: side ? 'fury' : 'delight' });
+}
+// the loyal campaign: every faction you beat from Act 4 on is purged
+function purgeAfter(c) {
+  if (RUN.side || sectorOf(c.idx) < 4 || dissolved(c.facKey)) return null;
+  const D = dissolveFaction(c.facKey); toast(`${FACTIONS[c.facKey].name}: purged. ${D.line}`, 3600); return c.facKey;
+}
+// the employer's take on the crew's morals, after every contract
+function causeMorale(c) {
+  if (!RUN.side) { moraleEvent(c.client.good ? 'charity' : 'dirtywork', c.facKey); return; }
+  const moral = FACTION_MORAL[RUN.side];
+  for (const cr of RUN.roster) {
+    giveConscience(cr); const lean = leanOf(cr);
+    const d = moral === 'neutral' ? (cr.value === 'merc' ? 3 : 0) : lean === moral ? 4 : lean === 'neutral' ? 0 : -5;
+    if (d) bumpMorale(cr, d, d > 0 ? 'the cause' : 'the cause (doubts)');
+  }
+}
+// the client, when the client is your own side
+function sideClient() { const f = RUN.side, F = FACTIONS[f]; return { n: F.name, good: FACTION_MORAL[f] !== 'evil', asset: 'supply crystals', why: 'Kindly wants them back' }; }
+Object.assign(ENDINGS, {
+  bystander: { name: 'Clean Hands', from: 'HR-BOT <noreply@kindly>', subj: 'your file is closed',
+    paras: x => [`They came to you ${x.offers} times. You said no to all of them, and told us about none of them. You chose nothing, every time.`, `Kindly has no record of you doing anything wrong, or anything at all. Your file is closed. The quarter goes on without you. It barely noticed.`], sign: '— HR-BOT' },
+  homogenised: { name: 'Total Market Share', from: 'Douglas Pryce <d.pryce@kindly>', subj: 'one supplier',
+    paras: x => [`Every faction is gone. Every seam, every village lamp, every strike fund now runs through a single Kindly meter.`, `Crystal prices have been harmonised across the galaxy. They went up. Your bonus has been deferred until the heat death of the universe. Well done.`], sign: '— D. Pryce, Regional Manager (Galaxy)' },
+});
+ENDING_ORDER.splice(ENDING_ORDER.indexOf('default') + 1, 0, 'bystander');
+ENDING_ORDER.push('homogenised');
+Object.assign(ENDING_KEEP, { bystander: [0, 1], homogenised: [0, 1], loyalist: [0, 2] });
+
+// acts 4 and 5: their light, their sectors
+Object.assign(ACTS, {
+  4: { name: 'Act 4', sub: '', factions: [], grade: ['#ff6a3a', '#2a0a14', 0.28], mult: '#d8a8a0', haze: '#3a1018', hazeA: 0.05, smog: 0.12, derelict: true, sky: ['#1a0610', '#ff6a3a'], space: { base: '#0c0508', cols: ['#2a0a10', '#4a1418', '#6a2a14', '#1a1030'] } },
+  5: { name: 'Act 5', sub: '', factions: [], grade: ['#ffd23f', '#1a0a2a', 0.3], mult: '#c8b0d8', haze: '#1a0a2a', hazeA: 0.06, smog: 0.1, derelict: true, sky: ['#05020e', '#5a2a8a'], space: { base: '#05030c', cols: ['#1a0a30', '#2a1448', '#4a3a10', '#3a0a2a'] } },
+});
+SECTOR_BIOMES[4] = ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic', 'cloud', 'tomb'];
+SECTOR_BIOMES[5] = ['hq', 'hq', 'cyber', 'cloud', 'tomb', 'volcanic'];
+SECTOR_NAMES[4] = ['The Contested Belt', 'Supply Line Zero', 'The Quiet War']; SECTOR_NAMES[5] = ['Headquarters Approach', 'The Last Quarter'];
+
+window.__AL = { planetScene, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
