@@ -525,14 +525,18 @@ const CONTRACTS_PER_SECTOR = 4; // then the boss
 
 const TOWERS = {
   gunner:   { name: 'Turret Operator',   fee: 40, range: 2.6, dmg: 8,  rate: 1.6,  air: true,  color: '#ffd23f', desc: 'Reliable single-target fire. Hits air and ground.' },
-  taser:    { name: 'Taser Technician',  fee: 50, range: 1.9, dmg: 3,  rate: 0.9,  air: true,  aoe: true, slow: 0.45, slowDur: 1.6, color: '#5fd4ff', desc: 'Pulses electricity. Damages and slows everything nearby.' },
+  taser:    { name: 'Arc Technician',    fee: 50, range: 2.4, dmg: 8,  rate: 1.25,  air: true,  arcs: 3, slow: 0.4, slowDur: 1.2, color: '#5fd4ff', desc: 'Chain lightning: jumps between up to 3 hostiles, slowing each one.' },
   mortar:   { name: 'Foam Mortar Crew',  fee: 70, range: 3.8, dmg: 20, rate: 0.45, air: false, splash: 0.95, color: '#ff9f43', desc: 'Lobbed splash damage. Ground targets only.' },
   marksman: { name: 'Marksman (Intern)', fee: 80, range: 5.2, dmg: 48, rate: 0.38, air: true,  pierce: true, strong: true, color: '#ff6b8b', desc: 'Long range. Ignores armour. Targets the toughest enemy.' },
   drone:    { name: 'Drone Operator',    fee: 60, range: 3.0, dmg: 5,  rate: 3.2,  air: true,  airMult: 3, color: '#9be564', desc: 'Rapid fire. Triple damage against flyers.' },
+  flamer:   { name: 'Thermal Compliance Officer', fee: 55, range: 2.0, dmg: 8, rate: 2.4, air: false, cone: 0.66, burn: 11, color: '#ff7a2a', desc: 'Short-range flamethrower. Burns everything in a cone and leaves fire behind. Ground only.' },
+  rail:     { name: 'Railgun Auditor',   fee: 90, range: 4.6, dmg: 34, rate: 0.32, air: true,  pierce: true, color: '#7ae8ff', desc: 'A slug that punches through every hostile in a line. Ignores armour.' },
+  liaison:  { name: 'HR Liaison',        fee: 40, range: 2.4, dmg: 0,  rate: 0.5,  air: true,  support: true, demoral: 0.2, color: '#ff9ad8', desc: 'Does not fight. Crew in range fire 20% faster and hit 15% harder; hostiles in range are demoralised, 20% slower.' },
 };
-const HIRE_COST = { gunner: 50, taser: 60, mortar: 75, drone: 65, marksman: 85 };
-const XP_TH = [0, 16, 45, 95, 165, 260, 380, 530];
-const RANKS = ['Associate', 'Senior Associate', 'Lead Associate', 'Principal Associate', 'Associate Emeritus', 'Vice Associate', 'Senior Vice Associate', 'Executive Associate (Unpaid)'];
+const HIRE_COST = { gunner: 50, taser: 60, mortar: 75, drone: 65, marksman: 85, flamer: 60, rail: 95, liaison: 55 };
+// xp needed for each rank: a little slower early, and room to grow through acts 4 and 5
+const XP_TH = [0, 20, 55, 110, 190, 300, 440, 610, 820, 1070, 1360, 1700];
+const RANKS = ['Associate', 'Senior Associate', 'Lead Associate', 'Principal Associate', 'Associate Emeritus', 'Vice Associate', 'Senior Vice Associate', 'Executive Associate (Unpaid)', 'Associate Director', 'Director of Associates', 'Chief Associate Officer', 'Associate for Life'];
 
 const CATS = {
   swarm:    { label: 'Swarm',    hp: 11, spd: 1.45, armor: 0, bounty: 1, cost: 1, r: 6,  group: 4, threat: 1 },
@@ -643,7 +647,7 @@ const RELICS = {
   insurance: { name: 'Insurance Fraud Kit',              desc: 'The first 6% of margin lost each contract is "recovered".' },
   overtime:  { name: 'Mandatory Overtime',               desc: 'Extractions finish 15% faster. Nobody goes home.' },
   parachute: { name: 'Golden Parachute (Used)',          desc: 'Once per run, survive abandonment with 25% margin.' },
-  tasers:    { name: 'Overclocked Tasers',               desc: 'Taser Technicians deal double damage.' },
+  tasers:    { name: 'Overclocked Tasers',               desc: 'Arc Technicians deal double damage.' },
   ammo:      { name: 'Bulk Ammo (Expired)',              desc: 'Turret and Drone Operators deal 20% more damage.' },
   intern:    { name: 'Intern Energy Drinks',             desc: 'Marksmen fire 25% faster. Heart rates unmonitored.' },
   // earned from envoys, never sold at the normal counter
@@ -1038,6 +1042,9 @@ const CREW_OUTFITS = {
   mortar:   { shirt: '#ff8a2a', pants: '#e0742a', hat: 'hardhat', legStripe: '#eef2f5', logo: true },
   marksman: { shirt: '#ff7a9c', collar: '#ffffff', lanyard: true, pants: '#c8b48a', shoes: '#5a3a22' },
   drone:    { shirt: '#4f7a3a', hood: true, pocket: true, pants: '#3a3f35', hat: 'headset', controller: true },
+  flamer:   { shirt: '#5a4a3a', vest: '#ff7a2a', stripe: '#ffd23f', pants: '#3a2e24', hat: 'gasmask', pack: true, packCol: '#c83a2a', gloves: '#2a2420' },
+  rail:     { shirt: '#2a3a4a', vest: '#3a4a5c', stripe: '#7ae8ff', pants: '#1a2430', hat: 'helmet', gloves: '#1a1e24' },
+  liaison:  { shirt: '#f2eef0', collar: '#ff9ad8', lanyard: true, pocket: true, pants: '#5a4a6a', shoes: '#2a2430' },
 };
 // 12x17 chibi facing right, drawn into a 14x19 canvas (1px outline margin).
 // legs: 'n' standing, 'a'/'b' stride frames. yo: upper-body bob.
@@ -1189,6 +1196,12 @@ const BRANCH_LOOK = {
   spotter:     { accent: '#ffb020', tracer: '#ffcf6a', outfit: { hat: 'boonie', vest: '#5a6a3a', lanyard: false } },
   swarmmgr:    { accent: '#9be564', tracer: '#c8ff8a', outfit: { visor: '#9be564' } },
   medic:       { accent: '#ff4d6d', tracer: '#ffffff', outfit: { coat: '#eef2f5', cross: true, hood: false, pocket: false } },
+  scorch:      { accent: '#ff4a1a', tracer: '#ffb060', outfit: { hat: 'gasmask', vest: '#3a1a10', stripe: '#ff4a1a' } },
+  cooker:      { accent: '#ffd23f', tracer: '#ffe27a', outfit: { hat: 'helmet', vest: '#5a5a5a', stripe: '#ffd23f' } },
+  audit:       { accent: '#9fe0ff', tracer: '#d8f4ff', outfit: { hat: 'fedora', shirt: '#2a2e3a' } },
+  overclock:   { accent: '#3af0ff', tracer: '#9ff8ff', outfit: { hat: 'goggles', vest: '#1a2a3a', stripe: '#3af0ff' } },
+  culture:     { accent: '#ffd23f', tracer: '#ffffff', outfit: { hat: 'beanie', capCol: '#ff9ad8' } },
+  enforcer:    { accent: '#ff4d5e', tracer: '#ffffff', outfit: { hat: 'cap', capCol: '#1a1a22', vest: '#2a2a32', stripe: '#ff4d5e' } },
 };
 function crewVis(cr) {
   const cap = cr.spec && (cr.perks || []).includes(BRANCH[cr.spec].cap);
@@ -1231,6 +1244,23 @@ function weaponSprite(type, spec = '', tier = 0) {
     if (spec === 'artillery') { P.r(11, 3, 5, 3, '#3a5a30'); P.r(16, 2, 1, 5, '#2a4024'); P.r(7, 2, 1, 1, '#ff4d5e'); len = 16; }
     if (spec === 'containment') { P.ell(4, 1.5, 2.4, 1.6, '#c8ff8a'); P.r(3, 0, 3, 1, '#9be564'); P.r(11, 3, 2, 3, '#9be564'); len = 13; }
     if (tier >= 1) P.r(8, 2, 2, 1, '#22252b');
+  } else if (type === 'flamer') {
+    P = painter(17, 9); gx = 3; gy = 4; len = 13;
+    P.r(1, 3, 4, 3, '#5a4a3a'); P.r(5, 4, 6, 2, '#3c414c'); P.r(11, 3, 2, 3, '#23262c'); P.p(12, 4, '#ff7a2a'); P.r(3, 6, 2, 2, '#c83a2a'); P.p(4, 6, '#ff9a5a');
+    if (spec === 'scorch') { P.r(11, 2, 3, 5, '#3a1a10'); P.p(13, 4, '#ff4a1a'); len = 14; }
+    if (spec === 'cooker') { P.ell(4, 2, 2, 1.6, '#ffd23f'); P.r(5, 3, 7, 1, '#5a5a5a'); P.r(12, 3, 3, 3, '#3a3a3a'); len = 15; }
+    if (tier >= 1) P.p(6, 3, '#ffd23f');
+  } else if (type === 'rail') {
+    P = painter(24, 8); gx = 5; gy = 4; len = 20;
+    P.r(1, 3, 5, 3, '#2a3a4a'); P.r(6, 3, 12, 2, '#3c4a5c'); P.r(18, 3, 4, 1, '#23262c'); for (let x = 8; x < 17; x += 3) P.p(x, 3, '#7ae8ff'); P.r(9, 5, 3, 2, '#1a1e24');
+    if (spec === 'audit') { P.r(8, 1, 5, 2, '#3a3e48'); P.p(12, 1, '#9fe0ff'); }
+    if (spec === 'overclock') { P.r(6, 2, 12, 1, '#3af0ff'); P.r(22, 2, 1, 3, '#3af0ff'); len = 22; }
+    if (tier >= 1) P.p(4, 2, '#c8ccd4');
+  } else if (type === 'liaison') {
+    P = painter(10, 9); gx = 2; gy = 5; len = 6;
+    P.r(2, 1, 6, 8, '#8a6a3a'); P.r(3, 2, 4, 6, '#f2f4f8'); P.r(4, 0, 2, 2, '#c8ccd4'); for (let y = 3; y < 7; y += 2) P.r(3, y, 3, 1, '#9aa3ad');
+    if (spec === 'culture') P.p(6, 3, '#ff9ad8');
+    if (spec === 'enforcer') P.r(3, 6, 4, 1, '#ff4d5e');
   } else {
     P = painter(22, 8); gx = 5; gy = 5; len = 16;
     const stock = spec === 'wetwork' ? '#22252b' : spec === 'spotter' ? '#5a6a3a' : '#5a3a22';
@@ -2482,7 +2512,7 @@ document.addEventListener('keydown', audioInit, true);
 // capstone, ranks 6-8 executive perks. Every hire also rolls a quirk.
 // Perks are stat modifiers read by towerStats() and the combat code.
 // ================================================================
-const MAXL = 8;
+const MAXL = 12;
 const TIER_INFO = {
   t1:   { label: 'Tier I · Common', col: '#8a93bd', blurb: 'HR has identified some growth opportunities. Pick one. Your pay is unchanged.' },
   t2:   { label: 'Tier II · Rare', col: '#5fd4ff', blurb: 'Congratulations on your continued survival. Choose a development track.' },
@@ -2522,6 +2552,27 @@ const PERKS = [
   P('stock', 'exec', null, 'Stock Options', 'Every kill also pays 1 scrip.', s => { s.scripKill += 1; }),
   P('crunch', 'exec', null, 'Crunch Time', '+25% damage. Fires 30% faster once the drill passes 75%.', s => { s.dmg *= 1.25; s.crunch = true; }),
   P('burnout', 'exec', null, 'Burnout Protocol', '+60% fire rate, -40% HP.', s => { s.rate *= 1.6; s.maxhp *= 0.6; }),
+  // the new roles
+  P('napalmgel', 't1', 'flamer', 'Napalm Gel', 'Burning +50%.', s => { s.burnMult *= 1.5; }),
+  P('nozzle', 't1', 'flamer', 'Wide Nozzle', 'Flame cone 40% wider.', s => { s.cone *= 1.4; }),
+  P('afterburn', 't2', 'flamer', 'Afterburn', 'Fire left behind lasts twice as long.', s => { s.patchLife *= 2; }),
+  P('inferno', 'cap', 'flamer', 'Controlled Burn (Uncontrolled)', 'Every 8s, a firestorm two tiles wide engulfs the target.', s => { s.inferno = true; }),
+  P('meltdown', 'cap', 'flamer', 'Meltdown', 'Hits strip all armour.', s => { s.shred = 99; }),
+  P('capacitor', 't1', 'rail', 'Bigger Capacitor', '+25% damage.', s => { s.dmg *= 1.25; }),
+  P('longbarrel', 't1', 'rail', 'Long Barrel', '+20% range.', s => { s.range *= 1.2; }),
+  P('hyper', 't2', 'rail', 'Hypervelocity', '+25% fire rate.', s => { s.rate *= 1.25; }),
+  P('writedown', 'cap', 'rail', 'Write-Down', 'A slug that kills recharges the gun instantly.', s => { s.railRefund = true; }),
+  P('gauss', 'cap', 'rail', 'Gauss Volley', 'Every 3rd shot fires twice.', s => { s.railDouble = 3; }),
+  P('icebreaker', 't1', 'liaison', 'Icebreakers', 'Aura: +5% more fire rate.', s => { s.auraRate += 0.05; }),
+  P('snacks', 't1', 'liaison', 'Office Snacks', 'Aura heals crew 2 HP/s.', s => { s.heal += 2; }),
+  P('teambuilding', 't2', 'liaison', 'Team Building', 'Aura range +30%.', s => { s.range *= 1.3; }),
+  P('offsite', 'cap', 'liaison', 'Mandatory Offsite', 'Aura heals crew 5 HP/s and makes them take 25% less damage.', s => { s.heal += 5; s.auraDr = Math.max(s.auraDr, 0.25); }),
+  P('pip', 'cap', 'liaison', 'Performance Improvement Plan', 'Hostiles in range lose 2 armour and take +30% damage.', s => { s.supVuln = Math.max(s.supVuln, 0.3); s.supStrip = 2; }),
+  // late-career perks for ranks 6-12
+  P('tenure', 'exec', null, 'Tenure Track', '+40% HP, +15% damage.', s => { s.maxhp *= 1.4; s.dmg *= 1.15; }),
+  P('unpaidot', 'exec', null, 'Unpaid Overtime', '+20% fire rate.', s => { s.rate *= 1.2; }),
+  P('pensionraid', 'exec', null, 'Pension Raid', '+3 budget per kill.', s => { s.bountyAdd += 3; }),
+  P('keynote', 'exec', null, 'Keynote Speaker', 'Crew within 1.5 tiles deal +10% damage and fire 10% faster.', s => { s.auraDmg += 0.1; s.auraRate += 0.1; }),
   P('raise', 'any', null, 'Pay Rise (Denied)', '+10% damage. Stacks. HR is looking into it.', s => { s.dmg *= 1.1; }),
   // Turret Operator
   P('rubber', 't1', 'gunner', 'Rubber Bullets', 'Hits slow enemies by 25% for 1s.', s => { s.slowHit = Math.max(s.slowHit, 0.25); }),
@@ -2531,12 +2582,12 @@ const PERKS = [
   P('spray', 't2', 'gunner', 'Spray and Pray', 'Hits 2 targets at once, -15% damage.', s => { s.multi = Math.max(s.multi, 2); s.dmg *= 0.85; }),
   P('tracer', 't2', 'gunner', 'Tracer Rounds', 'Targets hit take +15% damage from all crew for 2s.', s => { s.vuln = Math.max(s.vuln, 0.15); }),
   // Taser Technician
-  P('voltage', 't1', 'taser', 'Higher Voltage', 'Pulses stun for 0.25s.', s => { s.pulseStun = Math.max(s.pulseStun, 0.25); }),
+  P('voltage', 't1', 'taser', 'Higher Voltage', 'Each struck hostile is stunned for 0.25s.', s => { s.pulseStun = Math.max(s.pulseStun, 0.25); }),
   P('cord', 't1', 'taser', 'Extension Cord', '+20% range.', s => { s.range *= 1.2; }),
   P('boots', 't1', 'taser', 'Rubber Boots', '+60% HP. Saboteurs touching you take 8 damage/s.', s => { s.maxhp *= 1.6; s.thorns += 8; }),
-  P('static', 't2', 'taser', 'Static Cling', 'Pulsed enemies take +20% damage from all crew for 2s.', s => { s.vuln = Math.max(s.vuln, 0.2); }),
-  P('overcharge', 't2', 'taser', 'Overcharge', 'Every 4th pulse deals 4x damage.', s => { s.overcharge = 4; }),
-  P('arcjump', 't2', 'taser', 'Arc Jump', 'Pulses also arc to 2 enemies just outside range.', s => { s.arcJump = Math.max(s.arcJump, 2); }),
+  P('static', 't2', 'taser', 'Static Cling', 'Struck hostiles take +20% damage from all crew for 2s.', s => { s.vuln = Math.max(s.vuln, 0.2); }),
+  P('overcharge', 't2', 'taser', 'Overcharge', 'Every 4th discharge deals 4x damage.', s => { s.overcharge = 4; }),
+  P('arcjump', 't2', 'taser', 'Arc Jump', 'Lightning jumps to 2 more hostiles.', s => { s.arcJump = Math.max(s.arcJump, 2); }),
   // Foam Mortar Crew
   P('indfoam', 't1', 'mortar', 'Industrial Foam', '+30% splash radius.', s => { s.splash *= 1.3; }),
   P('quickload', 't1', 'mortar', 'Quick Loader', '+25% fire rate.', s => { s.rate *= 1.25; }),
@@ -2562,7 +2613,7 @@ const PERKS = [
   P('pinned', 'cap', 'gunner', 'Pinned Down', '20% chance per hit to stun for 0.8s.', s => { s.stun = Math.max(s.stun, 0.2); s.stunDur = Math.max(s.stunDur, 0.8); }),
   P('deadeye', 'cap', 'gunner', 'Dead-Eye Bonus', '+10% crit chance. Crits ricochet to 2 more enemies.', s => { s.crit += 0.1; s.chainOnCrit += 2; }),
   P('thunder', 'cap', 'taser', 'Act of God (Not Covered)', 'Every 6s, lightning hits the toughest enemy on the map for 150.', s => { s.thunder = 150; }),
-  P('freeze', 'cap', 'taser', 'Total Lockdown', 'Every 3rd pulse freezes everything in range for 1s.', s => { s.freezeEvery = 3; }),
+  P('freeze', 'cap', 'taser', 'Total Lockdown', 'Every 3rd discharge freezes every hostile it strikes for 1s.', s => { s.freezeEvery = 3; }),
   P('barrage', 'cap', 'mortar', 'Quarterly Barrage', 'Every 8s, lobs 5 extra shells at random enemies.', s => { s.barrage = 5; }),
   P('quagmire', 'cap', 'mortar', 'Quagmire', 'Enemies in foam take +30% damage from everything.', s => { s.foamVuln = 0.3; s.foamZone = Math.max(s.foamZone, 0.5); }),
   P('termination', 'cap', 'marksman', 'Termination Letter', 'Removes non-boss enemies below 35% HP. Kills refund 30% of the reload.', s => { s.execute = Math.max(s.execute, 0.35); s.cdRefund = 0.3; }),
@@ -2578,7 +2629,7 @@ const BRANCHES = {
   ],
   taser: [
     { id: 'storm', name: 'Storm Caller', desc: '+30% range, +50% damage.', cap: 'thunder', mod: s => { s.range *= 1.3; s.dmg *= 1.5; } },
-    { id: 'lockdown', name: 'Crowd Control Officer', desc: 'Slows rise to 65%. Pulses stun for 0.3s.', cap: 'freeze', mod: s => { s.slow = 0.65; s.pulseStun = Math.max(s.pulseStun, 0.3); } },
+    { id: 'lockdown', name: 'Crowd Control Officer', desc: 'Slows rise to 65%. Each strike stuns for 0.3s.', cap: 'freeze', mod: s => { s.slow = 0.65; s.pulseStun = Math.max(s.pulseStun, 0.3); } },
   ],
   mortar: [
     { id: 'artillery', name: 'Long-Range Artillery', desc: '+50% range, +30% damage.', cap: 'barrage', mod: s => { s.range *= 1.5; s.dmg *= 1.3; } },
@@ -2587,6 +2638,18 @@ const BRANCHES = {
   marksman: [
     { id: 'wetwork', name: 'Wetwork Contractor', desc: '+35% crit chance. Crits deal 2.5x.', cap: 'termination', mod: s => { s.crit += 0.35; s.critMult = Math.max(s.critMult, 2.5); } },
     { id: 'spotter', name: 'Spotter', desc: 'Targets take +30% damage from all crew for 3s. +20% range.', cap: 'hwe', mod: s => { s.vuln = Math.max(s.vuln, 0.3); s.vulnDur = 3; s.range *= 1.2; } },
+  ],
+  flamer: [
+    { id: 'scorch', name: 'Scorched Earth', desc: 'Every burst leaves fire behind; burning +40%.', cap: 'inferno', mod: s => { s.patch = 1; s.burnMult *= 1.4; } },
+    { id: 'cooker', name: 'Pressure Cooker', desc: '+35% range. Hits strip 1 armour.', cap: 'meltdown', mod: s => { s.range *= 1.35; s.shred = Math.max(s.shred, 1); } },
+  ],
+  rail: [
+    { id: 'audit', name: 'Forensic Auditor', desc: 'Everything the slug passes through takes +25% damage from all crew for 3s.', cap: 'writedown', mod: s => { s.vuln = Math.max(s.vuln, 0.25); s.vulnDur = 3; } },
+    { id: 'overclock', name: 'Capacitor Overclock', desc: '+40% damage, +20% range.', cap: 'gauss', mod: s => { s.dmg *= 1.4; s.range *= 1.2; } },
+  ],
+  liaison: [
+    { id: 'culture', name: 'Culture Champion', desc: 'Aura: another +10% fire rate and +10% damage.', cap: 'offsite', mod: s => { s.auraRate += 0.1; s.auraDmg += 0.1; } },
+    { id: 'enforcer', name: 'Policy Enforcer', desc: 'Hostiles in range are 30% slower and take +15% damage.', cap: 'pip', mod: s => { s.demoral = Math.max(s.demoral, 0.3); s.supVuln = Math.max(s.supVuln, 0.15); } },
   ],
   drone: [
     { id: 'swarmmgr', name: 'Drone Swarm Manager', desc: 'Runs 3 drones at once.', cap: 'hive', mod: s => { s.drones = Math.max(s.drones, 3); } },
@@ -3564,7 +3627,10 @@ const PRIO = {
 const prioOf = cr => cr.prio || (TOWERS[cr.type].strong ? 'strong' : 'first');
 const GOOD_VS = {
   gunner: 'Swarms, flyers and anything mid-sized',
-  taser: 'Packs and rushers; slows everything in the pulse',
+  taser: 'Groups and rushers; slows everything it chains through',
+  flamer: 'Swarms and bunched-up ground units; leaves fire behind',
+  rail: 'Lines of hostiles and armour, even flyers',
+  liaison: 'Making everyone else better; slowing whatever comes close',
   mortar: 'Clumped ground packs and armour',
   marksman: 'Bosses, elites and heavy armour',
   drone: 'Flyers and gunships (triple damage)',
@@ -3681,7 +3747,10 @@ function towerStats(crew, tw) {
     overcharge: 0, arcJump: 0, pulseStun: 0, freezeEvery: 0, cluster: 0, napalm: 0, foamZone: 0, foamVuln: 0, drones: 1,
     heal: 0, revive: 0, auraDr: 0, auraRate: 0, auraDmg: 0, auraXp: 0, xpMult: 1, bountyAdd: 0, scripKill: 0, feeMult: 1,
     thorns: 0, commission: 0, noReassign: false, thunder: 0, barrage: 0, crunch: false,
+    // the newer roles: flame cones and fire patches, rail slugs, the liaison's aura
+    patch: 2, patchLife: 1.4, burnMult: 1, inferno: false, railDouble: 0, railRefund: false, supVuln: 0, supStrip: 0,
   };
+  if (b.support) { s.auraRate += 0.2 + 0.01 * (L - 1); s.auraDmg += 0.15; }
   const bm = M ? M.biome.mod : {};
   s.rate *= bm.rate || 1; s.range *= bm.range || 1;
   if (has('coffee')) s.rate *= 1.15;
@@ -3919,7 +3988,7 @@ function spawnEnemy(q) {
 }
 function spawnBoss(B, mini, child) {
   const path = M.paths[0], k = mini ? 0.25 : 1;
-  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : sectorOf(M.c.idx) === 1 ? 0.82 : 1);
+  const hp = B.hp * k * M.c.mod * (M.biome.mod.ehp || 1) * (mini ? 1 + 0.2 * M.c.idx : sectorOf(M.c.idx) === 1 ? 0.82 : 1) * (sectorOf(M.c.idx) > 3 ? 1 + 0.3 * (sectorOf(M.c.idx) - 3) : 1);
   const slow = mini ? 1.5 : 1, iv = o => o && { ...o, every: o.every * slow };
   const e = {
     cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
@@ -4096,7 +4165,7 @@ function stepMission(dt) {
     const s = a.st;
     if (a.down || !(s.auraRate || s.auraDmg || s.auraXp || s.heal || s.auraDr || s.revive)) continue;
     for (const b of m.towers) {
-      if (Math.hypot(a.x - b.x, a.y - b.y) > 1.6 * TILE) continue;
+      if (Math.hypot(a.x - b.x, a.y - b.y) > (a.st.support ? a.st.range : 1.6) * TILE) continue;
       if (b !== a) { b.bRate += s.auraRate; b.bDmg += s.auraDmg; b.bXp += s.auraXp; b.bDr = Math.max(b.bDr, s.auraDr); }
       b.bHeal += s.heal; if (s.revive) b.medic = s.revive;
     }
@@ -4159,6 +4228,11 @@ function stepMission(dt) {
       // cloaked hostiles are only visible up close or once marked
       if (!e.cloaked || e.vulnT > 0 || d < 1.3 * TILE || leaked) inRange.push(e);
     }
+    // the liaison never shoots: it demoralises whatever is in range
+    if (s.support) {
+      for (const e of inAll) { applySlow(e, s.demoral, 0.25); if (s.supVuln) markE(e, s.supVuln, 0.25); if (s.supStrip && !e.pipped) { e.pipped = true; e.armor = Math.max(0, e.armor - s.supStrip); } }
+      tw.aim = null; continue;
+    }
     const P = PRIO[prioOf(tw.crew)], better = (a, b) => P.key(a, tw) > P.key(b, tw);
     let tgt = null;
     for (const e of inRange) if (!tgt || better(e, tgt)) tgt = e;
@@ -4173,8 +4247,56 @@ function stepMission(dt) {
     }
     if (tw.cd > 0 || !tgt) continue;
     tw.cd = 1 / s.rate; tw.recoil = 1; tw.muzzle = 0.07;
-    sfx({ gunner: 'gun', taser: 'taser', mortar: 'mortar', marksman: 'snipe', drone: 'drone' }[type], tw.x, s.burst);
+    sfx({ gunner: 'gun', taser: 'taser', mortar: 'mortar', marksman: 'snipe', drone: 'drone', flamer: 'foam', rail: 'snipe' }[type], tw.x, s.burst);
     const mz = muzzlePos(tw);
+    // chain lightning: the target, then the nearest hostile to it, and so on, a little weaker each jump
+    if (type === 'taser') {
+      tw.pulses = (tw.pulses || 0) + 1;
+      const over = s.overcharge && tw.pulses % s.overcharge === 0, freeze = s.freezeEvery && tw.pulses % s.freezeEvery === 0;
+      const hit = [tgt]; let cur = tgt;
+      for (let j = 0; j < (s.arcs || 3) - 1 + s.arcJump; j++) {
+        let nb = null, bd = 1.8 * TILE;
+        for (const e of m.enemies) { if (e.dead || e.invuln || e.deal || hit.includes(e) || (e.fly && !s.air)) continue; const d = Math.hypot(e.x - cur.x, e.y - cur.y); if (d < bd) { bd = d; nb = e; } }
+        if (!nb) break; hit.push(nb); cur = nb;
+      }
+      let from = mz;
+      hit.forEach((e, i) => {
+        m.fx.push({ k: 'arc', x: from.x, y: from.y, e, tx: e.x, ty: ecy(e), life: 0.22, max: 0.22, col: tw.gear.spec ? tw.gear.accent : null, w: tw.gear.tier });
+        from = { x: e.x, y: ecy(e) };
+        hitEnemy(e, s.dmg * (over ? 4 : 1) * Math.pow(0.8, i), s, tw);
+        sparks(e.x, ecy(e), '#bff4ff', 3);
+        if (e.dead) return;
+        applySlow(e, s.slow, s.slowDur); if (s.pulseStun) stunE(e, s.pulseStun); if (freeze) stunE(e, 1);
+      });
+      if (over || freeze) { sfx('overcharge', tw.x); shake(1.5); }
+      continue;
+    }
+    // flamethrower: everything in the cone burns, and every few bursts leave fire on the ground
+    if (type === 'flamer') {
+      tw.pulses = (tw.pulses || 0) + 1;
+      const a0 = tw.ang, cone = s.cone || 0.62;
+      for (const e of inAll) { if (e.fly) continue; const a = Math.atan2(ecy(e) - tw.y, e.x - tw.x); const da = Math.abs(((a - a0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (da <= cone) hitEnemy(e, s.dmg, s, tw); }
+      if (tw.pulses % s.patch === 0) m.zones.push({ x: tgt.x, y: tgt.y, r: 13, life: s.patchLife, max: s.patchLife, dps: s.burn * s.burnMult, kind: 'fire', tw });
+      if (s.inferno && m.t - (tw.infAt ?? -99) >= 8) { tw.infAt = m.t; m.zones.push({ x: tgt.x, y: tgt.y, r: 2 * TILE, life: 3, max: 3, dps: s.burn * s.burnMult * 2.5, kind: 'fire', tw }); shake(3); sfx('bigboom', tgt.x); }
+      for (let k = 0; k < 7; k++) { const a = a0 + (rnd() - 0.5) * cone * 1.6, v = 90 + rnd() * 80; addPart({ x: mz.x, y: mz.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.22 + rnd() * 0.12, max: 0.34, col: pick(['#ffd060', '#ff7a2a', '#ff4a1a', '#fff0b0']), size: 2, layer: 'fx' }); }
+      continue;
+    }
+    // railgun: a straight line through everything, well past the target
+    if (type === 'rail') {
+      tw.pulses = (tw.pulses || 0) + 1;
+      const shots = s.railDouble && tw.pulses % s.railDouble === 0 ? 2 : 1, dx = tgt.x - mz.x, dy = ecy(tgt) - mz.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, len = R2 + 2 * TILE;
+      let killed = false;
+      for (let k = 0; k < shots; k++) for (const e of m.enemies) {
+        if (e.dead || e.invuln || e.deal || (e.fly && !s.air)) continue;
+        const qx = e.x - mz.x, qy = ecy(e) - mz.y, along = qx * ux + qy * uy;
+        if (along < 0 || along > len || Math.abs(qx * uy - qy * ux) > e.r * 0.6 + 6) continue;
+        hitEnemy(e, s.dmg, s, tw); if (e.dead) killed = true;
+      }
+      m.fx.push({ k: 'tracer', x1: mz.x, y1: mz.y, x2: mz.x + ux * len, y2: mz.y + uy * len, life: 0.2, max: 0.2, color: tw.gear.tracer || s.color, w: 3, glow: '#bff8ff' });
+      if (killed && s.railRefund) tw.cd = 0.05;
+      smoke(mz.x, mz.y, 3); shake(2);
+      continue;
+    }
     if (s.aoe) {
       tw.pulses = (tw.pulses || 0) + 1;
       const over = s.overcharge && tw.pulses % s.overcharge === 0, freeze = s.freezeEvery && tw.pulses % s.freezeEvery === 0;
@@ -5078,7 +5200,7 @@ function crewQuits() {
   return out;
 }
 // a defector on the other side: their own face and kit, an elite of their old role
-const DEFECTOR_CAT = { gunner: 'ranged', taser: 'jammer', mortar: 'ranged', marksman: 'ranged', drone: 'ranged' };
+const DEFECTOR_CAT = { gunner: 'ranged', taser: 'jammer', mortar: 'ranged', marksman: 'ranged', drone: 'ranged', flamer: 'berserk', rail: 'ranged', liaison: 'medic' };
 function defectorFor(c) {
   if (!RUN.defectors || M.defectorOut) return null;
   return RUN.defectors.find(d => !d.dead && d.fac === c.facKey && !d.returned) || null;
@@ -6780,7 +6902,7 @@ const SECTOR_LEN = CONTRACTS_PER_SECTOR + 1, MAX_SECTOR = 5;
 const sectorOf = idx => Math.floor(idx / SECTOR_LEN) + 1;
 const sectorPos = idx => idx % SECTOR_LEN;
 // how hard a contract is: full steps through sector 1, then gentler ones so sectors 2 and 3 stay beatable
-const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : idx <= 14 ? 6.8 + (idx - 9) * 0.32 : 8.4 + (idx - 14) * 0.18;
+const diffLevel = idx => idx <= 4 ? idx : idx <= 9 ? 4 + (idx - 4) * 0.56 : idx <= 14 ? 6.8 + (idx - 9) * 0.32 : 8.4 + (idx - 14) * 0.34;
 const SECTOR_BIOMES = { 1: ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'], 2: ['cloud', 'tomb', 'cloud', 'tomb', 'cloud', 'tomb', 'frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'volcanic'] };
 Object.assign(BIOMES, {
   cloud: { name: 'Cloud City', mod: { flyers: 1.8, range: 1.1, espd: 1.05 }, hazard: 'High-altitude winds: far more flyers, enemies 5% faster, crew range +10%.' },
@@ -7650,7 +7772,7 @@ function showContractCard(i) {
       <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
       <dt>Ethics review</dt><dd>Waived</dd>
       <dt>Hostiles</dt><dd>${esc(o.fac.name)} ${actOfFaction(o.facKey) === actOf(o.idx) && actOf(o.idx) > 1 ? '<span class="pill new">New this act</span>' : actOfFaction(o.facKey) < actOf(o.idx) && returnReason(o.facKey) ? `<span class="pill back">${esc(returnReason(o.facKey))}</span>` : ''}<br><span style="color:var(--muted)">${cats.join(', ')}</span></dd>
-      ${!RUN.side && sectorOf(o.idx) >= 4 ? `<dt>Purge</dt><dd>${(RUN.purge || {})[o.facKey] ? 'Weakened: one more win purges them' : 'Two wins purge them (a boss, one)'}</dd>` : ''}
+      ${!RUN.side && sectorOf(o.idx) >= 4 ? `<dt>Purge</dt><dd>${(RUN.purge || {})[o.facKey] || standingOf(o.facKey) <= -2 || (RUN.worlds || []).some(w => w.fac === o.facKey && w.state === 'crushed') ? 'One win purges them' : 'Two wins purge them'}</dd>` : ''}
       <dt>Standing</dt><dd>${standingHtml(o.facKey)}${standingOf(o.facKey) >= 2 ? '<br><span style="color:var(--muted)">Smaller waves. Some of them may defect.</span>' : ''}</dd>
       <dt>Biome</dt><dd>${esc(o.biome.name)}. ${esc(o.biome.hazard)}</dd>
       <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
@@ -10576,6 +10698,8 @@ const dissolved = f => !!(RUN && RUN.story && RUN.story.dissolved && RUN.story.d
 // a faction at Vendetta calls with a demand, at most once every two contracts
 function siegeDue() {
   if (!RUN || !RUN.story) return null;
+  // one raid at a time: after any demand, nobody else calls for three contracts
+  if (RUN.idx - (RUN.lastDemandIdx ?? -9) < 3) return null;
   for (const f of Object.keys(FACTIONS)) { if (dissolved(f) || !ARCS[f] || standingOf(f) > -3) continue; if (RUN.idx - siegeOf(f).lastDemand >= 2) return f; }
   return null;
 }
@@ -10596,7 +10720,7 @@ const DEMAND_STAGE = [`Pay, or we come aboard.`, `We left your ship standing las
 // ---------- the demand call ----------
 function showDemand(f) {
   const A = ARCS[f], F = FACTIONS[f], s = siegeOf(f), price = demandPrice(f), can = RUN.scrip >= price, raid = s.stage + 1;
-  s.lastDemand = RUN.idx;
+  s.lastDemand = RUN.idx; RUN.lastDemandIdx = RUN.idx;
   S.screen = 'envoy'; S.envoy = { fac: f, beat: 'demand', t0: performance.now(), done: false, demand: { price } };
   clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
   const lead = raid === 3 ? ` ${F.apex.name} leads it, at full force.` : raid === 2 ? ` One of their bosses leads it.` : '';
@@ -10680,7 +10804,7 @@ function finishSiege(success) {
   const repl = [];
   for (const cr of RUN.roster) if (cr.dead) { const old = cr.name; replaceCrew(cr, true); repl.push(old); }
   if (!success) {
-    RUN.margin -= 20;
+    RUN.margin -= 12;
     if (RUN.margin <= 0) { RUN.margin = 0; showGameOver(); return; }
   }
   let head, lede, extra = '', col = F.color;
@@ -10697,7 +10821,7 @@ function finishSiege(success) {
     }
   } else {
     head = 'Fuel stolen'; col = '#ff4d5e';
-    lede = `The ${esc(F.short)} made off with the fuel crystals. Kindly bought replacement fuel at market rates and took it out of your margin: −20% (now ${RUN.margin}%). The raid will come again.`;
+    lede = `The ${esc(F.short)} made off with the fuel crystals. Kindly bought replacement fuel at market rates and took it out of your margin: −12% (now ${RUN.margin}%). The raid will come again.`;
   }
   S.screen = 'siege'; M = null; clearMissionUi(); backdropView(); sfx(success ? 'victory' : 'fail'); setMusic('menu');
   $('#overlay').innerHTML = `<div class="screen"><div class="paper sector-paper">
@@ -11197,7 +11321,9 @@ function showCrossroads(sector) {
 // the loyal campaign: from Act 4 on, two wins against a faction (or beating its boss) purges it for good
 function purgeAfter(c) {
   if (RUN.side || sectorOf(c.idx) < 4 || dissolved(c.facKey)) return null;
-  const P = RUN.purge = RUN.purge || {}; P[c.facKey] = (P[c.facKey] || 0) + (c.boss ? 2 : 1);
+  // a faction already at war with you, or one whose world you've crushed, goes in a single win
+  const P = RUN.purge = RUN.purge || {}, weak = standingOf(c.facKey) <= -2 || (RUN.worlds || []).some(w => w.fac === c.facKey && w.state === 'crushed' && w.idx < c.idx);
+  P[c.facKey] = (P[c.facKey] || 0) + (c.boss || weak ? 2 : 1);
   if (P[c.facKey] < 2) { toast(`${FACTIONS[c.facKey].name}: weakened. One more win purges them.`, 3000); return null; }
   const D = dissolveFaction(c.facKey); toast(`${FACTIONS[c.facKey].name}: purged. ${D.line}`, 3600); return c.facKey;
 }

@@ -407,7 +407,8 @@ A bonus level, not a contract: it doesn't advance the run (`showDemand`, `startS
   - **Raid 2:** two airlocks and one of the faction's bosses.
   - **Raid 3:** all three airlocks and the faction's apex boss at full force.
   - **Win:** a salvage bounty (+70/+100/+130 scrip), and the next demand comes later.
-  - **Lose:** Kindly buys replacement fuel out of your margin (−20%; at 0% you're abandoned), and the raid comes again.
+  - **Lose:** Kindly buys replacement fuel out of your margin (−12%; at 0% you're abandoned), and the raid comes again.
+  - **One raid at a time:** after any demand, no faction calls for three contracts.
 - **Dissolution:** win raid 3 and the faction is gone for good:
   - It's off the contract pool and act bosses, and its storyline ends.
   - Its worlds read as crushed, and its defectors are gone.
@@ -511,7 +512,7 @@ A run is five acts of five contracts (`MAX_SECTOR = 5`); difficulty growth flatt
 |---|---|---|
 | Entering Act 4 | Your faction's council: "Kindly is coming for us. Time we went for them first." | Pryce promotes you to Director of Market Homogenisation |
 | Entering Act 5 | Pryce calls, furious: the board is coming for you in person | Pryce: "A few holdouts left. Finish them." |
-| Act 4–5 contracts | Mostly against Asset Protection and Kindly loyalists | Two wins against a faction (or one boss win) **purges** it for good; contract cards show who is weakened (`purgeAfter`) |
+| Act 4–5 contracts | Mostly against Asset Protection and Kindly loyalists | Beating a faction **purges** it for good: one win if it is Hostile or worse or you have crushed one of its worlds (or it's a boss), two otherwise; contract cards say which (`purgeAfter`) |
 | Final contract | The Board: Kindly's board out of the sub-basement with Pryce at the controls (Asset Protection's apex, +35% HP) | The last faction standing's apex, +20% HP |
 
 ## Planet scenes and the desk
@@ -545,14 +546,30 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 | 3 | Tier II · Rare | 3 cards: mechanic changers (armour shred, multishot, cluster shells, executes, extra drones...) |
 | 4 | Specialisation | 1 of 2 permanent branches per role, each showing its future capstone |
 | 5 | Capstone | the branch capstone, or one of 2 Tier II cards |
-| 6–8 | Executive | high-impact perks with trade-offs (Golden Handcuffs, Burnout Protocol, Stock Options...) |
+| 6–12 | Executive | high-impact perks with trade-offs (Golden Handcuffs, Burnout Protocol, Stock Options, Tenure Track, Unpaid Overtime, Pension Raid, Keynote Speaker...) |
 
 - **Branches**: Turret Operator (Suppression Specialist / Hazard Pay Gunslinger), Taser Tech (Storm Caller / Crowd Control Officer), Mortar (Long-Range Artillery / Foam Containment), Marksman (Wetwork Contractor / Spotter), Drone Operator (Drone Swarm Manager / Field Medic).
 - **Capstones** include map-wide lightning, freezing pulses, 5-shell barrages, damage-amplifying foam, executes that refund the reload, spreading marks, 4-drone hive minds, and a protective medic aura.
 - **Quirks**: every hire rolls one of 10 traits (Nepotism Hire, Tenured, Office Gossip...). They're shown in the store before you hire.
 - **Appeal decision** rerolls the cards for scrip (10, then +5 each time). **Decline promotion** takes 12 scrip instead.
 - **Synergies**: marks (Tracer Rounds, Static Cling, Spotter, Quagmire foam) amplify all crew damage. Auras buff, heal or protect crew within 1.5 tiles.
-- XP thresholds: 16 / 45 / 95 / 165 / 260 / 380 / 530.
+- **Level cap 12** (`MAXL`), with a slower climb that keeps paying off through acts 4 and 5. XP thresholds: 20 / 55 / 110 / 190 / 300 / 440 / 610 / 820 / 1070 / 1360 / 1700. Ranks 9–12: Associate Director, Director of Associates, Chief Associate Officer, Associate for Life.
+- **Acts 4 and 5 hit harder to match:** wave difficulty keeps climbing at +0.34 per contract after contract 15 (`diffLevel`), and act bosses get +30% HP per act past Act 3.
+
+## Crew types
+| Type | Fee | Plays as | Specialisations (capstone) |
+|---|---|---|---|
+| Turret Operator | 40 | Reliable single-target fire, air and ground | Suppression Specialist (Pinned Down) / Hazard Pay Gunslinger (Deadeye) |
+| **Arc Technician** (reworked taser) | 50 | Chain lightning: jumps through up to 3 hostiles (each jump at 80% of the last), slowing each | Storm Caller (Act of God) / Crowd Control Officer (Total Lockdown) |
+| Foam Mortar Crew | 70 | Lobbed splash, ground only | Long-Range Artillery (barrage) / Foam Containment (quagmire) |
+| Marksman (Intern) | 80 | Long range, ignores armour, targets the toughest | Wetwork Contractor / Spotter |
+| Drone Operator | 60 | Rapid fire, triple damage to flyers | Drone Swarm Manager / Field Medic |
+| **Thermal Compliance Officer** (new) | 55 | Flamethrower: burns everything in a cone, every second burst leaves fire on the ground. Ground only | Scorched Earth: fire every burst, +40% burning (Controlled Burn: a firestorm every 8s) / Pressure Cooker: +35% range, strips armour (Meltdown: strips all of it) |
+| **Railgun Auditor** (new) | 90 | A slug through every hostile in a line, armour-piercing, hits air | Forensic Auditor: everything hit takes +25% damage (Write-Down: kills recharge the gun) / Capacitor Overclock: +40% damage, +20% range (Gauss Volley: every 3rd shot fires twice) |
+| **HR Liaison** (new) | 40 | Doesn't fight. Crew in its 2.4-tile range fire 20% faster and hit 15% harder; hostiles there are 20% slower | Culture Champion: a stronger aura (Mandatory Offsite: aura heals and protects) / Policy Enforcer: hostiles 30% slower and take +15% damage (Performance Improvement Plan: they lose armour too) |
+
+- **The taser rework:** it used to pulse weakly at everything around it. The Arc Technician throws lightning at a target and it chains on to the nearest hostiles; its perks now read as chains (Arc Jump adds jumps, Overcharge and Total Lockdown count discharges).
+- **Balance check** (three crew of one type, a whole contract): Marksman, Railgun and Mortar lose least, Drone and Turret sit in the middle, and the flamethrower and Arc Technician were buffed to close the gap. The Liaison pays off in a fuller roster, where its aura covers several crew.
 
 ## Audio
 - Everything is synthesised live with Web Audio. There are no audio files. Audio starts on the first tap or key press, which is a browser rule.

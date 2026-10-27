@@ -25,6 +25,8 @@ Pick contracts on a star map, deploy a randomly generated crew next to the path,
 - Payslips that show where the money went: every deduction, what Kindly billed the client, and the unspent budget it reclaims
 - Sides: finish a faction's storyline and they invite you to their colony. Defect, and the crew who like you follow, their people join as troops with their own kit, and Acts 4 and 5 become a plan to overthrow Kindly. Stay, and you are promoted to purge every faction in the galaxy
 - Five acts and 16 endings, from a coalition revolution to total market share
+- Eight crew types, including a flamethrower, a railgun and an HR Liaison who buffs everyone around them, and an Arc Technician whose lightning chains between hostiles
+- Crew ranks up to 12 on a slower curve, with executive perks for the late game
 - Store rerolls for scrip
 - Randomly generated crew with quirks who keep their look through the run and can be injured
 - Roguelike performance reviews: perk cards each rank, a permanent specialisation at rank 4, capstones at rank 5, and executive perks beyond, with rerolls (appeals) and declines
