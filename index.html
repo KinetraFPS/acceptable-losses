@@ -1252,10 +1252,37 @@ function droneSprites(acc = '#9be564') {
   }));
 }
 const SPR = new Map();
+// volume for a small figure: each row of the body is lit like a cylinder from the upper left,
+// with a cool rim on the shadow edge, a falloff towards the feet, and shade under the chin
+function sculptHuman(c) {
+  const g = c.getContext('2d'), w = c.width, h = c.height, im = g.getImageData(0, 0, w, h), a = im.data, src = new Uint8ClampedArray(a);
+  const at = (x, y) => (y * w + x) * 4;
+  const outline = i => src[i + 3] && src[i] < 26 && src[i + 1] < 28 && src[i + 2] < 36;
+  const body = (x, y) => x >= 0 && y >= 0 && x < w && y < h && src[at(x, y) + 3] > 0 && !outline(at(x, y));
+  const lum = i => src[i] * 0.3 + src[i + 1] * 0.59 + src[i + 2] * 0.11;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!body(x, y)) continue;
+    let x0 = x, x1 = x; while (body(x0 - 1, y)) x0--; while (body(x1 + 1, y)) x1++;
+    const i = at(x, y), span = x1 - x0, nx = span ? (x - x0) / span * 2 - 1 : 0;
+    let k = -nx * 0.2 + (0.45 - y / h) * 0.12;
+    if (y < h * 0.3 && nx < -0.2) k += 0.06;                                   // a highlight on the head and hair
+    if (span >= 2 && x === x0) k += 0.08;
+    if (span >= 2 && x === x1) k -= 0.14;
+    if (!body(x, y + 1) && body(x, y - 1)) k -= 0.1;                           // the underside of each shape
+    // a band of shade where a lighter shape sits above (under the chin, under a hat brim)
+    k = Math.round(k / 0.06) * 0.06;
+    // light keeps the colour (brighter, a touch warmer); shade deepens it
+    for (let ch = 0; ch < 3; ch++) a[i + ch] = k > 0 ? Math.min(255, src[i + ch] * (1 + k * 1.4) + k * (ch === 2 ? 14 : 30)) : src[i + ch] * (1 + k);
+    if (span >= 3 && x === x1 && y > h * 0.25) { a[i] = a[i] * 0.82 + 120 * 0.18; a[i + 1] = a[i + 1] * 0.82 + 160 * 0.18; a[i + 2] = a[i + 2] * 0.82 + 230 * 0.18; }
+  }
+  g.putImageData(im, 0, 0);
+  return c;
+}
+const humanLit = (L, of, legs, yo) => sculptHuman(drawHuman(L, of, legs, yo));
 function crewSprites(cr) {
   let s = SPR.get(cr.id); const vis = crewVis(cr);
   if (s && s.look === cr.look && s.type === cr.type && s.vk === vis.key) return s;
-  const of = crewOutfit(cr, vis), f = [drawHuman(cr.look, of, 'n', 0), drawHuman(cr.look, of, 'n', 1)];
+  const of = crewOutfit(cr, vis), f = [humanLit(cr.look, of, 'n', 0), humanLit(cr.look, of, 'n', 1)];
   s = { look: cr.look, type: cr.type, vk: vis.key, f, red: f.map(c => silhouette(c, '#ff4d5e')), sel: f.map(c => silhouette(c, '#ffd23f')), grey: greyed(f[0]) };
   SPR.set(cr.id, s); return s;
 }
@@ -1263,12 +1290,12 @@ const PORTRAITS = new Map();
 function crewPortrait(cr) {
   const hit = PORTRAITS.get(cr.id), vk = cr.look && cr.level ? crewVis(cr).key : cr.type;
   if (hit && hit.look === cr.look && hit.vk === vk) return hit.url;
-  const src = drawHuman(cr.look, cr.level ? crewOutfit(cr) : CREW_OUTFITS[cr.type], 'n', 0), c = mkCanvas(42, 42), g = c.getContext('2d');
+  const src = humanLit(cr.look, cr.level ? crewOutfit(cr) : CREW_OUTFITS[cr.type], 'n', 0), c = mkCanvas(42, 42), g = c.getContext('2d');
   g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, 14, 14, 0, 0, 42, 42);
   const url = c.toDataURL(); PORTRAITS.set(cr.id, { look: cr.look, vk, url }); return url;
 }
 function portraitImg(cr, cls = 'pt') { return `<img class="${cls}" src="${crewPortrait(cr)}" alt="" style="--rc:${TOWERS[cr.type].color}">`; }
-function fullBodyUrl(look, type) { const src = drawHuman(look, CREW_OUTFITS[type], 'n', 0), c = mkCanvas(42, 57), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, 42, 57); return c.toDataURL(); }
+function fullBodyUrl(look, type) { const src = humanLit(look, CREW_OUTFITS[type], 'n', 0), c = mkCanvas(42, 57), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, 42, 57); return c.toDataURL(); }
 
 // ---------- enemies ----------
 const PROTEST_COLS = ['#e85d75', '#5ab8ff', '#7bdc6a', '#ffd23f', '#b98cff', '#ff9f43', '#f2f2f2'];
@@ -9699,7 +9726,7 @@ function assignTypes(map, bk, fac) {
 return { BKIT, BT, BTYPES_HUMAN, BTYPES_ALIEN, BTYPE_NAME, TALL, FAC_BUILD, building3d, buildingShadow, drawOpenings, assignTypes };
 })();
 
-window.__AL = { planetScene, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
