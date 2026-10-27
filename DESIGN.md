@@ -333,7 +333,7 @@ Buildings are drawn as solid forms seen at three-quarters, from a **type** (what
   - Rooftop clutter (chimneys, tanks, AC, dishes, panels) casts its own shadow.
   - Every building has a dark outline and throws a shadow onto the ground to the lower right, longer for taller buildings.
 - **Human types:** housing, shop (striped awning), school (flagpole and clock tower, or a rooftop court in cities), clinic (rooftop cross), church (bell tower and rose window; a domed church with a minaret on desert, moon and sky worlds; a megachurch screen in the megacity; an eye temple on tomb worlds), depot (roller doors) and office. City worlds (megacity, Kindly HQ) add **skyscrapers**: setback crowns, a beacon, floor after floor of windows and a long shadow.
-- **Alien types** (fungal world): spore homes, a spore market, a **creche** of glowing egg-pods in place of a school, a **mender pool** in place of a hospital, a spiral shrine, a glass grow-house and a shelf-fungus elder hall. The precursor tomb uses stone ziggurats and also swaps school and clinic for creche and mender pool.
+- **Alien types** (fungal world): spore homes, a spore market, a **creche** of glowing egg-pods in place of a school, a **mender pool** in place of a hospital, a spore pavilion (a broad cap on stalk pillars over a glowing heart, ringed by small glowing mushrooms), a glass grow-house and a shelf-fungus elder hall. The precursor tomb uses stone ziggurats and also swaps school and clinic for creche and mender pool.
 - **Materials per biome:**
   - Ice: red polar-station roofs under snow.
   - Desert: adobe with flat roofs and a domed church.
@@ -345,7 +345,7 @@ Buildings are drawn as solid forms seen at three-quarters, from a **type** (what
   - Tomb: carved stone ziggurats.
   - Kindly HQ: glass and company yellow.
 - **Cities** (megacity, Kindly HQ) get more plots, plots back from the road like city blocks, and mostly towers in five shapes: setback, slab (helipad and an ad screen), round, needle and tiered (glowing pagoda eaves in the megacity). Housing there is a block of capsule flats with portholes, balconies, laundry, a fire escape and a vertical neon sign.
-- **Where crew can stand:** each type has a roof deck. Skyscrapers only on the crown, churches not on the bell tower. Spires, glass domes, pools, mounds, markets and the elder hall have no rooftop spot. The front-wall row stays a ground-level cover spot. Tiles a tall landmark (the billboard) overhangs are blocked too.
+- **Where crew can stand:** each type has a roof deck. Skyscrapers only on the crown, churches not on the bell tower. Glass domes, pools, the spore pavilion, mounds, markets and the elder hall have no rooftop spot. The front-wall row stays a ground-level cover spot. Tiles a tall landmark (the billboard) overhangs are blocked too.
 - **Odd shapes sit on a base** (a mycelium mat, packed earth or a plinth), so the whole plot reads as part of the building.
 - **Faction buildings:** on a faction's map, one or two plots become theirs:
   - Union: a Union Hall with banners.

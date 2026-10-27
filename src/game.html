@@ -9089,7 +9089,7 @@ const BKIT = {
 const BTYPES_HUMAN = ['house', 'shop', 'school', 'clinic', 'church', 'depot', 'office'];
 const BTYPES_ALIEN = ['sporehome', 'sporemarket', 'creche', 'mender', 'shrine', 'growhouse', 'elderhall'];
 const BTYPE_NAME = { house: 'Housing', shop: 'Shop', school: 'School', clinic: 'Clinic', church: 'Church', depot: 'Depot', office: 'Office', skyscraper: 'Skyscraper', unionhall: 'Union Hall',
-  sporehome: 'Spore home', sporemarket: 'Spore market', creche: 'Creche', mender: 'Mender pool', shrine: 'Spiral shrine', growhouse: 'Grow-house', elderhall: 'Elder hall' };
+  sporehome: 'Spore home', sporemarket: 'Spore market', creche: 'Creche', mender: 'Mender pool', shrine: 'Spore pavilion', growhouse: 'Grow-house', elderhall: 'Elder hall' };
 
 // ---------- shading primitives ----------
 const dk = (c, k = 0.25) => shade(c, -k), lt = (c, k = 0.2) => shade(c, k);
@@ -9508,13 +9508,22 @@ Object.assign(BT, {
     const cx = W >> 1; for (const [dx, dy] of [[0, -2], [0, 2], [-2, 0], [2, 0]]) P.ell(cx + dx, RH + 6 + dy, 1.2, 1.2, '#3ae8c8');
     roundDoor(P, cx, H - 6, 3, { ...K, glow: '#3ae8c8' }, c.L);
   },
+  // a pavilion: a broad cap on stalk pillars over a glowing spore-heart, ringed by small glowing mushrooms
   shrine(P, c) {
-    const { W, H, RH, K } = c, cx = W / 2; basePad(P, W, H, dk(K.wall, 0.5), K.glow);
-    // a tall twisted cone with glowing veins, on a wide stalk base
-    stalkWall(P, 3, H - 14, W - 6, 13, K);
-    for (let y = 0; y < H - 12; y++) { const k = y / (H - 12), w = Math.round(3 + k * (W / 2 - 4)); for (let x = -w; x <= w; x++) { const tw = ((x + y * 0.6) % 6 + 6) % 6; P.p(Math.round(cx + x), y, tw < 1 ? K.glow : shade(K.cap, 0.15 - (x + w) / (2 * w) * 0.45)); } }
-    c.L.push({ x: cx, y: H / 2 - 4, color: K.glow, r: 18, pulse: true }); anim({ kind: 'vein', x: cx, y0: 2, y1: H - 14, w: W / 2 - 4, col: K.glow });
-    roundDoor(P, Math.round(cx), H - 5, 3, K, c.L);
+    const { W, H, RH, K } = c, cx = W / 2, capY = Math.round(H * 0.3), capRx = W / 2 - 1, capRy = Math.max(6, Math.round(H * 0.22));
+    basePad(P, W, H, mixHex(dk(K.cap, 0.6), '#1e161e', 0.4), K.glow);
+    // the open floor under the cap, in deep shade
+    P.g.globalAlpha = 0.55; P.ell(cx, capY + capRy * 0.9, capRx - 2, capRy * 0.9, '#0a060a'); P.g.globalAlpha = 1;
+    // the fairy ring round the edge of the plot
+    for (let k = 0; k < 10; k++) { const a = k / 10 * 6.283, x = Math.round(cx + Math.cos(a) * (W / 2 - 4)), y = Math.round(H * 0.66 + Math.sin(a) * H * 0.22); P.r(x, y, 1, 2, lt(K.wall, 0.1)); P.r(x - 1, y - 1, 3, 1, k % 2 ? K.cap2 : K.cap); P.p(x, y - 2, K.glow); if (k % 3 === 0) anim({ kind: 'pod', x, y: y - 1, col: K.glow, ph: k }); }
+    // pillars, darker at the back
+    stalkWall(P, Math.round(cx) - 1, capY + 2, 3, H - capY - 14, { ...K, wall: dk(K.wall, 0.35) });          // the back pillar, in shadow
+    for (const px0 of [cx - capRx * 0.62, cx + capRx * 0.62]) stalkWall(P, Math.round(px0) - 2, capY + 2, 4, H - capY - 6, K);
+    // the heart, glowing under the cap
+    sculptBall(P, cx, H - 11, 4, 4, K.glow, { lift: 0.25 }); P.p(Math.round(cx) - 1, H - 13, '#ffffff');
+    c.L.push({ x: cx, y: H - 11, color: K.glow, r: 22, pulse: true }); anim({ kind: 'pod', x: cx, y: H - 11, col: K.glow, ph: 0 });
+    capRoof(P, cx, capY, capRx, capRy, K, { cut: 0.45 });
+    P.r(Math.round(cx) - 2, H - 4, 5, 1, K.step);
   },
   growhouse(P, c) {
     const { W, H, RH, K } = c;
@@ -9640,7 +9649,7 @@ function drawOpenings(o, openings) {
     if (op.side === 'right') px(g, m + o.W - 4, m + op.i * ATILE + 3, 4, 12, '#0a0b10');
   }
 }
-const TALL = { skyscraper: 2.6, office: 1.4, branch: 1.4, shrine: 1.6, elderhall: 1.4, church: 1.3, chapel: 1.3, ziggurat: 1.3 };
+const TALL = { skyscraper: 2.6, office: 1.4, branch: 1.4, shrine: 1.2, elderhall: 1.4, church: 1.3, chapel: 1.3, ziggurat: 1.3 };
 // each faction puts up its own buildings: how many, and which
 const FAC_BUILD = { union: ['unionhall', 1], activists: ['squat', 2], fauna: ['broodmound', 2], rival: ['branch', 1], abandoned: ['prefab', 2], haulers: ['warehouse', 1], precursors: ['ziggurat', 1], kindly: ['barracks', 1], church: ['chapel', 1] };
 Object.assign(BTYPE_NAME, { squat: 'Squat', broodmound: 'Brood mound', lodge: 'Glass lodge', branch: 'VectorCorp branch', prefab: 'Abandoned prefab', warehouse: 'Guild warehouse', ziggurat: 'Ziggurat', barracks: 'AP barracks', chapel: 'Chapel' });
