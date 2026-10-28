@@ -580,13 +580,54 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 
 ## Audio
 - Everything is synthesised live with Web Audio. There are no audio files. Audio starts on the first tap or key press, which is a browser rule.
-- **Music**: a small chiptune sequencer with five tracks.
-  - Corporate hold music on the menus, mail and store.
-  - Drifting arpeggios on the star map.
-  - A driving mission loop that adds layers as the drill fills.
-  - A faster boss variant that kicks in when the boss arrives.
+- **Music**: a small chiptune sequencer.
+  - Corporate hold music on the menus, mail and store; drifting arpeggios on the star map.
+  - **One mission song, arranged per world** (`BIOME_MUSIC`): the melody, chords and bass stay the mission theme's, and each world swaps instruments, tempo, drums and a texture.
+
+    | World | Arrangement |
+    |---|---|
+    | Frozen | Slower glassy triangle lead, bell sparkle and echo |
+    | Toxic | Wobbly detuned saw lead and saw bass |
+    | Dust | Twangy plucked lead, shaker, a loping kick |
+    | Low gravity | Half-time drums, sine lead, echo and pad |
+    | Cyber | Saw lead, constant 16th arpeggios and hats |
+    | Solar | Bright lead, bells and shaker |
+    | Volcanic | Two semitones down, saw bass, sub-bass and a heavier kick |
+    | Cloud | Airy triangle lead, pad, echo |
+    | Tomb | A semitone down, choir pad, sparse kick, no hats |
+    | HQ | Corporate chord stabs and steady hats |
+    | Ship | Four-on-the-floor with metallic clanks |
+
+    It still adds layers as the drill fills.
+  - **Faction themes** (`FACTION_THEMES`) play on each faction's calls, demands and invitations, over the envoy's slow pad:
+    - Union: a work-song in G, with hammer clanks.
+    - Activists: a protest chant in A minor with a backbeat.
+    - Wildlife: tribal toms and insect clicks under a wobbling lead.
+    - Lumen Kin: a slow sine hymn in D with bells.
+    - VectorCorp: a cold saw arpeggio in C minor on four-on-the-floor.
+    - The Abandoned: a music-box waltz in A minor.
+    - The Haulers: a twangy shuffle in E.
+    - The Archive: a sparse harmonic-minor choir.
+    - Asset Protection: a C-minor march with a snare roll.
+    - The Church: an organ hymn in F.
+    - The manager gets the hold music, a semitone flat and in no hurry.
+  - **The boss layer**: the music no longer switches track when a boss arrives. A boss layer comes in over the world's own song instead (half as much for a mini-boss): double-time kick, snare fills, a pumping octave bass, chord stabs, constant arpeggios, a brighter filter and up to +7% tempo. It eases in over a couple of bars and back out after the kill.
+  - **The uncanny layer**: on an immoral contract the same song turns slightly wrong:
+    - everything drifts a few cents off true;
+    - the chord's fifth sags to a tritone on alternate bars;
+    - the arpeggio now and then lands a semitone wide;
+    - the lead wobbles, with a faint ghost of every note a tritone up;
+    - the hats thin out.
+
+    A contract counts as immoral when you work for "Bad people", or, after defecting, when your side is VectorCorp, Asset Protection or the Church.
   - A sad trombone when you're abandoned, and a fanfare when you evacuate or win.
+- **On the beat**: the sequencer keeps a beat clock (`beatNow`). Crew bop on it, half on the beat and half off; flower heads sway with it; the crystal deposit pulses with it, harder on the downbeat.
 - **Sound effects**: quiet and distinct per role, with slight random pitch: a tight two-tick rifle burst (three with Extended Mags), a low electric taser buzz, a hollow mortar 'thoonk' and soft foam landing, a sniper crack with a bolt-action click-clack, and a soft rising drone chirp. Also kills, leaks, saboteur clanks, injuries, deploying and reassigning crew, promotions, the boss arrival horn, and UI clicks. The store has a "ka-ching". Effects are panned left or right by their position on the map and rate-limited so big fights don't clip.
+- **Ambience** (kept to what reads and costs next to nothing):
+  - **Wind gusts** about every 14s in the windy worlds (frozen, dust, solar, cloud, toxic, HQ, tomb): a few streaks, the weather pushed sideways, flowers leaning.
+  - **Birds** that suit the world, a few at a time: songbirds (solar), gulls (frozen, cloud), vultures circling (dust), bats (tomb), pigeons (HQ), moths (toxic). Big blasts flush them.
+  - Not animated, on purpose: enemies stay off the beat so their movement reads as threat, and trees and buildings don't sway (they're baked sprites, and redrawing them every frame would cost the frame rate). No birds where there's no air or open sky (low gravity, the forge, the cyber city, the ship).
+  - A stress test with 160–190 hostiles showed no frame-rate difference.
 - **Settings** (gear button, bottom-right): master, music and effects volume, mute (also the M key), and a screen shake toggle. Settings are saved in the browser. Opening settings mid-contract pauses the game.
 
 ## The difficulty model

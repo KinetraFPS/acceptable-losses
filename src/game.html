@@ -2093,6 +2093,7 @@ function landmarkSprite(kind) {
   postProcess(P.c); return { c: P.c, lights: L, props };
 }
 // ground decor scattered on open tiles
+let DECOR_FLOWERS = [];
 function decor(P, A, x0, y0, lights) {
   const x = x0 + ri(2, 13), y = y0 + ri(3, 14), g0 = A.g[0], r = rnd();
   switch (A.deco) {
@@ -2128,7 +2129,11 @@ function decor(P, A, x0, y0, lights) {
       else { P.r(x - 2, y, 6, 1, '#ffd23f'); P.r(x - 2, y + 2, 6, 1, '#ffd23f'); }
       break;
     case 'solar':
-      if (r < 0.45) { const c = pick(['#ff6fae', '#ffd23f', '#ffffff', '#ff8a3a', '#b48aff']); P.p(x, y + 1, '#2e6a2a'); P.p(x, y, c); P.p(x + 2, y + 2, '#2e6a2a'); P.p(x + 2, y + 1, c); }
+      if (r < 0.45) {
+        const c = pick(['#ff6fae', '#ffd23f', '#ffffff', '#ff8a3a', '#b48aff']); P.p(x, y + 1, '#2e6a2a'); P.p(x + 2, y + 2, '#2e6a2a');
+        // the heads are drawn live so they can sway; past the cap they're baked like everything else
+        if (DECOR_FLOWERS.length < 160) DECOR_FLOWERS.push({ x, y, c, ph: 0 }, { x: x + 2, y: y + 1, c, ph: 1 }); else { P.p(x, y, c); P.p(x + 2, y + 1, c); }
+      }
       else if (r < 0.7) { P.p(x, y, '#6ab45a'); P.p(x + 1, y - 1, '#7cc86a'); P.p(x + 2, y, '#6ab45a'); P.p(x + 1, y + 1, '#3a7a34'); }
       else if (r < 0.85) { P.ell(x + 1, y, 2, 1.2, '#b8b4a0'); P.p(x, y - 1, '#d8d4c0'); }
       else { P.r(x, y - 3, 1, 4, '#e8e4d4'); P.p(x, y - 4, '#fff2a0'); lights.push({ x: x * AP, y: (y - 4) * AP, color: '#fff2a0', r: 8 }); }
@@ -2178,23 +2183,77 @@ function makeWeather(type) {
   const n = { snow: 80, rain: 110, embers: 45, spores: 45, pollen: 40, dust: 70, motes: 40, clouds: 26, whispers: 50 }[type] || 0;
   return { type, parts: Array.from({ length: n }, (_, i) => ({ x: rnd(), y: rnd(), s: rnd(), ph: rnd() * 7, fly: type === 'pollen' && i < 6 })) };
 }
+// ---------- ambience ----------
+// Crew bop on the beat (half on it, half off), flower heads sway with it, the crystals pulse with it.
+const crewBop = tw => { const B = (M && M.beat) || beatNow(); return (B.n + ((tw.tx + tw.ty) & 1)) & 1; };
+function drawFlowers(g) {
+  const fl = M.flowers; if (!fl || !fl.length) return;
+  const B = M.beat, lean = Math.round((M.gust || 0) * 1.4);
+  for (const f of fl) px(g, f.x + ((((B.n + f.ph + (f.x >> 4)) & 1) && B.f < 0.5) ? 1 : 0) + lean, f.y, 1, 1, f.c);
+}
+// gusts, where there's weather to have them: streaks, the weather pushed sideways, flowers leaning
+const WINDY = { frozen: 1, dust: 1.2, solar: 0.7, cloud: 1, toxic: 0.5, hq: 0.5, tomb: 0.4 };
+function drawWind(g, t) {
+  const k = M.gust || 0; if (k < 0.05) return;
+  const W = GW * ATILE, H = GH * ATILE, n = Math.round(12 * k);
+  g.globalAlpha = 0.2 * k;
+  for (let i = 0; i < n; i++) { const x = ((hsh3(i, 1, 0) * W + t * 170 * (0.8 + hsh3(i, 2, 0) * 0.4)) % W + W) % W; px(g, Math.round(x), Math.round(hsh3(i, 3, 0) * H), 4 + (i % 3), 1, '#f4f4ee'); }
+  g.globalAlpha = 1;
+}
+// birds that suit the world, a few at a time; a big blast flushes them. None where there's no air, or no sky.
+const BIRDS = {
+  solar:  { col: '#3a2a1e', n: [3, 5], spd: 46, flap: 9 }, frozen: { col: '#eef4fa', n: [2, 4], spd: 38, flap: 6 }, cloud: { col: '#f2f2ee', n: [2, 4], spd: 34, flap: 5 },
+  dust:   { col: '#2a1e16', n: [1, 2], spd: 16, flap: 2, circle: true }, tomb: { col: '#1a1418', n: [3, 6], spd: 52, flap: 14 }, hq: { col: '#7a8090', n: [2, 4], spd: 40, flap: 8 },
+  toxic:  { col: '#d8c8a0', n: [2, 3], spd: 14, flap: 16, moth: true },
+};
+function drawBirds(g) {
+  const m = M, K = BIRDS[m.c.biomeKey]; if (!K || m.c.ship) return;
+  const W = GW * ATILE, H = GH * ATILE, dt = clamp(m.t - (m._bt ?? m.t), 0, 0.1); m._bt = m.t;
+  m.birds = m.birds || [];
+  if (m.t >= (m.nextFlock ?? 3) && m.birds.length < 4) {
+    m.nextFlock = m.t + 14 + rnd() * 14;
+    const dir = rnd() < 0.5 ? 1 : -1, y0 = H * (0.1 + rnd() * 0.7), n = ri(K.n[0], K.n[1]);
+    for (let i = 0; i < n; i++) {
+      if (K.circle) m.birds.push({ circle: true, cx: W * (0.3 + rnd() * 0.4), cy: H * (0.25 + rnd() * 0.4), r: 18 + rnd() * 14, a: rnd() * 6.3, w: 0.35 + rnd() * 0.15, life: 26, ph: rnd() });
+      else m.birds.push({ x: dir > 0 ? -6 - i * 5 : W + 6 + i * 5, y: y0 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 3, vx: dir * K.spd * (0.9 + rnd() * 0.2), vy: (rnd() - 0.5) * 6, ph: rnd() });
+    }
+  }
+  const spook = m.shake > 3;
+  for (const b of m.birds) {
+    if (b.circle) {
+      b.a += b.w * dt; b.life -= dt; b.x = b.cx + Math.cos(b.a) * b.r; b.y = b.cy + Math.sin(b.a) * b.r * 0.55;
+      if (b.life <= 0 || spook) { b.circle = false; b.vx = (Math.cos(b.a + 1.57) >= 0 ? 1 : -1) * K.spd * 2.5; b.vy = -6; }
+    } else {
+      if (spook && !b.spooked) { b.spooked = true; b.vx *= 1.8; b.vy -= 14; }
+      b.x += b.vx * dt; b.y += b.vy * dt + (K.moth ? Math.sin(m.t * 9 + b.ph * 6) * 0.4 : 0);
+    }
+  }
+  m.birds = m.birds.filter(b => b.circle || (b.x > -40 && b.x < W + 40 && b.y > -20 && b.y < H + 20));
+  for (const b of m.birds) {
+    const x = Math.round(b.x), y = Math.round(b.y), up = Math.floor((m.t + b.ph) * K.flap) % 2;
+    if (!K.moth) { g.globalAlpha = 0.2; px(g, x + 3, y + 12, 3, 1, '#000000'); g.globalAlpha = 1; }
+    if (K.moth) { px(g, x, y, 1, 1, '#5a4a30'); if (up) { px(g, x - 1, y - 1, 1, 1, K.col); px(g, x + 1, y - 1, 1, 1, K.col); } else { px(g, x - 1, y, 1, 1, K.col); px(g, x + 1, y, 1, 1, K.col); } continue; }
+    px(g, x, y, 1, 1, K.col); px(g, x - 1, y, 1, 1, K.col); px(g, x + 1, y, 1, 1, K.col);
+    if (up) { px(g, x - 2, y - 1, 1, 1, K.col); px(g, x + 2, y - 1, 1, 1, K.col); } else { px(g, x - 2, y + 1, 1, 1, K.col); px(g, x + 2, y + 1, 1, 1, K.col); }
+  }
+}
 function drawWeather(g, t) {
   const w = M.weather; if (!w) return;
-  const W = GW * ATILE, H = GH * ATILE, wrap = (v, m) => ((v % m) + m) % m;
+  const W = GW * ATILE, H = GH * ATILE, wrap = (v, m) => ((v % m) + m) % m, wx = M.windX || 0;
   for (const p of w.parts) {
     let x, y;
     if (weatherSector2(g, p, t, W, H, wrap, w.type)) continue;
     switch (w.type) {
-      case 'snow': x = wrap(p.x * W + Math.sin(t * (0.6 + p.s) + p.ph) * 4 + t * 6, W); y = wrap(p.y * H + t * (10 + p.s * 10), H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.7 ? '#ffffff' : 'rgba(230,242,255,0.75)'); break;
+      case 'snow': x = wrap(p.x * W + Math.sin(t * (0.6 + p.s) + p.ph) * 4 + t * 6 + wx * (0.6 + p.s), W); y = wrap(p.y * H + t * (10 + p.s * 10), H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.7 ? '#ffffff' : 'rgba(230,242,255,0.75)'); break;
       case 'rain': x = wrap(p.x * W - t * 45, W); y = wrap(p.y * H + t * (150 + p.s * 40), H); g.fillStyle = 'rgba(160,190,255,0.45)'; g.fillRect(Math.round(x), Math.round(y), 1, 3); g.fillRect(Math.round(x) - 1, Math.round(y) + 3, 1, 1); break;
       case 'embers': x = wrap(p.x * W + Math.sin(t * 1.5 + p.ph) * 3, W); y = wrap(p.y * H - t * (8 + p.s * 12), H); px(g, Math.round(x), Math.round(y), 1, 1, (Math.floor(t * 8 + p.ph) % 3) ? '#ff8a3a' : '#ffd060'); break;
-      case 'spores': x = wrap(p.x * W + t * 3 + Math.sin(t * 0.7 + p.ph) * 6, W); y = wrap(p.y * H - t * 2 + Math.cos(t * 0.5 + p.ph) * 4, H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.5 ? 'rgba(255,130,210,0.8)' : 'rgba(160,255,120,0.7)'); break;
+      case 'spores': x = wrap(p.x * W + t * 3 + Math.sin(t * 0.7 + p.ph) * 6 + wx * (0.4 + p.s), W); y = wrap(p.y * H - t * 2 + Math.cos(t * 0.5 + p.ph) * 4, H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.5 ? 'rgba(255,130,210,0.8)' : 'rgba(160,255,120,0.7)'); break;
       case 'pollen':
-        x = wrap(p.x * W + t * (p.fly ? 9 : 4) + Math.sin(t * 1.3 + p.ph) * (p.fly ? 10 : 4), W); y = wrap(p.y * H + Math.cos(t * 0.9 + p.ph) * (p.fly ? 8 : 3) - t * 1.5, H);
+        x = wrap(p.x * W + t * (p.fly ? 9 : 4) + Math.sin(t * 1.3 + p.ph) * (p.fly ? 10 : 4) + wx * (p.fly ? 0.3 : 0.8 + p.s), W); y = wrap(p.y * H + Math.cos(t * 0.9 + p.ph) * (p.fly ? 8 : 3) - t * 1.5, H);
         if (p.fly) { const c = p.s > 0.5 ? '#ff8a3a' : '#ffffff', open = Math.floor(t * 10 + p.ph) % 2; px(g, Math.round(x), Math.round(y), 1, 1, '#2a2418'); if (open) { px(g, Math.round(x) - 1, Math.round(y) - 1, 1, 1, c); px(g, Math.round(x) + 1, Math.round(y) - 1, 1, 1, c); } else { px(g, Math.round(x) - 1, Math.round(y), 1, 1, c); px(g, Math.round(x) + 1, Math.round(y), 1, 1, c); } }
         else px(g, Math.round(x), Math.round(y), 1, 1, 'rgba(255,240,140,0.85)');
         break;
-      case 'dust': x = wrap(p.x * W + t * (60 + p.s * 50), W); y = wrap(p.y * H + Math.sin(t + p.ph) * 2, H); g.fillStyle = 'rgba(240,210,160,0.4)'; g.fillRect(Math.round(x), Math.round(y), 2 + Math.round(p.s * 2), 1); break;
+      case 'dust': x = wrap(p.x * W + t * (60 + p.s * 50) + wx * (1 + p.s), W); y = wrap(p.y * H + Math.sin(t + p.ph) * 2, H); g.fillStyle = 'rgba(240,210,160,0.4)'; g.fillRect(Math.round(x), Math.round(y), 2 + Math.round(p.s * 2), 1); break;
       case 'motes': x = wrap(p.x * W + Math.sin(t * 0.4 + p.ph) * 5, W); y = wrap(p.y * H - t * (2 + p.s * 3), H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.6 ? 'rgba(200,180,255,0.9)' : 'rgba(120,240,255,0.6)'); break;
     }
   }
@@ -2283,7 +2342,7 @@ const SOLAR_NAMES = ['Verdance', 'New Arcadia Commons', 'Sunfield Cooperative', 
 // tap or key press, so audioInit() runs on the first interaction.
 // ================================================================
 const CFG = Object.assign({ master: 0.7, music: 0.5, sfx: 0.7, muted: false, shake: true }, store.get('al_settings', {}));
-const AU = { ctx: null, pan: 0, last: {}, voices: 0, track: null, step: 0, next: 0, intensity: 0 };
+const AU = { ctx: null, pan: 0, last: {}, voices: 0, track: null, step: 0, next: 0, intensity: 0, boss: 0, bossTarget: 0, uncanny: 0, uncannyTarget: 0, beats: [] };
 const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
 function audioInit() {
   if (AU.ctx) { if (AU.ctx.state === 'suspended' && !document.hidden) AU.ctx.resume(); return; }
@@ -2424,22 +2483,103 @@ const TRACKS = {
 // a slow, uneasy pad under the envoy's call
 TRACKS.envoy = { bpm: 70, chords: [[45, 'm'], [41, 'M7'], [38, 'm7'], [40, 'd7']], bass: 'r.......r.......', bassType: 'triangle', bassLen: 6, pad: true, hat: '............x...' };
 TRACKS.boss = { ...TRACKS.mission, bpm: 152, transpose: 1, kick: 'x...x...x...x...', snare: '....x.......x.xx', arpAlways: true, leadAlt: false };
+// ---------- one mission song, arranged for each world ----------
+// The melody, chords and bass line stay the mission theme's; each world swaps instruments, tempo, drums and a
+// texture or two, so a forge world and a frozen one are clearly the same company playing in different rooms.
+const BIOME_MUSIC = {
+  frozen:   { bpm: 0.9, leadType: 'triangle', arpType: 'sine', bell: true, echo: 0.4, kick: 'x.......x.......', hat: 'x...x...x...x...', lp: 0.85 },
+  toxic:    { bpm: 0.95, leadType: 'sawtooth', wobble: [3.2, 9], bassType: 'sawtooth', lp: 0.6, hat: 'x..x..x.x..x..x.' },
+  dust:     { bpm: 0.92, twang: true, kick: 'x.....x.x.......', hat: '..x...x...x...x.', shaker: true, lp: 0.9 },
+  lowgrav:  { bpm: 0.86, leadType: 'sine', kick: 'x...............', snare: '........x.......', hat: '....x.......x...', echo: 0.55, pad: true },
+  cyber:    { bpm: 1.04, leadType: 'sawtooth', arpAlways: true, hat: 'xxxxxxxxxxxxxxxx', hatVol: 0.035, lp: 1.2 },
+  solar:    { bpm: 1, leadType: 'square', bell: true, shaker: true, lp: 1.1 },
+  volcanic: { bpm: 1, transpose: -2, bassType: 'sawtooth', sub: true, kick: 'x.x.....x.x.....', snare: '....x.......x..x', lp: 0.75 },
+  cloud:    { bpm: 0.95, leadType: 'triangle', pad: true, echo: 0.45, hat: '..x...x...x...x.' },
+  tomb:     { bpm: 0.88, transpose: -1, leadType: 'triangle', choir: true, echo: 0.5, kick: 'x.........x.....', hat: '' },
+  hq:       { bpm: 1, stab: 'x...x...x...x...', hat: 'x.x.x.x.x.x.x.x.', lp: 1 },
+  ship:     { bpm: 1.02, kick: 'x...x...x...x...', clank: true, lp: 0.95 },
+};
+// ---------- faction themes, for their calls ----------
+// A short theme each, over the envoy's slow pad: what the faction sounds like when it's talking to you.
+const FACTION_THEMES = {
+  union:      { bpm: 84, chords: [[43, 'M'], [48, 'M'], [50, 'M'], [43, 'M']], leadType: 'square', clank: true, kick: 'x.......x.......', lead: [mel('G4 . . B4 D5 . . . B4 . G4 . A4 . . .'), mel('E5 . . D5 C5 . . . E5 . D5 . C5 . . .'), mel('D5 . . F#5 A5 . . . F#5 . E5 . D5 . . .'), mel('B4 . . A4 G4 . . . . . . . . . . .')] },
+  activists:  { bpm: 92, chords: [[45, 'm'], [41, 'M'], [48, 'M'], [43, 'M']], leadType: 'sawtooth', lp: 0.7, snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', lead: [mel('A4 . A4 . C5 . E5 . . . D5 . C5 . . .'), mel('F4 . A4 . C5 . A4 . . . G4 . F4 . . .'), mel('E4 . G4 . C5 . E5 . . . D5 . C5 . . .'), mel('D5 . . . B4 . . . G4 . . . . . . .')] },
+  fauna:      { bpm: 76, chords: [[40, 'm'], [40, 'm'], [36, 'M'], [35, 'M']], leadType: 'triangle', wobble: [5, 14], kick: 'x..x....x..x....', hat: 'x.xx....x.xx....', lead: [mel('E4 . . G4 . . B4 . . . A4 . G4 . . .'), mel('E4 . . . D4 . . . E4 . . . . . . .'), mel('C5 . . B4 . . G4 . . . E4 . . . . .'), mel('D#4 . . F#4 . . B4 . . . . . . . . .')] },
+  lumen:      { bpm: 66, chords: [[50, 'M'], [47, 'm'], [43, 'M'], [45, 'M']], leadType: 'sine', bell: true, echo: 0.5, lead: [mel('F#5 . . . A5 . . . D6 . . . . . . .'), mel('B5 . . . A5 . . . F#5 . . . . . . .'), mel('G5 . . . B5 . . . D6 . . . B5 . . .'), mel('A5 . . . . . . . E5 . . . . . . .')] },
+  rival:      { bpm: 96, chords: [[48, 'm'], [44, 'M'], [51, 'M'], [46, 'M']], leadType: 'sawtooth', lp: 0.9, kick: 'x...x...x...x...', hat: '..x...x...x...x.', lead: [mel('C5 . Eb5 . G5 . Eb5 . C6 . . . G5 . Eb5 .'), mel('C5 . Eb5 . Ab5 . Eb5 . C6 . . . Ab5 . Eb5 .'), mel('Bb4 . Eb5 . G5 . Eb5 . Bb5 . . . G5 . Eb5 .'), mel('D5 . F5 . Bb5 . F5 . D6 . . . Bb5 . . .')] },
+  abandoned:  { bpm: 68, chords: [[45, 'm'], [50, 'm'], [40, 'M'], [45, 'm']], leadType: 'triangle', bell: true, lead: [mel('A4 . . . C5 . . . E5 . . . . . D5 .'), mel('F5 . . . E5 . . . D5 . . . . . . .'), mel('E5 . . . G#4 . . . B4 . . . D5 . . .'), mel('C5 . . . B4 . . . A4 . . . . . . .')] },
+  haulers:    { bpm: 88, chords: [[40, 'M'], [45, 'M'], [47, 'M'], [40, 'M']], twang: true, shaker: true, kick: 'x.......x.x.....', lead: [mel('E4 . G#4 . B4 . . . B4 . A4 . G#4 . . .'), mel('A4 . C#5 . E5 . . . E5 . C#5 . A4 . . .'), mel('B4 . D#5 . F#5 . . . F#5 . E5 . D#5 . . .'), mel('E5 . . . B4 . G#4 . E4 . . . . . . .')] },
+  precursors: { bpm: 60, chords: [[50, 'm'], [46, 'M'], [43, 'm'], [45, 'M']], leadType: 'triangle', choir: true, echo: 0.6, kick: 'x...............', lead: [mel('D5 . . . . . A4 . . . . . F5 . . .'), mel('E5 . . . . . D5 . . . . . . . . .'), mel('G4 . . . Bb4 . . . D5 . . . . . . .'), mel('C#5 . . . . . E5 . . . A4 . . . . .')] },
+  kindly:     { bpm: 80, chords: [[48, 'm'], [48, 'm'], [44, 'M'], [43, 'M']], leadType: 'square', snare: 'x.x.x...x.x.x...', kick: 'x.......x.......', lead: [mel('C5 . . C5 G4 . . . C5 . Eb5 . G5 . . .'), mel('G5 . F5 . Eb5 . D5 . C5 . . . . . . .'), mel('Ab4 . . Ab4 C5 . . . Eb5 . . . C5 . . .'), mel('B4 . . . D5 . . . G5 . . . . . . .')] },
+  church:     { bpm: 62, chords: [[41, 'M'], [48, 'M'], [50, 'm'], [46, 'M']], organ: true, choir: true, lead: [mel('A4 . . . C5 . . . F5 . . . . . . .'), mel('G5 . . . E5 . . . C5 . . . . . . .'), mel('F5 . . . D5 . . . A4 . . . . . . .'), mel('Bb4 . . . D5 . . . F5 . . . . . . .')] },
+  // the manager: the hold music, a semitone flat and in no hurry
+  corporate:  { ...TRACKS.menu, bpm: 86, transpose: -1, kick: '', hat: '..x...x...x...x.' },
+};
+const MUSIC_CACHE = {};
+function getTrack(name) {
+  if (!name) return null;
+  if (MUSIC_CACHE[name]) return MUSIC_CACHE[name];
+  let tr = TRACKS[name];
+  const [kind, key] = name.split(':');
+  if (kind === 'mission' && key) { const st = BIOME_MUSIC[key] || {}; tr = { ...TRACKS.mission, ...st, bpm: TRACKS.mission.bpm * (st.bpm || 1), lpMul: st.lp || 1 }; }
+  if (kind === 'envoy' && key) { const th = FACTION_THEMES[key]; tr = th ? { ...TRACKS.envoy, bass: 'r.......r.......', ...th, pad: true, lpMul: th.lp || 1 } : TRACKS.envoy; }
+  return (MUSIC_CACHE[name] = tr || TRACKS.menu);
+}
+// where the music is on the beat, for anything that bops along; falls back to the mission tempo with no audio
+function beatNow() {
+  const c = AU.ctx, B = AU.beats;
+  if (c && c.state === 'running' && B.length && AU.track) { const now = c.currentTime; for (let i = B.length - 1; i >= 0; i--) if (B[i].t <= now) return { n: B[i].n, f: clamp((now - B[i].t) / B[i].len, 0, 1) }; }
+  const x = performance.now() / 1000 * 138 / 60; return { n: Math.floor(x), f: x % 1 };
+}
+// the mood of a contract: the boss layer follows bosses on the field, the uncanny layer follows the contract's ethics
+function musicMood() {
+  if (!M || S.screen !== 'mission') { AU.bossTarget = 0; return; }
+  let b = 0; for (const e of M.enemies) if (e.boss && !e.dead) { b = e.mini ? Math.max(b, 0.5) : 1; if (b === 1) break; }
+  AU.bossTarget = b;
+}
 function scheduleStep(tr, step, t, spb) {
   const bars = tr.chords.length, s = step % 16, bar = Math.floor(step / 16) % bars, loop = Math.floor(step / (16 * bars)), tp = tr.transpose || 0;
+  // the layers ease in and out over a couple of bars rather than cutting
+  AU.boss += (AU.bossTarget - AU.boss) * 0.05; AU.uncanny += (AU.uncannyTarget - AU.uncanny) * 0.05;
+  const bo = AU.boss, un = AU.uncanny, lpM = (tr.lpMul || 1) * (1 + 0.25 * bo);
   const root = tr.chords[bar][0] + tp, ch = CHORDS[tr.chords[bar][1]].map(i => root + i), mb = AU.music, on = p => p && p[s] === 'x';
-  if (on(tr.kick)) tone({ type: 'sine', f: 160, f2: 42, dur: 0.14, vol: 0.55, when: t, bus: mb });
-  if (on(tr.snare)) { noise({ f: 1800, q: 0.8, dur: 0.12, vol: 0.26, when: t, bus: mb }); tone({ type: 'triangle', f: 220, f2: 160, dur: 0.05, vol: 0.12, when: t, bus: mb }); }
-  if (on(tr.hat) || (tr.intense && AU.intensity > 0.8 && s % 2 === 1)) noise({ type: 'highpass', f: 7000, dur: 0.03, vol: 0.07, when: t, bus: mb });
-  const b = tr.bass && tr.bass[s];
-  if (b && b !== '.') tone({ type: tr.bassType, f: mtof(root + (b === 'o' ? 12 : b === 'f' ? 7 : 0)), dur: spb * (tr.bassLen || 1.8), vol: tr.bassType === 'square' ? 0.08 : 0.2, lp: 700, when: t, bus: mb });
-  if (on(tr.stab)) ch.forEach(n => tone({ type: 'triangle', f: mtof(n + 12), dur: spb * 1.4, vol: 0.045, when: t, bus: mb }));
-  if (tr.pad && s === 0) ch.forEach(n => tone({ type: 'triangle', f: mtof(n + 12), dur: spb * 16, vol: 0.035, a: 0.4, when: t, bus: mb }));
-  const leadOn = tr.lead && (!tr.leadAlt || loop % 2 === 0);
-  if (tr.arp && (tr.arpAlways || !leadOn || (tr.intense && AU.intensity > 0.5))) {
-    const fast = tr.arpAlways, k = fast ? s : s >> 1;
-    if (fast || s % 2 === 0) tone({ f: mtof(ch[[0, 1, 2, 1][k % 4] % ch.length] + 24), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000, when: t, bus: mb });
+  // uncanny: the fifth sags to a tritone on alternate bars, and everything drifts a few cents off true
+  if (un > 0.4 && bar % 2 === 1 && ch.length > 2) ch[2] -= 1;
+  const drift = 1 + un * 0.012 * Math.sin(step * 0.37), F = n => mtof(n) * drift;
+  if (s % 4 === 0) { AU.beats.push({ t, n: Math.floor(step / 4), len: spb * 4 }); if (AU.beats.length > 8) AU.beats.shift(); }
+  const kick = bo > 0.3 ? 'x...x...x...x.x.' : tr.kick, snare = bo > 0.3 ? (tr.snare || '....x.......x...').slice(0, 13) + 'x.x' : tr.snare;
+  if (on(kick)) { tone({ type: 'sine', f: 160, f2: 42, dur: 0.14, vol: 0.55, when: t, bus: mb }); if (tr.sub) tone({ type: 'sine', f: 70, f2: 30, dur: 0.22, vol: 0.3, when: t, bus: mb }); }
+  if (on(snare)) { noise({ f: 1800, q: 0.8, dur: 0.12, vol: 0.26, when: t, bus: mb }); tone({ type: 'triangle', f: 220, f2: 160, dur: 0.05, vol: 0.12, when: t, bus: mb }); }
+  if ((on(tr.hat) || (tr.intense && AU.intensity > 0.8 && s % 2 === 1) || (bo > 0.6 && s % 2 === 1)) && un < 0.9 || (un >= 0.9 && on(tr.hat) && s % 4 === 2)) noise({ type: 'highpass', f: 7000, dur: 0.03, vol: tr.hatVol || 0.07, when: t, bus: mb });
+  if (tr.shaker && s % 2 === 1) noise({ type: 'bandpass', f: 5200, q: 2, dur: 0.05, vol: 0.035, when: t, bus: mb });
+  if (tr.clank && (s === 6 || s === 14)) { noise({ type: 'bandpass', f: 3100, q: 9, dur: 0.09, vol: 0.12, when: t, bus: mb }); tone({ type: 'square', f: 1240, f2: 1180, dur: 0.05, vol: 0.02, when: t, bus: mb }); }
+  const b = tr.bass && tr.bass[s], bType = tr.bassType || 'triangle';
+  if (b && b !== '.') {
+    tone({ type: bType, f: F(root + (b === 'o' ? 12 : b === 'f' ? 7 : 0)), dur: spb * (tr.bassLen || 1.8), vol: bType === 'triangle' ? 0.2 : 0.08, lp: 700 * lpM, when: t, bus: mb });
+    if (tr.sub) tone({ type: 'sine', f: F(root - 12), dur: spb * 1.6, vol: 0.12, when: t, bus: mb });
   }
-  if (leadOn && tr.lead[bar][s]) tone({ f: mtof(tr.lead[bar][s] + tp), dur: spb * 1.9, vol: 0.055, lp: 2600, vib: [5.5, 4], when: t, bus: mb });
+  // the boss layer pumps an octave bass on the off-beats and stabs the chord
+  if (bo > 0.5 && s % 4 === 2) tone({ type: 'square', f: F(root + 12), dur: spb * 0.9, vol: 0.05 * bo, lp: 900, when: t, bus: mb });
+  if (bo > 0.6 && (s === 0 || s === 10)) ch.forEach(n => tone({ type: 'sawtooth', f: F(n + 12), dur: spb * 1.6, vol: 0.022 * bo, lp: 1800, when: t, bus: mb }));
+  if (on(tr.stab)) ch.forEach(n => tone({ type: 'triangle', f: F(n + 12), dur: spb * 1.4, vol: 0.045, when: t, bus: mb }));
+  if (tr.pad && s === 0) ch.forEach(n => tone({ type: 'triangle', f: F(n + 12), dur: spb * 16, vol: 0.035, a: 0.4, when: t, bus: mb }));
+  if (tr.choir && s === 0) ch.forEach(n => { tone({ type: 'triangle', f: F(n + 24) * 1.004, dur: spb * 16, vol: 0.02, a: 1.2, when: t, bus: mb, vib: [4.5, 3] }); tone({ type: 'triangle', f: F(n + 24) * 0.996, dur: spb * 16, vol: 0.02, a: 1.2, when: t, bus: mb }); });
+  if (tr.organ && s % 8 === 0) ch.forEach(n => { tone({ type: 'square', f: F(n + 12), dur: spb * 8, vol: 0.016, a: 0.08, lp: 1400, when: t, bus: mb }); tone({ type: 'sine', f: F(n), dur: spb * 8, vol: 0.05, a: 0.08, when: t, bus: mb }); });
+  const leadOn = tr.lead && (!tr.leadAlt || loop % 2 === 0 || bo > 0.6);
+  if (tr.arp && (tr.arpAlways || bo > 0.3 || !leadOn || (tr.intense && AU.intensity > 0.5))) {
+    const fast = tr.arpAlways || bo > 0.3, k = fast ? s : s >> 1;
+    // uncanny: now and then the arpeggio lands a semitone wide
+    const wrong = un > 0.3 && ((step * 7919) % 13) === 0 ? 1 : 0;
+    if (fast || s % 2 === 0) tone({ type: tr.arpType || 'square', f: F(ch[[0, 1, 2, 1][k % 4] % ch.length] + 24 + wrong), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000 * lpM, when: t, bus: mb });
+  }
+  if (leadOn && tr.lead[bar][s]) {
+    const n = tr.lead[bar][s] + tp, lt = tr.leadType || 'square', vib = tr.wobble || (un > 0.3 ? [3.1, 6 + 10 * un] : [5.5, 4]);
+    tone({ type: lt, f: F(n), f2: tr.twang ? F(n) * 0.985 : undefined, dur: spb * (tr.twang ? 1.2 : 1.9), vol: lt === 'sine' || lt === 'triangle' ? 0.08 : 0.055, lp: 2600 * lpM, vib, when: t, bus: mb });
+    if (tr.bell) tone({ type: 'sine', f: F(n + 24), dur: spb * 6, vol: 0.022, a: 0.005, when: t, bus: mb });
+    if (tr.echo) tone({ type: lt, f: F(n), dur: spb * 1.6, vol: 0.055 * tr.echo * 0.6, lp: 1800 * lpM, when: t + spb * 3, bus: mb });
+    // uncanny: a ghost of every note, a tritone up and barely there
+    if (un > 0.2) tone({ type: 'sine', f: F(n + 6), dur: spb * 3, vol: 0.016 * un, a: 0.2, when: t, bus: mb });
+  }
 }
 function startTrack() {
   const c = AU.ctx, now = c.currentTime;
@@ -2447,15 +2587,17 @@ function startTrack() {
   AU.mfade.gain.cancelScheduledValues(now); AU.mfade.gain.setValueAtTime(0.0001, now); AU.mfade.gain.exponentialRampToValueAtTime(1, now + 0.8);
 }
 function setMusic(name) {
+  if (name !== 'boss' && !(name && name.startsWith('mission'))) { AU.bossTarget = 0; AU.uncannyTarget = 0; }
+  if (name === 'boss') return;   // bosses no longer swap the track: the boss layer comes in over the world's own music
   if (AU.track === name) return;
-  AU.track = name;
+  AU.track = name; AU.beats = [];
   if (!AU.ctx) return;
   if (name) startTrack();
   else { const now = AU.ctx.currentTime; AU.mfade.gain.cancelScheduledValues(now); AU.mfade.gain.setTargetAtTime(0.0001, now, 0.15); }
 }
 function scheduler() {
   const c = AU.ctx; if (!c || !AU.track || c.state !== 'running') return;
-  const tr = TRACKS[AU.track], spb = 60 / tr.bpm / 4;
+  const tr = getTrack(AU.track), spb = 60 / (tr.bpm * (1 + 0.07 * AU.boss)) / 4;
   if (AU.next < c.currentTime - 0.25) AU.next = c.currentTime + 0.05;
   while (AU.next < c.currentTime + 0.15) { scheduleStep(tr, AU.step, AU.next, spb); AU.next += spb; AU.step++; }
 }
@@ -3402,6 +3544,7 @@ function buildingSprite(biomeKey, b, openings) {
   return { c: P.c, lights: L, props };
 }
 function renderGround(map, biomeKey) {
+  DECOR_FLOWERS = [];
   const A = BIOME_ART[biomeKey], Lq = LIQUIDS[A.liquid.kind], W = GW * ATILE, H = GH * ATILE, P = painter(W, H), g = P.g, lights = [], props = [];
   const code = (tx, ty) => (tx < 0 || ty < 0 || tx >= GW || ty >= GH) ? null : map.grid[ty][tx];
   const bridgeSet = new Set((map.bridges || []).map(b => b.y * GW + b.x));
@@ -3484,7 +3627,7 @@ function renderGround(map, biomeKey) {
       P.ell(x0 + 9, y0 + 15, 7, 2.5, 'rgba(0,0,0,0.3)'); g.drawImage(o.c, x0, oy); addAll(o, x0, oy);
     }
   }
-  return { cv: P.c, lights, props, liquidTiles };
+  return { cv: P.c, lights, props, liquidTiles, flowers: DECOR_FLOWERS };
 }
 function drawLiquidFx(g, t) {
   if (M.water) g.drawImage(M.water[Math.floor(t * 9) % M.water.length], 0, 0);
@@ -3692,7 +3835,9 @@ function transposeMap(map) {
   };
 }
 function startMission(contract) {
-  S.screen = 'mission'; setMusic('mission');
+  S.screen = 'mission'; setMusic('mission:' + (contract.ship ? 'ship' : contract.biomeKey));
+  AU.boss = AU.bossTarget = 0;
+  AU.uncannyTarget = contract.ship || !contract.client ? 0 : RUN.side ? (FACTION_MORAL[RUN.side] === 'evil' ? 1 : 0) : contract.client.good ? 0 : 1;
   $('#bar').innerHTML = ''; $('#overlay').innerHTML = ''; hudCache = {};
   const portrait = isPortrait();
   GW = 22; GH = 13;
@@ -3716,7 +3861,7 @@ function startMission(contract) {
   { const freed = RUN.roster.reduce((n, cr) => n + promoteCrew(cr, null), 0); if (freed) setTimeout(() => toast(`New sector, promotion freeze lifted: ${freed} review${freed > 1 ? 's' : ''} due.`, 2800), 1200); }
   if (!contract.ship) { B3.assignTypes(map, contract.biomeKey, contract.facKey); if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map); }
   const gr = contract.ship ? shipDeck(map.deck, map.tier, { guns: map.guns, doors: map.doors, props: map.obstacles }) : renderGround(map, contract.biomeKey);
-  M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles;
+  M.ground = gr.cv; M.lights = gr.lights; M.props = gr.props; M.liquidTiles = gr.liquidTiles; M.flowers = gr.flowers || [];
   M.water = buildWaterFrames(gr.liquidTiles, contract.ship ? LIQUIDS.coolant : LIQUIDS[BIOME_ART[contract.biomeKey].liquid.kind], !!contract.ship);
   M.weather = makeWeather(BIOME_ART[contract.biomeKey].weather); M.grade = BIOME_ART[contract.biomeKey].grade; M.act = actOf(contract.idx);
   S.selCrew = -1; S.selTower = null;
@@ -4697,8 +4842,13 @@ function renderMission(now) {
   const m = M, t = now / 1000, W = GW * ATILE, H = GH * ATILE, LW = GW * TILE, LH = GH * TILE;
   if (!WB || WB.width !== W || WB.height !== H) { WB = mkCanvas(W, H); WBG = WB.getContext('2d'); }
   const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1; DMG_BUDGET = 3;
+  // the beat and the wind, once a frame; the wind runs on game time, so it stops when the game is paused
+  m.beat = beatNow();
+  { const wind = WINDY[m.c.biomeKey] || 0, dtg = clamp(m.t - (m._wt ?? m.t), 0, 0.1); m._wt = m.t;
+    m.gust = wind ? clamp(Math.sin(m.t * 0.45 + (m.c.seed || 0) * 6) * 1.8 - 0.8, 0, 1) * wind : 0; m.windX = (m.windX || 0) + m.gust * 34 * dtg; }
   g.drawImage(m.ground, 0, 0);
   drawLiquidFx(g, t);
+  drawFlowers(g);
   drawPortals(g, t);
   // foam left by mortar shells
   for (const dc of m.decals) { g.globalAlpha = clamp(dc.life / 2, 0, 0.9); for (const b of dc.blobs) pxCircle(g, dc.x / AP + b.x, dc.y / AP + b.y, b.r, b.c); }
@@ -4790,6 +4940,7 @@ function renderMission(now) {
   }
 
   drawWeather(g, t);
+  drawWind(g, t); drawBirds(g);
   // compose: crisp pixels, then light
   beginDraw();
   const sh = RM || !CFG.shake ? 0 : m.shake, ox = (rnd() - 0.5) * sh, oy = (rnd() - 0.5) * sh;
@@ -4798,7 +4949,7 @@ function renderMission(now) {
   ctx.drawImage(WB, ox, oy, LW, LH);
   ctx.save(); ctx.translate(ox, oy);
   ctx.globalCompositeOperation = 'lighter';
-  glow(m.dep.x, m.dep.y - 8, 66, '#b98cff', 0.3 + 0.07 * Math.sin(t * 2));
+  glow(m.dep.x, m.dep.y - 8, 66, '#b98cff', 0.28 + 0.12 * Math.pow(1 - m.beat.f, 3) * (m.beat.n % 4 === 0 ? 1.5 : 1));   // the crystals pulse with the music
   if (m.phase === 'drill' && Math.floor(t * 3) % 2) glow(m.dep.x + 1, m.dep.y - 34, 12, '#ffd23f', 0.8);
   const dim = 1 - 0.75 * clamp(m.t / m.T, 0, 1);
   for (const l of m.lights) glow(l.x, l.y, l.r, l.color, (l.flicker ? 0.3 + 0.2 * Math.sin(t * 7 + l.x) : 0.4) * (l.pulse ? 0.45 + 0.4 * Math.sin(t * 4) : 1) * (l.kin ? dim : 1));
@@ -5087,7 +5238,7 @@ function perchOf(tw) {
 function drawTowerPx(g, tw, t, ride) {
   const pc = ride == null && !tw.down ? perchOf(tw) : null;
   if (!pc) return drawTowerBody(g, tw, t, ride);
-  const sp = crewSprites(tw.crew), bob = Math.floor(t * 2 + tw.tx * 0.7) % 2, face = tw.face || 1, shad = sp.shad || (sp.shad = sp.f.map(c => silhouette(c, '#000000')));
+  const sp = crewSprites(tw.crew), bob = crewBop(tw), face = tw.face || 1, shad = sp.shad || (sp.shad = sp.f.map(c => silhouette(c, '#000000')));
   const ax = Math.round(tw.x / AP) + pc.dx, ay = Math.round(tw.y / AP) + 6 + pc.dy, sx = ax - 7, sy = ay - 17;
   const blit = (im, ox, oy) => { if (face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx - ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
   if (pc.cast) { g.globalAlpha = 0.38; blit(shad[bob], pc.cast[0], pc.cast[1]); g.globalAlpha = 1; }   // the light is fixed, so the shadow ignores facing
@@ -5121,7 +5272,7 @@ function drawTowerBody(g, tw, t, ride, shiftX = 0, foot = ride == null ? 'full' 
     px(g, ax - 10, ay - 15, 1, 9, '#9aa3ad'); px(g, ax - 9, ay - 15, 4, 3, '#d23c3c'); px(g, ax - 8, ay - 14, 2, 1, '#f2efe6');
     return;
   }
-  const face = tw.face || 1, bob = Math.floor(t * 2 + tw.tx * 0.7) % 2, sx = ax - 7, sy = ay - 17;
+  const face = tw.face || 1, bob = crewBop(tw), sx = ax - 7, sy = ay - 17;
   const blit = im => { if (face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx, sy); g.restore(); } else g.drawImage(im, sx, sy); };
   if (part !== 'weapon') {
     if (S.selTower === tw) for (const [dx, dy] of OFF4) { g.save(); g.translate(dx, dy); blit(sp.sel[bob]); g.restore(); }
@@ -5920,7 +6071,7 @@ function showMessenger(i) {
   const o = RUN.options[i], { fac, beat } = o.envoy, A = ARCS[fac], B = beatDef(fac, beat), x = envoyCtx(o, fac);
   x.lastPlanet = ([...(RUN.worlds || [])].reverse().find(w => w.fac === fac) || {}).planet || x.prevPlanet;
   S.screen = 'envoy'; S.envoy = { i, fac, beat, t0: performance.now(), done: false };
-  clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
+  clearMissionUi(); backdropView(); setMusic('envoy:' + fac); sfx('review');
   const ask = B.ask || { kind: 'couriers', n: 0, each: 0 }, total = ask.n * ask.each;
   const splash = 'Splash can still kill them.';
   const askTxt = {
@@ -7357,7 +7508,7 @@ function landmarkSector2(P, kind, L, props) {
   return false;
 }
 function weatherSector2(g, p, t, W, H, wrap, type) {
-  if (type === 'clouds') { const x = wrap(p.x * W + t * (6 + p.s * 6), W), y = wrap(p.y * H, H); g.fillStyle = `rgba(255,255,255,${0.06 + p.s * 0.08})`; g.fillRect(Math.round(x), Math.round(y), 10 + Math.round(p.s * 16), 2); g.fillRect(Math.round(x) + 3, Math.round(y) - 1, 6, 1); return true; }
+  if (type === 'clouds') { const x = wrap(p.x * W + t * (6 + p.s * 6) + (M.windX || 0) * (0.5 + p.s), W), y = wrap(p.y * H, H); g.fillStyle = `rgba(255,255,255,${0.06 + p.s * 0.08})`; g.fillRect(Math.round(x), Math.round(y), 10 + Math.round(p.s * 16), 2); g.fillRect(Math.round(x) + 3, Math.round(y) - 1, 6, 1); return true; }
   if (type === 'whispers') { const a = t * (0.3 + p.s * 0.4) + p.ph, x = wrap(p.x * W + Math.cos(a) * 8, W), y = wrap(p.y * H + Math.sin(a) * 8 - t * 1.5, H); px(g, Math.round(x), Math.round(y), 1, 1, p.s > 0.5 ? 'rgba(255,90,209,0.85)' : 'rgba(58,232,208,0.7)'); return true; }
   return false;
 }
@@ -8700,7 +8851,7 @@ function frame(now) {
   try {
     if (S.screen === 'mission' && M) {
       if (!M.paused) { acc += dt * M.speed; let n = 0; while (acc >= STEP && n++ < 12) { stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= 12) acc = 0; }
-      if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; renderMission(now); updateHud(); }
+      if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; musicMood(); renderMission(now); updateHud(); }
     } else if (S.screen === 'map') renderMap(now);
     else if (S.screen === 'ship') renderShip(now, dt);
     else { beginDraw(); drawStars(now / 1000); if (S.screen === 'envoy') drawEnvoyFrame(now); else if (S.screen === 'manager') drawManagerFrame(now); }
@@ -11034,7 +11185,7 @@ function showDemand(f) {
   const A = ARCS[f], F = FACTIONS[f], s = siegeOf(f), price = demandPrice(f), can = RUN.scrip >= price, raid = s.stage + 1;
   s.lastDemand = RUN.idx; RUN.lastDemandIdx = RUN.idx;
   S.screen = 'envoy'; S.envoy = { fac: f, beat: 'demand', t0: performance.now(), done: false, demand: { price } };
-  clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
+  clearMissionUi(); backdropView(); setMusic('envoy:' + f); sfx('review');
   const lead = raid === 3 ? ` ${F.apex.name} leads it, at full force.` : raid === 2 ? ` One of their bosses leads it.` : '';
   $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
     ${titlebar('Encrypted_Channel · origin: hostile')}
@@ -11247,7 +11398,7 @@ function showOnboarding() {
 }
 // ---------- the scene ----------
 function managerScene(o) {
-  S.screen = 'manager'; clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
+  S.screen = 'manager'; clearMissionUi(); backdropView(); setMusic('envoy:corporate'); sfx('review');
   S.mgr = { t0: performance.now(), lines: o.lines, li: 0, talking: true, holo: o.holo, mood: o.mood, tier: shipTier(), react: o.react, reactAt: null };
   $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy mgr">
     ${titlebar(o.title)}
@@ -11548,7 +11699,7 @@ function comrade(f, type) {
 function showInvitation(f, then) {
   const A = ARCS[f], F = FACTIONS[f], follow = RUN.roster.filter(c => wouldFollow(c, f)), stay = RUN.roster.filter(c => !wouldFollow(c, f));
   S.screen = 'envoy'; S.envoy = { fac: f, beat: 2, t0: performance.now(), done: false, invite: true }; S.inviteThen = then;
-  clearMissionUi(); backdropView(); setMusic('envoy'); sfx('review');
+  clearMissionUi(); backdropView(); setMusic('envoy:' + f); sfx('review');
   $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
     ${titlebar(`Invitation · ${F.name}`)}
     <div class="envoy-scene"><canvas id="envcv" width="200" height="112" aria-label="${esc(A.envoy)}"></canvas>
@@ -11610,7 +11761,7 @@ function endgameBoss(facKey) {
 function showCrossroads(sector) {
   const side = RUN.side, F = side && FACTIONS[side];
   if (side && sector === 4) {
-    S.screen = 'envoy'; S.envoy = { fac: side, beat: 2, t0: performance.now(), done: true, invite: true }; clearMissionUi(); backdropView(); setMusic('envoy');
+    S.screen = 'envoy'; S.envoy = { fac: side, beat: 2, t0: performance.now(), done: true, invite: true }; clearMissionUi(); backdropView(); setMusic('envoy:' + side);
     const A = ARCS[side];
     $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">${titlebar(`Council · ${F.name}`)}
       <div class="envoy-scene"><canvas id="envcv" width="200" height="112"></canvas><div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div><div class="envoy-beat">Act 4</div></div>
@@ -11670,7 +11821,7 @@ SECTOR_BIOMES[4] = ['frozen', 'toxic', 'dust', 'lowgrav', 'cyber', 'solar', 'vol
 SECTOR_BIOMES[5] = ['hq', 'hq', 'cyber', 'cloud', 'tomb', 'volcanic'];
 SECTOR_NAMES[4] = ['The Contested Belt', 'Supply Line Zero', 'The Quiet War']; SECTOR_NAMES[5] = ['Headquarters Approach', 'The Last Quarter'];
 
-window.__AL = { planetScene, deathFx, buildWaterFrames, stunE, promoteCrew, genOffers, relicTier, spawnLieutenant, perchAt, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
+window.__AL = { planetScene, AU, getTrack, setMusic, beatNow, scheduleStep, BIOME_MUSIC, FACTION_THEMES, deathFx, buildWaterFrames, stunE, promoteCrew, genOffers, relicTier, spawnLieutenant, perchAt, showInvitation, defect, stayLoyal, inviteDue, showCrossroads, employer, wouldFollow, comrade, actInfo, purgeAfter, FACTION_KIT, mgrHead, mgrBody, painter, showQuarterly, showOnboarding, quarter, grade, reviewDue, MGR_TASKS, showShip, shipTier, shipDeck, SHIP_TIERS, useRemedy, get SW() { return SW; }, PERSONA, moodEffects, killLine, reroll, showStore, rerollCost, BRANCH, BRANCHES, spawnEnemy, drawRide, rideSprite, artSprite, crewSprites, getWB: () => WB, showDemand, demandChoice, demandGo, startSiege, siegeOf, siegeDue, dissolveFaction, shipMap, finishSiege, dissolved, sculptHuman, drawHuman, genLook, CREW_OUTFITS, B3, BIOME_ART, RIGS, envoyPortrait, rigState, moraleEvent, moraleTier, crewQuits, spawnDefector, giveConscience, avgMorale, bark, arcOf, shiftStanding, standingOf, beatDef, rollEnvoy, ACTS, actOf, factionWeights, actIntroHtml, showContractCard, crewConditions, damagedFrame, seesOverAt, facadeAt, onRoof, mkCrew, coverAt, towerSight, canSee, sightMap, PRIO, showPeek, renderTowerInfo, buildRosterBar,
   get S() { return S; }, get RUN() { return RUN; }, get M() { return M; }, get GW() { return GW; }, get GH() { return GH; }, get VIEW() { return VIEW; }, spawnBoss, makeBossVariant, SPECIALS, CATS, genContract, BIOMES, PLANET_STYLES, autoReview, reviewOptions, pickPerk, PERKS, BRANCHES, QUIRKS, towerStats, showReview, AU, CFG, sfx, setMusic, TRACKS, genLook, FACTIONS, makeVariant, makeBossVariant, drawHuman, CREW_OUTFITS,
   newRun, showMap, startMission, deploy, stepMission, canBuild, genOptions, showStore, buy, finishMission, TOWERS, genMap, pathsOk, ARTIFACTS, dropArtifact, deployArt, artCardClick, computeWaterPath, canPlaceArt, artSprite, sectorOf, sectorPos, showSectorComplete, banner, confetti, beginFlight, spawnEnemy, AFFIXES, damage, depositShown, crewVis, crewOutfit, weaponSprite, replaceCrew, killCrew, replaceCost, crewSprites, vehWalker, ARCS, showMessenger, envoyChoice, arcOf, breakDeal, genOffers, showVictory, showDebrief, showGameOver, pickEnding, ENDINGS, rescuer,
 };
