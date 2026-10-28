@@ -2543,6 +2543,7 @@ const SFX = {
   gun: n => { for (let i = 0; i < (n || 2); i++) { const j = 1 + (Math.random() - 0.5) * 0.08; noise({ f: 2600 * j, q: 1.6, dur: 0.028, vol: 0.11, at: i * 0.07 }); tone({ f: 1500 * j, f2: 650, dur: 0.02, vol: 0.022, at: i * 0.07 }); } },
   // electrocution: a low wobbling buzz and crackle, not a whine
   zapdie: () => { tone({ type: 'sawtooth', f: 98, dur: 0.6, vol: 0.05, lp: 1500, vib: [22, 25] }); tone({ type: 'square', f: 147, dur: 0.5, vol: 0.025, lp: 1200, vib: [19, 30] }); noise({ type: 'bandpass', f: 1800, dur: 0.55, vol: 0.03 }); },
+  crumble: () => { noise({ type: 'lowpass', f: 700, f2: 180, dur: 0.35, vol: 0.12 }); tone({ type: 'sine', f: 72, f2: 40, dur: 0.25, vol: 0.06 }); },
   bodyfall: () => { tone({ type: 'sine', f: 95, f2: 48, dur: 0.14, vol: 0.07 }); noise({ type: 'lowpass', f: 500, dur: 0.08, vol: 0.04 }); },
   taser: () => { const j = 1 + (Math.random() - 0.5) * 0.1; tone({ type: 'sawtooth', f: 92 * j, dur: 0.12, vol: 0.05, lp: 2200, vib: [48, 30] }); noise({ type: 'highpass', f: 5200, dur: 0.07, vol: 0.045 }); },
   mortar: () => { const j = 1 + (Math.random() - 0.5) * 0.08; tone({ type: 'triangle', f: 270 * j, f2: 125, dur: 0.13, vol: 0.13 }); noise({ f: 520, q: 2, dur: 0.06, vol: 0.09 }); },
@@ -2584,7 +2585,7 @@ const SFX = {
   },
   victory: () => { arpeggio([392, 523, 659, 784, 1047, 1319], 'square', 0.09, 0.16, 0.07); arpeggio([131, 165, 196, 262], 'triangle', 0.18, 0.4, 0.14); },
 };
-const SFX_GAP = { zapdie: 0.25, bodyfall: 0.07, gun: 0.06, drone: 0.05, crit: 0.05, terminated: 0.1, overcharge: 0.15, heal: 0.3, thunder: 0.3, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04, beam: 0.12, shatter: 0.15 };
+const SFX_GAP = { crumble: 0.08, zapdie: 0.25, bodyfall: 0.07, gun: 0.06, drone: 0.05, crit: 0.05, terminated: 0.1, overcharge: 0.15, heal: 0.3, thunder: 0.3, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04, beam: 0.12, shatter: 0.15 };
 function sfx(name, x, arg) {
   const c = AU.ctx;
   if (!c || CFG.muted || c.state !== 'running' || !SFX[name]) return;
@@ -3990,7 +3991,32 @@ let DMG_SRC = null;   // set around explosion damage, so a kill knows it was a b
 const KILL_KIND = { taser: 'shock', mortar: 'blast' };
 const DEATH_CAP = { shock: 16, shot: 28, blast: 16, burn: 12 }, DEATH_LIFE = { shock: 3.8, shot: 6.5, blast: 5.5, burn: 3.2 };
 // creatures and ground machines die their own way (see drawDeath); machines leave wrecks that smoke for a while
-const deathLife = d => d.fam === 'machine' ? (d.k === 'blast' ? 6 : 6.5) : d.fam === 'creature' && d.k === 'shot' ? 6 : DEATH_LIFE[d.k];
+const deathLife = d => d.fam === 'machine' ? (d.k === 'blast' ? 6 : 6.5) : d.fam === 'creature' && d.k === 'shot' ? 6 : d.fam === 'air' ? 5 : d.fam === 'boat' ? 4.5 : d.fam === 'stone' ? 4.5 : DEATH_LIFE[d.k];
+// flyers are drawn this far above the ground; the shot-down fall takes AIR_FALL seconds
+const AIR_ALT = 10, AIR_FALL = 0.55;
+const airMech = v => v.kind === 'vehicle' || v.kind === 'drone';
+// where a falling flyer is at a given age: [x offset, height above the ground, spin], and when it lands
+function airFall(d, age) {
+  const start = d.k === 'shock' ? 0.4 : 0, u = clamp(age - start, 0, AIR_FALL), f = u / AIR_FALL;
+  const drift = d.k === 'shot' ? 22 : d.k === 'burn' ? 10 : 0, spin = d.k === 'shot' ? 13 : d.k === 'burn' ? 3 : 0;
+  return { x: d.dir * drift * u, h: AIR_ALT * (1 - f * f), rot: d.dir * spin * u, landed: age >= start + AIR_FALL, start };
+}
+// a stone construct's cracks: pixels inside the outline, in the order they appear, spreading from a point on the body
+function crackPixels(v, fi, top) {
+  v.cracks = v.cracks || [];
+  if (v.cracks[fi]) return v.cracks[fi];
+  const fr = v.frames[fi], w = fr.width, h = fr.height, sg = mkCanvas(w, h).getContext('2d', { willReadFrequently: true }); sg.drawImage(fr, 0, 0);
+  const a = sg.getImageData(0, 0, w, h).data, inside = (x, y) => x >= 0 && y >= 0 && x < w && y < h && a[(y * w + x) * 4 + 3] > 40, out = [];
+  const ox = v.ax, oy = Math.round((top + h) / 2);
+  for (let k = 0; k < 5; k++) {
+    let x = ox, y = oy, ang = k / 5 * 6.283 + hsh3(fi, k, 7);
+    for (let s = 0; s < 14; s++) { ang += (hsh3(fi, k, s) - 0.5) * 1.2; x += Math.round(Math.cos(ang)); y += Math.round(Math.sin(ang)); if (!inside(x, y)) break; out.push([x, y, s + Math.abs(k - 2)]); }
+  }
+  out.sort((p, q) => p[2] - q[2]);
+  return (v.cracks[fi] = out);
+}
+const redHot = v => v.hot || (v.hot = v.frames.map(c => silhouette(c, '#ff6a2a')));
+const STONE_ASH = '#3e4a4c';
 const OIL = ['#2a2a30', '#141418'];
 const ashFrames = v => v.ash || (v.ash = v.frames.map(c => silhouette(c, ASH)));
 // a machine's wreck: the frame darkened and scorched
@@ -4039,7 +4065,19 @@ function humanDeath(e, fam = 'human') {
   const v = e.v, nf = v.frames.length, fi = Math.floor(e.dist / (fam === 'human' ? 5 : nf > 2 ? 4 : 6)) % nf, fr = v.frames[fi], ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 3;
   const from = e.killFrom, dir = from ? (e.x >= from.x ? 1 : -1) : (rnd() < 0.5 ? -1 : 1);
   const prof = frameProfile(fr), cols = prof ? prof.filter(Boolean) : [], top = cols.length ? Math.min(...cols.map(p => p[0])) : 1;
-  const [BL, BD] = fam === 'machine' ? OIL : goreOf(), d = { k, fam, x: ax, y: ay, v, fi, flip: e.face < 0, t0: M.t, seed: (rnd() * 1000) | 0, dir, top, bl: BL, bd: BD };
+  const mech = fam === 'machine' || fam === 'boat' || (fam === 'air' && airMech(v));
+  const [BL, BD] = mech ? OIL : fam === 'stone' ? ['#ff5ad1', '#a83a8a'] : goreOf(), d = { k, fam, x: ax, y: ay, v, fi, flip: e.face < 0, t0: M.t, seed: (rnd() * 1000) | 0, dir, top, bl: BL, bd: BD, mech, noSplat: mech || fam === 'stone' };
+  if (fam === 'air' || fam === 'boat' || fam === 'stone') {
+    if (k === 'blast' && fam !== 'boat') {
+      launchParts(d, gibParts(v, fi, top, BL, fam === 'stone' ? 'stone' : mech ? 'machine' : 'creature'), from, 1, fam === 'air' ? AIR_ALT : 0);
+      if (mech) M.fx.push({ k: 'boom', x: e.x, y: ecy(e), r: e.r * 2.4, life: 0.5, max: 0.5, color: '#ff8a2a' });
+      if (fam === 'stone') sfx('crumble', e.x);
+    } else if (k === 'blast') { M.fx.push({ k: 'boom', x: e.x, y: ecy(e), r: e.r * 2.2, life: 0.5, max: 0.5, color: '#ff8a2a' }); for (let i = 0; i < 10; i++) addPart({ x: e.x, y: e.y, vx: (rnd() - 0.5) * 90, vy: -60 - rnd() * 60, g: 260, floor: e.y + 4, life: 0.7, max: 0.7, col: rnd() < 0.5 ? '#e8f4ff' : '#9fd3ff', size: 1, layer: 'px' }); }
+    else if (k === 'shock') sparks(e.x, ecy(e), '#bff8ff', 6);
+    else if (mech) sparks(e.x, ecy(e), '#ffd890', 5);
+    else if (fam === 'stone') sparks(e.x, ecy(e), '#ff9ae0', 4);
+    list.push(d); return true;
+  }
   if (fam === 'machine' && k !== 'blast') {
     sparks(e.x, ecy(e), k === 'shock' ? '#bff8ff' : '#ffd890', 6);
   } else if (k === 'burn') {
@@ -4050,18 +4088,22 @@ function humanDeath(e, fam = 'human') {
     sparks(e.x, ecy(e), '#bff8ff', 6);
   } else {
     // cut the frame into head, torso and two legs, each with a raw edge
-    const gib = gibParts(v, fi, top, BL, fam), bx = from ? from.x / AP : ax, by = from ? from.y / AP : ay;
     if (fam === 'machine') { M.fx.push({ k: 'boom', x: e.x, y: ecy(e), r: e.r * 2.6, life: 0.5, max: 0.5, color: '#ff8a2a' }); shake(2); }
-    d.parts = gib.map(p => {
-      const cx = ax + (d.flip ? -(p.ox + p.c.width / 2) : p.ox + p.c.width / 2), cy = ay - v.ay + p.oy + p.c.height / 2;
-      let dx = cx - bx, dy = cy - by; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
-      const pw = 40 + rnd() * 50;
-      return { c: p.c, x: cx, y: cy, vx: dx * pw + (rnd() - 0.5) * 30, vy: Math.min(-30, dy * pw) - 30 - rnd() * 50, rot: 0, vr: (rnd() < 0.5 ? -1 : 1) * (5 + rnd() * 9), floor: ay - 1 + Math.round((rnd() - 0.4) * 6), rest: false, splat: null };
-    });
+    launchParts(d, gibParts(v, fi, top, BL, fam), from, 1, 0);
     for (let i = 0; i < 12; i++) addPart({ x: e.x, y: ecy(e), vx: (rnd() - 0.5) * 160, vy: -40 - rnd() * 110, g: 320, floor: e.y + 2 + rnd() * 10, life: 0.9, max: 0.9, col: fam === 'machine' ? (rnd() < 0.5 ? '#9aa3ad' : '#4a4e5a') : rnd() < 0.6 ? BL : BD, size: rnd() < 0.3 ? 2 : 1, layer: 'px' });
   }
   list.push(d);
   return true;
+}
+// throw a death's pieces away from a point (a blast, or the body's own middle for a shatter); alt lifts them into the air
+function launchParts(d, gib, from, power, alt) {
+  const v = d.v, ax = d.x, ay = d.y, bx = from ? from.x / AP : ax, by = from ? from.y / AP : ay + 4;
+  d.parts = gib.map(p => {
+    const cx = ax + (d.flip ? -(p.ox + p.c.width / 2) : p.ox + p.c.width / 2), cy = ay - v.ay + p.oy + p.c.height / 2 - alt;
+    let dx = cx - bx, dy = cy - by; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+    const pw = (40 + rnd() * 50) * power;
+    return { c: p.c, x: cx, y: cy, vx: dx * pw + (rnd() - 0.5) * 30 * power, vy: Math.min(-30 * power, dy * pw) - (30 + rnd() * 50) * power, rot: 0, vr: (rnd() < 0.5 ? -1 : 1) * (5 + rnd() * 9) * Math.max(0.5, power), floor: ay - 1 + Math.round((rnd() - 0.4) * 6), rest: false, splat: null };
+  });
 }
 // head / torso / left leg / right leg of one frame, cut once per frame and kept
 function gibParts(v, fi, top, bl, fam = 'human') {
@@ -4071,6 +4113,12 @@ function gibParts(v, fi, top, bl, fam = 'human') {
   if (fam !== 'human') {
     const cutC = (x, y, cw, ch, ex) => { const c = mkCanvas(cw, ch), g = c.getContext('2d'); g.drawImage(fr, x, y, cw, ch, 0, 0, cw, ch); g.globalCompositeOperation = 'source-atop'; g.fillStyle = bl; for (const e of ex) g.fillRect(e, 0, 1, ch); return { c, ox: x - v.ax, oy: y }; };
     if (fam === 'creature') { const a = Math.round(w / 3), b = Math.round(2 * w / 3); return (v.gibs[fi] = [cutC(0, 0, a, h, [a - 1]), cutC(a, 0, b - a, h, [0, b - a - 1]), cutC(b, 0, w - b, h, [0])]); }
+    if (fam === 'stone') {
+      // six chunks of stone, glowing pink where they broke
+      const xs = [0, Math.round(w / 3), Math.round(2 * w / 3), w], my = top + Math.round(H * 0.45), out = [];
+      for (let i = 0; i < 3; i++) for (const [y0, y1] of [[0, my], [my, h]]) { const c = mkCanvas(xs[i + 1] - xs[i], y1 - y0), g = c.getContext('2d'); g.drawImage(fr, xs[i], y0, c.width, c.height, 0, 0, c.width, c.height); g.globalCompositeOperation = 'source-atop'; g.fillStyle = bl; if (i) g.fillRect(0, 0, 1, c.height); if (i < 2) g.fillRect(c.width - 1, 0, 1, c.height); g.fillRect(0, y0 ? 0 : c.height - 1, c.width, 1); out.push({ c, ox: xs[i] - v.ax, oy: y0 }); }
+      return (v.gibs[fi] = out);
+    }
     const mx = w >> 1, my = top + (H >> 1);
     return (v.gibs[fi] = [[0, 0, mx, my], [mx, 0, w - mx, my], [0, my, mx, h - my], [mx, my, w - mx, h - my]].map(([x, y, cw, ch]) => { const c = mkCanvas(cw, ch); c.getContext('2d').drawImage(fr, x, y, cw, ch, 0, 0, cw, ch); return { c, ox: x - v.ax, oy: y }; }));
   }
@@ -4145,13 +4193,26 @@ function stepDeaths(dt) {
       if ((d.pop || d.k === 'burn' || d.k === 'blast') && m.parts.length < 380 && rnd() < dt * 7 * (1 - age / deathLife(d))) addPart({ x: (d.x + (rnd() - 0.5) * 8) * AP, y: (d.y - 8) * AP, vx: (rnd() - 0.5) * 10 + 6, vy: -18 - rnd() * 12, r: 0.8, grow: 2.6, life: 1.4, max: 1.4, col: rnd() < 0.6 ? '#2a2a30' : '#4a4a52', layer: 'px', alpha: 0.6 });
     }
     if (d.fam === 'creature' && d.k === 'shot' && !d.thud && age >= 0.4) { d.thud = true; sfx('bodyfall', d.x * AP); }
+    if (d.fam === 'air' && d.k !== 'blast') {
+      const f = airFall(d, age), wx = (d.x + f.x) * AP, wy = (d.y - f.h - 6) * AP;
+      if (!f.landed && age > f.start && m.parts.length < 380 && rnd() < 0.6) addPart({ x: wx, y: wy, vx: (rnd() - 0.5) * 6, vy: -8, r: 0.6, grow: 2, life: 0.8, max: 0.8, col: d.k === 'burn' ? '#ff8a2a' : d.mech ? '#3a3a42' : '#6a6a70', layer: 'px', alpha: 0.6 });
+      if (f.landed && !d.land) {
+        d.land = true; smoke(wx, d.y * AP, 4);
+        if (d.mech && d.v.kind === 'vehicle') { m.fx.push({ k: 'boom', x: wx, y: (d.y - 4) * AP, r: 30, life: 0.5, max: 0.5, color: '#ff8a2a' }); shake(3); sfx('mortar', wx); d.x += Math.round(f.x); launchParts(d, gibParts(d.v, d.fi, d.top, d.bl, 'machine'), { x: wx, y: (d.y + 6) * AP }, 0.8, 0); }
+        else if (d.mech) { sparks(wx, d.y * AP, '#ffd890', 6); sfx('hit', wx); }
+        else { sfx('splat', wx); }
+      }
+    }
+    if (d.fam === 'boat' && m.parts.length < 380 && age > 0.3 && age < 3.2 && rnd() < dt * 10) addPart({ x: (d.x + (rnd() - 0.5) * 14) * AP, y: (d.y - 2) * AP, vx: (rnd() - 0.5) * 6, vy: -10 - rnd() * 8, life: 0.5, max: 0.5, col: rnd() < 0.5 ? '#e8f4ff' : '#9fd3ff', size: 1, layer: 'px' });
+    if (d.fam === 'boat' && !d.ring && age > 0.5) { d.ring = true; m.fx.push({ k: 'ring', x: d.x * AP, y: (d.y - 1) * AP, r: 26, life: 1.2, max: 1.2, color: '#d8f0ff' }); if (d.k === 'blast') sfx('splat', d.x * AP); }
+    if (d.fam === 'stone' && d.k !== 'blast' && d.k !== 'burn' && !d.parts && age >= (d.k === 'shock' ? 0.55 : 0.6)) { launchParts(d, gibParts(d.v, d.fi, d.top, d.bl, 'stone'), null, 0.55, 0); sfx('crumble', d.x * AP); for (let i = 0; i < 8; i++) addPart({ x: d.x * AP, y: (d.y - 8) * AP, vx: (rnd() - 0.5) * 60, vy: -20 - rnd() * 40, g: 200, floor: d.y * AP + 4, life: 0.8, max: 0.8, col: rnd() < 0.5 ? '#ff9ae0' : '#6a7674', size: 1, layer: 'px' }); }
   }
   for (const d of m.deaths) if (d.parts) for (const p of d.parts) {
-    if (p.rest) { if (d.fam === 'machine' && m.parts.length < 380 && rnd() < dt * 1.5) addPart({ x: p.x * AP, y: (p.y - 2) * AP, vx: 4, vy: -14, r: 0.6, grow: 2, life: 1, max: 1, col: '#3a3a42', layer: 'px', alpha: 0.5 }); continue; }
+    if (p.rest) { if (d.mech && m.parts.length < 380 && rnd() < dt * 1.5) addPart({ x: p.x * AP, y: (p.y - 2) * AP, vx: 4, vy: -14, r: 0.6, grow: 2, life: 1, max: 1, col: '#3a3a42', layer: 'px', alpha: 0.5 }); continue; }
     p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
     if (p.y >= p.floor) {
       p.y = p.floor; p.vy *= -0.32; p.vx *= 0.55; p.vr *= 0.5;
-      if (!p.splat) p.splat = { x: Math.round(p.x), y: Math.round(p.floor + p.c.height / 2) };
+      if (!p.splat && !(d.fam === 'stone')) p.splat = { x: Math.round(p.x), y: Math.round(p.floor + p.c.height / 2) };
       if (Math.abs(p.vy) < 14) { p.rest = true; p.vy = p.vx = p.vr = 0; p.rot = Math.round(p.rot / (Math.PI / 2)) * (Math.PI / 2); }
     }
   }
@@ -4172,6 +4233,70 @@ function drawDeath(g, d, t) {
     if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, 0, crop, w, h, sx - dx, sy + dy + crop, w, h); g.restore(); }
     else g.drawImage(im, 0, crop, w, h, sx + dx, sy + dy + crop, w, h);
   };
+  if (d.fam === 'air') {
+    // shot down: spins out of the sky trailing smoke; zapped: stalls in the air crackling, then drops; burning: falls in flames.
+    // Gunships blow apart where they hit, drones crash and lie wrecked, creatures splat.
+    if (d.k === 'blast' || d.parts) { if (d.parts) drawParts(g, d, fade, flip); return; }
+    const f = airFall(d, age), wreck = d.mech ? wreckFrames(v)[d.fi] : ashFrames(v)[d.fi];
+    if (!f.landed) {
+      const jx = d.k === 'shock' && age < f.start ? ((Math.floor(age * 30) + d.seed) % 3) - 1 : 0, cxp = ax + f.x + jx, cyp = feet - f.h - 6 - (fr.height >> 1) + 2;
+      g.save(); g.translate(Math.round(cxp), Math.round(cyp)); g.rotate(f.rot); if (flip) g.scale(-1, 1);
+      const im = d.k === 'shock' && age < f.start && Math.floor(age * 22) % 2 ? zapKit(v, d.fi, d.top).white[0] : fr;
+      g.drawImage(im, -v.ax, -(fr.height >> 1));
+      if (d.k === 'burn' || (d.k === 'shot' && age > 0.2)) { g.globalAlpha = d.k === 'burn' ? 0.6 : 0.35; g.drawImage(wreck, -v.ax, -(fr.height >> 1)); g.globalAlpha = 1; }
+      g.restore();
+      if (d.k === 'shock' && age < f.start) for (let k = 0; k < 2; k++) drawBolt(g, Math.round(cxp) - 4 + k * 8, Math.round(cyp) - 3, Math.round(cxp) + (k ? 6 : -6), Math.round(cyp) + 4, k ? '#7fe8ff' : '#ffffff', d.seed + Math.floor(age * 22) * 5 + k);
+      if (d.k === 'burn') burnFlames(g, fr, Math.round(cxp), Math.round(cxp) - v.ax, Math.round(cyp) - (fr.height >> 1), flip, t, d.seed, 1);
+      return;
+    }
+    // on the ground
+    const lx = ax + Math.round(airFall(d, 99).x);
+    if (!d.mech) { const k = clamp((age - f.start - AIR_FALL) / 1.5, 0, 1); bloodPool(g, lx, feet + 1, 2 + 4 * k, 1 + k, 0.85 * fade, d.bl, d.bd); }
+    g.globalAlpha = fade;
+    g.save(); g.translate(lx, feet - 1); g.rotate(d.mech ? d.dir * 0.4 : Math.PI); if (flip) g.scale(-1, 1); g.drawImage(d.mech ? wreck : fr, -v.ax, d.mech ? -fr.height + 2 : -(fr.height >> 1)); g.restore();
+    if (d.k === 'burn' || d.k === 'shot') { const fl = clamp(1 - (age - f.start - AIR_FALL) / 2, 0, 1) * (d.k === 'burn' ? 1 : 0.5); if (fl > 0.02 && d.mech) burnFlames(g, fr, lx, lx - v.ax, feet - fr.height + 1, flip, t, d.seed, fl); }
+    g.globalAlpha = 1;
+    return;
+  }
+  if (d.fam === 'boat') {
+    // lists and sinks below the waterline, bubbling; a blast splits it and both halves go down; fire burns it at the waterline first
+    const wl = feet - 2, start = d.k === 'burn' ? 1.1 : d.k === 'shock' ? 0.6 : 0.25, k = clamp((age - start) / 2.6, 0, 1), sink = Math.round(k * k * (fr.height + 2));
+    const tilt = d.dir * 0.32 * clamp((age - start * 0.5) / 1, 0, 1), W = fr.width, wreck = wreckFrames(v)[d.fi];
+    g.save(); g.beginPath(); g.rect(ax - 60, wl - 60, 120, 60); g.clip();
+    const draw = (im, sxp, swp, ox, rot) => { g.save(); g.translate(ax + ox, feet + sink); g.rotate(rot); if (flip) g.scale(-1, 1); g.drawImage(im, sxp, 0, swp, im.height, -v.ax + sxp, -v.ay, swp, im.height); g.restore(); };
+    const hull = d.k === 'burn' || d.k === 'blast' ? wreck : fr;
+    if (d.k === 'blast') { const half = W >> 1, sep = Math.round(clamp(age / 0.4, 0, 1) * 3); draw(hull, 0, half, -sep, -0.45 * clamp(age / 0.6, 0, 1)); draw(hull, half, W - half, sep, 0.45 * clamp(age / 0.6, 0, 1)); }
+    else {
+      draw(hull, 0, W, 0, tilt);
+      if (d.k === 'burn' && age < start + 0.4) { g.globalAlpha = clamp(age / start, 0, 1); draw(wreck, 0, W, 0, tilt); g.globalAlpha = 1; }
+      if (d.k === 'shock' && age < start) { const ph = Math.floor(age * 22); if (ph % 2) draw(zapKit(v, d.fi, d.top).white[0], 0, W, 0, 0); }
+    }
+    g.restore(); g.beginPath();
+    if (d.k === 'shock' && age < start) { const ph = Math.floor(age * 22); for (let j = 0; j < 3; j++) drawBolt(g, sx + Math.round(hsh3(d.seed, ph, j) * W), wl - 6 - Math.round(hsh3(d.seed, ph, j + 3) * 6), sx + Math.round(hsh3(d.seed, ph, j + 6) * W), wl, j ? '#7fe8ff' : '#ffffff', d.seed + ph + j); }
+    if (d.k === 'burn' && age < start + 1.6) burnFlames(g, fr, ax, sx, sy + sink, flip, t, d.seed, clamp(1 - (age - start) / 1.6, 0, 1));
+    // the water closing over it
+    if (sink > 0 && k < 1) { g.globalAlpha = 0.7 * (1 - k); px(g, sx - 1, wl, W + 2, 1, '#d8f0ff'); g.globalAlpha = 1; }
+    return;
+  }
+  if (d.fam === 'stone') {
+    // cracks spread with pink light leaking out, then it shatters (gun, taser); a blast shatters it outright;
+    // fire heats it red, then it crumbles to rubble
+    if (d.parts) { drawParts(g, d, fade, flip); const pa = clamp((life - age) / 1, 0, 1); g.globalAlpha = pa * 0.8; px(g, ax - 3, feet, 7, 1, STONE_ASH); g.globalAlpha = 1; return; }
+    if (d.k === 'burn') {
+      const top = sy + d.top, H = feet - top;
+      if (age < 1.0) { const k = age / 1.0; blit(fr); g.globalAlpha = 0.75 * k; blit(redHot(v)[d.fi]); g.globalAlpha = 1; burnFlames(g, fr, ax, sx, sy, flip, t, d.seed, 0.6 * (1 - k)); return; }
+      const k = clamp((age - 1.0) / 1.3, 0, 1), cut = d.top + Math.round(H * k), ash = d.v.sash || (d.v.sash = d.v.frames.map(c => silhouette(c, STONE_ASH)));
+      if (k < 1) { blit(ash[d.fi], 0, 0, cut); g.globalAlpha = 0.6 * (1 - k); blit(redHot(v)[d.fi], 0, 0, cut); g.globalAlpha = 1; if (live && M.parts.length < 420) addPart({ x: (ax + (rnd() - 0.5) * 10) * AP, y: (sy + cut) * AP, vx: (rnd() - 0.5) * 20, vy: -4 - rnd() * 8, g: 120, floor: feet * AP + 2, life: 0.8, max: 0.8, col: pick(['#6a7674', STONE_ASH, '#ff6a2a']), size: 1, layer: 'px' }); }
+      const pa = clamp((life - age) / 1, 0, 1); g.globalAlpha = pa; px(g, ax - 4, feet, 9, 1, STONE_ASH); px(g, ax - 2, feet - 1, 5, 1, '#56625f'); g.globalAlpha = 1;
+      return;
+    }
+    const jx = d.k === 'shock' ? ((Math.floor(age * 30) + d.seed) % 3) - 1 : 0;
+    if (d.k === 'shock' && Math.floor(age * 22) % 2) blit(Math.floor(age * 11) % 2 ? zapKit(v, d.fi, d.top).white[0] : (v.pinkS || (v.pinkS = v.frames.map(c => silhouette(c, '#ff9ae0'))))[d.fi], jx);
+    else blit(fr, jx);
+    const cr = crackPixels(v, d.fi, d.top), n = Math.round(cr.length * clamp(age / 0.5, 0, 1));
+    for (let i = 0; i < n; i++) { const [x, y] = cr[i], gx = flip ? 2 * ax - (sx + x) - 1 : sx + x; px(g, gx + jx, sy + y, 1, 1, i > n - 4 ? '#ffffff' : '#ff5ad1'); }
+    return;
+  }
   if (d.fam === 'creature' && (d.k === 'shot' || d.k === 'burn')) {
     const top = sy + d.top, cy = (top + feet) / 2;
     if (d.k === 'shot') {
@@ -4301,7 +4426,10 @@ function drawDeath(g, d, t) {
   }
   // blast: a scorch where they stood, splats where the pieces hit, and the pieces themselves
   g.globalAlpha = 0.4 * fade; for (let x = -5; x <= 5; x++) for (let y = -1; y <= 1; y++) if (x * x / 25 + y * y <= 1 && ((x + y + d.seed) & 1) === 0) px(g, ax + x, feet + y, 1, 1, SOOT); g.globalAlpha = 1;
-  for (const p of d.parts) if (p.splat) bloodPool(g, p.splat.x, p.splat.y, Math.min(3, 1 + (M.t - d.t0) * 2), 1, (d.fam === 'machine' ? 0.5 : 0.85) * fade, d.bl, d.bd);
+  drawParts(g, d, fade, flip);
+}
+function drawParts(g, d, fade, flip) {
+  for (const p of d.parts) if (p.splat) bloodPool(g, p.splat.x, p.splat.y, Math.min(3, 1 + (M.t - d.t0) * 2), 1, (d.mech ? 0.5 : 0.85) * fade, d.bl, d.bd);
   g.globalAlpha = fade;
   for (const p of d.parts) {
     g.save(); g.translate(Math.round(p.x), Math.round(p.y)); if (p.rot) g.rotate(p.rot); if (flip) g.scale(-1, 1);
@@ -5300,9 +5428,9 @@ function deathFx(e) {
     if (e.burnT > 0 && (M.burnDeaths || []).length < 10) { burnDeath(e); return; }
     if (!(e.burnT > 0) && humanDeath(e)) { if (e.killK === 'blast') smoke(e.x, ecy(e), 2); return; }
   }
-  // creatures (not the Precursors' stone constructs, which keep the burst for now) and ground machines
-  if (e.dead && e.v && !e.boss && !e.lt && !e.fly && !e.naval && !e.inTunnel) {
-    const fam = e.v.kind === 'creature' && M.c.facKey !== 'precursors' ? 'creature' : e.v.kind === 'vehicle' ? 'machine' : null;
+  // creatures, ground machines, flyers, boats and the Precursors' stone constructs
+  if (e.dead && e.v && !e.boss && !e.lt && !e.inTunnel) {
+    const fam = e.fly ? 'air' : e.naval ? 'boat' : e.v.kind === 'creature' ? (M.c.facKey === 'precursors' ? 'stone' : 'creature') : e.v.kind === 'vehicle' ? 'machine' : null;
     if (fam && humanDeath(e, fam)) { if (e.killK === 'blast') smoke(e.x, ecy(e), 3); return; }
   }
   const y = ecy(e), n = e.boss ? 34 : 9;
@@ -5484,6 +5612,7 @@ function renderMission(now) {
   let lit = 0;
   for (const e of m.enemies) if (e.burnT > 0 && !e.dead && lit++ < 12) glow(e.x, ecy(e), 16, '#ff8a2a', 0.4 * clamp(e.burnT / 0.4, 0, 1) * (0.85 + 0.15 * Math.sin(t * 17 + e.wob)));
   for (const d of m.deaths || []) if (d.fam && d.fam !== 'human') { const age = m.t - d.t0, k = d.k === 'burn' ? clamp(1 - age / 3, 0, 1) : d.fam === 'machine' && (d.pop || d.k === 'blast') ? clamp(1 - age / 4, 0, 1) * 0.6 : 0; if (k > 0.02) glow(d.x * AP, (d.y - 6) * AP, 24, '#ff7a2a', 0.5 * k); }
+  for (const d of m.deaths || []) if (d.fam === 'stone' && !d.parts) { const age = m.t - d.t0; glow(d.x * AP, (d.y - 8) * AP, 24, d.k === 'burn' ? '#ff6a2a' : '#ff5ad1', 0.6 * clamp(age / 0.5, 0, 1) * (d.k === 'burn' ? clamp(1 - (age - 1) / 1.3, 0, 1) : 1)); }
   for (const d of m.deaths || []) if (d.k === 'shock') { const age = m.t - d.t0; if (age < 0.85) glow(d.x * AP, (d.y - 10) * AP, 34, Math.floor(age * 22) % 2 ? '#ffffff' : '#7fe8ff', 0.75 * (Math.floor(age * 22) % 2 ? 1 : 0.55)); }
   for (const b of m.burnDeaths || []) { const age = m.t - b.t0; if (age < 1.8) glow(b.x * AP, (b.y - 8) * AP, 22, '#ff7a2a', 0.55 * (age < 0.9 ? 1 : 1 - (age - 0.9) / 0.9)); }
   glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);

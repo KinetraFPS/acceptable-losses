@@ -597,7 +597,7 @@ How a human hostile dies depends on what killed it (`killK`, set in `damage` fro
 
 Blood is the faction's (`BLOOD`): red for people, blue for the Kin, pink for the Precursors. Each kind has a cap on how many play at once (shock 14, shot 24, blast 14; burn 10); past it, a kill falls back to the plain burst, so a horde wiped by one shell stays cheap. Gib pieces are cut once per variant frame and kept.
 
-**Creatures and ground machines.** The same weapon kinds, played their own way (`d.fam`). Creatures are every `creature` variant except the Precursors' stone constructs; ground machines are `vehicle` variants that neither fly nor float (treads, vans, walkers). Flyers, boats, Precursor constructs and bosses still use the plain burst.
+**Creatures and ground machines.** The same weapon kinds, played their own way (`d.fam`). Creatures are every `creature` variant except the Precursors' stone constructs; ground machines are `vehicle` variants that neither fly nor float (treads, vans, walkers). Only bosses (and lieutenants) still use the plain burst; flyers, boats and the Precursor constructs have their own (below).
 
 | | Creatures (wildlife, Kin striders) | Ground machines (treads, vans, walkers) |
 |---|---|---|
@@ -607,6 +607,15 @@ Blood is the faction's (`BLOOD`): red for people, blue for the Kin, pink for the
 | Fire | Writhes in flames and blackens, curls up (squashes towards the ground), then falls to grey ash | Flames pour off it while it blackens, then the wreck burns out |
 
 Wrecks (`wreckFrames`: the frame darkened and scorched) and ash frames are built in the per-frame warm-up (`warmVariant`), so the first death of a kind does not stall a frame. Burning creatures and wrecks add a fading orange light.
+
+**Flyers, boats and stone.**
+
+| | Flyers (drones, gunships, flying creatures) | Boats | Precursor constructs (stone) |
+|---|---|---|---|
+| Gun | Spins out of the sky trailing smoke, drifting away from the shooter (`airFall`: 10px up, 0.55s down). Gunships blow apart where they hit (a fireball and four pieces of wreck); drones crash with sparks and lie wrecked, burning out; creatures splat and lie on their backs in ichor | Lists away from the shooter and sinks below the waterline, bubbling, with a ripple; the water line closes over it | Cracks spread from the middle of the body (`crackPixels`), lit pink with white tips and a pink glow, then it shatters into six chunks with glowing pink breaks, which bounce and settle (`crumble` sound) |
+| Taser | Stalls in the air for 0.4s, flashing white with arcs, then drops straight down | Arcs crawl over the hull and it flashes white, then it sinks | Overcharges, flickering white and pink while the cracks spread, then shatters |
+| Explosion | Blown apart in the air; the pieces fall and bounce | Splits in two; the halves tip apart and both sink, with a splash | Shatters outward at once |
+| Fire | Falls trailing flame, and burns out on the ground | Burns at the waterline, blackening, then sinks | Heats red-hot, then crumbles from the top into a rubble pile |
 
 ## Protest props
 Crowds mix their props (`crowdProp`): most carry a placard in one of six styles (scrawled board, cardboard, NO, coloured board, heart, two-pole banner), the rest torches, flares, drums or megaphones; union pickets add pickaxes and pitchforks, activist hardliners torches, molotovs and bats, the Abandoned cardboard and pitchforks, the Church banners and torches. Torches, flares and molotovs carry a flickering light (`propLights`).
