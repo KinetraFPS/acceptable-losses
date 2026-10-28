@@ -2650,7 +2650,12 @@ const BIOME_MUSIC = {
               lead: [mel('A4 . . D5 . . F5 . . . E5 . D5 . . .'), mel('D5 . . F5 . . Bb4 . . . D5 . F4 . . .'), mel('C5 . . F5 . . A5 . G5 . . . F5 . . .'), mel('E5 . . G5 . . C5 . . . D5 . E5 . . .')] },
   toxic:    { bpm: 0.95, leadType: 'triangle', wobble: [3.2, 16], arpType: 'triangle', lp: 0.8, hat: 'x..x..x.x..x..x.' },
   dust:     { bpm: 0.92, leadType: 'triangle', twang: true, arpType: 'triangle', kick: 'x.....x.x.......', hat: '..x...x...x...x.', shaker: true, lp: 0.85 },
-  lowgrav:  { bpm: 0.86, leadType: 'sine', arpType: 'sine', kick: 'x...............', snare: '........x.......', hat: '....x.......x...', echo: 0.55, pad: true },
+  // the crystal moon has its own song: floating and glassy but round, E minor like the main theme (Em, Cmaj7, Am7, B),
+  // the melody on a triangle in the middle register (no sine whistle up top), a soft half-time kick and no snare or hats, a light echo
+  lowgrav:  { own: true, bpm: 92, chords: [[40, 'm'], [36, 'M7'], [45, 'm7'], [47, 'M']], bass: 'r.......r.....f.', bassType: 'triangle', bassLen: 2,
+              kick: 'x...........x...', kickVol: 0.28, snare: '', hat: '', pad: true, padVol: 0.05, echo: 0.3, leadType: 'triangle', leadVol: 0.1, leadAlt: true,
+              arp: true, arpType: 'triangle', arpOct: 12, arpVol: 0.018, intense: true, lp: 0.55,
+              lead: [mel('G4 . . B4 . . E5 . . . B4 . G4 . . .'), mel('E4 . . G4 . . C5 . . . B4 . G4 . . .'), mel('C5 . . E5 . . A4 . . . G4 . A4 . . .'), mel('F#4 . . B4 . . D#5 . . . F#5 . D#5 . . .')] },
   cyber:    { bpm: 1.04, leadType: 'square', arpType: 'triangle', arpAlways: true, arpOct: 12, hat: 'x.xxx.xxx.xxx.xx', hatVol: 0.03, lp: 0.7 },
   solar:    { bpm: 1, leadType: 'triangle', arpType: 'triangle', bell: true, shaker: true, lp: 0.9 },
   // the forge world has its own song: E harmonic minor (the raised D# gives it menace), the melody low and round, a pumping bass, toms like hammers,

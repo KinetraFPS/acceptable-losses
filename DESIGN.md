@@ -659,7 +659,7 @@ Hostiles can't be shot or damaged for their first 0.1 seconds (`SPAWN_GRACE`): c
     | Frozen | **Its own song**: cold and spacious, D minor at 100 bpm, a triangle melody in the middle register over a soft pad with echo, a soft kick, snow crunch instead of hats, quiet sine arpeggios an octave up |
     | Toxic | Wobbly triangle lead, triangle arpeggios |
     | Dust | Twangy plucked lead, shaker, a loping kick |
-    | Low gravity | Half-time drums, sine lead, echo and pad |
+    | Low gravity (Crystal Moon) | **Its own song**: floating and glassy but round, E minor like the main theme (Em, Cmaj7, Am7, B) at 92 bpm, a triangle melody in the middle register on chord tones, a soft half-time kick with no snare or hats, a warm pad, a light echo, quiet triangle arpeggios. Replaced an arrangement whose sine lead up around B4 to B5 sounded like whistling (spectral centroid 1,550 Hz; now 420 Hz, against 580 Hz for the ice song) |
     | Cyber | Filtered square lead, constant triangle arpeggios an octave lower, busy hats |
     | Solar | Triangle lead, bells and shaker |
     | Volcanic | **Its own song**: E harmonic minor (Em, C, Am, B) at 112 bpm, a low round triangle melody over a warm chord pad, a pumping triangle bass with sub-bass on the downbeats, forge toms, a dull anvil on 2 and 4, a lava rumble |
