@@ -4298,7 +4298,7 @@ function genHorde() {
   } else {
     const kinds = ['swarm', 'fast', 'flyer'].filter(k => c.fac.cats[k] && (k !== 'flyer' || act >= 2));
     const cat = kinds.length ? pick(kinds) : Object.keys(c.fac.cats).sort((a, b) => CATS[a].threat - CATS[b].threat)[0], C = CATS[cat];
-    n = clamp(Math.round(budget * 1.8 / C.threat), 12, 60); label = c.fac.names[cat] || C.label;
+    n = clamp(Math.round(budget * 1.8 / C.threat * (c.ship ? 0.6 : 1)), 12, c.ship ? 40 : 60); label = c.fac.names[cat] || C.label;
     for (let i = 0; i < n; i++) m.queue.push({ at: t + i * 0.16, cat, tier: 0, sp: i % lanes });
   }
   m.queue.sort((a, b) => a.at - b.at);
@@ -11241,10 +11241,11 @@ function demandGo(v) {
 // ---------- the raid ----------
 function startSiege(f) {
   const s = siegeOf(f), stage = s.stage + 1, F = FACTIONS[f];
-  const c = genContract(RUN.idx, stage - 1, stage >= 2, f);
+  // raids build on Routine/Elevated, not Suicidal: their own multiplier below is the step up
+  const c = genContract(RUN.idx, Math.min(stage - 1, 1), stage >= 2, f);
   Object.assign(c, { ship: { fac: f, stage }, biomeKey: 'ship', biome: BIOMES.ship, planet: SHIP_NAME, envoy: null, grudge: null,
     boss: stage >= 2, bossDef: stage === 3 ? F.apex : stage === 2 ? pick(F.bosses) : null,
-    mod: c.mod * [1.6, 1.75, 1.75][stage - 1], T: 130 + 30 * stage, pay: 1, diffLabel: `Raid ${stage} of 3`, stars: stage + 1 });
+    mod: c.mod * [1.6, 1.75, 1.85][stage - 1], T: 130 + 30 * stage, pay: 1, diffLabel: `Raid ${stage} of 3`, stars: stage + 1 });
   startMission(c);
   M.fuel = 100;
   setTimeout(() => { if (M && M.c.ship) for (const tw of M.towers) barkAs(tw, 'home', 0.5); }, 4000);
