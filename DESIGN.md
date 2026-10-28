@@ -586,19 +586,19 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 
     | World | Arrangement |
     |---|---|
-    | Frozen | Slower glassy triangle lead, bell sparkle and echo |
-    | Toxic | Wobbly detuned saw lead and saw bass |
+    | Frozen | Slower glassy triangle lead, bell sparkle and echo (the template for the rest: round voices, a full middle) |
+    | Toxic | Wobbly triangle lead, triangle arpeggios |
     | Dust | Twangy plucked lead, shaker, a loping kick |
     | Low gravity | Half-time drums, sine lead, echo and pad |
-    | Cyber | Saw lead, constant 16th arpeggios and hats |
-    | Solar | Bright lead, bells and shaker |
-    | Volcanic | Two semitones down, saw bass, sub-bass and a heavier kick |
+    | Cyber | Filtered square lead, constant triangle arpeggios an octave lower, busy hats |
+    | Solar | Triangle lead, bells and shaker |
+    | Volcanic | **Its own song**: E Phrygian at 112 bpm, a low round triangle melody over a warm chord pad, a pumping triangle bass with sub-bass on the downbeats, forge toms, a dull anvil on 2 and 4, a lava rumble |
     | Cloud | Airy triangle lead, pad, echo |
     | Tomb | A semitone down, choir pad, sparse kick, no hats |
     | HQ | Corporate chord stabs and steady hats |
-    | Ship | Four-on-the-floor with metallic clanks |
+    | Ship | Four-on-the-floor with dull metallic knocks |
 
-    It still adds layers as the drill fills.
+    It still adds layers as the drill fills. Arrangements avoid bright square and saw leads up high and keep the middle of the mix full: the old forge arrangement had the weakest middle of the set (4.5% of its energy between 250 Hz and 1.5 kHz, against 10.8% for frozen), and it sounded thin and tinny over a muddy low end.
   - **Faction themes** (`FACTION_THEMES`) play on each faction's calls, demands and invitations, over the envoy's slow pad:
     - Union: a work-song in G, with hammer clanks.
     - Activists: a protest chant in A minor with a backbeat.
@@ -611,7 +611,7 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
     - Asset Protection: a C-minor march with a snare roll.
     - The Church: an organ hymn in F.
     - The manager gets the hold music, a semitone flat and in no hurry.
-  - **The boss layer**: the music no longer switches track when a boss arrives. A boss layer comes in over the world's own song instead (half as much for a mini-boss): double-time kick, snare fills, a pumping octave bass, chord stabs, constant arpeggios, a brighter filter and up to +7% tempo. It eases in over a couple of bars and back out after the kill.
+  - **The boss layer**: the music no longer switches track when a boss arrives. A boss layer comes in over the world's own song instead (half as much for a mini-boss): double-time kick, snare fills, a pumping triangle octave bass, soft filtered chord stabs, constant arpeggios, a brighter filter and up to +7% tempo. It eases in over a couple of bars and back out after the kill.
   - **The uncanny layer**: on an immoral contract the same song turns slightly wrong:
     - everything drifts a few cents off true;
     - the chord's fifth sags to a tritone on alternate bars;

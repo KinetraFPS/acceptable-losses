@@ -2500,17 +2500,22 @@ TRACKS.boss = { ...TRACKS.mission, bpm: 152, transpose: 1, kick: 'x...x...x...x.
 // The melody, chords and bass line stay the mission theme's; each world swaps instruments, tempo, drums and a
 // texture or two, so a forge world and a frozen one are clearly the same company playing in different rooms.
 const BIOME_MUSIC = {
+  // the arrangement that worked: round triangle and sine voices in the middle register, bells and echo
   frozen:   { bpm: 0.9, leadType: 'triangle', arpType: 'sine', bell: true, echo: 0.4, kick: 'x.......x.......', hat: 'x...x...x...x...', lp: 0.85 },
-  toxic:    { bpm: 0.95, leadType: 'sawtooth', wobble: [3.2, 9], bassType: 'sawtooth', lp: 0.6, hat: 'x..x..x.x..x..x.' },
-  dust:     { bpm: 0.92, twang: true, kick: 'x.....x.x.......', hat: '..x...x...x...x.', shaker: true, lp: 0.9 },
-  lowgrav:  { bpm: 0.86, leadType: 'sine', kick: 'x...............', snare: '........x.......', hat: '....x.......x...', echo: 0.55, pad: true },
-  cyber:    { bpm: 1.04, leadType: 'sawtooth', arpAlways: true, hat: 'xxxxxxxxxxxxxxxx', hatVol: 0.035, lp: 1.2 },
-  solar:    { bpm: 1, leadType: 'square', bell: true, shaker: true, lp: 1.1 },
-  volcanic: { bpm: 1, transpose: -2, bassType: 'sawtooth', sub: true, kick: 'x.x.....x.x.....', snare: '....x.......x..x', lp: 0.75 },
-  cloud:    { bpm: 0.95, leadType: 'triangle', pad: true, echo: 0.45, hat: '..x...x...x...x.' },
-  tomb:     { bpm: 0.88, transpose: -1, leadType: 'triangle', choir: true, echo: 0.5, kick: 'x.........x.....', hat: '' },
-  hq:       { bpm: 1, stab: 'x...x...x...x...', hat: 'x.x.x.x.x.x.x.x.', lp: 1 },
-  ship:     { bpm: 1.02, kick: 'x...x...x...x...', clank: true, lp: 0.95 },
+  toxic:    { bpm: 0.95, leadType: 'triangle', wobble: [3.2, 9], arpType: 'triangle', lp: 0.8, hat: 'x..x..x.x..x..x.' },
+  dust:     { bpm: 0.92, leadType: 'triangle', twang: true, arpType: 'triangle', kick: 'x.....x.x.......', hat: '..x...x...x...x.', shaker: true, lp: 0.85 },
+  lowgrav:  { bpm: 0.86, leadType: 'sine', arpType: 'sine', kick: 'x...............', snare: '........x.......', hat: '....x.......x...', echo: 0.55, pad: true },
+  cyber:    { bpm: 1.04, leadType: 'square', arpType: 'triangle', arpAlways: true, arpOct: 12, hat: 'x.xxx.xxx.xxx.xx', hatVol: 0.03, lp: 0.7 },
+  solar:    { bpm: 1, leadType: 'triangle', arpType: 'triangle', bell: true, shaker: true, lp: 0.9 },
+  // the forge world has its own song: E Phrygian, the melody low and round, a pumping bass, toms like hammers,
+  // a dull anvil and the lava's rumble under it all
+  volcanic: { own: true, bpm: 112, chords: [[40, 'm'], [41, 'M'], [40, 'm'], [38, 'M']], bass: 'r.r.r.r.r.r.r.r.', bassType: 'triangle', bassLen: 0.9, sub: true,
+              kick: 'x.......x.x.....', snare: '....x.......x...', hat: '', tom: '......x.......x.', anvil: true, rumble: true, pad: true, padVol: 0.05, leadVol: 0.11, arp: true, arpType: 'triangle', arpOct: 12, arpVol: 0.03, leadType: 'triangle', leadAlt: true, intense: true, lp: 0.8,
+              lead: [mel('E4 . . G4 . . B4 . A4 . G4 . F#4 . E4 .'), mel('F4 . . A4 . . C5 . B4 . A4 . G4 . F4 .'), mel('G4 . . B4 . . E5 . D5 . B4 . G4 . . .'), mel('F#4 . . A4 . . D5 . . . C5 . B4 . . .')] },
+  cloud:    { bpm: 0.95, leadType: 'triangle', arpType: 'sine', pad: true, echo: 0.45, hat: '..x...x...x...x.' },
+  tomb:     { bpm: 0.88, transpose: -1, leadType: 'triangle', arpType: 'triangle', choir: true, echo: 0.5, kick: 'x.........x.....', hat: '' },
+  hq:       { bpm: 1, arpType: 'triangle', stab: 'x...x...x...x...', hat: 'x.x.x.x.x.x.x.x.', lp: 0.85 },
+  ship:     { bpm: 1.02, arpType: 'triangle', kick: 'x...x...x...x...', clank: true, lp: 0.8 },
 };
 // ---------- faction themes, for their calls ----------
 // A short theme each, over the envoy's slow pad: what the faction sounds like when it's talking to you.
@@ -2534,7 +2539,7 @@ function getTrack(name) {
   if (MUSIC_CACHE[name]) return MUSIC_CACHE[name];
   let tr = TRACKS[name];
   const [kind, key] = name.split(':');
-  if (kind === 'mission' && key) { const st = BIOME_MUSIC[key] || {}; tr = { ...TRACKS.mission, ...st, bpm: TRACKS.mission.bpm * (st.bpm || 1), lpMul: st.lp || 1 }; }
+  if (kind === 'mission' && key) { const st = BIOME_MUSIC[key] || {}; tr = st.own ? { ...TRACKS.mission, ...st, lpMul: st.lp || 1 } : { ...TRACKS.mission, ...st, bpm: TRACKS.mission.bpm * (st.bpm || 1), lpMul: st.lp || 1 }; }
   if (kind === 'envoy' && key) { const th = FACTION_THEMES[key]; tr = th ? { ...TRACKS.envoy, bass: 'r.......r.......', ...th, pad: true, lpMul: th.lp || 1 } : TRACKS.envoy; }
   return (MUSIC_CACHE[name] = tr || TRACKS.menu);
 }
@@ -2565,17 +2570,20 @@ function scheduleStep(tr, step, t, spb) {
   if (on(snare)) { noise({ f: 1800, q: 0.8, dur: 0.12, vol: 0.26, when: t, bus: mb }); tone({ type: 'triangle', f: 220, f2: 160, dur: 0.05, vol: 0.12, when: t, bus: mb }); }
   if ((on(tr.hat) || (tr.intense && AU.intensity > 0.8 && s % 2 === 1) || (bo > 0.6 && s % 2 === 1)) && un < 0.9 || (un >= 0.9 && on(tr.hat) && s % 4 === 2)) noise({ type: 'highpass', f: 7000, dur: 0.03, vol: tr.hatVol || 0.07, when: t, bus: mb });
   if (tr.shaker && s % 2 === 1) noise({ type: 'bandpass', f: 5200, q: 2, dur: 0.05, vol: 0.035, when: t, bus: mb });
-  if (tr.clank && (s === 6 || s === 14)) { noise({ type: 'bandpass', f: 3100, q: 9, dur: 0.09, vol: 0.12, when: t, bus: mb }); tone({ type: 'square', f: 1240, f2: 1180, dur: 0.05, vol: 0.02, when: t, bus: mb }); }
+  if (tr.clank && (s === 6 || s === 14)) noise({ type: 'bandpass', f: 1900, q: 6, dur: 0.08, vol: 0.1, when: t, bus: mb });
+  if (on(tr.tom)) tone({ type: 'sine', f: 130, f2: 70, dur: 0.2, vol: 0.32, when: t, bus: mb });
+  if (tr.anvil && (s === 4 || s === 12)) { tone({ type: 'triangle', f: 660, f2: 650, dur: 0.12, vol: 0.03, when: t, bus: mb }); noise({ type: 'bandpass', f: 1500, q: 4, dur: 0.04, vol: 0.05, when: t, bus: mb }); }
+  if (tr.rumble && s === 0 && bar % 2 === 0) noise({ type: 'lowpass', f: 160, dur: spb * 30, vol: 0.05, when: t, bus: mb });
   const b = tr.bass && tr.bass[s], bType = tr.bassType || 'triangle';
   if (b && b !== '.') {
     tone({ type: bType, f: F(root + (b === 'o' ? 12 : b === 'f' ? 7 : 0)), dur: spb * (tr.bassLen || 1.8), vol: bType === 'triangle' ? 0.2 : 0.08, lp: 700 * lpM, when: t, bus: mb });
-    if (tr.sub) tone({ type: 'sine', f: F(root - 12), dur: spb * 1.6, vol: 0.12, when: t, bus: mb });
+    if (tr.sub && s % 8 === 0) tone({ type: 'sine', f: F(root - 12), dur: spb * 3, vol: 0.07, when: t, bus: mb });
   }
   // the boss layer pumps an octave bass on the off-beats and stabs the chord
-  if (bo > 0.5 && s % 4 === 2) tone({ type: 'square', f: F(root + 12), dur: spb * 0.9, vol: 0.05 * bo, lp: 900, when: t, bus: mb });
-  if (bo > 0.6 && (s === 0 || s === 10)) ch.forEach(n => tone({ type: 'sawtooth', f: F(n + 12), dur: spb * 1.6, vol: 0.022 * bo, lp: 1800, when: t, bus: mb }));
+  if (bo > 0.5 && s % 4 === 2) tone({ type: 'triangle', f: F(root + 12), dur: spb * 0.9, vol: 0.09 * bo, lp: 900, when: t, bus: mb });
+  if (bo > 0.6 && (s === 0 || s === 10)) ch.forEach(n => tone({ type: 'square', f: F(n + 12), dur: spb * 1.6, vol: 0.018 * bo, lp: 1100, when: t, bus: mb }));
   if (on(tr.stab)) ch.forEach(n => tone({ type: 'triangle', f: F(n + 12), dur: spb * 1.4, vol: 0.045, when: t, bus: mb }));
-  if (tr.pad && s === 0) ch.forEach(n => tone({ type: 'triangle', f: F(n + 12), dur: spb * 16, vol: 0.035, a: 0.4, when: t, bus: mb }));
+  if (tr.pad && s === 0) ch.forEach(n => tone({ type: 'triangle', f: F(n + 12), dur: spb * 16, vol: tr.padVol || 0.035, a: 0.4, when: t, bus: mb }));
   if (tr.choir && s === 0) ch.forEach(n => { tone({ type: 'triangle', f: F(n + 24) * 1.004, dur: spb * 16, vol: 0.02, a: 1.2, when: t, bus: mb, vib: [4.5, 3] }); tone({ type: 'triangle', f: F(n + 24) * 0.996, dur: spb * 16, vol: 0.02, a: 1.2, when: t, bus: mb }); });
   if (tr.organ && s % 8 === 0) ch.forEach(n => { tone({ type: 'square', f: F(n + 12), dur: spb * 8, vol: 0.016, a: 0.08, lp: 1400, when: t, bus: mb }); tone({ type: 'sine', f: F(n), dur: spb * 8, vol: 0.05, a: 0.08, when: t, bus: mb }); });
   const leadOn = tr.lead && (!tr.leadAlt || loop % 2 === 0 || bo > 0.6);
@@ -2583,11 +2591,11 @@ function scheduleStep(tr, step, t, spb) {
     const fast = tr.arpAlways || bo > 0.3, k = fast ? s : s >> 1;
     // uncanny: now and then the arpeggio lands a semitone wide
     const wrong = un > 0.3 && ((step * 7919) % 13) === 0 ? 1 : 0;
-    if (fast || s % 2 === 0) tone({ type: tr.arpType || 'square', f: F(ch[[0, 1, 2, 1][k % 4] % ch.length] + 24 + wrong), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000 * lpM, when: t, bus: mb });
+    if (fast || s % 2 === 0) tone({ type: tr.arpType || 'square', f: F(ch[[0, 1, 2, 1][k % 4] % ch.length] + (tr.arpOct ?? 24) + wrong), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000 * lpM, when: t, bus: mb });
   }
   if (leadOn && tr.lead[bar][s]) {
     const n = tr.lead[bar][s] + tp, lt = tr.leadType || 'square', vib = tr.wobble || (un > 0.3 ? [3.1, 6 + 10 * un] : [5.5, 4]);
-    tone({ type: lt, f: F(n), f2: tr.twang ? F(n) * 0.985 : undefined, dur: spb * (tr.twang ? 1.2 : 1.9), vol: lt === 'sine' || lt === 'triangle' ? 0.08 : 0.055, lp: 2600 * lpM, vib, when: t, bus: mb });
+    tone({ type: lt, f: F(n), f2: tr.twang ? F(n) * 0.985 : undefined, dur: spb * (tr.twang ? 1.2 : 1.9), vol: tr.leadVol || (lt === 'sine' || lt === 'triangle' ? 0.08 : 0.055), lp: 2600 * lpM, vib, when: t, bus: mb });
     if (tr.bell) tone({ type: 'sine', f: F(n + 24), dur: spb * 6, vol: 0.022, a: 0.005, when: t, bus: mb });
     if (tr.echo) tone({ type: lt, f: F(n), dur: spb * 1.6, vol: 0.055 * tr.echo * 0.6, lp: 1800 * lpM, when: t + spb * 3, bus: mb });
     // uncanny: a ghost of every note, a tritone up and barely there
