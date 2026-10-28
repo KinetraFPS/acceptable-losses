@@ -981,6 +981,14 @@ const LOGO = `<svg viewBox="0 0 11 12" shape-rendering="crispEdges" aria-hidden=
 const AP = 2, ATILE = TILE / AP;
 const RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const OFF4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+// a 1px outline from a silhouette: the four offset copies baked into one image (drawn at -1,-1), so a ranked or
+// selected sprite costs one draw instead of four
+function ring4(c) {
+  if (c._ring) return c._ring;
+  const r = mkCanvas(c.width + 2, c.height + 2), g = r.getContext('2d');
+  for (const [dx, dy] of OFF4) g.drawImage(c, 1 + dx, 1 + dy);
+  return (c._ring = r);
+}
 function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 // a missing colour draws as neutral grey rather than throwing mid-frame
 function hex2rgb(h) { if (typeof h !== 'string' || h[0] !== '#') return [160, 164, 172]; if (h.length === 4) h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3]; const n = parseInt(h.slice(1, 7), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
@@ -4167,7 +4175,7 @@ function stunE(e, dur) {
 function markE(e, amt, dur) { e.vulnAmt = e.vulnT > 0 ? Math.max(e.vulnAmt, amt) : amt; e.vulnT = Math.max(e.vulnT || 0, dur); }
 // one direct hit from a crew member, with every on-hit perk applied
 function hitEnemy(e, base, s, tw, opt = {}) {
-  if (e.dead) return;
+  if (e.dead || justArrived(e)) return;
   let d = base;
   if (s.eliteBonus && (e.tier >= 2 || e.boss)) d *= 1 + s.eliteBonus;
   if (s.unarmored && e.armor <= 0) d *= 1 + s.unarmored;
@@ -4208,8 +4216,11 @@ function dronePos(tw, k) {
   return { x: tw.x + Math.cos(a) * 16, y: tw.y - 22 + Math.sin(a) * 6 };
 }
 
+// hostiles can't be shot for the first tenth of a second after they arrive, so a spawn reads before it pops
+const SPAWN_GRACE = 0.1;
+const justArrived = e => M && M.t - (e.born ?? -9) < SPAWN_GRACE;
 function damage(e, dmg, pierce, tw, quiet) {
-  if (e.dead || e.invuln) return;
+  if (e.dead || e.invuln || justArrived(e)) return;
   if (e.vulnT > 0) dmg *= 1 + e.vulnAmt;
   if (e.dr) dmg *= 1 - e.dr;
   if (e.apRole && tw && tw.crew && tw.crew.type === e.apRole) dmg *= 0.75;
@@ -4367,7 +4378,7 @@ function spawnEnemy(q) {
     hp, maxhp: hp, spd: C.spd * Tt.spd * actStep('spd', c.idx) * (M.biome.mod.espd || 1), armor,
     r: C.r * Tt.size, fly: !!C.fly, sab: !!C.sab, dps: (C.dps || 0) * (1 + 0.15 * q.tier),
     bounty: C.bounty * Tt.bounty, cost: C.cost * Tt.cost, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: rnd() * 6,
-    ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: q.deal ? (M.pool['deal' + q.cat] || (M.pool['deal' + q.cat] = makeVariant(q.deal.unitFac, q.cat))) : getVariant(q.cat), face: 1,
+    born: M.t, ox: (rnd() - 0.5) * 10, oy: (rnd() - 0.5) * 10, v: q.deal ? (M.pool['deal' + q.cat] || (M.pool['deal' + q.cat] = makeVariant(q.deal.unitFac, q.cat))) : getVariant(q.cat), face: 1,
   };
 
   // on the ship the big ones come in heavy: tankier and slower, so the hull guns and crew get a long look
@@ -4424,7 +4435,7 @@ function spawnBoss(B, mini, child) {
     cat: 'boss', tier: 3, name: mini ? B.name + ' (Understudy)' : B.name, color: M.c.fac.color, boss: true, mini: !!mini,
     x: path[0].x, y: path[0].y, path, wi: 1, sp: 0, hp, maxhp: hp, spd: B.spd * (mini ? 1.2 : 1) * (M.biome.mod.espd || 1), armor: B.armor,
     r: B.r, fly: !!B.fly, sab: false, bounty: mini ? 40 : 80, cost: mini ? 10 : 30, dist: 0, slowT: 0, slowAmt: 0, hitT: 0, ang: 0, wob: 0,
-    regen: B.regen || 0, spawn: iv(B.spawn), spawnCd: 4, ox: 0, oy: 0, v: makeBossVariant(M.c.facKey, B.id), face: 1,
+    regen: B.regen || 0, spawn: iv(B.spawn), spawnCd: 4, ox: 0, oy: 0, born: M.t, v: makeBossVariant(M.c.facKey, B.id), face: 1,
     rally: iv(B.rally), burrow: iv(B.burrow), emp: iv(B.emp), viral: iv(B.viral), phase2: !!B.phase2 && !mini,
     healAura: B.healAura, shieldAura: B.shieldAura, jamAura: B.jamAura,
     charge: iv(B.charge), shockwave: iv(B.shockwave), barrage: iv(B.barrage), blink: iv(B.blink), bubble: B.bubble, shed: B.shed, splitDeath: B.splitDeath, secondWind: B.secondWind,
@@ -4659,7 +4670,7 @@ function stepMission(dt) {
     }
     const inRange = [], inAll = [];
     for (const e of m.enemies) {
-      if (e.dead || e.invuln || e.deal) continue; if (e.fly && !s.air) continue;
+      if (e.dead || e.invuln || e.deal || justArrived(e)) continue; if (e.fly && !s.air) continue;
       const d = Math.hypot(e.x - tw.x, e.y - tw.y); if (d > R2 + e.r * 0.5) continue;
       if (!canSee(tw, e)) continue;
       inAll.push(e);
@@ -4878,11 +4889,28 @@ function stepFx(dt) {
 
 // ---------- render mission ----------
 let WB = null, WBG = null;
+// one soft radial sprite per colour, made once and scaled per light, in place of a fresh gradient every light every frame
+const GLOW_SPR = {};
+function glowSprite(col) {
+  if (GLOW_SPR[col]) return GLOW_SPR[col];
+  const c = mkCanvas(64, 64), g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, rgba(col, 1)); gr.addColorStop(1, rgba(col, 0)); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return (GLOW_SPR[col] = c);
+}
 function glow(x, y, r, col, a) {
-  if (a <= 0.01) return;
-  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
-  gr.addColorStop(0, rgba(col, a)); gr.addColorStop(1, rgba(col, 0));
-  ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  if (a <= 0.01 || r <= 0) return;
+  const sm = ctx.imageSmoothingEnabled, ga = ctx.globalAlpha;
+  ctx.imageSmoothingEnabled = true; ctx.globalAlpha = ga * Math.min(1, a);
+  ctx.drawImage(glowSprite(col), x - r, y - r, r * 2, r * 2);
+  ctx.globalAlpha = ga; ctx.imageSmoothingEnabled = sm;
+}
+let VIGNETTE = null;
+function vignetteFor(w, h) {
+  if (VIGNETTE && VIGNETTE.w === w && VIGNETTE.h === h) return VIGNETTE.c;
+  const c = mkCanvas(Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 2))), g = c.getContext('2d'), W = c.width, H = c.height;
+  const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.4)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  VIGNETTE = { w, h, c }; return c;
 }
 function renderMission(now) {
   const m = M, t = now / 1000, W = GW * ATILE, H = GH * ATILE, LW = GW * TILE, LH = GH * TILE;
@@ -4987,6 +5015,10 @@ function renderMission(now) {
 
   drawWeather(g, t);
   drawWind(g, t); drawBirds(g);
+  // colour grade per world, then the act's light: applied to the pixel buffer before it's scaled up, the same
+  // blends over a fraction of the pixels they used to cover at screen resolution
+  if (m.grade) { const [c1, c2, a] = m.grade, gg = g.createLinearGradient(0, 0, 0, H); gg.addColorStop(0, c1); gg.addColorStop(1, c2); g.save(); g.globalCompositeOperation = 'soft-light'; g.globalAlpha = Math.min(1, a * 2.4); g.fillStyle = gg; g.fillRect(0, 0, W, H); g.restore(); }
+  if (m.act > 1) actGrade(g, W, H, m.act, performance.now() / 1000);
   // compose: crisp pixels, then light
   beginDraw();
   const sh = RM || !CFG.shake ? 0 : m.shake, ox = (rnd() - 0.5) * sh, oy = (rnd() - 0.5) * sh;
@@ -5015,9 +5047,10 @@ function renderMission(now) {
     if (tw.muzzle > 0) { const mz = muzzlePos(tw); glow(mz.x, mz.y, (ty === 'marksman' ? 36 : ty === 'mortar' ? 28 : 20) * (1 + 0.15 * gv.tier), gv.spec ? gv.accent : ty === 'drone' ? '#9be564' : ty === 'taser' ? '#5fd4ff' : '#ffcf6a', 0.85 * tw.muzzle / 0.07); }
     if (gv.tier >= 3 && ty !== 'drone') { const mz = muzzlePos(tw); glow(mz.x, mz.y, 8 + 3 * gv.tier, gv.accent, 0.3 + 0.12 * Math.sin(t * 5 + tw.tx)); }
   }
+  let elights = 0;
   for (const e of m.enemies) {
-    if (e._sx == null) continue;
-    for (const l of e.v.lights) { const lx = e._flip ? 2 * e._ax - (e._sx + l.x + 0.5) : e._sx + l.x + 0.5; glow(lx * AP, (e._sy + l.y + 0.5) * AP, l.r, l.color, 0.4); }
+    if (e._sx == null || elights > 60) continue;
+    for (const l of e.v.lights) { elights++; const lx = e._flip ? 2 * e._ax - (e._sx + l.x + 0.5) : e._sx + l.x + 0.5; glow(lx * AP, (e._sy + l.y + 0.5) * AP, l.r, l.color, 0.4); }
   }
   for (const f of m.fx) {
     if (f.delay > 0) continue;
@@ -5081,14 +5114,8 @@ function renderMission(now) {
     for (const p of m.paths) { const x = clamp(p[0].x, 34, LW - 34), y = clamp(p[0].y + (p[0].y < 30 ? 34 : -24), 16, LH - 8); ctx.fillStyle = '#0c0e14'; ctx.fillText('HOSTILES', x + 1, y + 1); ctx.fillStyle = '#ff4d5e'; ctx.fillText('HOSTILES', x, y); }
   }
   ctx.restore();
-  // colour grade per world
-  if (m.grade) { const [c1, c2, a] = m.grade, gg = ctx.createLinearGradient(0, 0, 0, LH); gg.addColorStop(0, c1); gg.addColorStop(1, c2); ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = a * 2.4; ctx.fillStyle = gg; ctx.fillRect(0, 0, LW, LH); ctx.restore(); }
-  // the act's light on top of the world's
-  if (m.act > 1) actGrade(ctx, LW, LH, m.act, performance.now() / 1000);
-  // vignette
-  const vg = ctx.createRadialGradient(LW / 2, LH / 2, Math.min(LW, LH) * 0.35, LW / 2, LH / 2, Math.max(LW, LH) * 0.75);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.4)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, LW, LH);
+  // vignette, baked once per screen size
+  ctx.drawImage(vignetteFor(LW, LH), 0, 0, LW, LH);
   if (m.phase === 'done' || m.phase === 'failed') {
     ctx.fillStyle = m.phase === 'done' ? 'rgba(10,14,19,0.4)' : 'rgba(60,0,8,0.45)'; ctx.fillRect(0, 0, LW, LH);
     ctx.font = `700 ${Math.round(Math.min(LW, LH) / 9)}px Silkscreen, Impact, sans-serif`; ctx.textAlign = 'center';
@@ -5321,7 +5348,7 @@ function drawTowerBody(g, tw, t, ride, shiftX = 0, foot = ride == null ? 'full' 
   const face = tw.face || 1, bob = crewBop(tw), sx = ax - 7, sy = ay - 17;
   const blit = im => { if (face < 0) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx, sy); g.restore(); } else g.drawImage(im, sx, sy); };
   if (part !== 'weapon') {
-    if (S.selTower === tw) for (const [dx, dy] of OFF4) { g.save(); g.translate(dx, dy); blit(sp.sel[bob]); g.restore(); }
+    if (S.selTower === tw) { g.save(); g.translate(-1, -1); blit(ring4(sp.sel[bob])); g.restore(); }
     blit(tw.flash > 0 && Math.floor(t * 30) % 2 ? sp.red[bob] : sp.f[bob]);
   }
   if (part === 'body') return;
@@ -5410,9 +5437,9 @@ function drawEnemyPx(g, e, t) {
   const img = e.hitT > 0 ? v.white[fi] : stage ? damagedFrame(v, fi, stage) : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
   if (e.beamT > 0) { drawBeamIn(g, e, t, v, fi % v.slow.length, ax, sx, sy, flip); return; }
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
-  if (e.tier === 1 || e.tier === 2) { const ol = e.tier === 2 ? v.elite[fi] : v.vet[fi]; for (const [dx, dy] of OFF4) blit(ol, dx, dy); }
-  if (e.deal) { const ol = v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6'))); for (const [dx, dy] of OFF4) blit(ol[fi], dx, dy); }
-  if (e.slowT > 0) { g.globalAlpha = 0.5; for (const [dx, dy] of OFF4) blit(v.slow[fi], dx, dy); g.globalAlpha = 1; }
+  if (e.tier === 1 || e.tier === 2) blit(ring4(e.tier === 2 ? v.elite[fi] : v.vet[fi]), -1, -1);
+  if (e.deal) blit(ring4((v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6'))))[fi]), -1, -1);
+  if (e.slowT > 0) { g.globalAlpha = 0.5; blit(ring4(v.slow[fi]), -1, -1); g.globalAlpha = 1; }
   blit(img, 0, 0);
   if (e.burnT > 0) drawBurning(g, e, t, v, fi, ax, sx, sy, flip);
   // badly hurt hostiles trail smoke and sparks
@@ -5458,16 +5485,17 @@ function updateHud() {
   set('hMarginTxt', 't', mv + '%');
   set('hMarginBox', 'cls', 'meter m-margin' + (mv <= 25 ? ' crit' : mv <= 50 ? ' warn' : ''));
   set('hBudget', 't', '$' + m.budget);
-  if (hudCache.lastB != null && m.budget > hudCache.lastB) bump(document.getElementById('hBudget'));
+  // the budget ticks up on every kill; in a horde that's dozens a second, so the bump (which forces a layout) is rationed
+  if (hudCache.lastB != null && m.budget > hudCache.lastB && performance.now() - (hudCache.bumpAt || 0) > 250) { hudCache.bumpAt = performance.now(); bump(document.getElementById('hBudget')); }
   if (hudCache.lastM != null && mv < hudCache.lastM) bump(document.getElementById('hMarginBox'), 'hurt');
   hudCache.lastB = m.budget; hudCache.lastM = mv;
   const bs = document.getElementById('bStart'); if (bs) bs.hidden = m.phase !== 'prep';
   set('bPause', 't', m.paused ? 'Resume' : 'Pause');
-  document.querySelectorAll('[data-act="speed"]').forEach(b => b.classList.toggle('on', +b.dataset.v === m.speed));
+  if (hudCache.speed !== m.speed) { hudCache.speed = m.speed; document.querySelectorAll('[data-act="speed"]').forEach(b => b.classList.toggle('on', +b.dataset.v === m.speed)); }
   updateDealHud(); updateArtCards();
   if (has('schedule')) set('hWave', 't', m.waveTxt || 'Awaiting first wave');
   // keep roster affordability fresh
-  if (hudCache.budgetSeen !== m.budget) { hudCache.budgetSeen = m.budget; refreshRosterAfford(); }
+  if (hudCache.budgetSeen !== m.budget && performance.now() - (hudCache.affordAt || 0) > 150) { hudCache.budgetSeen = m.budget; hudCache.affordAt = performance.now(); refreshRosterAfford(); }
   if (S.selTower && m.towers.includes(S.selTower) && performance.now() - (hudCache.condAt || 0) > 400) { hudCache.condAt = performance.now(); const tw = S.selTower, k = crewConditions(tw.crew, tw).map(c => c.t.replace(/[\d.]+s$/, '')).join('|') + Math.ceil(tw.hp / tw.maxhp * 10); if (hudCache.condK !== k) { hudCache.condK = k; renderTowerInfo(); } }
   if (S.heliPanel && !S.selTower && performance.now() - (hudCache.heliAt || 0) > 500) { hudCache.heliAt = performance.now(); const h = M.arts.find(x => x.id === 'heli'), k = h ? (h.cd > 0 ? Math.ceil(h.cd) : 0) + (h.lift ? 'L' : '') + (S.artMode ? (S.artMode.tw ? 'D' : 'P') : '') : ''; if (hudCache.heliK !== k) { hudCache.heliK = k; renderTowerInfo(); } }
   if (S.peekBtn && performance.now() - (hudCache.peekAt || 0) > 400) { hudCache.peekAt = performance.now(); refreshPeek(); }
@@ -7144,7 +7172,7 @@ function drawAllyPx(g, a, t) {
   const fi = v.kind === 'human' ? Math.floor(a.dist / 2.5) % v.frames.length : Math.floor(a.dist / (v.frames.length > 2 ? 2 : 3)) % v.frames.length, flip = a.face < 0;
   const sx = ax - v.ax, sy = ay - v.ay, out = v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6')));
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
-  for (const [dx, dy] of OFF4) blit(out[fi], dx, dy);
+  blit(ring4(out[fi]), -1, -1);
   blit(a.hurtT > 0 ? (v.hurt || (v.hurt = v.frames.map(c => silhouette(c, '#ff7a6a'))))[fi] : v.frames[fi], 0, 0);
   if (a.kind === 'pet') px(g, ax - 1, sy - 3, 3, 1, '#ff6fae');
   if (a.hp < a.maxhp) { const w = a.kind === 'pet' ? 10 : 6, k = clamp(a.hp / a.maxhp, 0, 1); px(g, ax - (w >> 1), sy - 5, w, 1, '#1a1a22'); px(g, ax - (w >> 1), sy - 5, Math.max(1, Math.round(w * k)), 1, k > 0.4 ? '#7bdc6a' : '#ff8a4a'); }

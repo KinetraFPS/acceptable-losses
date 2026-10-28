@@ -578,6 +578,18 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Burning hostiles**: anything caught by a flamer cone or standing in fire burns for about a second after (`burnT`): a scorched tint, and flames licking up from the sprite's own outline (`burnFrames`, six frames per sprite frame), with smoke and an orange glow. Visual only: burning does no extra damage.
 - **Burnt to the bone**: a humanoid that dies on fire writhes and blackens, the char flakes away to ash and the skeleton shows through, then the skeleton gives way. The legs buckle first, everything above drops onto them, and the skull lands last and rolls. The bones lie on a scorch mark for a few seconds before fading. At most ten burn at once; the rest die the ordinary way.
 
+## Rendering performance
+Profiled on a busy Act 3 map (eight crew, 90–150 hostiles, 60–95 lights): about 30 fps before this pass, about 53 fps after, with the slowest 5% of frames down from 51–57 ms to 26–28 ms (a browser with no graphics card; real GPUs have more headroom).
+- **Grades on the pixel buffer.** The world's colour grade (soft-light) and the act's light (soft-light, multiply, haze, smog bands) used to be full-screen blends at screen resolution every frame. They now run on the 396×234 pixel buffer before it's scaled up: the same look over about 1/30th of the pixels.
+- **A baked vignette.** One cached image per screen size instead of a new radial gradient every frame.
+- **Light sprites.** Each light colour gets one soft radial sprite, scaled per light, instead of a new gradient for every light every frame. Lights carried by hostiles are capped at 60 a frame.
+- **One-draw outlines.** Rank outlines (veteran, elite), slow and deal markings and the selected crew member's outline were four offset copies of a silhouette; they're baked into one outline image (`ring4`).
+- **A quieter HUD.** The budget's bump animation (which forces a layout), the crew cards' affordability check and the speed buttons no longer run on every kill or every frame.
+- Earlier passes: battle-damage, burn and fire frames are baked and built at most three per frame; water is a baked loop.
+
+## Spawn grace
+Hostiles can't be shot or damaged for their first 0.1 seconds (`SPAWN_GRACE`): crew don't target them and no hit, splash, zone or chain lands, so every arrival reads on screen before it can pop. It applies to every spawn, including bosses, lieutenants, splitter children and troops a ship unloads.
+
 ## Saving and resuming
 - A run saves itself (browser storage, key `al_run`) at the points it can be picked up cleanly: the star map, the store (every purchase and reroll), using a remedy on the ship, the start of each contract and raid, and a faction's invitation.
 - The title screen offers **Resume shift** with the sector, contract, margin and crew count; **Clock in (new run)** replaces the save.
