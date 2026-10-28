@@ -668,6 +668,15 @@ Hostiles can't be shot or damaged for their first 0.1 seconds (`SPAWN_GRACE`): c
     | HQ | Corporate chord stabs and steady hats |
     | Ship | Four-on-the-floor with dull metallic knocks |
 
+  - **No whistling.** A pure tone high up (a sine above about 700 Hz, a triangle above about 950 Hz) reads as whistling, so nothing plays there. `whistle.js` lists every sine or triangle voice per track that would reach that range, and the renders are scored by the share of energy in narrow tonal peaks between 850 Hz and 2.6 kHz. The scan found and fixed:
+    - the evil-contract ghost: a sine a tritone above every melody note on every track (930 to 1,400 Hz) is now a triangle a tritone below;
+    - the bell (Solar Commune, Lumen, Abandoned): a sine an octave above the melody (up to 2,350 Hz) now chimes in unison with it;
+    - the Lumen theme: a sine melody around F#5 to D6 is now a triangle an octave down (whistle share 9.5% to 0.2%);
+    - the jungle, desert, solar and cloud arrangements: the mission melody on a triangle reaching B5 now plays an octave down (`leadOct`);
+    - the main menu and the manager's hold music: a square melody up to C6 and arpeggios two octaves up, both down an octave (menu 8.1% to 2.2%; what is left is the square's buzz, not a whistle);
+    - the choir (Church, Precursors, tomb): two octaves over the chords, now one.
+    Every track now scores 2.2% or less.
+
     It still adds layers as the drill fills. Arrangements avoid bright square and saw leads up high and keep the middle of the mix full: the old forge arrangement had the weakest middle of the set (4.5% of its energy between 250 Hz and 1.5 kHz, against 10.8% for the old frozen one), and it sounded thin and tinny over a muddy low end. The old frozen arrangement had the opposite problem: the brightest top of the set, from a bell sparkle two octaves above the lead, high arpeggios and hats, so it got its own song too and the bell sparkle everywhere dropped an octave.
   - **Faction themes** (`FACTION_THEMES`) play on each faction's calls, demands and invitations, over the envoy's slow pad:
     - Union: a work-song in G, with hammer clanks.
