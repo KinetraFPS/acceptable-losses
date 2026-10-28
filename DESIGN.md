@@ -244,6 +244,7 @@ Artifacts come in two kinds:
 
 - **Platforms** (boats and rays) are the only ones that stay on the map. Each gets a card in the roster bar; place it once per contract and a crew member can stand on it.
 - **Abilities** are everything else. Each gets a square on the ability bar at the bottom right of the map, with a hotkey (Q W E A S D Z X C, in order), a cooldown sweep and the seconds left. Every ability is ready when a contract starts, then waits for its cooldown. Aimed abilities wait for a click on the map, with a preview of the area; clicking the square again or pressing Escape cancels. The point is to turn what used to be a steady trickle of value into bursts the player times to save a wave.
+- **Loadout.** Only so many abilities go on a contract: 4 slots in acts 1 and 2, 5 in act 3, 6 from act 4 (the helicopter's gunship and airlift share one slot). Before extraction starts, a loadout panel above the ability bar lists every owned ability and toggles which ones go; it disappears, and the loadout locks, when extraction begins. The loadout carries over between contracts. A newly found artifact takes a free slot if there is one; otherwise the drop banner says to swap it in before a contract. An ability taken off the loadout stays off. Without the cap, the bot had about 18 artifacts by act 5 and fired an ability every few seconds.
 
 | Kind | Artifacts | Use | Effect (level 1; per level) | Cooldown |
 |---|---|---|---|---|
@@ -692,5 +693,11 @@ Difficulty is designed from a planned crew-power curve rather than tuned run by 
 - **Relics** come in three tiers: common (about 60 scrip; Scopes, Loyalty Card, Insurance, Overtime, Signing Bonus, Interns, Ammo), rare from Act 2 (about 110; Poster, Coffee Machine, Golden Parachute) and very rare from Act 3 (about 170; Liability Waiver, now +40% HP, and Overclocked Tasers). Prices rise 15% each act.
 - Unchanged: the wave interval (13s, tightening with `diffLevel` and drill progress), the starting budget, and enemy gun damage and heal auras on `lateIdx`.
 
+
+**Tuning after the ability rework.** Bot runs (15 full runs each) showed act 1 killing most runs, mostly through Suicidal contracts taken before the first artifact drops, and acts 3 to 5 becoming trivial once the bot used abilities. So:
+
+- Suicidal contracts in act 1 use ×1.2 instead of ×1.35 (same pay).
+- Waves in acts 3, 4 and 5 carry 10%, 12% and 15% more (`ACT_THREAT`, applied in `waveThreat` before the budget and health split; budget × health is linear in threat, so these are straight percentages of hostile health per wave). Lieutenant and boss thresholds still read the raw `threatAt`.
+- Abilities are capped by the loadout (above).
 ## Next up
 Sector 2+, more factions and relics, crew permadeath (an option), real art and audio, a narrative event system, deeper colony meta.

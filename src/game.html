@@ -273,6 +273,9 @@ button{font:inherit;color:inherit}
 @keyframes abready{50%{box-shadow:inset 0 0 0 2px var(--ac),0 0 12px color-mix(in srgb,var(--ac) 60%,transparent)}}
 .ab.on{box-shadow:inset 0 0 0 2px #fff,0 0 14px var(--ac)}
 .ab.sel{box-shadow:inset 0 0 0 2px var(--ac),0 0 0 2px var(--ac)}
+.loadout{position:absolute;right:62px;bottom:84px;display:flex;flex-direction:column;gap:6px;max-width:calc(100% - 74px);padding:8px 10px;background:rgba(5,7,10,.82);box-shadow:inset 0 0 0 2px var(--line)}
+.loadout .lo-row{display:flex;flex-wrap:wrap;gap:5px}
+.ab.lo{opacity:.45}.ab.lo.on{opacity:1;box-shadow:inset 0 0 0 2px var(--ac),0 0 0 2px var(--ac)}
 .ab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 @media (max-width:640px){.abil{gap:4px;padding:4px}.ab{width:42px;height:42px}.ab img{width:22px;height:22px}.ab .ab-nm{display:none}.ab .ab-cd{font-size:18px}}
 
@@ -3116,7 +3119,7 @@ function genContract(idx, diff, boss, forceFac) {
     idx, boss, diff, biomeKey, biome: BIOMES[biomeKey], facKey, fac, client, bossDef: boss ? (sector >= MAX_SECTOR ? endgameBoss(facKey) : sector >= 3 ? fac.apex : pick(fac.bosses)) : null,
     planet: biomeKey === 'hq' ? pick(HQ_NAMES) : biomeKey === 'cloud' ? pick(CLOUD_NAMES) : biomeKey === 'tomb' ? pick(TOMB_NAMES) : biomeKey === 'cyber' ? (rnd() < 0.6 ? 'Earth · ' + pick(EARTH) : pick(CYBER_NAMES)) : biomeKey === 'solar' ? pick(SOLAR_NAMES) : planetName(),
     pstyle: ri(0, PLANET_STYLES[biomeKey].length - 1),
-    mod: D.mod * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? (sector >= MAX_SECTOR ? 'Board Priority' : 'Executive Priority') : D.label, stars: boss ? 4 : D.stars,
+    mod: (diff === 2 && actOf(idx) === 1 ? 1.2 : D.mod) * (boss ? 1.05 : 1), pay: D.pay * (boss ? 1.5 : 1), diffLabel: boss ? (sector >= MAX_SECTOR ? 'Board Priority' : 'Executive Priority') : D.label, stars: boss ? 4 : D.stars,
     spawns: clamp(spawns, 1, 3),
     T: Math.round((165 + Math.min(idx, 4) * 25 + clamp(idx - 4, 0, 7) * 12) * (BIOMES[biomeKey].mod.T || 1)),
     grudge: prev ? prev.planet : null,
@@ -7457,8 +7460,11 @@ function threatAt(idx) {
   for (let k = 1; k < THREAT_AT.length; k++) { const [i1, t1] = THREAT_AT[k], [i0, t0] = THREAT_AT[k - 1]; if (idx <= i1) return t0 * Math.pow(t1 / t0, (idx - i0) / (i1 - i0)); }
   const [i0, t0] = THREAT_AT[THREAT_AT.length - 1]; return t0 * Math.pow(1.12, idx - i0);
 }
-const waveBudget = idx => 5 * Math.pow(threatAt(idx), 0.55);
-const waveHp = idx => Math.pow(threatAt(idx), 0.45);
+// acts 3 to 5 lean on artifacts, so their waves carry 10/12/15% more (budget x health is linear in threat)
+const ACT_THREAT = [1, 1, 1.1, 1.12, 1.15];
+const waveThreat = idx => threatAt(idx) * ACT_THREAT[actOf(idx) - 1];
+const waveBudget = idx => 5 * Math.pow(waveThreat(idx), 0.55);
+const waveHp = idx => Math.pow(waveThreat(idx), 0.45);
 // what each act builds up to by its boss: armour on everything but swarms, speed, veteran and elite shares, the chance
 // an elite (and a veteran) carries a trait, and the chance an elite carries a second. Values blend from the previous
 // act's across the act's contracts, so no single contract takes every step at once.
@@ -7883,7 +7889,8 @@ function stepCrates(dt) {
       const lvl = (a ? a.level : 1);
       // usable straight away in this contract
       const ma = M.arts.find(x => x.id === c.id); if (ma) ma.level = lvl; else M.arts.push(newMissionArt({ id: c.id, level: 1 }));
-      banner(a ? 'Artifact upgraded' : 'Artifact recovered', `${A.name}${a ? ' · level ' + lvl : ''}`, A.col);
+      const benched = !a && !isPlatform(c.id) && !syncLoadout().includes(c.id);
+      banner(a ? 'Artifact upgraded' : 'Artifact recovered', `${A.name}${a ? ' · level ' + lvl : benched ? ' · slots full, swap it in before a contract' : ''}`, A.col);
       const sp = stagePos(c.x, c.y); confetti(sp.x, sp.y, 40, [A.col, '#ffd23f', '#ffffff']); sfx('promote', c.x);
       buildRosterBar();
     }
@@ -7934,11 +7941,41 @@ const ABIL = {
   orbital: { verb: 'Strike', aim: 'point', cd: lv => Math.max(10, 25 - 3 * (lv - 1)), dur: () => 0 },
 };
 const LIFT_CD = lv => Math.max(6, 15 - 2 * (lv - 1));
+// Only so many abilities go on a contract: 4 slots in acts 1-2, 5 in act 3, 6 from act 4. The loadout carries
+// over between contracts, new artifacts fill free slots, and it can be changed before extraction starts.
+const ABIL_SLOTS = [4, 4, 5, 6, 6];
+const abilSlots = () => ABIL_SLOTS[actOf(M ? M.c.idx : RUN.idx) - 1];
+const ownedAbils = () => (RUN.artifacts || []).filter(a => !isPlatform(a.id)).map(a => a.id);
+function syncLoadout() {
+  const own = ownedAbils(), n = abilSlots();
+  RUN.loadout = (RUN.loadout || []).filter(id => own.includes(id)).slice(0, n);
+  // only artifacts seen for the first time fill a free slot, so one the player took off stays off
+  const seen = RUN.loadoutSeen = RUN.loadoutSeen || [];
+  for (const id of own) if (!seen.includes(id)) { seen.push(id); if (RUN.loadout.length < n) RUN.loadout.push(id); }
+  return RUN.loadout;
+}
+function toggleLoadout(id) {
+  if (!M || M.phase !== 'prep') return;
+  const L = syncLoadout();
+  if (L.includes(id)) RUN.loadout = L.filter(x => x !== id);
+  else if (L.length < abilSlots()) L.push(id);
+  else { toast(`All ${abilSlots()} slots are full. Take something off first.`, 1500); sfx('deny'); return; }
+  sfx('click'); buildRosterBar();
+}
+// before extraction: every owned ability, the ones going on this contract lit
+function buildLoadoutPanel() {
+  let el = document.getElementById('loadout');
+  const own = ownedAbils(), show = M && M.phase === 'prep' && own.length > abilSlots();
+  if (!show) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'loadout'; el.className = 'loadout'; $('#overlay').appendChild(el); }
+  const L = RUN.loadout;
+  el.innerHTML = `<div class="lbl">Ability loadout · ${L.length} of ${abilSlots()}</div><div class="lo-row">${own.map(id => { const A = ARTIFACTS[id], on = L.includes(id); return `<button class="ab lo${on ? ' on' : ''}" data-act="loadout" data-id="${id}" style="--ac:${A.col}" aria-pressed="${on}" title="${esc(A.name)}: ${esc(A.desc)}"><img src="${artIconUrl(id)}" alt=""><span class="ab-nm">${esc(ABIL[A.kind].verb)}</span></button>`; }).join('')}</div><div class="tnote">Locked once extraction starts.</div>`;
+}
 const ABIL_KEYS = 'QWEASDZXC';
 const abilRadius = a => { const k = ARTIFACTS[a.id].kind; return (k === 'van' ? 2.5 : k === 'blimp' ? 3.2 : k === 'nest' ? 0.8 : 1.3) * TILE + (k === 'van' || k === 'blimp' ? 0.3 * (a.level - 1) * TILE : 0); };
 function abilList() {
-  const out = [];
-  for (const a of (M && M.arts) || []) { if (isPlatform(a.id)) continue; out.push({ a, slot: 'main' }); if (ARTIFACTS[a.id].kind === 'heli') out.push({ a, slot: 'lift' }); }
+  const out = [], L = RUN.loadout || [];
+  for (const a of (M && M.arts) || []) { if (isPlatform(a.id) || !L.includes(a.id)) continue; out.push({ a, slot: 'main' }); if (ARTIFACTS[a.id].kind === 'heli') out.push({ a, slot: 'lift' }); }
   return out;
 }
 const abilLeft = (a, slot) => Math.max(0, slot === 'lift' ? a.cd2 : a.cd);
@@ -8130,11 +8167,12 @@ function artCardsHtml() {
 // One square per ability, bottom right of the map: icon, hotkey, a cooldown sweep and the seconds left.
 function buildAbilBar() {
   if (S.screen !== 'mission' || !M) return;
+  syncLoadout(); buildLoadoutPanel();
   const list = abilList(), ov = $('#overlay');
   let bar = document.getElementById('abil');
   if (!list.length) { if (bar) bar.remove(); return; }
   if (!bar) { bar = document.createElement('div'); bar.id = 'abil'; bar.className = 'abil'; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Abilities'); ov.appendChild(bar); }
-  const key = list.map(({ a, slot }) => a.id + slot + a.level).join() + '|' + (S.artMode ? S.artMode.id + S.artMode.slot : '');
+  const key = list.map(({ a, slot }) => a.id + slot + a.level).join() + '|' + (S.artMode ? S.artMode.id + S.artMode.slot : '') + '|' + M.phase;
   if (bar.dataset.k === key) { updateAbilBar(); return; }
   bar.dataset.k = key;
   bar.innerHTML = list.map(({ a, slot }, i) => {
@@ -8159,7 +8197,7 @@ function updateAbilBar(force) {
     b.classList.toggle('on', a.on > 0 && slot === 'main');
   }
 }
-function updateArtCards() { updateAbilBar(); }
+function updateArtCards() { updateAbilBar(); if (M.phase !== 'prep' && document.getElementById('loadout')) buildLoadoutPanel(); }
 // ---------- sprites ----------
 const ART_CACHE = {};
 const ART_EXTRA = {};
@@ -8941,6 +8979,7 @@ document.addEventListener('click', ev => {
   else if (act === 'reassign') { if (S.selTower) reassign(S.selTower); }
   else if (act === 'replace') { if (S.selTower) replaceCrew(S.selTower.crew); }
   else if (act === 'closeinfo') { S.selTower = null; renderTowerInfo(); }
+  else if (act === 'loadout') toggleLoadout(b.dataset.id);
   else if (act === 'abil') { const a = M && M.arts.find(x => x.id === b.dataset.id); if (a) useAbility(a, b.dataset.slot); }
   else if (act === 'tostore') { if (!startReviewFlow()) showStore(); }
   else if (act === 'review') showReview(RUN.roster.find(c => c.id === b.dataset.id));
