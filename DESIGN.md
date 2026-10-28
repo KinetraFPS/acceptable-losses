@@ -598,7 +598,7 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
     | Low gravity | Half-time drums, sine lead, echo and pad |
     | Cyber | Filtered square lead, constant triangle arpeggios an octave lower, busy hats |
     | Solar | Triangle lead, bells and shaker |
-    | Volcanic | **Its own song**: E Phrygian at 112 bpm, a low round triangle melody over a warm chord pad, a pumping triangle bass with sub-bass on the downbeats, forge toms, a dull anvil on 2 and 4, a lava rumble |
+    | Volcanic | **Its own song**: E harmonic minor (Em, C, Am, B) at 112 bpm, a low round triangle melody over a warm chord pad, a pumping triangle bass with sub-bass on the downbeats, forge toms, a dull anvil on 2 and 4, a lava rumble |
     | Cloud | Airy triangle lead, pad, echo |
     | Tomb | A semitone down, choir pad, sparse kick, no hats |
     | HQ | Corporate chord stabs and steady hats |
