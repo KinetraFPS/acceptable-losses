@@ -1,4 +1,4 @@
-# Migrating Acceptable Losses to Rust
+# Migrating Quarterly Losses to Rust
 
 Goal: ship the game as an optimised native executable (Windows first, then Linux and macOS) without a long freeze, and keep a browser build from the same code.
 

@@ -1,4 +1,4 @@
-# Acceptable Losses
+# Quarterly Losses
 
 A satirical neo-pixel roguelite tower defence game. You work for **Kindly Security Solutions™**, a private security company that is happy to protect anyone's crystals for the right price and does not care much what happens to you while you do it.
 

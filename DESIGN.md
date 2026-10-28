@@ -1,4 +1,4 @@
-# Acceptable Losses: design notes
+# Quarterly Losses: design notes
 
 Satirical roguelite tower defence. You work for Kindly Security Solutions™, an immoral private
 security company. You defend clients' crystal extractions across Earth and the galaxy.
