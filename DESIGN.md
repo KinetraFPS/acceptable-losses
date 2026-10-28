@@ -639,6 +639,7 @@ Hostiles can't be shot or damaged for their first 0.1 seconds (`SPAWN_GRACE`): c
 
     A contract counts as immoral when you work for "Bad people", or, after defecting, when your side is VectorCorp, Asset Protection or the Church.
   - A sad trombone when you're abandoned, and a fanfare when you evacuate or win.
+  - **Staying in key**: every melody keeps to one key (the minor-key songs use one seventh degree, not both), strong beats sit on chord tones, vibrato is set in cents so a low note wobbles no wider than a high one (default 9 cents, toxic 16, wildlife 18), and the twang slides up into each note from 0.6% under it instead of sagging flat. The uncanny layer is the only thing meant to sound off.
 - **On the beat**: the sequencer keeps a beat clock (`beatNow`). Crew bop on it, half on the beat and half off; flower heads sway with it; the crystal deposit pulses with it, harder on the downbeat.
 - **Sound effects**: quiet and distinct per role, with slight random pitch: a tight two-tick rifle burst (three with Extended Mags), a low electric taser buzz, a hollow mortar 'thoonk' and soft foam landing, a sniper crack with a bolt-action click-clack, and a soft rising drone chirp. Also kills, leaks, saboteur clanks, injuries, deploying and reassigning crew, promotions, the boss arrival horn, and UI clicks. The store has a "ka-ching". Effects are panned left or right by their position on the map and rate-limited so big fights don't clip.
 - **Ambience** (kept to what reads and costs next to nothing):

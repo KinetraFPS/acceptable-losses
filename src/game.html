@@ -2533,7 +2533,7 @@ const BIOME_MUSIC = {
               kick: 'x.......x.......', kickVol: 0.32, snare: '', hat: '', crunch: '..x...x...x..x.x', pad: true, padVol: 0.045, echo: 0.45, leadType: 'triangle', leadVol: 0.1, leadAlt: true,
               arp: true, arpType: 'sine', arpOct: 12, arpVol: 0.022, intense: true, lp: 0.65,
               lead: [mel('A4 . . D5 . . F5 . . . E5 . D5 . . .'), mel('D5 . . F5 . . Bb4 . . . D5 . F4 . . .'), mel('C5 . . F5 . . A5 . G5 . . . F5 . . .'), mel('E5 . . G5 . . C5 . . . D5 . E5 . . .')] },
-  toxic:    { bpm: 0.95, leadType: 'triangle', wobble: [3.2, 9], arpType: 'triangle', lp: 0.8, hat: 'x..x..x.x..x..x.' },
+  toxic:    { bpm: 0.95, leadType: 'triangle', wobble: [3.2, 16], arpType: 'triangle', lp: 0.8, hat: 'x..x..x.x..x..x.' },
   dust:     { bpm: 0.92, leadType: 'triangle', twang: true, arpType: 'triangle', kick: 'x.....x.x.......', hat: '..x...x...x...x.', shaker: true, lp: 0.85 },
   lowgrav:  { bpm: 0.86, leadType: 'sine', arpType: 'sine', kick: 'x...............', snare: '........x.......', hat: '....x.......x...', echo: 0.55, pad: true },
   cyber:    { bpm: 1.04, leadType: 'square', arpType: 'triangle', arpAlways: true, arpOct: 12, hat: 'x.xxx.xxx.xxx.xx', hatVol: 0.03, lp: 0.7 },
@@ -2542,7 +2542,7 @@ const BIOME_MUSIC = {
   // a dull anvil and the lava's rumble under it all
   volcanic: { own: true, bpm: 112, chords: [[40, 'm'], [36, 'M'], [45, 'm'], [47, 'M']], bass: 'r.r.r.r.r.r.r.r.', bassType: 'triangle', bassLen: 0.9, sub: true,
               kick: 'x.......x.x.....', snare: '....x.......x...', hat: '', tom: '......x.......x.', anvil: true, rumble: true, pad: true, padVol: 0.05, leadVol: 0.11, arp: true, arpType: 'triangle', arpOct: 12, arpVol: 0.03, leadType: 'triangle', leadAlt: true, intense: true, lp: 0.8,
-              lead: [mel('E4 . . G4 . . B4 . G4 . A4 . G4 . E4 .'), mel('E4 . . G4 . . C5 . C5 . B4 . G4 . E4 .'), mel('A4 . . C5 . . E5 . C5 . D5 . C5 . A4 .'), mel('B4 . . D#5 . . F#5 . F#5 . E5 . D#5 . B4 .')] },
+              lead: [mel('E4 . . G4 . . B4 . G4 . A4 . G4 . E4 .'), mel('E4 . . G4 . . C5 . C5 . B4 . G4 . E4 .'), mel('A4 . . C5 . . E5 . C5 . B4 . C5 . A4 .'), mel('B4 . . D#5 . . F#5 . F#5 . E5 . D#5 . B4 .')] },
   cloud:    { bpm: 0.95, leadType: 'triangle', arpType: 'sine', pad: true, echo: 0.45, hat: '..x...x...x...x.' },
   tomb:     { bpm: 0.88, transpose: -1, leadType: 'triangle', arpType: 'triangle', choir: true, echo: 0.5, kick: 'x.........x.....', hat: '' },
   hq:       { bpm: 1, arpType: 'triangle', stab: 'x...x...x...x...', hat: 'x.x.x.x.x.x.x.x.', lp: 0.85 },
@@ -2553,10 +2553,10 @@ const BIOME_MUSIC = {
 const FACTION_THEMES = {
   union:      { bpm: 84, chords: [[43, 'M'], [48, 'M'], [50, 'M'], [43, 'M']], leadType: 'square', clank: true, kick: 'x.......x.......', lead: [mel('G4 . . B4 D5 . . . B4 . G4 . A4 . . .'), mel('E5 . . D5 C5 . . . E5 . D5 . C5 . . .'), mel('D5 . . F#5 A5 . . . F#5 . E5 . D5 . . .'), mel('B4 . . A4 G4 . . . . . . . . . . .')] },
   activists:  { bpm: 92, chords: [[45, 'm'], [41, 'M'], [48, 'M'], [43, 'M']], leadType: 'sawtooth', lp: 0.45, hatVol: 0.04, snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', lead: [mel('A4 . A4 . C5 . E5 . . . D5 . C5 . . .'), mel('F4 . A4 . C5 . A4 . . . G4 . F4 . . .'), mel('E4 . G4 . C5 . E5 . . . D5 . C5 . . .'), mel('D5 . . . B4 . . . G4 . . . . . . .')] },
-  fauna:      { bpm: 76, chords: [[40, 'm'], [40, 'm'], [36, 'M'], [35, 'M']], leadType: 'triangle', wobble: [5, 14], kick: 'x..x....x..x....', hat: 'x.xx....x.xx....', lead: [mel('E4 . . G4 . . B4 . . . A4 . G4 . . .'), mel('E4 . . . D4 . . . E4 . . . . . . .'), mel('C5 . . B4 . . G4 . . . E4 . . . . .'), mel('D#4 . . F#4 . . B4 . . . . . . . . .')] },
+  fauna:      { bpm: 76, chords: [[40, 'm'], [40, 'm'], [36, 'M'], [35, 'M']], leadType: 'triangle', wobble: [5, 18], kick: 'x..x....x..x....', hat: 'x.xx....x.xx....', lead: [mel('E4 . . G4 . . B4 . . . A4 . G4 . . .'), mel('E4 . . . B3 . . . E4 . . . . . . .'), mel('C5 . . B4 . . G4 . . . E4 . . . . .'), mel('D#4 . . F#4 . . B4 . . . . . . . . .')] },
   lumen:      { bpm: 66, chords: [[50, 'M'], [47, 'm'], [43, 'M'], [45, 'M']], leadType: 'sine', bell: true, echo: 0.5, lead: [mel('F#5 . . . A5 . . . D6 . . . . . . .'), mel('B5 . . . A5 . . . F#5 . . . . . . .'), mel('G5 . . . B5 . . . D6 . . . B5 . . .'), mel('A5 . . . . . . . E5 . . . . . . .')] },
   rival:      { bpm: 96, chords: [[48, 'm'], [44, 'M'], [51, 'M'], [46, 'M']], leadType: 'sawtooth', lp: 0.9, kick: 'x...x...x...x...', hat: '..x...x...x...x.', lead: [mel('C5 . Eb5 . G5 . Eb5 . C6 . . . G5 . Eb5 .'), mel('C5 . Eb5 . Ab5 . Eb5 . C6 . . . Ab5 . Eb5 .'), mel('Bb4 . Eb5 . G5 . Eb5 . Bb5 . . . G5 . Eb5 .'), mel('D5 . F5 . Bb5 . F5 . D6 . . . Bb5 . . .')] },
-  abandoned:  { bpm: 68, chords: [[45, 'm'], [50, 'm'], [40, 'M'], [45, 'm']], leadType: 'triangle', bell: true, lead: [mel('A4 . . . C5 . . . E5 . . . . . D5 .'), mel('F5 . . . E5 . . . D5 . . . . . . .'), mel('E5 . . . G#4 . . . B4 . . . D5 . . .'), mel('C5 . . . B4 . . . A4 . . . . . . .')] },
+  abandoned:  { bpm: 68, chords: [[45, 'm'], [50, 'm'], [40, 'M'], [45, 'm']], leadType: 'triangle', bell: true, lead: [mel('A4 . . . C5 . . . E5 . . . . . D5 .'), mel('F5 . . . D5 . . . A4 . . . . . . .'), mel('E5 . . . G#4 . . . B4 . . . E5 . . .'), mel('C5 . . . E5 . . . A4 . . . . . . .')] },
   haulers:    { bpm: 88, chords: [[40, 'M'], [45, 'M'], [47, 'M'], [40, 'M']], twang: true, shaker: true, kick: 'x.......x.x.....', lead: [mel('E4 . G#4 . B4 . . . B4 . A4 . G#4 . . .'), mel('A4 . C#5 . E5 . . . E5 . C#5 . A4 . . .'), mel('B4 . D#5 . F#5 . . . F#5 . E5 . D#5 . . .'), mel('E5 . . . B4 . G#4 . E4 . . . . . . .')] },
   precursors: { bpm: 60, chords: [[50, 'm'], [46, 'M'], [43, 'm'], [45, 'M']], leadType: 'triangle', choir: true, echo: 0.6, kick: 'x...............', lead: [mel('D5 . . . . . A4 . . . . . F5 . . .'), mel('F5 . . . . . D5 . . . . . . . . .'), mel('G4 . . . Bb4 . . . D5 . . . . . . .'), mel('C#5 . . . . . E5 . . . A4 . . . . .')] },
   kindly:     { bpm: 80, chords: [[48, 'm'], [48, 'm'], [44, 'M'], [43, 'M']], leadType: 'square', lp: 0.5, leadVol: 0.06, snare: 'x.x.x...x.x.x...', kick: 'x.......x.......', lead: [mel('C5 . . C5 G4 . . . C5 . Eb5 . G5 . . .'), mel('G5 . F5 . Eb5 . D5 . C5 . . . . . . .'), mel('Ab4 . . Ab4 C5 . . . Eb5 . . . C5 . . .'), mel('B4 . . . D5 . . . G5 . . . . . . .')] },
@@ -2626,8 +2626,8 @@ function scheduleStep(tr, step, t, spb) {
     if (fast || s % 2 === 0) tone({ type: tr.arpType || 'square', f: F(ch[[0, 1, 2, 1][k % 4] % ch.length] + (tr.arpOct ?? 24) + wrong), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000 * lpM, when: t, bus: mb });
   }
   if (leadOn && tr.lead[bar][s]) {
-    const n = tr.lead[bar][s] + tp, lt = tr.leadType || 'square', vib = tr.wobble || (un > 0.3 ? [3.1, 6 + 10 * un] : [5.5, 4]);
-    tone({ type: lt, f: F(n), f2: tr.twang ? F(n) * 0.985 : undefined, dur: spb * (tr.twang ? 1.2 : 1.9), vol: tr.leadVol || (lt === 'sine' || lt === 'triangle' ? 0.08 : 0.055), lp: 2600 * lpM, vib, when: t, bus: mb });
+    const n = tr.lead[bar][s] + tp, lt = tr.leadType || 'square', vc = tr.wobble || (un > 0.3 ? [3.1, 12 + 14 * un] : [5.5, 9]), vib = [vc[0], F(n) * vc[1] * 0.000578];   // depth in cents
+    tone({ type: lt, f: tr.twang ? F(n) * 0.994 : F(n), f2: tr.twang ? F(n) : undefined, dur: spb * (tr.twang ? 1.2 : 1.9), vol: tr.leadVol || (lt === 'sine' || lt === 'triangle' ? 0.08 : 0.055), lp: 2600 * lpM, vib, when: t, bus: mb });
     if (tr.bell) tone({ type: 'sine', f: F(n + 12), dur: spb * 5, vol: 0.02, a: 0.005, when: t, bus: mb });
     if (tr.echo) tone({ type: lt, f: F(n), dur: spb * 1.6, vol: 0.055 * tr.echo * 0.6, lp: 1800 * lpM, when: t + spb * 3, bus: mb });
     // uncanny: a ghost of every note, a tritone up and barely there
