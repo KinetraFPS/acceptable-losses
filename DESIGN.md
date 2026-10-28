@@ -585,6 +585,21 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Burning hostiles**: anything caught by a flamer cone or standing in fire burns for about a second after (`burnT`): a scorched tint, and flames licking up from the sprite's own outline (`burnFrames`, six frames per sprite frame), with smoke and an orange glow. Visual only: burning does no extra damage.
 - **Burnt to the bone**: a humanoid that dies on fire writhes and blackens, the char flakes away to ash and the skeleton shows through, then the skeleton gives way. The legs buckle first, everything above drops onto them, and the skull lands last and rolls. The bones lie on a scorch mark for a few seconds before fading. At most ten burn at once; the rest die the ordinary way.
 
+## Kill effects
+How a human hostile dies depends on what killed it (`killK`, set in `damage` from the crew member's class, or from `DMG_SRC`, which explosion code sets around its damage loop). Bosses, flyers and anything in a tunnel keep the plain burst.
+
+| Killed by | Kind | What you see |
+|---|---|---|
+| Flamer, or anything while the target is burning | burn | Writhes in flames, chars, flakes to ash, and the skeleton collapses (above) |
+| Arc Technician | shock | 0.5s x-ray flash: the body flickers between flesh and a glowing outline with dark bones inside, cyan light. Then singed black and smoking, then it crumbles to dust from the head down, leaving a small ash pile that blows away |
+| Every gun, the gunship's door gun, allied bites | shot | Blood sprays away from the shooter; staggers, drops to the knees, tips over away from the shooter and lies flat while a pool spreads past the head |
+| Foam shells, gunship rockets, orbital strikes and broadsides | blast | Comes apart: head, torso and both legs are cut from the frame (each with a raw edge), thrown away from the blast, spin, bounce and settle flat with a splat where each lands; a scorch where they stood |
+
+Blood is the faction's (`BLOOD`): red for people, blue for the Kin, pink for the Precursors. Each kind has a cap on how many play at once (shock 14, shot 24, blast 14; burn 10); past it, a kill falls back to the plain burst, so a horde wiped by one shell stays cheap. Gib pieces are cut once per variant frame and kept.
+
+## Protest props
+Crowds mix their props (`crowdProp`): most carry a placard in one of six styles (scrawled board, cardboard, NO, coloured board, heart, two-pole banner), the rest torches, flares, drums or megaphones; union pickets add pickaxes and pitchforks, activist hardliners torches, molotovs and bats, the Abandoned cardboard and pitchforks, the Church banners and torches. Torches, flares and molotovs carry a flickering light (`propLights`).
+
 ## Rendering performance
 Profiled on a busy Act 3 map (eight crew, 90–150 hostiles, 60–95 lights): about 30 fps before this pass, about 53 fps after, with the slowest 5% of frames down from 51–57 ms to 26–28 ms (a browser with no graphics card; real GPUs have more headroom).
 - **Grades on the pixel buffer.** The world's colour grade (soft-light) and the act's light (soft-light, multiply, haze, smog bands) used to be full-screen blends at screen resolution every frame. They now run on the 396×234 pixel buffer before it's scaled up: the same look over about 1/30th of the pixels.

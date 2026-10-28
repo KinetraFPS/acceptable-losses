@@ -1220,7 +1220,24 @@ function drawHuman(L, of, legs = 'n', yo = 0) {
   if (hat === 'beanie') { const c = of.capCol || '#c0392b'; U(4, 0, 4, 1, c); U(3, 1, 6, 2, c); U(3, 3, 6, 1, shade(c, -0.2)); }
   // hand props (enemies)
   switch (of.prop) {
-    case 'sign': { const sc = of.signCol || '#d23c3c'; R(9, 3 + yo, 1, 8, '#7a5a3a'); R(7, yo, 6, 4, '#f2efe6'); R(8, 1 + yo, 4, 1, sc); R(8, 2 + yo, 2, 1, sc); break; }
+    case 'sign': {
+      // six kinds of placard: scrawled board, cardboard, NO, coloured board, heart, two-pole banner
+      const sc = of.signCol || '#d23c3c', W = '#f2efe6', wood = '#7a5a3a', st = of.signStyle || 0;
+      if (st === 5) { R(5, 3 + yo, 1, 8, wood); R(12, 3 + yo, 1, 8, wood); R(5, yo, 8, 3, sc); R(6, 1 + yo, 6, 1, W); D(6, yo, shade(sc, 0.3)); break; }
+      R(9, 3 + yo, 1, 8, wood);
+      if (st === 1) { R(7, yo, 6, 4, '#c8a46a'); R(7, 3 + yo, 6, 1, '#a8844a'); R(8, 1 + yo, 4, 1, '#3a2414'); R(8, 2 + yo, 3, 1, '#3a2414'); }
+      else if (st === 2) { R(7, yo, 6, 4, W); R(8, yo, 4, 1, '#d23c3c'); R(8, 3 + yo, 4, 1, '#d23c3c'); R(7, 1 + yo, 1, 2, '#d23c3c'); R(12, 1 + yo, 1, 2, '#d23c3c'); D(9, 1 + yo, '#d23c3c'); D(10, 2 + yo, '#d23c3c'); }
+      else if (st === 3) { R(7, yo, 6, 4, sc); R(8, 1 + yo, 4, 1, W); R(8, 2 + yo, 3, 1, W); }
+      else if (st === 4) { R(7, yo, 6, 4, W); D(8, 1 + yo, '#ff5d8a'); D(10, 1 + yo, '#ff5d8a'); R(8, 2 + yo, 3, 1, '#ff5d8a'); D(9, 3 + yo, '#ff5d8a'); D(11, 2 + yo, sc); }
+      else { R(7, yo, 6, 4, W); R(8, 1 + yo, 4, 1, sc); R(8, 2 + yo, 2, 1, sc); }
+      break;
+    }
+    case 'torch': { const f = wk === 'w1' || wk === 'w3'; R(10, 4 + yo, 1, 9, '#6a4a2a'); R(9, 3 + yo, 3, 1, '#8a6a4a'); R(9, 1 + yo, 3, 2, '#ff8a2a'); D(10, 2 + yo, '#ffe08a'); D(f ? 9 : 11, yo, '#ff8a2a'); D(10, yo, '#ffd23f'); if (f) D(10, yo - 1, '#ff8a2a'); break; }
+    case 'pitchfork': R(10, 2 + yo, 1, 11, '#7a5a3a'); R(8, 2 + yo, 5, 1, '#9aa3ad'); for (const x of [8, 10, 12]) R(x, yo, 1, 2, '#c8ccd4'); break;
+    case 'flare': { const f = wk === 'w1' || wk === 'w3'; U(9, 9, 1, 3, '#d23c3c'); UD(9, 8, '#fff6c8'); UD(f ? 10 : 8, 7, '#ff8a6a'); UD(9, 6 + (f ? 0 : 1), '#ffb040'); break; }
+    case 'molotov': { const f = wk === 'w1' || wk === 'w3'; U(9, 8, 2, 3, '#4a8a5a'); UD(9, 8, '#7ac88a'); UD(10, 7, '#e8e0cc'); UD(10, 6, '#ff8a2a'); UD(f ? 11 : 9, 5, '#ffd23f'); break; }
+    case 'drum': U(7, 10, 5, 3, '#c83a3a'); U(7, 10, 5, 1, '#f2efe6'); U(7, 12, 5, 1, '#8a2a2a'); UD(11, 8, '#e8e0cc'); UD(12, 7 + (wk === 'w1' || wk === 'w3' ? 1 : 0), '#e8e0cc'); break;
+    case 'bat': U(10, 4, 1, 8, '#c8a46a'); UD(10, 3, '#d8b47a'); UD(10, 11, '#3a2a1a'); break;
     case 'megaphone': U(9, 9, 2, 2, '#e9e9e9'); U(11, 8, 1, 4, '#e9e9e9'); UD(10, 9, '#d23c3c'); break;
     case 'phone': U(9, 8, 2, 3, '#1e2026'); UD(9, 8, '#9fd3ff'); break;
     case 'wrench': U(10, 7, 1, 5, '#9aa3ad'); U(9, 6, 3, 1, '#9aa3ad'); UD(10, 6, '#16181d'); break;
@@ -1432,14 +1449,17 @@ function fullBodyUrl(look, type) { const src = humanLit(look, CREW_OUTFITS[type]
 
 // ---------- enemies ----------
 const PROTEST_COLS = ['#e85d75', '#5ab8ff', '#7bdc6a', '#ffd23f', '#b98cff', '#ff9f43', '#f2f2f2'];
+// a crowd should not all carry the same sign: most carry a placard (six kinds), the rest torches, flares, drums or megaphones
+const crowdProp = (pool = ['sign', 'sign', 'sign', 'sign', 'torch', 'flare', 'drum', 'megaphone']) => ({ prop: pick(pool), signStyle: ri(0, 5) });
+const propLights = of => of.prop === 'torch' ? [{ x: 11, y: 1, color: '#ffa040', r: 14, flicker: true }] : of.prop === 'flare' ? [{ x: 10, y: 8, color: '#ff5a4a', r: 12, flicker: true }] : of.prop === 'molotov' ? [{ x: 11, y: 6, color: '#ffa040', r: 9, flicker: true }] : [];
 const ENEMY_HUMANS = {
   union: {
-    swarm: () => ({ shirt: pick(['#8a5a3c', '#6d4c3d', '#a0633a', '#5d6b4a']), pants: '#3b4a6b', hat: 'miner', prop: 'sign', signCol: '#d23c3c' }),
+    swarm: () => ({ shirt: pick(['#8a5a3c', '#6d4c3d', '#a0633a', '#5d6b4a']), pants: '#3b4a6b', hat: 'miner', signCol: '#d23c3c', ...crowdProp(['sign', 'sign', 'sign', 'torch', 'pickaxe', 'pitchfork']), signStyle: pick([0, 1, 3, 5]) }),
     fast: () => ({ shirt: '#c83a3a', pants: '#3b4a6b', prop: 'megaphone', hat: rnd() < 0.5 ? 'beanie' : null, capCol: '#c83a3a' }),
     saboteur: () => ({ shirt: '#4a3a2c', pants: '#2e2a26', hat: 'miner', mask: '#c0392b', prop: 'wrench' }),
   },
   activists: {
-    swarm: () => ({ shirt: pick(PROTEST_COLS), pants: pick(['#3b4a6b', '#22252b', '#5a4a3a', '#6b4a7a']), prop: 'sign', signCol: pick(['#2c8a4a', '#d23c3c', '#3d6bff']), hat: rnd() < 0.3 ? 'beanie' : null, capCol: pick(PROTEST_COLS) }),
+    swarm: () => ({ shirt: pick(PROTEST_COLS), pants: pick(['#3b4a6b', '#22252b', '#5a4a3a', '#6b4a7a']), ...crowdProp(), signCol: pick(['#2c8a4a', '#d23c3c', '#3d6bff', '#ff3ad6', '#16181d']), hat: rnd() < 0.3 ? 'beanie' : null, capCol: pick(PROTEST_COLS) }),
     fast: () => ({ shirt: pick(PROTEST_COLS), hood: true, pants: '#22252b', prop: 'phone' }),
     saboteur: () => ({ shirt: '#3a4a5a', vest: '#ff7a1a', stripe: '#f2f2f2', pants: '#2b2f36', prop: 'glue' }),
   },
@@ -2037,6 +2057,7 @@ function makeVariant(facKey, cat) {
   if (of.prop === 'camera') lights.push({ x: 9, y: 6, color: '#ff4d6d', r: 7 });
   if (of.prop === 'medkit') lights.push({ x: 10, y: 11, color: '#4fe0a6', r: 8 });
   if (of.prop === 'ringlight') lights.push({ x: 11, y: 3, color: '#fff6c8', r: 12 });
+  lights.push(...propLights(of));
   const frames = [drawHuman(look, of, 'w0', 1), drawHuman(look, of, 'w1', 0), drawHuman(look, of, 'w2', 1), drawHuman(look, of, 'w3', 0)];
   return finishVariant('human', [{ ax: 7, ay: 17, lights }], frames);
 }
@@ -3887,7 +3908,7 @@ function skeletonParts(top, feet) {
     ['arm', -3, sh, Math.round(Ht * 0.34), 0.15, -1], ['arm', 3, sh, Math.round(Ht * 0.34), 0.17, 1], ['skull', 0, top, 4, 0.22, 1],
   ];
 }
-function drawBone(g, kind, x, y, len, flat, a) {
+function drawBone(g, kind, x, y, len, flat, a, BONE = '#e8e0cc', BONE_SH = '#b4a88e') {
   g.globalAlpha = a;
   if (kind === 'skull') { px(g, x - 2, y, 4, 3, BONE); px(g, x - 2, y + 2, 4, 1, BONE_SH); px(g, x - 1, y + 3, 3, 1, BONE); px(g, x - 1, y + 1, 1, 1, SOOT); px(g, x + 1, y + 1, 1, 1, SOOT); }
   else if (kind === 'pelvis') { px(g, x - 2, y, 5, 1, BONE); px(g, x - 2, y + 1, 1, 1, BONE_SH); px(g, x + 2, y + 1, 1, 1, BONE_SH); }
@@ -3935,6 +3956,138 @@ function drawBurnDeath(g, b, t) {
     else drawBone(g, kind, x, yy, len, landed && kind === 'ribs', fade);
   }
   if (live && age < 3 && M.parts.length < 400 && rnd() < 0.08) addPart({ x: ax * AP, y: feet * AP, vx: (rnd() - 0.5) * 6, vy: -10 - rnd() * 6, r: 0.5, grow: 2, life: 1.2, max: 1.2, col: '#3a3236', layer: 'px', alpha: 0.5 });
+}
+
+// ---------- how a human dies depends on what killed them ----------
+// shock (Arc Technician): an x-ray flash with the skeleton showing, singed black, then it crumbles to dust
+// shot (every gun, the gunship's door gun, bites): staggers away from the shooter, drops to the knees, falls flat, bleeds out
+// blast (foam shells, rockets, orbital strikes): comes apart; head, torso and both legs fly as ragdolls, bounce and settle
+// Fire keeps its own death (above). Each kind has a cap; past it, a kill falls back to the plain burst of pixels.
+let DMG_SRC = null;   // set around explosion damage, so a kill knows it was a blast and where it came from
+const KILL_KIND = { taser: 'shock', mortar: 'blast' };
+const DEATH_CAP = { shock: 14, shot: 24, blast: 14 }, DEATH_LIFE = { shock: 3.2, shot: 6.5, blast: 5.5 };
+const XRAY = '#c8f4ff';
+// blood is the faction's (BLOOD, with the scene corpses): red for people, blue for the Kin, pink for the Precursors
+const goreOf = () => { const c = BLOOD[M.c.facKey] || '#6a1416'; return [shade(c, 0.35), c]; };
+const xrayFrames = v => v.xray || (v.xray = v.frames.map(c => silhouette(c, XRAY)));
+function humanDeath(e) {
+  const k = e.killK || 'shot', list = M.deaths || (M.deaths = []);
+  if (list.reduce((n, d) => n + (d.k === k), 0) >= DEATH_CAP[k]) return false;
+  const v = e.v, fi = Math.floor(e.dist / 5) % v.frames.length, fr = v.frames[fi], ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 3;
+  const from = e.killFrom, dir = from ? (e.x >= from.x ? 1 : -1) : (rnd() < 0.5 ? -1 : 1);
+  const prof = frameProfile(fr), cols = prof ? prof.filter(Boolean) : [], top = cols.length ? Math.min(...cols.map(p => p[0])) : 1;
+  const [BL, BD] = goreOf(), d = { k, x: ax, y: ay, v, fi, flip: e.face < 0, t0: M.t, seed: (rnd() * 1000) | 0, dir, top, bl: BL, bd: BD };
+  if (k === 'shot') {
+    for (let i = 0; i < 6; i++) addPart({ x: e.x, y: ecy(e), vx: dir * (40 + rnd() * 70), vy: -30 - rnd() * 50, g: 300, floor: e.y + 4 + rnd() * 6, life: 0.7, max: 0.7, col: rnd() < 0.5 ? BL : BD, size: 1, layer: 'px' });
+  } else if (k === 'shock') {
+    sparks(e.x, ecy(e), '#bff8ff', 6);
+  } else {
+    // cut the frame into head, torso and two legs, each with a raw edge
+    const gib = gibParts(v, fi, top, BL), bx = from ? from.x / AP : ax, by = from ? from.y / AP : ay;
+    d.parts = gib.map(p => {
+      const cx = ax + (d.flip ? -(p.ox + p.c.width / 2) : p.ox + p.c.width / 2), cy = ay - v.ay + p.oy + p.c.height / 2;
+      let dx = cx - bx, dy = cy - by; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+      const pw = 40 + rnd() * 50;
+      return { c: p.c, x: cx, y: cy, vx: dx * pw + (rnd() - 0.5) * 30, vy: Math.min(-30, dy * pw) - 30 - rnd() * 50, rot: 0, vr: (rnd() < 0.5 ? -1 : 1) * (5 + rnd() * 9), floor: ay - 1 + Math.round((rnd() - 0.4) * 6), rest: false, splat: null };
+    });
+    for (let i = 0; i < 12; i++) addPart({ x: e.x, y: ecy(e), vx: (rnd() - 0.5) * 160, vy: -40 - rnd() * 110, g: 320, floor: e.y + 2 + rnd() * 10, life: 0.9, max: 0.9, col: rnd() < 0.6 ? BL : BD, size: rnd() < 0.3 ? 2 : 1, layer: 'px' });
+  }
+  list.push(d);
+  return true;
+}
+// head / torso / left leg / right leg of one frame, cut once per frame and kept
+function gibParts(v, fi, top, bl) {
+  v.gibs = v.gibs || [];
+  if (v.gibs[fi]) return v.gibs[fi];
+  const fr = v.frames[fi], w = fr.width, h = fr.height, H = h - top, hb = top + Math.round(H * 0.4), lb = top + Math.round(H * 0.68), cx = clamp(v.ax, 1, w - 1);
+  const cut = (x, y, cw, ch, edges) => {
+    const c = mkCanvas(cw, ch), g = c.getContext('2d'); g.drawImage(fr, x, y, cw, ch, 0, 0, cw, ch);
+    g.globalCompositeOperation = 'source-atop'; g.fillStyle = bl; for (const ey of edges) g.fillRect(0, ey, cw, 1);
+    return { c, ox: x - v.ax, oy: y };
+  };
+  return (v.gibs[fi] = [cut(0, 0, w, hb, [hb - 1]), cut(0, hb, w, lb - hb, [0, lb - hb - 1]), cut(0, lb, cx, h - lb, [0]), cut(cx, lb, w - cx, h - lb, [0])]);
+}
+function stepDeaths(dt) {
+  const m = M; if (!m.deaths || !m.deaths.length) return;
+  m.deaths = m.deaths.filter(d => m.t - d.t0 < DEATH_LIFE[d.k]);
+  for (const d of m.deaths) if (d.parts) for (const p of d.parts) {
+    if (p.rest) continue;
+    p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    if (p.y >= p.floor) {
+      p.y = p.floor; p.vy *= -0.32; p.vx *= 0.55; p.vr *= 0.5;
+      if (!p.splat) p.splat = { x: Math.round(p.x), y: Math.round(p.floor + p.c.height / 2) };
+      if (Math.abs(p.vy) < 14) { p.rest = true; p.vy = p.vx = p.vr = 0; p.rot = Math.round(p.rot / (Math.PI / 2)) * (Math.PI / 2); }
+    }
+  }
+}
+function bloodPool(g, cx, cy, rx, ry, a, BL, BD) {
+  if (rx < 1) return;
+  g.globalAlpha = a;
+  for (let y = -Math.ceil(ry); y <= ry; y++) { const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry)))); if (hw <= 0) continue; px(g, cx - hw, cy + y, hw * 2 + 1, 1, Math.abs(y) >= ry - 0.5 || hw < 2 ? BL : BD); }
+  g.globalAlpha = 1;
+}
+function drawDeath(g, d, t) {
+  const age = M.t - d.t0, v = d.v, fr = v.frames[d.fi], ax = d.x, sx = ax - v.ax, sy = d.y - v.ay, feet = d.y, flip = d.flip, live = !M.paused;
+  const life = DEATH_LIFE[d.k], fade = clamp((life - age) / 1.2, 0, 1);
+  // crop: rows taken off the top; cut: rows taken off the bottom (the legs folding under on the way down)
+  const blit = (im, dx = 0, dy = 0, crop = 0, cut = 0) => {
+    const w = im.width, h = im.height - crop - cut;
+    if (h <= 0) return;
+    if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, 0, crop, w, h, sx - dx, sy + dy + crop, w, h); g.restore(); }
+    else g.drawImage(im, 0, crop, w, h, sx + dx, sy + dy + crop, w, h);
+  };
+  if (d.k === 'shot') {
+    // the pool spreads from where the body lands
+    // the body lies across feet-2..feet+6, so the pool spreads out from under its lower edge and past the head
+    const mid = ax + d.dir * Math.round((feet - sy - d.top) * 0.55);
+    if (age > 0.55) { const k = clamp((age - 0.55) / 2.4, 0, 1); bloodPool(g, mid, feet + 6, 4 + 8 * k, 1.5 + 2 * k, 0.9 * fade, d.bl, d.bd); }
+    g.globalAlpha = fade;
+    if (age < 0.18) blit(fr, d.dir * Math.round(age / 0.18 * 2));
+    else if (age < 0.4) { const sink = Math.round((age - 0.18) / 0.22 * (feet - sy - d.top) * 0.3); blit(fr, d.dir * 2, sink, 0, sink + Math.max(0, fr.height - (feet - sy) - 1)); }
+    else {
+      // tips over onto the ground, falling away from the shooter
+      const k = clamp((age - 0.4) / 0.16, 0, 1), ang = d.dir * (Math.PI / 2) * k * k, sink = Math.round((feet - sy - d.top) * 0.3 * (1 - k));
+      g.save(); g.translate(ax, feet + (k >= 1 ? 2 : 0)); g.rotate(ang); if (flip) g.scale(-1, 1); g.drawImage(fr, -v.ax, -v.ay + sink); g.restore();
+    }
+    g.globalAlpha = 1;
+    return;
+  }
+  if (d.k === 'shock') {
+    const parts = skeletonParts(sy + d.top, feet);
+    if (age < 0.5) {
+      // x-ray: the body flickers between flesh and a glowing outline with the bones inside
+      const tw = Math.round(Math.sin(age * 90 + d.seed)), on = Math.floor(age * 16) % 2 === 0;
+      if (on) { blit(xrayFrames(v)[d.fi], tw); for (const [kind, ox, y, len] of parts) drawBone(g, kind, ax + ox + tw, y, len, false, 1, '#24507a', '#18385a'); }
+      else blit(fr, tw);
+      if (live && rnd() < 0.3) sparks((ax + (rnd() - 0.5) * 8) * AP, (sy + d.top + rnd() * (feet - sy - d.top)) * AP, '#bff8ff', 1);
+      return;
+    }
+    if (age < 1.0) {
+      // singed: blackens, smoking
+      const k = (age - 0.5) / 0.5;
+      blit(fr); g.globalAlpha = 0.4 + 0.6 * k; blit(charFrames(v)[d.fi]); g.globalAlpha = 1;
+      if (live && M.parts.length < 400 && rnd() < 0.3) addPart({ x: (ax + (rnd() - 0.5) * 6) * AP, y: (sy + d.top + 2) * AP, vx: (rnd() - 0.5) * 8, vy: -16 - rnd() * 10, r: 0.5, grow: 2, life: 0.8, max: 0.8, col: '#3a3236', layer: 'px', alpha: 0.6 });
+      return;
+    }
+    // crumbles to dust from the head down, leaving a small pile that blows away
+    const k = clamp((age - 1.0) / 1.2, 0, 1), H = feet - sy - d.top, cut = d.top + Math.round(H * k);
+    if (k < 1) {
+      blit(charFrames(v)[d.fi], 0, 0, cut);
+      if (live && M.parts.length < 420) for (let n = 0; n < 2; n++) addPart({ x: (ax + (rnd() - 0.5) * 8) * AP, y: (sy + cut) * AP, vx: 10 + rnd() * 26, vy: -8 - rnd() * 14, g: 40, life: 0.9, max: 0.9, col: rnd() < 0.5 ? '#5a5250' : '#2a2422', size: 1, layer: 'px' });
+    }
+    const pile = Math.min(3, Math.round(k * 4)), pa = clamp((life - age) / 1, 0, 1);
+    if (pile > 0) { g.globalAlpha = pa; px(g, ax - 3, feet, 7, 1, '#3a3230'); if (pile > 1) px(g, ax - 2, feet - 1, 5, 1, '#4a4240'); if (pile > 2) px(g, ax - 1, feet - 2, 2, 1, '#5a5250'); g.globalAlpha = 1; }
+    return;
+  }
+  // blast: a scorch where they stood, splats where the pieces hit, and the pieces themselves
+  g.globalAlpha = 0.4 * fade; for (let x = -5; x <= 5; x++) for (let y = -1; y <= 1; y++) if (x * x / 25 + y * y <= 1 && ((x + y + d.seed) & 1) === 0) px(g, ax + x, feet + y, 1, 1, SOOT); g.globalAlpha = 1;
+  for (const p of d.parts) if (p.splat) bloodPool(g, p.splat.x, p.splat.y, Math.min(3, 1 + (M.t - d.t0) * 2), 1, 0.85 * fade, d.bl, d.bd);
+  g.globalAlpha = fade;
+  for (const p of d.parts) {
+    g.save(); g.translate(Math.round(p.x), Math.round(p.y)); if (p.rot) g.rotate(p.rot); if (flip) g.scale(-1, 1);
+    g.drawImage(p.c, -Math.round(p.c.width / 2), -Math.round(p.c.height / 2)); g.restore();
+  }
+  g.globalAlpha = 1;
 }
 
 function isPortrait() { const r = $('#stage').getBoundingClientRect(); return r.height > r.width * 1.05; }
@@ -4293,6 +4446,8 @@ function damage(e, dmg, pierce, tw, quiet) {
   }
   if (e.hp <= 0) {
     e.dead = true;
+    e.killK = DMG_SRC ? DMG_SRC.k : (tw && tw.crew && KILL_KIND[tw.crew.type]) || 'shot';
+    e.killFrom = DMG_SRC || (tw ? { x: tw.x, y: tw.y } : null);
     if (e.deal) { deathFx(e); sfx('splat', e.x); dealCasualty(e, tw); return; }
     M.kills++; RUN.kills++;
     if (e.volatile) volatileBlast(e);
@@ -4855,11 +5010,13 @@ function stepMission(dt) {
     if (sh.t >= sh.dur && !sh.hit) {
       sh.hit = true;
       const s = sh.s;
+      DMG_SRC = { k: 'blast', x: sh.tx, y: sh.ty };
       for (const e of m.enemies) {
         if (e.dead || e.fly || Math.hypot(e.x - sh.tx, e.y - sh.ty) > sh.r + e.r * 0.5) continue;
         hitEnemy(e, sh.dmg, s, sh.tw, { chained: true });
         if (!e.dead && s.slowSplash) applySlow(e, s.slowSplash, 2);
       }
+      DMG_SRC = null;
       if (sh.cluster) for (let k = 0; k < sh.cluster; k++) {
         const a = rnd() * Math.PI * 2, d = sh.r * (0.7 + rnd() * 0.5);
         m.shots.push({ ...sh, sx: sh.tx, sy: sh.ty, tx: sh.tx + Math.cos(a) * d, ty: sh.ty + Math.sin(a) * d * 0.7, t: 0, dur: 0.28, dmg: sh.dmg * 0.4, r: sh.r * 0.55, cluster: 0, hit: false, trail: 0 });
@@ -4919,7 +5076,10 @@ function casing(tw) { const f = tw.face || 1; addPart({ x: tw.x + f * 6, y: tw.y
 function shake(v) { M.shake = Math.max(M.shake, v); }
 function foam(x, y, r) { M.decals.push({ x, y, life: 6, blobs: Array.from({ length: 7 }, () => ({ x: (rnd() - 0.5) * r / AP * 1.3, y: (rnd() - 0.5) * r / AP * 0.7, r: 1 + rnd() * 2.6, c: pick(['#f2f6fa', '#d8e8f2', '#ffffff', '#c8dcea']) })) }); }
 function deathFx(e) {
-  if (e.dead && e.burnT > 0 && e.v && e.v.kind === 'human' && !e.boss && !e.fly && !e.inTunnel && (M.burnDeaths || []).length < 10) { burnDeath(e); return; }
+  if (e.dead && e.v && e.v.kind === 'human' && !e.boss && !e.fly && !e.inTunnel) {
+    if (e.burnT > 0 && (M.burnDeaths || []).length < 10) { burnDeath(e); return; }
+    if (!(e.burnT > 0) && humanDeath(e)) { if (e.killK === 'blast') smoke(e.x, ecy(e), 2); return; }
+  }
   const y = ecy(e), n = e.boss ? 34 : 9;
   for (let i = 0; i < n; i++) addPart({ x: e.x, y, vx: (rnd() - 0.5) * 130, vy: -40 - rnd() * 100, g: 330, floor: e.y + 4 + rnd() * 8, life: 0.8 + rnd() * 0.5, max: 1.3, col: rnd() < 0.5 ? e.color : shade(e.color, -0.4), size: 1, layer: 'px' });
   smoke(e.x, y, e.boss ? 12 : 3);
@@ -4940,6 +5100,7 @@ function stepFx(dt) {
     if (p.floor != null && p.y > p.floor) { p.y = p.floor; p.vy *= -0.35; p.vx *= 0.5; if (Math.abs(p.vy) < 12) { p.vy = 0; p.vx = 0; p.g = 0; } }
   }
   m.parts = m.parts.filter(p => p.life > 0);
+  stepDeaths(dt);
   if (m.parts.length > 700) m.parts.splice(0, m.parts.length - 700);
   for (const d of m.decals) d.life -= dt;
   m.decals = m.decals.filter(d => d.life > 0);
@@ -5017,6 +5178,7 @@ function renderMission(now) {
   for (const a of m.allies || []) list.push([a.y, () => drawAllyPx(g, a, t)]);
   list.push([m.dep.y, () => drawDepositPx(g, t)]);
   if (m.burnDeaths) { m.burnDeaths = m.burnDeaths.filter(b => m.t - b.t0 < 7); for (const b of m.burnDeaths) list.push([b.y * AP - 6, () => drawBurnDeath(g, b, t)]); }
+  for (const d of m.deaths || []) list.push([d.y * AP - 6, () => drawDeath(g, d, t)]);
   list.sort((a, b) => a[0] - b[0]);
   for (const it of list) it[1]();
   // placement ghost
@@ -5096,6 +5258,7 @@ function renderMission(now) {
   for (const z of m.zones) if (z.kind === 'fire') glow(z.x, z.y - 6, z.r * 1.9 + 10, '#ff7a2a', (0.38 + 0.1 * Math.sin(t * 13 + z.x)) * clamp(z.life / 0.6, 0, 1));
   let lit = 0;
   for (const e of m.enemies) if (e.burnT > 0 && !e.dead && lit++ < 12) glow(e.x, ecy(e), 16, '#ff8a2a', 0.4 * clamp(e.burnT / 0.4, 0, 1) * (0.85 + 0.15 * Math.sin(t * 17 + e.wob)));
+  for (const d of m.deaths || []) if (d.k === 'shock') { const age = m.t - d.t0; if (age < 0.5) glow(d.x * AP, (d.y - 8) * AP, 26, '#7fe8ff', 0.6 * (Math.floor(age * 16) % 2 ? 0.5 : 1)); }
   for (const b of m.burnDeaths || []) { const age = m.t - b.t0; if (age < 1.8) glow(b.x * AP, (b.y - 8) * AP, 22, '#ff7a2a', 0.55 * (age < 0.9 ? 1 : 1 - (age - 0.9) / 0.9)); }
   glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);
   for (const tw of m.towers) {
@@ -5110,7 +5273,7 @@ function renderMission(now) {
   let elights = 0;
   for (const e of m.enemies) {
     if (e._sx == null || elights > 60) continue;
-    for (const l of e.v.lights) { elights++; const lx = e._flip ? 2 * e._ax - (e._sx + l.x + 0.5) : e._sx + l.x + 0.5; glow(lx * AP, (e._sy + l.y + 0.5) * AP, l.r, l.color, 0.4); }
+    for (const l of e.v.lights) { elights++; const lx = e._flip ? 2 * e._ax - (e._sx + l.x + 0.5) : e._sx + l.x + 0.5; glow(lx * AP, (e._sy + l.y + 0.5) * AP, l.r, l.color, l.flicker ? 0.32 + 0.14 * Math.sin(t * 11 + (e.wob || 0) * 40) : 0.4); }
   }
   for (const f of m.fx) {
     if (f.delay > 0) continue;
@@ -8079,7 +8242,9 @@ function stepArtifacts(dt) {
     if (s.t <= 0 && !s.hit) {
       s.hit = true; shake(6); sfx('thunder', s.x);
       m.fx.push({ k: 'orbital', x: s.x, y: s.y, r: s.r, life: 0.6, max: 0.6 });
+      DMG_SRC = { k: 'blast', x: s.x, y: s.y };
       for (const e of m.enemies) if (!e.dead && !e.deal && Math.hypot(e.x - s.x, e.y - s.y) <= s.r) damage(e, s.dmg * (e.boss ? 0.6 : 1), true, null);
+      DMG_SRC = null;
       sparks(s.x, s.y, '#bff8ff', 14);
     }
   }
@@ -8136,7 +8301,9 @@ function stepHeli(a, dt) {
     a.rkCd = 1.1;
     m.fx.push({ k: 'tracer', x1: a.hx, y1: a.hy + 8, x2: c.x, y2: c.y, life: 0.14, max: 0.14, color: '#ffd23f', w: 2, glow: '#ff7a1a' });
     m.fx.push({ k: 'boom', x: c.x, y: c.y, r: 1.1 * TILE, life: 0.4, max: 0.4, color: '#ff7a1a' });
+    DMG_SRC = { k: 'blast', x: c.x, y: c.y };
     for (const e of m.enemies) if (!e.dead && !e.deal && Math.hypot(e.x - c.x, e.y - c.y) <= 1.1 * TILE) { damage(e, 60 * sc * (e.boss ? 0.6 : 1), true, null); if (!e.dead && !e.boss) stunE(e, 0.4); }
+    DMG_SRC = null;
     sparks(c.x, c.y, '#ffd23f', 8); sfx('mortar', c.x); shake(2);
   }
 }
@@ -8299,7 +8466,7 @@ Object.assign(ENEMY_HUMANS.rival, {
 Object.assign(ENEMY_HUMANS.activists, {
   medic: () => ({ shirt: '#f2efe6', cross: true, pants: '#3b4a6b', prop: 'medkit', hat: 'cap', capCol: '#d23c3c' }),
   stealth: () => ({ shirt: '#16181d', hood: true, pants: '#16181d', mask: '#16181d', prop: 'glue' }),
-  berserk: () => ({ shirt: pick(PROTEST_COLS), pants: '#22252b', mask: '#d23c3c', hat: 'beanie', capCol: '#16181d', prop: 'sign', signCol: '#16181d' }),
+  berserk: () => ({ shirt: pick(PROTEST_COLS), pants: '#22252b', mask: '#d23c3c', hat: 'beanie', capCol: '#16181d', signCol: '#16181d', ...crowdProp(['sign', 'torch', 'torch', 'molotov', 'bat']) }),
   burrower: () => ({ shirt: '#5a4a3a', pants: '#3b4a6b', hat: 'hardhat', prop: 'pickaxe', mask: '#2c8a4a' }),
 });
 // wildlife: a shell-backed guardian, a screecher, a brood carrier and a phase moth
@@ -9404,7 +9571,7 @@ ART_EXTRA.kite = f => { const k = kinKite(f, true); return { c: k.c, ax: k.c.wid
 // Haulers (smugglers in leather and teal) and the Precursors (stone constructs lit pink from inside).
 // ================================================================
 function humanVariant(of, lights = []) {
-  const look = genLook();
+  const look = genLook(); lights = lights.concat(propLights(of));
   return finishVariant('human', [{ ax: 7, ay: 17, lights }], [drawHuman(look, of, 'w0', 1), drawHuman(look, of, 'w1', 0), drawHuman(look, of, 'w2', 1), drawHuman(look, of, 'w3', 0)]);
 }
 // a generic hull on the water, decorated by the caller
@@ -9417,7 +9584,7 @@ function hullSprite(hull, f, deck) {
 }
 // ---------- the Abandoned ----------
 const ABANDONED_OUTFITS = {
-  swarm: () => ({ shirt: pick(['#8a7a4a', '#6a6a5a', '#7a6a4a', '#9a8a5a']), pants: '#3a3a40', logo: true, pocket: true, prop: 'sign', signCol: '#c8a040' }),
+  swarm: () => ({ shirt: pick(['#8a7a4a', '#6a6a5a', '#7a6a4a', '#9a8a5a']), pants: '#3a3a40', logo: true, pocket: true, signCol: '#c8a040', ...crowdProp(['sign', 'sign', 'torch', 'pitchfork']), signStyle: pick([1, 1, 2, 3]) }),
   fast: () => ({ shirt: '#c8a040', pants: '#2a2a30', hat: 'cap', capCol: '#3a4a5c', prop: 'clipboard' }),
   saboteur: () => ({ shirt: '#2f6f88', pants: '#2a6070', hat: 'goggles', prop: 'wrench', pack: true, packCol: '#8a929c' }),
   medic: () => ({ shirt: '#e8e0d0', cross: true, pants: '#5a5a60', prop: 'medkit', hat: 'cap', capCol: '#c8a040' }),
@@ -9952,7 +10119,7 @@ FAC_ART.kindly = cat => {
   return humanVariant((KINDLY_OUTFITS[cat] || KINDLY_OUTFITS.swarm)());
 };
 const CHURCH_OUTFITS = {
-  swarm: () => ({ shirt: pick(['#e8e4dc', '#c8c4ba', '#9aa3ad']), coat: CH_RED, hood: rnd() < 0.5, pants: '#2a1a20', prop: pick(['sign', 'rulebook']), signCol: CH_GOLD }),
+  swarm: () => ({ shirt: pick(['#e8e4dc', '#c8c4ba', '#9aa3ad']), coat: CH_RED, hood: rnd() < 0.5, pants: '#2a1a20', signCol: CH_GOLD, ...crowdProp(['sign', 'sign', 'rulebook', 'torch', 'torch']), signStyle: pick([0, 3, 5]) }),
   fast: () => ({ shirt: '#e8e4dc', collar: CH_RED, lanyard: true, pants: '#3a2a30', prop: 'rulebook' }),
   saboteur: () => ({ shirt: '#3a1424', coat: '#2a0e18', hood: true, pants: '#1a0e14', prop: 'wrench', mask: '#2a0e18' }),
   medic: () => ({ shirt: '#e8e4dc', coat: '#e8e4dc', cross: true, pants: '#3a2a30', prop: 'rulebook' }),
