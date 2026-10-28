@@ -586,7 +586,7 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 
     | World | Arrangement |
     |---|---|
-    | Frozen | Slower glassy triangle lead, bell sparkle and echo (the template for the rest: round voices, a full middle) |
+    | Frozen | **Its own song**: cold and spacious, D minor at 100 bpm, a triangle melody in the middle register over a soft pad with echo, a soft kick, snow crunch instead of hats, quiet sine arpeggios an octave up |
     | Toxic | Wobbly triangle lead, triangle arpeggios |
     | Dust | Twangy plucked lead, shaker, a loping kick |
     | Low gravity | Half-time drums, sine lead, echo and pad |
@@ -598,7 +598,7 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
     | HQ | Corporate chord stabs and steady hats |
     | Ship | Four-on-the-floor with dull metallic knocks |
 
-    It still adds layers as the drill fills. Arrangements avoid bright square and saw leads up high and keep the middle of the mix full: the old forge arrangement had the weakest middle of the set (4.5% of its energy between 250 Hz and 1.5 kHz, against 10.8% for frozen), and it sounded thin and tinny over a muddy low end.
+    It still adds layers as the drill fills. Arrangements avoid bright square and saw leads up high and keep the middle of the mix full: the old forge arrangement had the weakest middle of the set (4.5% of its energy between 250 Hz and 1.5 kHz, against 10.8% for the old frozen one), and it sounded thin and tinny over a muddy low end. The old frozen arrangement had the opposite problem: the brightest top of the set, from a bell sparkle two octaves above the lead, high arpeggios and hats, so it got its own song too and the bell sparkle everywhere dropped an octave.
   - **Faction themes** (`FACTION_THEMES`) play on each faction's calls, demands and invitations, over the envoy's slow pad:
     - Union: a work-song in G, with hammer clanks.
     - Activists: a protest chant in A minor with a backbeat.
