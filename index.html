@@ -2521,6 +2521,9 @@ const arpeggio = (notes, type, gap, dur, vol) => notes.forEach((f, i) => tone({ 
 const SFX = {
   // weapons: quiet, short, and each with its own character
   gun: n => { for (let i = 0; i < (n || 2); i++) { const j = 1 + (Math.random() - 0.5) * 0.08; noise({ f: 2600 * j, q: 1.6, dur: 0.028, vol: 0.11, at: i * 0.07 }); tone({ f: 1500 * j, f2: 650, dur: 0.02, vol: 0.022, at: i * 0.07 }); } },
+  // electrocution: a low wobbling buzz and crackle, not a whine
+  zapdie: () => { tone({ type: 'sawtooth', f: 98, dur: 0.6, vol: 0.05, lp: 1500, vib: [22, 25] }); tone({ type: 'square', f: 147, dur: 0.5, vol: 0.025, lp: 1200, vib: [19, 30] }); noise({ type: 'bandpass', f: 1800, dur: 0.55, vol: 0.03 }); },
+  bodyfall: () => { tone({ type: 'sine', f: 95, f2: 48, dur: 0.14, vol: 0.07 }); noise({ type: 'lowpass', f: 500, dur: 0.08, vol: 0.04 }); },
   taser: () => { const j = 1 + (Math.random() - 0.5) * 0.1; tone({ type: 'sawtooth', f: 92 * j, dur: 0.12, vol: 0.05, lp: 2200, vib: [48, 30] }); noise({ type: 'highpass', f: 5200, dur: 0.07, vol: 0.045 }); },
   mortar: () => { const j = 1 + (Math.random() - 0.5) * 0.08; tone({ type: 'triangle', f: 270 * j, f2: 125, dur: 0.13, vol: 0.13 }); noise({ f: 520, q: 2, dur: 0.06, vol: 0.09 }); },
   foam: () => { noise({ type: 'lowpass', f: 950, f2: 200, dur: 0.3, vol: 0.13 }); tone({ type: 'sine', f: 125, f2: 60, dur: 0.18, vol: 0.12 }); },
@@ -2561,7 +2564,7 @@ const SFX = {
   },
   victory: () => { arpeggio([392, 523, 659, 784, 1047, 1319], 'square', 0.09, 0.16, 0.07); arpeggio([131, 165, 196, 262], 'triangle', 0.18, 0.4, 0.14); },
 };
-const SFX_GAP = { gun: 0.06, drone: 0.05, crit: 0.05, terminated: 0.1, overcharge: 0.15, heal: 0.3, thunder: 0.3, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04, beam: 0.12, shatter: 0.15 };
+const SFX_GAP = { zapdie: 0.25, bodyfall: 0.07, gun: 0.06, drone: 0.05, crit: 0.05, terminated: 0.1, overcharge: 0.15, heal: 0.3, thunder: 0.3, pop: 0.03, splat: 0.04, taser: 0.06, sabo: 0.12, leak: 0.12, hit: 0.15, foam: 0.05, snipe: 0.05, mortar: 0.05, hover: 0.04, beam: 0.12, shatter: 0.15 };
 function sfx(name, x, arg) {
   const c = AU.ctx;
   if (!c || CFG.muted || c.state !== 'running' || !SFX[name]) return;
@@ -3965,7 +3968,7 @@ function drawBurnDeath(g, b, t) {
 // Fire keeps its own death (above). Each kind has a cap; past it, a kill falls back to the plain burst of pixels.
 let DMG_SRC = null;   // set around explosion damage, so a kill knows it was a blast and where it came from
 const KILL_KIND = { taser: 'shock', mortar: 'blast' };
-const DEATH_CAP = { shock: 14, shot: 24, blast: 14 }, DEATH_LIFE = { shock: 3.2, shot: 6.5, blast: 5.5 };
+const DEATH_CAP = { shock: 14, shot: 24, blast: 14 }, DEATH_LIFE = { shock: 3.8, shot: 6.5, blast: 5.5 };
 const XRAY = '#c8f4ff';
 // blood is the faction's (BLOOD, with the scene corpses): red for people, blue for the Kin, pink for the Precursors
 const goreOf = () => { const c = BLOOD[M.c.facKey] || '#6a1416'; return [shade(c, 0.35), c]; };
@@ -4007,9 +4010,65 @@ function gibParts(v, fi, top, bl) {
   };
   return (v.gibs[fi] = [cut(0, 0, w, hb, [hb - 1]), cut(0, hb, w, lb - hb, [0, lb - hb - 1]), cut(0, lb, cx, h - lb, [0]), cut(cx, lb, w - cx, h - lb, [0])]);
 }
+function limbParts(v, fi, top) {
+  v.limbs = v.limbs || [];
+  if (v.limbs[fi]) return v.limbs[fi];
+  const fr = v.frames[fi], w = fr.width, h = fr.height, H = h - top, hb = top + Math.round(H * 0.36), lb = top + Math.round(H * 0.66);
+  const cut = (y, ch) => { const c = mkCanvas(w, ch); c.getContext('2d').drawImage(fr, 0, y, w, ch, 0, 0, w, ch); return c; };
+  return (v.limbs[fi] = { head: cut(0, hb), torso: cut(hb, lb - hb), legs: cut(lb, h - lb), hb, lb, h });
+}
+// the fall, as keyframes: [time, leg angle, leg squash, torso angle (on the hips), head angle (on the neck), knock-back px]
+// angles are in the direction the body falls (away from the shooter)
+const FALL_KEYS = [
+  [0, 0, 1, 0, 0, 0],
+  [0.06, 0, 1, 0.38, 0.45, 1],       // the hit snaps the chest and head back
+  [0.14, 0.06, 1, 0.12, -0.25, 2],   // staggers, head whips forward
+  [0.24, 0.1, 0.8, -0.1, 0.35, 3],   // knees start to go, slumps
+  [0.36, 0.12, 0.55, -0.2, 0.55, 3], // on the knees, head lolling
+  [0.46, 0.35, 0.6, 0.1, 0.3, 3],    // tips over
+  [0.6, 1.57, 0.85, 0.05, 0.05, 3],  // hits the ground
+  [0.66, 1.57, 0.85, -0.22, -0.4, 3], // the chest and head bounce up
+  [0.76, 1.57, 0.85, 0.04, 0.12, 3],
+  [0.86, 1.57, 0.85, 0, 0.06, 3],    // settles, head lolls aside
+];
+function fallPose(t) {
+  const K = FALL_KEYS; if (t >= K[K.length - 1][0]) return K[K.length - 1].slice(1);
+  let i = 1; while (K[i][0] < t) i++;
+  const a = K[i - 1], b = K[i], k = (t - a[0]) / (b[0] - a[0]), e = k * k * (3 - 2 * k);
+  return a.slice(1).map((v, j) => v + (b[j + 1] - v) * e);
+}
+// a crackling zig-zag bolt between two points
+function drawBolt(g, x0, y0, x1, y1, col, seed) {
+  const n = 4; let px0 = x0, py0 = y0;
+  for (let k = 1; k <= n; k++) {
+    const f = k / n, jx = k < n ? Math.round((hsh3(seed, k, 1) - 0.5) * 4) : 0, jy = k < n ? Math.round((hsh3(seed, k, 2) - 0.5) * 4) : 0;
+    const x = Math.round(x0 + (x1 - x0) * f + jx), y = Math.round(y0 + (y1 - y0) * f + jy), steps = Math.max(Math.abs(x - px0), Math.abs(y - py0), 1);
+    for (let s = 0; s <= steps; s++) px(g, Math.round(px0 + (x - px0) * s / steps), Math.round(py0 + (y - py0) * s / steps), 1, 1, col);
+    px0 = x; py0 = y;
+  }
+}
+// the cartoon skeleton: spread-eagled, arms flung up or out on alternate flashes
+function zapSkeleton(g, ax, top, feet, up, a = 1) {
+  const H = feet - top, sh = top + 5, pel = top + Math.round(H * 0.56), al = Math.max(3, Math.round(H * 0.3));
+  g.globalAlpha = a;
+  px(g, ax - 2, top, 5, 3, BONE); px(g, ax - 1, top + 1, 1, 1, SOOT); px(g, ax + 1, top + 1, 1, 1, SOOT); px(g, ax - 1, top + 3, 3, 1, BONE_SH); px(g, ax - 1, top + 3, 1, 1, BONE); px(g, ax + 1, top + 3, 1, 1, BONE);
+  px(g, ax, sh - 1, 1, pel - sh + 1, BONE);
+  for (let j = 0; j < Math.max(3, Math.round(H * 0.24)); j += 2) px(g, ax - 2, sh + j, 5, 1, j ? BONE_SH : BONE);
+  px(g, ax - 2, pel, 5, 1, BONE);
+  for (const s of [-1, 1]) {
+    for (let k = 0; k < al; k++) px(g, ax + s * (2 + k), up ? sh - Math.round(k * 0.8) : sh + Math.round(k * 0.25), 1, 1, k === al - 1 ? BONE_SH : BONE);
+    const ll = feet - pel - 1; for (let k = 0; k <= ll; k++) px(g, ax + s * (1 + Math.round(k * 0.35)), pel + 1 + k, 1, 1, k === ll ? BONE_SH : BONE);
+  }
+  g.globalAlpha = 1;
+}
 function stepDeaths(dt) {
   const m = M; if (!m.deaths || !m.deaths.length) return;
   m.deaths = m.deaths.filter(d => m.t - d.t0 < DEATH_LIFE[d.k]);
+  for (const d of m.deaths) {
+    const age = m.t - d.t0;
+    if (d.k === 'shot' && !d.thud && age >= 0.6) { d.thud = true; sfx('bodyfall', d.x * AP); smoke(d.x * AP + d.dir * 14, d.y * AP + 2, 2); }
+    if (d.k === 'shock' && !d.buzz) { d.buzz = true; sfx('zapdie', d.x * AP); }
+  }
   for (const d of m.deaths) if (d.parts) for (const p of d.parts) {
     if (p.rest) continue;
     p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
@@ -4037,40 +4096,62 @@ function drawDeath(g, d, t) {
     else g.drawImage(im, 0, crop, w, h, sx + dx, sy + dy + crop, w, h);
   };
   if (d.k === 'shot') {
-    // the pool spreads from where the body lands
     // the body lies across feet-2..feet+6, so the pool spreads out from under its lower edge and past the head
     const mid = ax + d.dir * Math.round((feet - sy - d.top) * 0.55);
-    if (age > 0.55) { const k = clamp((age - 0.55) / 2.4, 0, 1); bloodPool(g, mid, feet + 6, 4 + 8 * k, 1.5 + 2 * k, 0.9 * fade, d.bl, d.bd); }
+    if (age > 0.65) { const k = clamp((age - 0.65) / 2.4, 0, 1); bloodPool(g, mid, feet + 6, 4 + 8 * k, 1.5 + 2 * k, 0.9 * fade, d.bl, d.bd); }
+    // an articulated fall: legs pivot on the feet, the torso on the hips, the head on the neck, each lagging the one below
+    const L = limbParts(v, d.fi, d.top), [la, lsq, ta, ha, kb] = fallPose(age), s = d.dir, flat = clamp((age - 0.5) / 0.1, 0, 1);
+    // two late twitches
+    const tw = (age > 1.3 && age < 1.36) || (age > 1.9 && age < 1.94) ? 0.08 : 0;
+    const legH = L.h - L.lb, torH = L.lb - L.hb, part = (c, y) => { if (flip) { g.save(); g.scale(-1, 1); g.drawImage(c, -v.ax, y); g.restore(); } else g.drawImage(c, -v.ax, y); };
     g.globalAlpha = fade;
-    if (age < 0.18) blit(fr, d.dir * Math.round(age / 0.18 * 2));
-    else if (age < 0.4) { const sink = Math.round((age - 0.18) / 0.22 * (feet - sy - d.top) * 0.3); blit(fr, d.dir * 2, sink, 0, sink + Math.max(0, fr.height - (feet - sy) - 1)); }
-    else {
-      // tips over onto the ground, falling away from the shooter
-      const k = clamp((age - 0.4) / 0.16, 0, 1), ang = d.dir * (Math.PI / 2) * k * k, sink = Math.round((feet - sy - d.top) * 0.3 * (1 - k));
-      g.save(); g.translate(ax, feet + (k >= 1 ? 2 : 0)); g.rotate(ang); if (flip) g.scale(-1, 1); g.drawImage(fr, -v.ax, -v.ay + sink); g.restore();
-    }
-    g.globalAlpha = 1;
+    g.save(); g.translate(ax + s * Math.round(kb), feet - 1 + Math.round(2 * flat)); g.rotate(s * (la + tw));
+    g.save(); g.scale(1, lsq); part(L.legs, -legH); g.restore();
+    g.translate(0, -Math.round(legH * lsq)); g.rotate(s * ta);
+    part(L.torso, -torH);
+    g.translate(0, -torH); g.rotate(s * (ha - tw));
+    part(L.head, -L.hb);
+    g.restore(); g.globalAlpha = 1;
     return;
   }
   if (d.k === 'shock') {
-    const parts = skeletonParts(sy + d.top, feet);
-    if (age < 0.5) {
-      // x-ray: the body flickers between flesh and a glowing outline with the bones inside
-      const tw = Math.round(Math.sin(age * 90 + d.seed)), on = Math.floor(age * 16) % 2 === 0;
-      if (on) { blit(xrayFrames(v)[d.fi], tw); for (const [kind, ox, y, len] of parts) drawBone(g, kind, ax + ox + tw, y, len, false, 1, '#24507a', '#18385a'); }
-      else blit(fr, tw);
-      if (live && rnd() < 0.3) sparks((ax + (rnd() - 0.5) * 8) * AP, (sy + d.top + rnd() * (feet - sy - d.top)) * AP, '#bff8ff', 1);
+    const top = sy + d.top, H = feet - top, sc = v.ax / 7, eyeY = sy + Math.round((6 + (d.fi % 2 ? 0 : 1)) * sc);
+    const hair = (col, a) => { g.globalAlpha = a; for (let k = -2; k <= 2; k++) { const h = 2 + ((k + d.seed) & 1) + (k === 0 ? 1 : 0); px(g, ax + k * 1 + (k > 0 ? 1 : 0) - (flip ? 1 : 0), top - h, 1, h, col); } g.globalAlpha = 1; };
+    if (age < 0.85) {
+      // cartoon electrocution: stiff, lifted, buzzing between flesh and an x-ray skeleton with its arms flung out
+      const ph = Math.floor(age * 22), jx = ((ph * 7 + d.seed) % 3) - 1, lift = 2, xr = ph % 2 === 0;
+      g.save(); g.translate(jx, -lift);
+      if (xr) {
+        g.globalAlpha = 0.85; blit(xrayFrames(v)[d.fi]); g.globalAlpha = 1;
+        zapSkeleton(g, ax, top, feet, ph % 4 === 0);
+      } else {
+        // the flesh frame, outlined in electric white
+        g.globalAlpha = 0.9; for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) blit(xrayFrames(v)[d.fi], ox, oy); g.globalAlpha = 1;
+        blit(fr);
+      }
+      hair(xr ? '#ffffff' : '#1a1a22', 1);
+      g.restore();
+      // bolts crawling over and off the body
+      const seed = d.seed + ph * 13;
+      for (let k = 0; k < 3; k++) {
+        const y0 = top + Math.round(hsh3(seed, k, 3) * H), side = hsh3(seed, k, 4) < 0.5 ? -1 : 1;
+        drawBolt(g, ax + side * 2, y0 - lift, ax + side * (6 + Math.round(hsh3(seed, k, 5) * 5)), y0 - lift + Math.round((hsh3(seed, k, 6) - 0.5) * 10), k ? '#7fe8ff' : '#ffffff', seed + k);
+      }
+      if (live && rnd() < 0.4) sparks((ax + (rnd() - 0.5) * 10) * AP, (top + rnd() * H) * AP, rnd() < 0.5 ? '#ffffff' : '#bff8ff', 1);
       return;
     }
-    if (age < 1.0) {
-      // singed: blackens, smoking
-      const k = (age - 0.5) / 0.5;
-      blit(fr); g.globalAlpha = 0.4 + 0.6 * k; blit(charFrames(v)[d.fi]); g.globalAlpha = 1;
-      if (live && M.parts.length < 400 && rnd() < 0.3) addPart({ x: (ax + (rnd() - 0.5) * 6) * AP, y: (sy + d.top + 2) * AP, vx: (rnd() - 0.5) * 8, vy: -16 - rnd() * 10, r: 0.5, grow: 2, life: 0.8, max: 0.8, col: '#3a3236', layer: 'px', alpha: 0.6 });
+    if (age < 1.55) {
+      // it stops. Charred, frizzy hair smoking, standing stiff. Blinks twice.
+      const k = clamp((age - 0.85) / 0.12, 0, 1);
+      blit(fr); g.globalAlpha = 0.5 + 0.5 * k; blit(charFrames(v)[d.fi]); g.globalAlpha = 1;
+      hair('#1a1210', 1);
+      const blink = (age > 1.12 && age < 1.18) || (age > 1.36 && age < 1.42);
+      if (!blink) for (const ex of [0, 2]) { const x = ax + Math.round(ex * sc); px(g, flip ? 2 * ax - x - 1 : x, eyeY, 1, 1, '#ffffff'); }
+      if (live && M.parts.length < 400 && rnd() < 0.35) addPart({ x: (ax + (rnd() - 0.5) * 4) * AP, y: (top - 2) * AP, vx: (rnd() - 0.5) * 6, vy: -18 - rnd() * 8, r: 0.5, grow: 2.2, life: 0.9, max: 0.9, col: '#4a4246', layer: 'px', alpha: 0.6 });
       return;
     }
-    // crumbles to dust from the head down, leaving a small pile that blows away
-    const k = clamp((age - 1.0) / 1.2, 0, 1), H = feet - sy - d.top, cut = d.top + Math.round(H * k);
+    // then crumbles to dust from the head down, leaving a small pile that blows away
+    const k = clamp((age - 1.55) / 1.1, 0, 1), cut = d.top + Math.round(H * k);
     if (k < 1) {
       blit(charFrames(v)[d.fi], 0, 0, cut);
       if (live && M.parts.length < 420) for (let n = 0; n < 2; n++) addPart({ x: (ax + (rnd() - 0.5) * 8) * AP, y: (sy + cut) * AP, vx: 10 + rnd() * 26, vy: -8 - rnd() * 14, g: 40, life: 0.9, max: 0.9, col: rnd() < 0.5 ? '#5a5250' : '#2a2422', size: 1, layer: 'px' });
@@ -5258,7 +5339,7 @@ function renderMission(now) {
   for (const z of m.zones) if (z.kind === 'fire') glow(z.x, z.y - 6, z.r * 1.9 + 10, '#ff7a2a', (0.38 + 0.1 * Math.sin(t * 13 + z.x)) * clamp(z.life / 0.6, 0, 1));
   let lit = 0;
   for (const e of m.enemies) if (e.burnT > 0 && !e.dead && lit++ < 12) glow(e.x, ecy(e), 16, '#ff8a2a', 0.4 * clamp(e.burnT / 0.4, 0, 1) * (0.85 + 0.15 * Math.sin(t * 17 + e.wob)));
-  for (const d of m.deaths || []) if (d.k === 'shock') { const age = m.t - d.t0; if (age < 0.5) glow(d.x * AP, (d.y - 8) * AP, 26, '#7fe8ff', 0.6 * (Math.floor(age * 16) % 2 ? 0.5 : 1)); }
+  for (const d of m.deaths || []) if (d.k === 'shock') { const age = m.t - d.t0; if (age < 0.85) glow(d.x * AP, (d.y - 10) * AP, 34, Math.floor(age * 22) % 2 ? '#ffffff' : '#7fe8ff', 0.75 * (Math.floor(age * 22) % 2 ? 1 : 0.55)); }
   for (const b of m.burnDeaths || []) { const age = m.t - b.t0; if (age < 1.8) glow(b.x * AP, (b.y - 8) * AP, 22, '#ff7a2a', 0.55 * (age < 0.9 ? 1 : 1 - (age - 0.9) / 0.9)); }
   glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);
   for (const tw of m.towers) {
