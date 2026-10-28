@@ -2093,7 +2093,7 @@ function getVariant(cat) {
   return pick(pool);
 }
 // the hit flash, and from Act 2 the rank outlines, for one look; two looks a frame are warmed in the background
-function warmVariant(v, act) { v.white; if (act >= 2) for (let i = 0; i < v.frames.length; i++) { ring4(v.vet[i]); ring4(v.elite[i]); } }
+function warmVariant(v, act) { v.white; if (v.kind === 'vehicle') wreckFrames(v); else if (v.kind === 'creature' || v.kind === 'human') ashFrames(v); if (act >= 2) for (let i = 0; i < v.frames.length; i++) { ring4(v.vet[i]); ring4(v.elite[i]); } }
 // A: build every look this contract can need before the first wave: the faction's kinds for this act, its hordes,
 // and (from Act 3) its demoted bosses
 function prewarmPools() {
@@ -3988,7 +3988,26 @@ function drawBurnDeath(g, b, t) {
 // Fire keeps its own death (above). Each kind has a cap; past it, a kill falls back to the plain burst of pixels.
 let DMG_SRC = null;   // set around explosion damage, so a kill knows it was a blast and where it came from
 const KILL_KIND = { taser: 'shock', mortar: 'blast' };
-const DEATH_CAP = { shock: 14, shot: 24, blast: 14 }, DEATH_LIFE = { shock: 3.8, shot: 6.5, blast: 5.5 };
+const DEATH_CAP = { shock: 16, shot: 28, blast: 16, burn: 12 }, DEATH_LIFE = { shock: 3.8, shot: 6.5, blast: 5.5, burn: 3.2 };
+// creatures and ground machines die their own way (see drawDeath); machines leave wrecks that smoke for a while
+const deathLife = d => d.fam === 'machine' ? (d.k === 'blast' ? 6 : 6.5) : d.fam === 'creature' && d.k === 'shot' ? 6 : DEATH_LIFE[d.k];
+const OIL = ['#2a2a30', '#141418'];
+const ashFrames = v => v.ash || (v.ash = v.frames.map(c => silhouette(c, ASH)));
+// a machine's wreck: the frame darkened and scorched
+const wreckFrames = v => v.wreck || (v.wreck = v.frames.map(c => { const w = mkCanvas(c.width, c.height), g = w.getContext('2d'); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(16,14,18,0.66)'; g.fillRect(0, 0, w.width, w.height); g.fillStyle = 'rgba(0,0,0,0.5)'; for (let x = 0; x < w.width; x += 3) g.fillRect(x, (x * 7) % w.height, 2, 2); return w; }));
+// a creature's skeleton, fitted to its own outline: a spine down the middle of the body, a rib every third column
+function fishBones(fr) {
+  const w = fr.width, h = fr.height, c = mkCanvas(w, h), g = c.getContext('2d'), sg = mkCanvas(w, h).getContext('2d', { willReadFrequently: true });
+  sg.drawImage(fr, 0, 0); const a = sg.getImageData(0, 0, w, h).data;
+  for (let x = 0; x < w; x++) {
+    let t = -1, b = -1; for (let y = 0; y < h; y++) if (a[(y * w + x) * 4 + 3] > 40) { if (t < 0) t = y; b = y; }
+    if (t < 0 || b - t < 3) continue;
+    const mid = Math.round((t + b) / 2);
+    px(g, x, mid, 1, 1, '#f6f2e8');
+    if (x % 3 === 0) px(g, x, t + 1, 1, b - t - 1, '#b8c4d4');
+  }
+  return c;
+}
 const XRAY = '#c8f4ff';
 // blood is the faction's (BLOOD, with the scene corpses): red for people, blue for the Kin, pink for the Precursors
 const goreOf = () => { const c = BLOOD[M.c.facKey] || '#6a1416'; return [shade(c, 0.35), c]; };
@@ -4009,41 +4028,52 @@ function zapKit(v, fi, top) {
   let poses, bones;
   if (v.look && v.of) { poses = [drawHuman(v.look, v.of, 'zap', 0), drawHuman(v.look, v.of, 'zap2', 0)]; bones = [zapBones(v.look, true), zapBones(v.look, false)]; }
   else {
-    const fr = v.frames[fi], H = fr.height - 1 - top; poses = [fr, fr];
-    bones = [true, false].map(up => { const c = mkCanvas(fr.width, fr.height), g = c.getContext('2d'); zapSkeleton(g, v.ax, top, fr.height - 1, up); return c; });
+    const fr = v.frames[fi], H = fr.height - 1 - top; poses = [fr, v.frames[(fi + 1) % v.frames.length]];
+    bones = v.kind === 'creature' ? poses.map(fishBones) : [true, false].map(up => { const c = mkCanvas(fr.width, fr.height), g = c.getContext('2d'); zapSkeleton(g, v.ax, top, fr.height - 1, up); return c; });
   }
   return (v.zapKit = { poses, xray: poses.map((p, k) => xrayOf(p, bones[k])), white: poses.map(p => silhouette(p, '#ffffff')), char: poses.map(p => silhouette(p, ASH)) });
 }
-function humanDeath(e) {
-  const k = e.killK || 'shot', list = M.deaths || (M.deaths = []);
+function humanDeath(e, fam = 'human') {
+  const k = fam !== 'human' && e.burnT > 0 ? 'burn' : e.killK || 'shot', list = M.deaths || (M.deaths = []);
   if (list.reduce((n, d) => n + (d.k === k), 0) >= DEATH_CAP[k]) return false;
-  const v = e.v, fi = Math.floor(e.dist / 5) % v.frames.length, fr = v.frames[fi], ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 3;
+  const v = e.v, nf = v.frames.length, fi = Math.floor(e.dist / (fam === 'human' ? 5 : nf > 2 ? 4 : 6)) % nf, fr = v.frames[fi], ax = Math.round(e.x / AP), ay = Math.round(e.y / AP) + 3;
   const from = e.killFrom, dir = from ? (e.x >= from.x ? 1 : -1) : (rnd() < 0.5 ? -1 : 1);
   const prof = frameProfile(fr), cols = prof ? prof.filter(Boolean) : [], top = cols.length ? Math.min(...cols.map(p => p[0])) : 1;
-  const [BL, BD] = goreOf(), d = { k, x: ax, y: ay, v, fi, flip: e.face < 0, t0: M.t, seed: (rnd() * 1000) | 0, dir, top, bl: BL, bd: BD };
-  if (k === 'shot') {
+  const [BL, BD] = fam === 'machine' ? OIL : goreOf(), d = { k, fam, x: ax, y: ay, v, fi, flip: e.face < 0, t0: M.t, seed: (rnd() * 1000) | 0, dir, top, bl: BL, bd: BD };
+  if (fam === 'machine' && k !== 'blast') {
+    sparks(e.x, ecy(e), k === 'shock' ? '#bff8ff' : '#ffd890', 6);
+  } else if (k === 'burn') {
+    smoke(e.x, ecy(e), 2);
+  } else if (k === 'shot') {
     for (let i = 0; i < 6; i++) addPart({ x: e.x, y: ecy(e), vx: dir * (40 + rnd() * 70), vy: -30 - rnd() * 50, g: 300, floor: e.y + 4 + rnd() * 6, life: 0.7, max: 0.7, col: rnd() < 0.5 ? BL : BD, size: 1, layer: 'px' });
   } else if (k === 'shock') {
     sparks(e.x, ecy(e), '#bff8ff', 6);
   } else {
     // cut the frame into head, torso and two legs, each with a raw edge
-    const gib = gibParts(v, fi, top, BL), bx = from ? from.x / AP : ax, by = from ? from.y / AP : ay;
+    const gib = gibParts(v, fi, top, BL, fam), bx = from ? from.x / AP : ax, by = from ? from.y / AP : ay;
+    if (fam === 'machine') { M.fx.push({ k: 'boom', x: e.x, y: ecy(e), r: e.r * 2.6, life: 0.5, max: 0.5, color: '#ff8a2a' }); shake(2); }
     d.parts = gib.map(p => {
       const cx = ax + (d.flip ? -(p.ox + p.c.width / 2) : p.ox + p.c.width / 2), cy = ay - v.ay + p.oy + p.c.height / 2;
       let dx = cx - bx, dy = cy - by; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
       const pw = 40 + rnd() * 50;
       return { c: p.c, x: cx, y: cy, vx: dx * pw + (rnd() - 0.5) * 30, vy: Math.min(-30, dy * pw) - 30 - rnd() * 50, rot: 0, vr: (rnd() < 0.5 ? -1 : 1) * (5 + rnd() * 9), floor: ay - 1 + Math.round((rnd() - 0.4) * 6), rest: false, splat: null };
     });
-    for (let i = 0; i < 12; i++) addPart({ x: e.x, y: ecy(e), vx: (rnd() - 0.5) * 160, vy: -40 - rnd() * 110, g: 320, floor: e.y + 2 + rnd() * 10, life: 0.9, max: 0.9, col: rnd() < 0.6 ? BL : BD, size: rnd() < 0.3 ? 2 : 1, layer: 'px' });
+    for (let i = 0; i < 12; i++) addPart({ x: e.x, y: ecy(e), vx: (rnd() - 0.5) * 160, vy: -40 - rnd() * 110, g: 320, floor: e.y + 2 + rnd() * 10, life: 0.9, max: 0.9, col: fam === 'machine' ? (rnd() < 0.5 ? '#9aa3ad' : '#4a4e5a') : rnd() < 0.6 ? BL : BD, size: rnd() < 0.3 ? 2 : 1, layer: 'px' });
   }
   list.push(d);
   return true;
 }
 // head / torso / left leg / right leg of one frame, cut once per frame and kept
-function gibParts(v, fi, top, bl) {
+function gibParts(v, fi, top, bl, fam = 'human') {
   v.gibs = v.gibs || [];
   if (v.gibs[fi]) return v.gibs[fi];
-  const fr = v.frames[fi], w = fr.width, h = fr.height, H = h - top, hb = top + Math.round(H * 0.4), lb = top + Math.round(H * 0.68), cx = clamp(v.ax, 1, w - 1);
+  const fr = fam === 'machine' ? wreckFrames(v)[fi] : v.frames[fi], w = fr.width, h = fr.height, H = h - top, hb = top + Math.round(H * 0.4), lb = top + Math.round(H * 0.68), cx = clamp(v.ax, 1, w - 1);
+  if (fam !== 'human') {
+    const cutC = (x, y, cw, ch, ex) => { const c = mkCanvas(cw, ch), g = c.getContext('2d'); g.drawImage(fr, x, y, cw, ch, 0, 0, cw, ch); g.globalCompositeOperation = 'source-atop'; g.fillStyle = bl; for (const e of ex) g.fillRect(e, 0, 1, ch); return { c, ox: x - v.ax, oy: y }; };
+    if (fam === 'creature') { const a = Math.round(w / 3), b = Math.round(2 * w / 3); return (v.gibs[fi] = [cutC(0, 0, a, h, [a - 1]), cutC(a, 0, b - a, h, [0, b - a - 1]), cutC(b, 0, w - b, h, [0])]); }
+    const mx = w >> 1, my = top + (H >> 1);
+    return (v.gibs[fi] = [[0, 0, mx, my], [mx, 0, w - mx, my], [0, my, mx, h - my], [mx, my, w - mx, h - my]].map(([x, y, cw, ch]) => { const c = mkCanvas(cw, ch); c.getContext('2d').drawImage(fr, x, y, cw, ch, 0, 0, cw, ch); return { c, ox: x - v.ax, oy: y }; }));
+  }
   const cut = (x, y, cw, ch, edges) => {
     const c = mkCanvas(cw, ch), g = c.getContext('2d'); g.drawImage(fr, x, y, cw, ch, 0, 0, cw, ch);
     g.globalCompositeOperation = 'source-atop'; g.fillStyle = bl; for (const ey of edges) g.fillRect(0, ey, cw, 1);
@@ -4104,14 +4134,20 @@ function zapSkeleton(g, ax, top, feet, up, a = 1) {
 }
 function stepDeaths(dt) {
   const m = M; if (!m.deaths || !m.deaths.length) return;
-  m.deaths = m.deaths.filter(d => m.t - d.t0 < DEATH_LIFE[d.k]);
+  m.deaths = m.deaths.filter(d => m.t - d.t0 < deathLife(d));
   for (const d of m.deaths) {
     const age = m.t - d.t0;
     if (d.k === 'shot' && !d.thud && age >= 0.6) { d.thud = true; sfx('bodyfall', d.x * AP); smoke(d.x * AP + d.dir * 14, d.y * AP + 2, 2); }
-    if (d.k === 'shock' && !d.buzz) { d.buzz = true; sfx('zapdie', d.x * AP); }
+    if (d.k === 'shock' && !d.buzz) { d.buzz = true; sfx(d.fam === 'machine' ? 'taser' : 'zapdie', d.x * AP); }
+    if (d.fam === 'machine') {
+      const popAt = d.k === 'shock' ? 0.7 : d.k === 'shot' ? 0.35 : -1;
+      if (popAt > 0 && !d.pop && age >= popAt) { d.pop = true; m.fx.push({ k: 'boom', x: d.x * AP, y: (d.y - 6) * AP, r: 18, life: 0.35, max: 0.35, color: '#ff8a2a' }); sparks(d.x * AP, (d.y - 6) * AP, '#ffd890', 6); sfx('mortar', d.x * AP); }
+      if ((d.pop || d.k === 'burn' || d.k === 'blast') && m.parts.length < 380 && rnd() < dt * 7 * (1 - age / deathLife(d))) addPart({ x: (d.x + (rnd() - 0.5) * 8) * AP, y: (d.y - 8) * AP, vx: (rnd() - 0.5) * 10 + 6, vy: -18 - rnd() * 12, r: 0.8, grow: 2.6, life: 1.4, max: 1.4, col: rnd() < 0.6 ? '#2a2a30' : '#4a4a52', layer: 'px', alpha: 0.6 });
+    }
+    if (d.fam === 'creature' && d.k === 'shot' && !d.thud && age >= 0.4) { d.thud = true; sfx('bodyfall', d.x * AP); }
   }
   for (const d of m.deaths) if (d.parts) for (const p of d.parts) {
-    if (p.rest) continue;
+    if (p.rest) { if (d.fam === 'machine' && m.parts.length < 380 && rnd() < dt * 1.5) addPart({ x: p.x * AP, y: (p.y - 2) * AP, vx: 4, vy: -14, r: 0.6, grow: 2, life: 1, max: 1, col: '#3a3a42', layer: 'px', alpha: 0.5 }); continue; }
     p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
     if (p.y >= p.floor) {
       p.y = p.floor; p.vy *= -0.32; p.vx *= 0.55; p.vr *= 0.5;
@@ -4128,7 +4164,7 @@ function bloodPool(g, cx, cy, rx, ry, a, BL, BD) {
 }
 function drawDeath(g, d, t) {
   const age = M.t - d.t0, v = d.v, fr = v.frames[d.fi], ax = d.x, sx = ax - v.ax, sy = d.y - v.ay, feet = d.y, flip = d.flip, live = !M.paused;
-  const life = DEATH_LIFE[d.k], fade = clamp((life - age) / 1.2, 0, 1);
+  const life = deathLife(d), fade = clamp((life - age) / 1.2, 0, 1);
   // crop: rows taken off the top; cut: rows taken off the bottom (the legs folding under on the way down)
   const blit = (im, dx = 0, dy = 0, crop = 0, cut = 0) => {
     const w = im.width, h = im.height - crop - cut;
@@ -4136,6 +4172,77 @@ function drawDeath(g, d, t) {
     if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, 0, crop, w, h, sx - dx, sy + dy + crop, w, h); g.restore(); }
     else g.drawImage(im, 0, crop, w, h, sx + dx, sy + dy + crop, w, h);
   };
+  if (d.fam === 'creature' && (d.k === 'shot' || d.k === 'burn')) {
+    const top = sy + d.top, cy = (top + feet) / 2;
+    if (d.k === 'shot') {
+      // knocked back, rolls onto its back with a hop, legs kicking, then still in a spreading pool of ichor
+      if (age > 0.45) { const k = clamp((age - 0.45) / 2.2, 0, 1); bloodPool(g, ax, feet + 1, 3 + 6 * k, 1 + 1.5 * k, 0.9 * fade, d.bl, d.bd); }
+      g.globalAlpha = fade;
+      if (age < 0.12) blit(fr, d.dir * Math.round(age / 0.12 * 2));
+      else {
+        const k = clamp((age - 0.12) / 0.3, 0, 1), e = k * k * (3 - 2 * k), hop = Math.round(Math.sin(Math.PI * k) * 5);
+        // kicking legs: swap walk frames, slowing down, stopping by 1.8s
+        const kick = age < 1.8 ? Math.floor(age * (14 - age * 6)) % 2 : 0, im = v.frames[(d.fi + kick) % v.frames.length];
+        g.save(); g.translate(ax + d.dir * 2, Math.round(cy) - hop); g.rotate(d.dir * Math.PI * e); if (flip) g.scale(-1, 1); g.drawImage(im, -v.ax, -Math.round(cy - sy)); g.restore();
+      }
+      g.globalAlpha = 1;
+      return;
+    }
+    // burned: writhes in the flames, blackens, curls up, then falls to grey ash
+    if (age < 0.7) {
+      const k = age / 0.7, wr = Math.round(Math.sin(age * 30) * (1 - k) * 1.5);
+      blit(v.frames[(d.fi + (Math.floor(age * 12) % 2)) % v.frames.length], wr); g.globalAlpha = k; blit(ashFrames(v)[d.fi], wr); g.globalAlpha = 1;
+      burnFlames(g, fr, ax + wr, sx + wr, sy, flip, t, d.seed, 1);
+      return;
+    }
+    const curl = clamp((age - 0.7) / 0.4, 0, 1), sq = 1 - 0.35 * curl, ash = ashFrames(v)[d.fi];
+    if (age < 1.1) {
+      g.save(); g.translate(ax, feet); g.scale(flip ? -1 : 1, sq); g.drawImage(ash, -v.ax, -(feet - sy)); g.restore();
+      burnFlames(g, fr, ax, sx, sy, flip, t, d.seed, 1 - curl);
+      return;
+    }
+    const k = clamp((age - 1.1) / 1.1, 0, 1), cutRows = Math.round((feet - top) * k);
+    if (k < 1) {
+      g.save(); g.translate(ax, feet); g.scale(flip ? -1 : 1, sq); const hh = feet - sy - cutRows; if (hh > 0) g.drawImage(ash, 0, ash.height - hh, ash.width, hh, -v.ax, -hh, ash.width, hh); g.restore();
+      if (live && M.parts.length < 420) addPart({ x: (ax + (rnd() - 0.5) * 10) * AP, y: (feet - (feet - top) * sq * (1 - k)) * AP, vx: 10 + rnd() * 20, vy: -6 - rnd() * 10, g: 40, life: 0.8, max: 0.8, col: pick(['#6a6a70', '#3a3a3e', '#1e1e22']), size: 1, layer: 'px' });
+    }
+    const pa = clamp((life - age) / 1, 0, 1); g.globalAlpha = pa; px(g, ax - 4, feet, 9, 1, '#2a2a2e'); if (k > 0.4) px(g, ax - 2, feet - 1, 5, 1, '#46464c'); g.globalAlpha = 1;
+    return;
+  }
+  if (d.fam === 'machine' && d.k !== 'blast') {
+    const wreck = wreckFrames(v)[d.fi], top = sy + d.top, H = feet - top, W = fr.width;
+    // an oil slick spreads from under the wreck
+    if (age > 0.4) { const k = clamp((age - 0.4) / 3, 0, 1); bloodPool(g, ax, feet + 1, 3 + 5 * k, 1 + k, 0.8 * fade, d.bl, d.bd); }
+    g.globalAlpha = fade;
+    const popAt = d.k === 'shock' ? 0.7 : d.k === 'shot' ? 0.35 : 1.2;
+    if (age < popAt) {
+      if (d.k === 'shock') {
+        // EMP: the machine glitches in horizontal bands, flashing white, with arcs crawling over it
+        const ph = Math.floor(age * 20), bands = 3, bh = Math.ceil(fr.height / bands);
+        if (ph % 3 === 2) { const w = zapKit(v, d.fi, d.top).white[0]; blit(w); }
+        else for (let b = 0; b < bands; b++) { const off = Math.round((hsh3(d.seed, ph, b) - 0.5) * 4), y0 = b * bh, hh = Math.min(bh, fr.height - y0); if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(fr, 0, y0, W, hh, sx - off, sy + y0, W, hh); g.restore(); } else g.drawImage(fr, 0, y0, W, hh, sx + off, sy + y0, W, hh); }
+        for (let k = 0; k < 3; k++) { const x0 = sx + Math.round(hsh3(d.seed, ph, k + 5) * W), x1 = sx + Math.round(hsh3(d.seed, ph, k + 9) * W); drawBolt(g, x0, top + Math.round(hsh3(d.seed, ph, k + 13) * H), x1, top + Math.round(hsh3(d.seed, ph, k + 17) * H), k ? '#7fe8ff' : '#ffffff', d.seed + ph * 7 + k); }
+      } else if (d.k === 'burn') {
+        // flames pour off it while it blackens
+        blit(fr); g.globalAlpha = fade * clamp(age / popAt, 0, 1); blit(wreck); g.globalAlpha = fade;
+        burnFlames(g, fr, ax, sx, sy, flip, t, d.seed, 1);
+      } else {
+        // shot to pieces: shudders, sparking
+        blit(fr, Math.round(Math.sin(age * 70) * 1.2));
+        if (live && rnd() < 0.5) sparks((sx + rnd() * W) * AP, (top + rnd() * H) * AP, '#ffd890', 1);
+      }
+      g.globalAlpha = 1;
+      return;
+    }
+    // the wreck: dark, slumped a pixel, burning out
+    const since = age - popAt, tilt = d.dir * 0.06;
+    g.save(); g.translate(ax, feet + 1); g.rotate(tilt); if (flip) g.scale(-1, 1); g.drawImage(wreck, -v.ax, -v.ay); g.restore();
+    const fl = clamp(1 - since / 3, 0, 1) * (d.k === 'burn' ? 1 : 0.55);
+    if (fl > 0.02) burnFlames(g, fr, ax, sx, sy + 2, flip, t, d.seed, fl);
+    if (d.k === 'shock' && live && since < 2 && rnd() < 0.15) sparks((sx + rnd() * W) * AP, (top + rnd() * H) * AP, '#bff8ff', 1);
+    g.globalAlpha = 1;
+    return;
+  }
   if (d.k === 'shot') {
     // the body lies across feet-2..feet+6, so the pool spreads out from under its lower edge and past the head
     const mid = ax + d.dir * Math.round((feet - sy - d.top) * 0.55);
@@ -4194,7 +4301,7 @@ function drawDeath(g, d, t) {
   }
   // blast: a scorch where they stood, splats where the pieces hit, and the pieces themselves
   g.globalAlpha = 0.4 * fade; for (let x = -5; x <= 5; x++) for (let y = -1; y <= 1; y++) if (x * x / 25 + y * y <= 1 && ((x + y + d.seed) & 1) === 0) px(g, ax + x, feet + y, 1, 1, SOOT); g.globalAlpha = 1;
-  for (const p of d.parts) if (p.splat) bloodPool(g, p.splat.x, p.splat.y, Math.min(3, 1 + (M.t - d.t0) * 2), 1, 0.85 * fade, d.bl, d.bd);
+  for (const p of d.parts) if (p.splat) bloodPool(g, p.splat.x, p.splat.y, Math.min(3, 1 + (M.t - d.t0) * 2), 1, (d.fam === 'machine' ? 0.5 : 0.85) * fade, d.bl, d.bd);
   g.globalAlpha = fade;
   for (const p of d.parts) {
     g.save(); g.translate(Math.round(p.x), Math.round(p.y)); if (p.rot) g.rotate(p.rot); if (flip) g.scale(-1, 1);
@@ -5193,6 +5300,11 @@ function deathFx(e) {
     if (e.burnT > 0 && (M.burnDeaths || []).length < 10) { burnDeath(e); return; }
     if (!(e.burnT > 0) && humanDeath(e)) { if (e.killK === 'blast') smoke(e.x, ecy(e), 2); return; }
   }
+  // creatures (not the Precursors' stone constructs, which keep the burst for now) and ground machines
+  if (e.dead && e.v && !e.boss && !e.lt && !e.fly && !e.naval && !e.inTunnel) {
+    const fam = e.v.kind === 'creature' && M.c.facKey !== 'precursors' ? 'creature' : e.v.kind === 'vehicle' ? 'machine' : null;
+    if (fam && humanDeath(e, fam)) { if (e.killK === 'blast') smoke(e.x, ecy(e), 3); return; }
+  }
   const y = ecy(e), n = e.boss ? 34 : 9;
   for (let i = 0; i < n; i++) addPart({ x: e.x, y, vx: (rnd() - 0.5) * 130, vy: -40 - rnd() * 100, g: 330, floor: e.y + 4 + rnd() * 8, life: 0.8 + rnd() * 0.5, max: 1.3, col: rnd() < 0.5 ? e.color : shade(e.color, -0.4), size: 1, layer: 'px' });
   smoke(e.x, y, e.boss ? 12 : 3);
@@ -5371,6 +5483,7 @@ function renderMission(now) {
   for (const z of m.zones) if (z.kind === 'fire') glow(z.x, z.y - 6, z.r * 1.9 + 10, '#ff7a2a', (0.38 + 0.1 * Math.sin(t * 13 + z.x)) * clamp(z.life / 0.6, 0, 1));
   let lit = 0;
   for (const e of m.enemies) if (e.burnT > 0 && !e.dead && lit++ < 12) glow(e.x, ecy(e), 16, '#ff8a2a', 0.4 * clamp(e.burnT / 0.4, 0, 1) * (0.85 + 0.15 * Math.sin(t * 17 + e.wob)));
+  for (const d of m.deaths || []) if (d.fam && d.fam !== 'human') { const age = m.t - d.t0, k = d.k === 'burn' ? clamp(1 - age / 3, 0, 1) : d.fam === 'machine' && (d.pop || d.k === 'blast') ? clamp(1 - age / 4, 0, 1) * 0.6 : 0; if (k > 0.02) glow(d.x * AP, (d.y - 6) * AP, 24, '#ff7a2a', 0.5 * k); }
   for (const d of m.deaths || []) if (d.k === 'shock') { const age = m.t - d.t0; if (age < 0.85) glow(d.x * AP, (d.y - 10) * AP, 34, Math.floor(age * 22) % 2 ? '#ffffff' : '#7fe8ff', 0.75 * (Math.floor(age * 22) % 2 ? 1 : 0.55)); }
   for (const b of m.burnDeaths || []) { const age = m.t - b.t0; if (age < 1.8) glow(b.x * AP, (b.y - 8) * AP, 22, '#ff7a2a', 0.55 * (age < 0.9 ? 1 : 1 - (age - 0.9) / 0.9)); }
   glow(m.dep.x, m.dep.y - 16, 40, '#9466e8', 0.05 + 0.12 * depositShown() / DEP_CRYSTALS.length);

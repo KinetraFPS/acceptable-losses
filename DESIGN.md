@@ -597,6 +597,17 @@ How a human hostile dies depends on what killed it (`killK`, set in `damage` fro
 
 Blood is the faction's (`BLOOD`): red for people, blue for the Kin, pink for the Precursors. Each kind has a cap on how many play at once (shock 14, shot 24, blast 14; burn 10); past it, a kill falls back to the plain burst, so a horde wiped by one shell stays cheap. Gib pieces are cut once per variant frame and kept.
 
+**Creatures and ground machines.** The same weapon kinds, played their own way (`d.fam`). Creatures are every `creature` variant except the Precursors' stone constructs; ground machines are `vehicle` variants that neither fly nor float (treads, vans, walkers). Flyers, boats, Precursor constructs and bosses still use the plain burst.
+
+| | Creatures (wildlife, Kin striders) | Ground machines (treads, vans, walkers) |
+|---|---|---|
+| Gun | Knocked back, rolls onto its back with a hop and a thud, legs kicking (walk frames swapping, slowing), then still in a spreading pool of its faction's ichor | Shudders and sparks, pops (a small blast and sound) at 0.35s, then a dark, slumped wreck with fire burning out on it, an oil slick and smoke |
+| Taser | The cartoon x-ray, with a skeleton fitted to the creature's own outline (`fishBones`: a spine down the middle of the body, a rib every third column), then charred and crumbling to grey dust | EMP: glitches in horizontal bands and flashes white with arcs crawling over it, pops at 0.7s, then the wreck, still throwing blue sparks |
+| Explosion | Bursts into three slices, front to back, each with an ichor edge; splats where they land | A fireball, and the wreck breaks into four pieces of scorched metal that bounce, settle and smoke |
+| Fire | Writhes in flames and blackens, curls up (squashes towards the ground), then falls to grey ash | Flames pour off it while it blackens, then the wreck burns out |
+
+Wrecks (`wreckFrames`: the frame darkened and scorched) and ash frames are built in the per-frame warm-up (`warmVariant`), so the first death of a kind does not stall a frame. Burning creatures and wrecks add a fading orange light.
+
 ## Protest props
 Crowds mix their props (`crowdProp`): most carry a placard in one of six styles (scrawled board, cardboard, NO, coloured board, heart, two-pole banner), the rest torches, flares, drums or megaphones; union pickets add pickaxes and pitchforks, activist hardliners torches, molotovs and bats, the Abandoned cardboard and pitchforks, the Church banners and torches. Torches, flares and molotovs carry a flickering light (`propLights`).
 
