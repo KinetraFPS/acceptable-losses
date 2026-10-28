@@ -238,20 +238,26 @@ Seven trope worlds, each with its own ground and path palette, path treatment, g
 - Both have 4-frame sprites per faction: spinning rotors, a flapping manta, and bobbing hulls with a wake.
 
 ## Artifacts
-Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parachutes in and holds an artifact from that boss's faction. If you already own both of that faction's artifacts, it upgrades one instead (up to level 3). You keep artifacts for the whole run. Each one gets a card in the roster bar: deploy it once per contract, and use the active ability when it is ready.
+Bosses drop a crate when they die (mini-bosses 40% of the time). The crate parachutes in and holds an artifact from that boss's faction. If you already own both of that faction's artifacts, it upgrades one instead (up to level 3). You keep artifacts for the whole run.
 
-| Faction | Artifact | Placement | Effect |
-|---|---|---|---|
-| Union | Union Freight Barge | Water | A deck crew can stand on, with +20% range |
-| Union | Picket Line Bulldozer | Road | Stops enemies dead until it is destroyed (600 HP + 300 per level), then rebuilds after 20s |
-| Rival | Executive Helicopter | Ground (pad) | A door gunner, plus Airlift: pick up a crew member and drop them anywhere buildable (cooldown 15s − 2s per level) |
-| Rival | Orbital Billing Satellite | None | An orbital strike on a target area (cooldown 25s − 3s per level) |
-| Activists | Pirate Broadcast Van | Ground | An aura that slows and marks enemies |
-| Activists | Livestream Blimp | Anywhere | Marks enemies over a wide area so crew deal more damage |
-| Fauna | Tamed Sky Ray | Anywhere | A flying platform for one crew member, with +15% range |
-| Fauna | Brood Nest | Ground | Hatches allied hunters that chase enemies. Every bite costs the hunter health (8 + 2 per enemy tier, 16 against a boss), so each one lasts four or five bites; hurt summons flash and show a health bar |
+Artifacts come in two kinds:
 
-The auto-play bot does not use artifacts.
+- **Platforms** (boats and rays) are the only ones that stay on the map. Each gets a card in the roster bar; place it once per contract and a crew member can stand on it.
+- **Abilities** are everything else. Each gets a square on the ability bar at the bottom right of the map, with a hotkey (Q W E A S D Z X C, in order), a cooldown sweep and the seconds left. Every ability is ready when a contract starts, then waits for its cooldown. Aimed abilities wait for a click on the map, with a preview of the area; clicking the square again or pressing Escape cancels. The point is to turn what used to be a steady trickle of value into bursts the player times to save a wave.
+
+| Kind | Artifacts | Use | Effect (level 1; per level) | Cooldown |
+|---|---|---|---|---|
+| Platform | Union Freight Barge, Smuggler's Skiff (water); Tamed Sky Ray, Lantern Kite, Floating Dais (any non-road tile) | Place once | A crew member stands on it for +15–20% range (+5%) | — |
+| Barricade | Picket Line Bulldozer, Repurposed Drill Rig, Security Checkpoint | Click a road | A block hostiles must batter through: 1,500 HP (+750), scaled with difficulty, for 10s (+2s). Gone when wrecked | 30s (−2s, min 18) |
+| Gunship | Executive Helicopter | Instant | Flies in over the thickest crowd for 6s (+1s): door gun 10 rounds a second at 12 damage (+50%) with 5 splash, and a 60-damage rocket (stuns 0.4s) about every second. Scales with difficulty like the orbital strike. Leaves when done | 45s (−4s, min 28) |
+| Airlift | Executive Helicopter | Pick crew, then a tile | Flies in, carries one crew member to any buildable tile, leaves. Not while the gunship is out | 15s (−2s, min 6) |
+| Strike | Orbital Billing Satellite, Broadside Battery | Click a point | 320 damage (+50%) in a 1.3-tile circle after 0.8s; bosses take 60% | 25s (−3s, min 10) |
+| Jam | Pirate Broadcast Van, Waking Obelisk, Swinging Censer | Click a point | For 8s (+1s), hostiles within 2.5 tiles (+0.3) are slowed 50% (+5%), take 35% more damage (+5%) and lose their cloaks | 26s (−2s, min 16) |
+| Spotlight | Livestream Blimp, Surveillance Blimp | Click a point | For 8s (+1s), hostiles within 3.2 tiles (+0.3) take 40% more damage (+5%) and lose their cloaks | 26s (−2s, min 16) |
+| Heal | Great Village Lantern, The Break Room, The Confessional | Instant | Every living crew member heals 40% of their health (+10%), then 6 HP/s (+2) for 6s; cloaked hostiles are revealed meanwhile. Does not bring back the dead | 35s (−3s, min 20) |
+| Hatch | Brood Nest | Click a point | Eight allied hunters (+2) appear there and chase hostiles. Every bite costs the hunter health (8 + 2 per enemy tier, 16 against a boss), so each lasts four or five bites | 24s (−2s, min 15) |
+
+The helicopter no longer has a pad or a patrol: it exists only during a gunship run or an airlift. The test bot (`sim5`) uses abilities the way a player would: heal when the crew average drops below 55%, and everything else only into a crowd of 12 or more, or a boss, aimed at the densest cluster (barricades go on the road tile just ahead of it).
 
 ## Factions
 Ten factions. Every one fields its own version of all 17 hostile kinds, with its own sprite and name. Each faction's identity comes from its spawn weights (the kinds it didn't field before come in at a low 0.5) and its own trait.
