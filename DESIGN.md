@@ -587,6 +587,16 @@ Profiled on a busy Act 3 map (eight crew, 90–150 hostiles, 60–95 lights): ab
 - **A quieter HUD.** The budget's bump animation (which forces a layout), the crew cards' affordability check and the speed buttons no longer run on every kill or every frame.
 - Earlier passes: battle-damage, burn and fire frames are baked and built at most three per frame; water is a baked loop.
 
+## Stutter
+Diagnosed with a per-frame timing harness (frame time, simulation steps, simulation and render time, and which functions ran in each slow frame) on a busy Act 3 map at 1x, 2x and 3x.
+- **The cause:** the first time a new kind of hostile appeared, its whole pool of looks (ten for people) was built in one simulation step: sprites, shading and 16 coloured silhouettes each, 20–35 ms in one frame. Since the difficulty rework brings new kinds and hordes all contract long, it happened again and again. At 3x every hitch was followed by catch-up frames of 6–12 simulation steps, so hostiles visibly jumped.
+- **Built at load** (`prewarmPools`): every look the faction can field this act, its demoted bosses from Act 3, about 0.4 s when the contract loads. Hit-flash silhouettes and, from Act 2, rank outlines are warmed in the background two looks a frame (`warmVariant`).
+- **Lazy silhouettes** (`lazySilhouettes`): the hit-flash, rank and slow silhouettes are built when first needed, under the same three-a-frame allowance as battle damage and burn flames (`silReady`); a sprite drawn before its silhouette is ready just skips the outline for a frame.
+- **One new look a frame** for anything not built at load (`getVariant`, `POOL_TARGET`).
+- **Catch-up is capped** at the game speed plus two steps a frame; past that the game falls a moment behind rather than jumping.
+- **The flamethrower**, not the railgun, was the costliest of the new classes: every enemy it lit built its burn flames at once, and each fire patch shed embers every drawn frame. Burn flames now share the per-frame allowance, patches shed embers and smoke on game time (particle ceiling 260), and glowing particles no longer build a colour string each.
+- Result: the worst simulation frame fell from 43–59 ms to 11–13 ms at every speed, and slow frames in a 14 s capture from 32 to 5. Railgun, flamethrower and Arc Technician squads now cost about the same as the classic crew.
+
 ## Spawn grace
 Hostiles can't be shot or damaged for their first 0.1 seconds (`SPAWN_GRACE`): crew don't target them and no hit, splash, zone or chain lands, so every arrival reads on screen before it can pop. It applies to every spawn, including bosses, lieutenants, splitter children and troops a ship unloads.
 

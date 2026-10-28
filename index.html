@@ -1985,12 +1985,22 @@ function drawThreatMarks(g, e, t) {
   if (e.chargeT > 0) for (let k = 0; k < 3; k++) px(g, e._bx - e.face * (6 + k * 3), e._by + 12 + k, 2, 1, 'rgba(255,255,255,0.6)');
 }
 
+// a silhouette set if it's built, or built now if this frame's allowance has room, or null (draw without it this frame)
+function silReady(v, key) {
+  const d = Object.getOwnPropertyDescriptor(v, key);
+  if (d && !d.get) return v[key];
+  if (DMG_BUDGET <= 0) return null;
+  DMG_BUDGET--; return v[key];
+}
+// the hit-flash, rank and slow silhouettes are built the first time a variant needs them: most never do
+function lazySilhouettes(v) {
+  for (const [key, col] of [['white', '#ffffff'], ['vet', '#e8eef5'], ['elite', '#ffd23f'], ['slow', '#5fd4ff']])
+    Object.defineProperty(v, key, { configurable: true, enumerable: true, get() { const arr = v.frames.map(c => silhouette(c, col)); Object.defineProperty(v, key, { value: arr, writable: true, enumerable: true }); return arr; } });
+  return v;
+}
 function finishVariant(kind, r, frames) {
   frames = (frames || r.map(x => x.c)).map(c => { if (!c.lit) { sculptHuman(c); c.lit = true; } return c; });
-  return {
-    kind, frames, white: frames.map(c => silhouette(c, '#ffffff')), vet: frames.map(c => silhouette(c, '#e8eef5')), elite: frames.map(c => silhouette(c, '#ffd23f')), slow: frames.map(c => silhouette(c, '#5fd4ff')),
-    ax: r[0].ax, ay: r[0].ay, lights: r[0].lights || [],
-  };
+  return lazySilhouettes({ kind, frames, ax: r[0].ax, ay: r[0].ay, lights: r[0].lights || [] });
 }
 function makeVariant(facKey, cat) {
   const col = FACTIONS[facKey].color;
@@ -2015,10 +2025,26 @@ function makeVariant(facKey, cat) {
 }
 const WALKER_BOSSES = ['acquisitions', 'formeremp', 'severance'];
 function makeBossVariant(facKey, id) { const look = genLook(), col = FACTIONS[facKey].color; return finishVariant('boss', (facKey === 'fauna' || WALKER_BOSSES.includes(id) || (facKey === 'union' && id === 'steward') ? [0, 1, 2, 3] : [0, 1]).map(f => (BOSS_ART[id] && BOSS_ART[id](col, f, look)) || bossFrameApex(id, col, f, look) || bossFrameExtra(id, col, f, look) || bossFrameMore(id, col, f, look) || bossFrame(facKey, f, look))); }
+// Each kind of hostile draws from a pool of looks (ten for people, three for machines and creatures). Pools are
+// filled when the contract loads (prewarmPools); one that isn't starts with a single look and gains at most one
+// more a frame, so a surprise arrival never builds a whole pool in the middle of a fight.
+const POOL_TARGET = cat => M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer' ? 10 : 3;
 function getVariant(cat) {
-  const human = M.c.facKey !== 'fauna' && cat !== 'armored' && cat !== 'flyer';
-  const pool = M.pool[cat] || (M.pool[cat] = Array.from({ length: human ? 10 : 3 }, () => makeVariant(M.c.facKey, cat)));
+  const pool = M.pool[cat] || (M.pool[cat] = [makeVariant(M.c.facKey, cat)]);
+  if (pool.length < POOL_TARGET(cat) && M.vFrame !== M.frameNo) { M.vFrame = M.frameNo; pool.push(makeVariant(M.c.facKey, cat)); }
   return pick(pool);
+}
+// the hit flash, and from Act 2 the rank outlines, for one look; two looks a frame are warmed in the background
+function warmVariant(v, act) { v.white; if (act >= 2) for (let i = 0; i < v.frames.length; i++) { ring4(v.vet[i]); ring4(v.elite[i]); } }
+// A: build every look this contract can need before the first wave: the faction's kinds for this act, its hordes,
+// and (from Act 3) its demoted bosses
+function prewarmPools() {
+  const m = M, c = m.c, act = actOf(c.idx);
+  const cats = new Set(Object.keys(c.fac.cats).filter(k => CATS[k] && (!UNLOCK_ACT[k] || UNLOCK_ACT[k] <= act)));
+  if (m.biome.mod.flyers) cats.add('flyer');
+  m.warm = [];
+  for (const cat of cats) { const pool = m.pool[cat] || (m.pool[cat] = []); while (pool.length < POOL_TARGET(cat)) pool.push(makeVariant(c.facKey, cat)); m.warm.push(...pool); }
+  if (act >= 3 && !c.ship && c.fac.bosses) for (const B of c.fac.bosses) { const key = 'lt:' + B.id; if (!m.pool[key]) m.pool[key] = shrinkVariant(makeBossVariant(c.facKey, B.id), 0.6); }
 }
 
 // ---------- terrain ----------
@@ -3780,9 +3806,9 @@ function fireFrames(r) {
 function drawFireZone(g, z, t) {
   const cx = Math.round(z.x / AP), cy = Math.round(z.y / AP), r = Math.max(3, Math.round(z.r / AP)), k = clamp(z.life / 0.6, 0, 1), F = fireFrames(r);
   g.globalAlpha = k; g.drawImage(F.f[(Math.floor(t * 14) + ((z.x * 7 + z.y * 13) | 0)) % FIRE_FRAMES], cx - F.ox, cy - F.oy); g.globalAlpha = 1;
-  if (M.paused || M.parts.length > 400) return;
-  if (rnd() < 0.2 + r * 0.02) addPart({ x: z.x + (rnd() - 0.5) * z.r, y: z.y - 4, vx: (rnd() - 0.5) * 14, vy: -30 - rnd() * 30, life: 0.6, max: 0.6, col: rnd() < 0.5 ? '#ffb040' : '#ffe08a', size: 1, layer: 'px' });
-  if (rnd() < 0.05 + r * 0.01) addPart({ x: z.x + (rnd() - 0.5) * z.r * 0.8, y: z.y - r * AP * 0.8, vx: (rnd() - 0.5) * 8, vy: -16 - rnd() * 10, r: 0.6, grow: 2.4, life: 1.1, max: 1.1, col: '#2e2a2c', layer: 'px', alpha: 0.45 });
+  if (M.paused || M.parts.length > 260) return;
+  if (M.t - (z.emT ?? -9) > 0.14 - Math.min(0.08, r * 0.004)) { z.emT = M.t; addPart({ x: z.x + (rnd() - 0.5) * z.r, y: z.y - 4, vx: (rnd() - 0.5) * 14, vy: -30 - rnd() * 30, life: 0.6, max: 0.6, col: rnd() < 0.5 ? '#ffb040' : '#ffe08a', size: 1, layer: 'px' }); }
+  if (M.t - (z.smT ?? -9) > 0.6 - Math.min(0.3, r * 0.01)) { z.smT = M.t; addPart({ x: z.x + (rnd() - 0.5) * z.r * 0.8, y: z.y - r * AP * 0.8, vx: (rnd() - 0.5) * 8, vy: -16 - rnd() * 10, r: 0.6, grow: 2.4, life: 1.1, max: 1.1, col: '#2e2a2c', layer: 'px', alpha: 0.45 }); }
 }
 // ---------- burning: a scorched tint, and flames licking up from the sprite's own outline ----------
 function frameProfile(c) {
@@ -3797,7 +3823,9 @@ function frameProfile(c) {
 // six frames of flame over one sprite frame, 6px of headroom on top; null until the outline has been read
 function burnFrames(fr) {
   if (fr.burn) return fr.burn;
+  if (DMG_BUDGET <= 0) return null;
   const prof = frameProfile(fr); if (!prof) return null;
+  DMG_BUDGET--;
   const w = fr.width, h = fr.height + 6, out = [];
   for (let fl = 0; fl < 6; fl++) {
     const c = mkCanvas(w, h), g = c.getContext('2d'), im = g.createImageData(w, h), a = im.data;
@@ -3925,6 +3953,7 @@ function startMission(contract) {
   const dividend = RUN.dividend || 0; RUN.dividend = 0;
   if (dividend) { M.budget += dividend; M.dividendPaid = dividend; setTimeout(() => toast(`Loyalty Dividend: +$${dividend} budget, to cover your crew's attitude.`, 2600), 900); }
   startAllies(M); initPortals(M); startArtifacts(M); M.waterPath = computeWaterPath(M);
+  M.frameNo = 0; prewarmPools();
   { const freed = RUN.roster.reduce((n, cr) => n + promoteCrew(cr, null), 0); if (freed) setTimeout(() => toast(`New sector, promotion freeze lifted: ${freed} review${freed > 1 ? 's' : ''} due.`, 2800), 1200); }
   if (!contract.ship) { B3.assignTypes(map, contract.biomeKey, contract.facKey); if (FACTION_MAP[contract.facKey]) FACTION_MAP[contract.facKey](map); }
   const gr = contract.ship ? shipDeck(map.deck, map.tier, { guns: map.guns, doors: map.doors, props: map.obstacles }) : renderGround(map, contract.biomeKey);
@@ -4368,8 +4397,7 @@ const LT_THREAT = 20;
 function shrinkVariant(v, k) {
   const sc = c => { const s = mkCanvas(Math.max(1, Math.round(c.width * k)), Math.max(1, Math.round(c.height * k))), g = s.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, s.width, s.height); return s; };
   const frames = v.frames.map(sc);
-  return { kind: v.kind, frames, white: frames.map(c => silhouette(c, '#ffffff')), vet: frames.map(c => silhouette(c, '#e8eef5')), elite: frames.map(c => silhouette(c, '#ffd23f')), slow: frames.map(c => silhouette(c, '#5fd4ff')),
-    ax: Math.round(v.ax * k), ay: Math.round(v.ay * k), lights: (v.lights || []).map(l => ({ ...l, x: Math.round(l.x * k), y: Math.round(l.y * k), r: (l.r || 4) * k })) };
+  return lazySilhouettes({ kind: v.kind, frames, ax: Math.round(v.ax * k), ay: Math.round(v.ay * k), lights: (v.lights || []).map(l => ({ ...l, x: Math.round(l.x * k), y: Math.round(l.y * k), r: (l.r || 4) * k })) });
 }
 function spawnLieutenant(B, sp) {
   const c = M.c, act = actOf(c.idx), e = spawnEnemy({ cat: 'armored', tier: 2, sp });
@@ -4928,7 +4956,8 @@ function vignetteFor(w, h) {
 function renderMission(now) {
   const m = M, t = now / 1000, W = GW * ATILE, H = GH * ATILE, LW = GW * TILE, LH = GH * TILE;
   if (!WB || WB.width !== W || WB.height !== H) { WB = mkCanvas(W, H); WBG = WB.getContext('2d'); }
-  const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1; DMG_BUDGET = 3;
+  const g = WBG; g.imageSmoothingEnabled = false; g.globalAlpha = 1; DMG_BUDGET = 3; m.frameNo = (m.frameNo || 0) + 1;
+  if (m.warm && m.warm.length) for (let k = 0; k < 2 && m.warm.length; k++) warmVariant(m.warm.pop(), actOf(m.c.idx));
   // the beat and the wind, once a frame; the wind runs on game time, so it stops when the game is paused
   m.beat = beatNow();
   { const wind = WINDY[m.c.biomeKey] || 0, dtg = clamp(m.t - (m._wt ?? m.t), 0, 0.1); m._wt = m.t;
@@ -5092,7 +5121,8 @@ function renderMission(now) {
       glow(f.x, f.y, 40, '#bfeaff', 0.8 * k);
     }
   }
-  for (const p of m.parts) if (p.layer === 'fx') { ctx.fillStyle = rgba(p.col, clamp(p.life / p.max, 0, 1)); ctx.fillRect(p.x - 1, p.y - 1, p.size, p.size); }
+  for (const p of m.parts) if (p.layer === 'fx') { ctx.globalAlpha = clamp(p.life / p.max, 0, 1); ctx.fillStyle = p.col; ctx.fillRect(p.x - 1, p.y - 1, p.size, p.size); }
+  ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   // marksman laser sights while charging
   for (const tw of m.towers) {
@@ -5447,12 +5477,13 @@ function drawEnemyPx(g, e, t) {
   else if (v.kind === 'human') fi = Math.floor(e.dist / 5) % nf;
   else fi = Math.floor(e.dist / (nf > 2 ? 4 : 6)) % nf;
   const stage = e.maxhp ? dmgStage(e) : 0;
-  const img = e.hitT > 0 ? v.white[fi] : stage ? damagedFrame(v, fi, stage) : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
+  const wh = e.hitT > 0 ? silReady(v, 'white') : null;
+  const img = wh ? wh[fi] : stage ? damagedFrame(v, fi, stage) : v.frames[fi], sx = ax - v.ax, sy = ay - v.ay, flip = e.face < 0;
   if (e.beamT > 0) { drawBeamIn(g, e, t, v, fi % v.slow.length, ax, sx, sy, flip); return; }
   const blit = (im, ox, oy) => { if (flip) { g.save(); g.translate(2 * ax, 0); g.scale(-1, 1); g.drawImage(im, sx + ox, sy + oy); g.restore(); } else g.drawImage(im, sx + ox, sy + oy); };
-  if (e.tier === 1 || e.tier === 2) blit(ring4(e.tier === 2 ? v.elite[fi] : v.vet[fi]), -1, -1);
+  if (e.tier === 1 || e.tier === 2) { const ol = silReady(v, e.tier === 2 ? 'elite' : 'vet'); if (ol) blit(ring4(ol[fi]), -1, -1); }
   if (e.deal) blit(ring4((v.deal || (v.deal = v.frames.map(c => silhouette(c, '#4fe0a6'))))[fi]), -1, -1);
-  if (e.slowT > 0) { g.globalAlpha = 0.5; blit(ring4(v.slow[fi]), -1, -1); g.globalAlpha = 1; }
+  if (e.slowT > 0) { const sl = silReady(v, 'slow'); if (sl) { g.globalAlpha = 0.5; blit(ring4(sl[fi]), -1, -1); g.globalAlpha = 1; } }
   blit(img, 0, 0);
   if (e.burnT > 0) drawBurning(g, e, t, v, fi, ax, sx, sy, flip);
   // badly hurt hostiles trail smoke and sparks
@@ -8944,7 +8975,7 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   try {
     if (S.screen === 'mission' && M) {
-      if (!M.paused) { acc += dt * M.speed; let n = 0; while (acc >= STEP && n++ < 12) { stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= 12) acc = 0; }
+      if (!M.paused) { acc += dt * M.speed; const cap = Math.ceil(M.speed) + 2; let n = 0; while (acc >= STEP && n < cap) { n++; stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= cap) acc = Math.min(acc, STEP); }
       if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; musicMood(); renderMission(now); updateHud(); }
     } else if (S.screen === 'map') renderMap(now);
     else if (S.screen === 'ship') renderShip(now, dt);
