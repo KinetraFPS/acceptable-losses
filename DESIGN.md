@@ -578,6 +578,12 @@ Each promotion gives a small base boost (+10% damage, +3% fire rate, +12 HP per 
 - **Burning hostiles**: anything caught by a flamer cone or standing in fire burns for about a second after (`burnT`): a scorched tint, and flames licking up from the sprite's own outline (`burnFrames`, six frames per sprite frame), with smoke and an orange glow. Visual only: burning does no extra damage.
 - **Burnt to the bone**: a humanoid that dies on fire writhes and blackens, the char flakes away to ash and the skeleton shows through, then the skeleton gives way. The legs buckle first, everything above drops onto them, and the skull lands last and rolls. The bones lie on a scorch mark for a few seconds before fading. At most ten burn at once; the rest die the ordinary way.
 
+## Saving and resuming
+- A run saves itself (browser storage, key `al_run`) at the points it can be picked up cleanly: the star map, the store (every purchase and reroll), using a remedy on the ship, the start of each contract and raid, and a faction's invitation.
+- The title screen offers **Resume shift** with the sector, contract, margin and crew count; **Clock in (new run)** replaces the save.
+- A contract or raid that was under way when the game closed **starts again from the top**, so reloading can't dodge a bad contract or lose a won one. Quitting after a win lands you in the store with the rewards kept.
+- Losing or winning deletes the save. The save is plain JSON (about 17–20 KB); contracts are re-pointed at the faction and world tables on load, and a save that can't be read is discarded with a note on the title screen.
+
 ## Audio
 - Everything is synthesised live with Web Audio. There are no audio files. Audio starts on the first tap or key press, which is a browser rule.
 - **Music**: a small chiptune sequencer.

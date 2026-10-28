@@ -505,6 +505,38 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
 };
 
+// ---------- saving and resuming a run ----------
+// The run is saved at the points where it can be picked up cleanly: the star map, the store, the start of each
+// contract or raid, and an invitation. A contract that was under way when the game closed starts again from the
+// top, so reloading can't dodge a bad one or lose a won one. Losing or winning deletes the save.
+const SAVE_KEY = 'al_run', SAVE_VER = 1;
+const saveReplacer = (k, v) => (k && k[0] === '_') || typeof v === 'function' || (typeof HTMLCanvasElement !== 'undefined' && v instanceof HTMLCanvasElement) ? undefined : v instanceof Set ? { __set: [...v] } : v;
+function saveRun(phase, extra = {}) {
+  if (!RUN) return;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: SAVE_VER, at: Date.now(), phase, run: RUN, S: { pendingDeal: S.pendingDeal || null, pendingEcho: S.pendingEcho || null, pendingFavour: S.pendingFavour || null }, ...extra }, saveReplacer)); } catch (e) { /* storage full or blocked: this run just isn't saved */ }
+}
+function loadRun() {
+  try { const d = JSON.parse(localStorage.getItem(SAVE_KEY), (k, v) => v && v.__set ? new Set(v.__set) : v); return d && d.v === SAVE_VER && d.run && d.run.roster ? d : null; } catch (e) { return null; }
+}
+function clearRun() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } }
+// contracts point at the faction and world tables; a save holds copies, so point them back
+function rehydrateContract(c) { if (c) { c.fac = FACTIONS[c.facKey] || c.fac; c.biome = BIOMES[c.biomeKey] || c.biome; } return c; }
+function resumeStore() { if (!RUN.offers || RUN.offersAt !== RUN.idx) { RUN.offers = genOffers(); RUN.rerolls = 0; RUN.offersAt = RUN.idx; } showStore(); }
+function resumeRun() {
+  const d = loadRun();
+  if (!d) { clearRun(); toast('That save could not be read. Clock in for a new run.', 2600); showTitle(); return; }
+  RUN = d.run; (RUN.options || []).forEach(rehydrateContract);
+  if (!(RUN.usedNames instanceof Set)) RUN.usedNames = new Set(RUN.roster.map(c => c.name));
+  Object.assign(S, { pendingDeal: d.S && d.S.pendingDeal, pendingEcho: d.S && d.S.pendingEcho, pendingFavour: d.S && d.S.pendingFavour, envoy: null });
+  if (d.phase === 'mission' && d.contract) { startMission(rehydrateContract(d.contract)); return; }
+  if (d.phase === 'siege' && d.fac) { startSiege(d.fac); return; }
+  if (d.phase === 'invite' && d.inv) { showInvitation(d.inv, resumeStore); return; }
+  if (d.phase === 'store') { resumeStore(); return; }
+  if (!RUN.options || !RUN.options.length) RUN.options = genOptions();
+  showMap();
+}
+function saveSummary(d) { const R = d.run; return `Sector ${actOf(R.idx)} · contract ${sectorPos(R.idx) + 1} · margin ${Math.round(R.margin)}% · ${R.roster.length} crew`; }
+
 // ---------- constants & data ----------
 const TILE = 36, STEP = 1 / 60;
 let GW = 22, GH = 13; // swapped to 13x22 on portrait screens
@@ -3848,6 +3880,7 @@ function transposeMap(map) {
   };
 }
 function startMission(contract) {
+  if (!contract.ship) saveRun('mission', { contract });
   S.screen = 'mission'; setMusic('mission:' + (contract.ship ? 'ship' : contract.biomeKey));
   AU.boss = AU.bossTarget = 0;
   AU.uncannyTarget = contract.ship || !contract.client ? 0 : RUN.side ? (FACTION_MORAL[RUN.side] === 'evil' ? 1 : 0) : contract.client.good ? 0 : 1;
@@ -7623,7 +7656,7 @@ function showSectorComplete(c, net, ledger) {
   const sector = sectorOf(RUN.idx), loan = Math.min(20, 100 - RUN.margin);
   RUN.margin += loan;
   RUN.sectorName = pick(SECTOR_NAMES[sector] || ['The Outer Dark']);
-  RUN.offers = genOffers(); RUN.rerolls = 0;
+  RUN.offers = genOffers(); RUN.rerolls = 0; RUN.offersAt = RUN.idx;
   const ws = (RUN.worlds || []).filter(w => sectorOf(w.idx) === sector - 1);
   $('#overlay').innerHTML = `<div class="screen"><div class="paper sector-paper">
     ${titlebar('Promotion_Notice.msg')}
@@ -8165,11 +8198,12 @@ function finishMission(success) {
   const ledger = companyLedger(c, m, net); noteContract(c, m, ledger, wstate);
   purgeAfter(c);
   if (c.boss) {
-    if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; const inv = inviteDue(); if (inv) showInvitation(inv, () => showSectorComplete(c, net, ledger)); else showSectorComplete(c, net, ledger); }
+    if (sectorOf(c.idx) < MAX_SECTOR) { RUN.idx++; const inv = inviteDue(); if (inv) { saveRun('invite', { inv }); showInvitation(inv, () => showSectorComplete(c, net, ledger)); } else { saveRun('store'); showSectorComplete(c, net, ledger); } }
     else showVictory();
     return;
   }
   RUN.idx++;
+  saveRun('store');
   showDebrief({ c, ledger, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], quits, dividend: m.dividendPaid || 0, slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
 }
 
@@ -8195,13 +8229,15 @@ Breaks are not scheduled. Good luck.                                    — HR-B
       <li><b>Spend your scrip</b>Hire crew and buy relics at the Company Store.</li>
       <li><b>Review your crew</b>Promotions offer perk cards, a specialisation at rank 4 and a capstone at rank 5.</li>
     </ul>
-    <div class="row"><button class="btn" data-act="newrun">Clock in</button>
+    ${(() => { const sv = loadRun(); return sv ? `<div class="row"><button class="btn" data-act="continue">Resume shift</button><span class="colony">${esc(saveSummary(sv))}</span></div>` : ''; })()}
+    <div class="row"><button class="btn${loadRun() ? ' ghost' : ''}" data-act="newrun">${loadRun() ? 'Clock in (new run)' : 'Clock in'}</button>
     ${colony ? `<span class="colony">Colony of the Abandoned: ${colony} survivor${colony === 1 ? '' : 's'} · new hires start with +${Math.min(50, colony * 5)} scrip</span>` : ''}
     ${store.get('al_endings', []).length ? `<span class="colony">Endings found: ${store.get('al_endings', []).length}/${ENDING_ORDER.length}</span>` : ''}</div>
   </div></div>`;
 }
 function showMap() {
   S.screen = 'map'; S.mapSel = -1; S.mapHover = -1; M = null; clearMissionUi(); setMusic('map');
+  saveRun('map');
   mapView();
   $('#overlay').innerHTML = `<button class="btn sm shipbtn" data-act="walkship" title="Walk around your ship, look after the crew">▾ Minimise · walk the ship</button><div class="maphint">${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? (sectorOf(RUN.idx) >= MAX_SECTOR ? 'Board priority. The final contract.' : 'Executive priority. One contract available.') : 'Select a planet to review the contract.'}</div>`;
   $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">Sector ${sectorOf(RUN.idx)} · ${esc(RUN.sectorName)}</div><div class="val">Choose your next deployment</div></div>
@@ -8603,7 +8639,7 @@ function showDebrief(d) {
     <div class="desktop" aria-hidden="true">${act >= 2 ? '<i class="lamp"></i>' : ''}<img class="prop plant" src="${deskPropUrl('plant', plant)}" alt=""><span class="nameplate">EMPLOYEE #${RUN.empId}</span><img class="prop" src="${deskPropUrl('note')}" alt=""><img class="prop" src="${deskPropUrl('mug')}" alt=""></div>
     <div class="row deskbtns"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip</span></div>
   </div></div>`;
-  RUN.offers = genOffers(); RUN.rerolls = 0;
+  RUN.offers = genOffers(); RUN.rerolls = 0; RUN.offersAt = RUN.idx; saveRun('store');
 }
 
 function genOffers() {
@@ -8624,6 +8660,7 @@ function genOffers() {
 }
 function showStore() {
   S.screen = 'store'; clearMissionUi(); backdropView(); setMusic('menu');
+  RUN.offersAt = RUN.idx; saveRun('store');
   const o = RUN.offers;
   const offerHtml = o.map((it, i) => {
     let k, t, d;
@@ -8680,6 +8717,7 @@ function buy(i) {
   showStore();
 }
 function showGameOver(why) {
+  clearRun();
   S.screen = 'over'; clearMissionUi(); backdropView(); setMusic(null);
   const colony = store.get('al_colony', 0) + 1; store.set('al_colony', colony);
   const where = planetName();
@@ -8698,6 +8736,7 @@ function showGameOver(why) {
 }
 const andList = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '';
 function showVictory() {
+  clearRun();
   S.screen = 'win'; const c = M.c; M = null; clearMissionUi(); backdropView(); sfx('victory'); setMusic('menu');
   const st = RUN.story, key = pickEnding(), E = ENDINGS[key];
   const found = store.get('al_endings', []); if (!found.includes(key)) { found.push(key); store.set('al_endings', found); }
@@ -8726,7 +8765,8 @@ document.addEventListener('click', ev => {
   const b = ev.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act, i = +b.dataset.i;
   if (act !== 'pickperk' && act !== 'envoy') sfx(act === 'buy' ? 'buy' : act === 'accept' || act === 'newrun' || act === 'tomap' ? 'confirm' : 'click');
-  if (act === 'newrun') { newRun(); showOnboarding(); }
+  if (act === 'newrun') { clearRun(); newRun(); showOnboarding(); }
+  else if (act === 'continue') resumeRun();
   else if (act === 'title') showTitle();
   else if (act === 'accept') { const o = RUN.options[i]; if (o.envoy && envoyBeat(o.envoy.fac, o.boss) === o.envoy.beat) showMessenger(i); else beginFlight(i); }
   else if (act === 'envoy') envoyChoice(b.dataset.v);
@@ -10969,7 +11009,7 @@ function useRemedy(k, cr) {
   if (remedyUsed(k, cr) || RUN.scrip < price) return null;
   if (k === 'coffee' && shipTier() === 0) return null;
   RUN.scrip -= price; (RUN.shipUse = RUN.shipUse || {})[`${k}:${cr ? cr.id : ''}:${RUN.idx}`] = true;
-  sfx('buy'); return R.run(cr);
+  sfx('buy'); const out = R.run(cr); saveRun('map'); return out;
 }
 
 // ---------- walking the ship ----------
@@ -11240,6 +11280,7 @@ function demandGo(v) {
 }
 // ---------- the raid ----------
 function startSiege(f) {
+  saveRun('siege', { fac: f });
   const s = siegeOf(f), stage = s.stage + 1, F = FACTIONS[f];
   // raids build on Routine/Elevated, not Suicidal: their own multiplier below is the step up
   const c = genContract(RUN.idx, Math.min(stage - 1, 1), stage >= 2, f);
