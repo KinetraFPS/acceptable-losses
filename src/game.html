@@ -280,6 +280,11 @@ button{font:inherit;color:inherit}
 @media (max-width:640px){.abil{gap:4px;padding:4px}.ab{width:42px;height:42px}.ab img{width:22px;height:22px}.ab .ab-nm{display:none}.ab .ab-cd{font-size:18px}}
 
 /* tower info + toast */
+.vs{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font:400 20px/1.15 var(--f-body);margin:2px 0 4px}
+.vs i{font:400 12px/1 var(--f-label);color:var(--muted);font-style:normal;text-transform:uppercase}
+.vs .pill{align-self:center}
+.card .sub .stars{color:var(--brand);letter-spacing:2px;margin-left:6px}
+.kv .hz{display:block;color:var(--muted);font-size:14px}
 .tinfo{position:absolute;left:10px;top:10px;width:min(260px,calc(100% - 20px));padding:13px;display:flex;flex-direction:column;gap:9px;font-size:14px}
 .tinfo h4{margin:0;font:400 26px/.95 var(--f-display)}
 .tinfo .mono{font-size:17px;line-height:1.1}
@@ -955,8 +960,7 @@ function renderMap(now) {
     if (pst.ring) planetRing(g, cx, cy, R, true, pst);
     if (sel || hov) brackets(g, cx, cy, R + 8 + (sel ? Math.round(Math.sin(t * 5)) : 0), sel ? '#ffd23f' : '#a8b0d8');
     if (hov || sel) { const sr = R + 4 + ((t * 14) % 12), M2 = Math.round(Math.PI * 2 * sr / 3); g.globalAlpha = 1 - ((t * 14) % 12) / 12; for (let k = 0; k < M2; k++) if (k % 2) px(g, Math.round(cx + Math.cos(k / M2 * 6.283) * sr), Math.round(cy + Math.sin(k / M2 * 6.283) * sr), 1, 1, o.fac.color); g.globalAlpha = 1; }
-    const pips = Math.max(3, o.stars), py = cy + R + 15;
-    for (let s = 0; s < pips; s++) { const x = cx - Math.floor((pips * 4 - 1) / 2) + s * 4; px(g, x - 1, py - 1, 5, 5, '#05070a'); px(g, x, py, 3, 3, s < o.stars ? (o.boss ? '#ff4d6d' : '#ffd23f') : '#323b66'); }
+
   });
   // the ship mid-flight to the chosen planet, drawn over the planets, with a warp trail
   if (fs) {
@@ -977,9 +981,14 @@ function renderMap(now) {
   RUN.options.forEach((o, i) => {
     const R = Math.round(o.pr / A), x = pos[i].cx * A, y = (pos[i].cy + R) * A;
     pxText(o.planet.toUpperCase(), x, y + 22, S.mapSel === i ? '#ffd23f' : '#e8ecf8', 14);
-    pxText(o.diffLabel.toUpperCase(), x, y + 38, o.boss ? '#ff4d6d' : '#8a93bd', 10);
-    if (S.mapHover === i || S.mapSel === i) pxText(`${o.fac.short.toUpperCase()} · ${o.biome.name.toUpperCase()}`, x, y + 52, o.fac.color, 9);
-    if (o.envoy && Math.floor(performance.now() / 500) % 4) pxText('ENCRYPTED CHATTER', x, y + 64, ARCS[o.envoy.fac].col, 10);
+    // the matchup: who hired you against who you are fighting; the client's colour says what kind of client it is
+    const cl = clientShort(o.client).toUpperCase(), fc = o.fac.short.toUpperCase(), w = sz => (ctx.font = `700 ${sz}px Silkscreen, "Courier New", monospace`, t => ctx.measureText(t).width);
+    const wc = w(11)(cl), wf = w(11)(fc), wv = w(9)('VS'), gap = 6, x0 = x - (wc + wv + wf + gap * 2) / 2;
+    pxText(cl, x0, y + 40, clientCol(o.client), 11, 'left'); pxText('VS', x0 + wc + gap, y + 40, '#8a93bd', 9, 'left'); pxText(fc, x0 + wc + wv + gap * 2, y + 40, o.fac.color, 11, 'left');
+    // difficulty: pips then the label
+    const pips = Math.max(3, o.stars); for (let k = 0; k < pips; k++) { const qx = Math.round(x - pips * 6 + k * 12 + 2); ctx.fillStyle = '#05070a'; ctx.fillRect(qx - 1, y + 47, 10, 10); ctx.fillStyle = k < o.stars ? (o.boss ? '#ff4d6d' : '#ffd23f') : '#323b66'; ctx.fillRect(qx, y + 48, 8, 8); }
+    pxText(o.diffLabel.toUpperCase(), x, y + 72, o.boss ? '#ff4d6d' : '#a9b1d6', 11);
+    if (o.envoy && Math.floor(performance.now() / 500) % 4) pxText('INCOMING CALL', x, y + 87, ARCS[o.envoy.fac].col, 11);
   });
 }
 
@@ -2020,8 +2029,7 @@ function rollAffix(e, q, idx) {
   if (!p || rnd() >= p) return;
   const k = pick(Object.keys(AFFIXES)); e.affix = k; AFFIXES[k].apply(e); e.name = AFFIXES[k].name + ' ' + e.name;
   if (q.tier === 2 && rnd() < actStep('trait2', idx) * sui) { const k2 = pick(Object.keys(AFFIXES).filter(x => x !== k)); e.affix2 = k2; AFFIXES[k2].apply(e); e.name = AFFIXES[k2].name + ' ' + e.name; }
-  if (!RUN.seenAffix) { RUN.seenAffix = true; toast('Elites now arrive with traits: Swift, Hardened, Regenerating or Volatile. Watch the coloured pips.', 3400); }
-}
+  }
 function volatileBlast(e) {
   M.fx.push({ k: 'boom', x: e.x, y: e.y, r: 1.3 * TILE, life: 0.4, max: 0.4, color: '#ff7a1a' }); sfx('mortar', e.x); shake(2);
   for (const tw of crewNear(e, 1.3)) hurtTower(tw, 22 + 4 * lateIdx(M.c.idx));
@@ -2783,7 +2791,7 @@ function showSettings() {
     <h3>Display</h3>
     <label class="toggle"><input type="checkbox" id="cfgShake" ${CFG.shake ? 'checked' : ''}> Screen shake</label>
     <div class="row"><button class="btn" data-act="closecfg">Done</button><button class="btn ghost" data-act="testsfx">Test sound</button></div>
-    ${M ? '<p class="colony">The contract is paused while this is open. HR has logged it as an unscheduled break.</p>' : ''}
+    ${M ? '<p class="colony">Paused. HR has logged it as an unscheduled break.</p>' : ''}
   </div>`;
   $('#volMaster').focus();
 }
@@ -4597,9 +4605,7 @@ function crewConditions(cr, tw) {
   const out = [], st = tw && tw.st ? tw.st : towerStats(cr, tw), add = (t, k = 'info') => out.push({ t, k });
   if (cr.dead) { add('Killed in action', 'bad'); return out; }
   if (st.noReassign) add('Golden Handcuffs: can never be reassigned', 'bad');
-  if (!tw) { add(st.noReassign ? 'Holds position once deployed' : 'Holds position once deployed: move by reassigning or airlift'); }
-  else {
-    if (!st.noReassign) add('Holds position: move by reassigning or airlift');
+  if (tw) {
     if (tw.lifted) add('Being airlifted');
     if (tw.offline > 0) add(`Stunned / offline: ${tw.offline.toFixed(1)}s`, 'bad');
     if (tw.jam > 0) add(`Jammed: -${Math.round(tw.jam * 100)}% fire rate`, 'bad');
@@ -4793,6 +4799,7 @@ const justArrived = e => M && M.t - (e.born ?? -9) < SPAWN_GRACE;
 function damage(e, dmg, pierce, tw, quiet) {
   if (e.dead || e.invuln || justArrived(e)) return;
   if (e.vulnT > 0) dmg *= 1 + e.vulnAmt;
+  if (M.deal && M.deal.B.mark && !M.deal.broken && !e.deal) dmg *= 1 + M.deal.B.mark;
   if (e.dr) dmg *= 1 - e.dr;
   if (e.apRole && tw && tw.crew && tw.crew.type === e.apRole) dmg *= 0.75;
   const eff = pierce ? dmg : Math.max(1, dmg - e.armor);
@@ -4869,7 +4876,7 @@ function genWave() {
   // every few waves a horde: one kind, all grunts, in a dense stream; late on, the horde is the faction's old bosses
   const every = Math.max(3, HORDE_EVERY[act - 1] - (sui ? 1 : 0));
   if (m.waveNum > 1 && m.waveNum % every === 0) { genHorde(); return; }
-  let budget = waveBudget(c.idx) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey);
+  let budget = waveBudget(c.idx) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey) * (dealHolds() && M.deal.B.calm || 1);
   const vet = clamp(actStep('vet', c.idx) + prog * 0.2 + (sui ? 0.15 : 0), 0, 0.8), eli = clamp(actStep('eli', c.idx) + prog * 0.1 + (sui ? 0.1 : 0), 0, 0.5);
   const weights = { ...c.fac.cats };
   if (m.biome.mod.flyers) weights.flyer = (weights.flyer || 0.8) * m.biome.mod.flyers;
@@ -4906,7 +4913,7 @@ function genWave() {
 function genHorde() {
   const m = M, c = m.c, act = actOf(c.idx), prog = m.t / m.T, lanes = m.paths.length;
   m.hordes = (m.hordes || 0) + 1;
-  const budget = waveBudget(c.idx) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey);
+  const budget = waveBudget(c.idx) * (1 + prog * 1.8) * c.mod * standingWaveMult(c.facKey) * (dealHolds() && M.deal.B.calm || 1);
   const bossHorde = !c.ship && c.fac.bosses && (act >= 5 || (act === 4 && m.hordes % 2 === 0));
   let t = m.t + 0.6, n, label;
   if (bossHorde) {
@@ -6432,7 +6439,7 @@ const ARCS = {
       ],
       betrayed: x => `HR is pleased to report that you opened fire on unarmed strike couriers mid-agreement. Your Initiative Score has been raised. The union's opinion of you has been lowered, permanently.`,
       collateral: x => `An "accident" involving your crew and a strike fund courier on ${x.planet} has been logged. Local 404 disputes the word "accident". So does the courier.`,
-      reported: x => `Thank you for reporting Dorothy Okonkwo-Reyes. She has been reassigned to Deep Shaft 9, which has no ladder. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      reported: x => `Thank you for reporting Dorothy Okonkwo-Reyes. She has been reassigned to Deep Shaft 9, which has no ladder. Your loyalty file has been updated.`,
       refused: x => `HR notes an unscheduled transmission on your channel from a known agitator. You hung up. You have been classified as "loyal (provisional)".`,
     },
     news: [x => `Miners on ${x.planet} somehow afford lunch`, x => `Strike fund reaches record high; Kindly "baffled"`, x => `General strike paralyses ${x.sector}; board "not hungry" today`],
@@ -6473,7 +6480,7 @@ const ARCS = {
       ],
       betrayed: x => `VectorCorp has filed a breach-of-bribe claim against you. HR does not recognise bribery, and therefore cannot defend you. Their retainer has been reclaimed.`,
       collateral: x => `A VectorCorp drone "fell" into your crossfire on ${x.planet}. VectorCorp's lawyers have reclaimed their retainer and sent their regards, which are invoices.`,
-      reported: x => `Thank you for reporting Julian Sable of VectorCorp. He has been sued into a slightly smaller penthouse. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      reported: x => `Thank you for reporting Julian Sable of VectorCorp. He has been sued into a slightly smaller penthouse. Your loyalty file has been updated.`,
       refused: x => `A VectorCorp representative attempted to contact you. HR applauds your refusal and reminds you that only Kindly may exploit you.`,
     },
     news: [x => `VectorCorp shares up on "unexplained crystal windfall"`, x => `VectorCorp catalogue leaked; ethics boards "unavailable for comment"`, x => `VectorCorp completes acquisition of Kindly Security Solutions`],
@@ -6514,7 +6521,7 @@ const ARCS = {
       ],
       betrayed: x => `You opened fire on brood sacs under an agreement with local wildlife. HR did not know you could make agreements with wildlife. Your file now says "unclear".`,
       collateral: x => `A brood sac burst in your crossfire on ${x.planet}. The local wildlife have begun sending you smells. HR has filtered them as spam.`,
-      reported: x => `Thank you for reporting an unlicensed translation drone. WREN-7 has been recalled for recycling. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      reported: x => `Thank you for reporting an unlicensed translation drone. WREN-7 has been recalled for recycling. Your loyalty file has been updated.`,
       refused: x => `HR notes you hung up on a drone claiming to speak for "the Mother". HR applauds your scepticism. HR's mother is a mainframe.`,
     },
     news: [x => `Wildlife on ${x.planet} hatch record brood under Kindly drill`, x => `"Biscuit" spotted on Kindly dropship; share price falls 0.3%`, x => `Swarm migration reaches Kindly HQ; executives "taste fine"`],
@@ -6555,7 +6562,7 @@ const ARCS = {
       ],
       betrayed: x => `You opened fire on a live-streaming hacker. The clip has 40 million views. Kindly's brand sentiment rose 3%. HR has no follow-up questions.`,
       collateral: x => `A hacker was "accidentally" caught in your crossfire on ${x.planet}, live on stream. #KindlyKills is trending. HR is drafting a thoughts-and-prayers template.`,
-      reported: x => `Thank you for reporting the streamer known as Glitch. Their account has been suspended. They have opened another. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      reported: x => `Thank you for reporting the streamer known as Glitch. Their account has been suspended. They have opened another. Your loyalty file has been updated.`,
       refused: x => `HR notes you declined to take part in a livestream. Kindly's social media policy thanks you. Kindly's social media team does not exist.`,
     },
     news: [x => `Kindly memo leak trends for four minutes`, x => `Hostile commanders doxxed; one "just wants to be left alone"`, x => `Kindly final contract livestream breaks viewing records`],
@@ -6577,7 +6584,7 @@ const ARCS = {
       honoured: [x => `The ${x.asset} lost on ${x.planet} has been claimed on insurance. The claim paid 400%. You have been credited ${x.refund}% margin and warned not to do it again. Please do it again.`],
       betrayed: x => `You shot hostiles the client had paid to lose to. The client is suing the insurer, the insurer is suing the client, and they are the same company. Everyone is suing you.`,
       collateral: x => `A hostile the client was "expecting" died in your crossfire on ${x.planet}. The insurance claim has been rejected. The client blames you, correctly.`,
-      reported: x => `Thank you for reporting insurance fraud. The case has been referred to Kindly Legal, who are also the insurer. A loyalty bonus of ${x.pay} scrip has been issued.`,
+      reported: x => `Thank you for reporting insurance fraud. The case has been referred to Kindly Legal, who are also the insurer. Your loyalty file has been updated.`,
       refused: x => `A client representative reports that you refused "an opportunity". HR has logged this as a negative attitude.`,
     },
     news: [x => `Insurer pays 400% on "mysteriously missing" crystals from ${x.planet}`],
@@ -6689,8 +6696,98 @@ const SPECIAL_BEATS = {
     report: `...you reported a gift. HR must be so proud.`,
   }),
 };
-function beatDef(fac, beat) { const A = ARCS[fac]; return typeof beat === 'number' ? A.beats[beat] : SPECIAL_BEATS[beat](fac, A); }
-const beatLabel = (A, beat) => typeof beat === 'number' ? (A.oneOff ? 'One-off' : `${BEAT_NAMES[beat]} ${beat + 1}/3`) : beat === 'truce' ? 'Truce offer' : 'Favour';
+function beatDef(fac, beat) { const A = ARCS[fac]; return typeof beat === 'number' ? A.beats[beat] : isSide(beat) ? sideBeat(fac, beat) : SPECIAL_BEATS[beat](fac, A); }
+const beatLabel = (A, beat) => typeof beat === 'number' ? (A.oneOff ? 'One-off' : `${BEAT_NAMES[beat]} ${beat + 1}/3`) : beat === 'truce' ? 'Truce offer' : isSide(beat) ? 'Side deal' : 'Favour';
+// ---------- who gets on with whom ----------
+// Friends and enemies between the factions. Reporting a faction to HR sours its friends and warms its enemies;
+// side deals come from a faction's friends and enemies as well as from the faction itself.
+const ALLY_PAIRS = [['union', 'activists'], ['union', 'abandoned'], ['activists', 'haulers'], ['rival', 'kindly'], ['fauna', 'lumen'], ['lumen', 'precursors'], ['abandoned', 'church'], ['haulers', 'abandoned']];
+const RIVAL_PAIRS = [['union', 'rival'], ['union', 'kindly'], ['union', 'fauna'], ['activists', 'rival'], ['activists', 'kindly'], ['rival', 'haulers'], ['rival', 'fauna'], ['rival', 'lumen'], ['rival', 'abandoned'], ['lumen', 'church'], ['abandoned', 'kindly'], ['haulers', 'kindly'], ['precursors', 'church'], ['precursors', 'kindly'], ['kindly', 'church']];
+const tiesOf = (f, pairs) => pairs.filter(p => p.includes(f)).map(p => p[0] === f ? p[1] : p[0]);
+const alliesOf = f => tiesOf(f, ALLY_PAIRS), rivalsOf = f => tiesOf(f, RIVAL_PAIRS);
+// a faction that can call you: has an envoy, exists by now, still exists, and is not who you work for
+const canCall = (f, idx) => ARCS[f] && !ARCS[f].oneOff && FACTIONS[f] && actOfFaction(f) <= actOf(idx) && !dissolved(f) && f !== RUN.side;
+const theF = f => /^the /i.test(FACTIONS[f].short) ? FACTIONS[f].short.replace(/^The /, 'the ') : 'the ' + FACTIONS[f].short, TheF = f => theF(f).replace(/^the/, 'The');
+const standLine = shifts => shifts.filter(([f, d]) => d && (f === 'kindly!' || FACTIONS[f])).map(([f, d]) => `${f === 'kindly!' ? 'Kindly' : FACTIONS[f].short} ${d > 0 ? '+' : '−'}${Math.abs(d)}`).join(' · ');
+// what reporting a faction does: Kindly likes you more, they and their friends like you less, their enemies more
+function reportShifts(fac, sp) {
+  const own = sp === 'truce' ? -1 : sp === 'side' ? -1 : -2, idx = RUN.idx, out = [['kindly!', 1]];
+  if (FACTIONS[fac]) out.push([fac, own]);
+  // their closest friend and their closest enemy that are around: one each, so a report is a clear trade
+  const ally = alliesOf(fac).find(f => canCall(f, idx)), foe = rivalsOf(fac).find(f => canCall(f, idx));
+  if (ally) out.push([ally, -1]); if (foe) out.push([foe, 1]);
+  return out;
+}
+// ---------- side deals ----------
+// Offers that come from the contract itself rather than a faction's storyline: who the client is, who you are
+// fighting, and who those people get on with. Each is a deal like any other (let marked units through), with its
+// reward paid in standing, field effects or crew.
+const isSide = b => typeof b === 'string' && b.startsWith('side:');
+const SIDE_DEALS = {
+  payback: { from: 'self', when: c => !c.good, name: 'Back Pay', unit: 'self',
+    lines: (x, k) => [`${k.A.envoy}. ${x.client} has owed our people on ${x.planet} for years.`, `Let ${k.n} of ours through to take some of it back. Nobody else gets hurt.`],
+    reward: k => `Standing: ${standLine([[k.fac, 1], ...alliesOf(k.fac).map(f => [f, 1])])}.`,
+    effect: k => { shiftStanding(k.fac, 1, 'back pay'); for (const f of alliesOf(k.fac)) shiftStanding(f, 1, 'back pay'); return `${k.n} people walked off ${k.x.planet} with what they were owed. ${k.x.client} has not noticed. HR has.`; },
+    accept: `That's decent of you.`, refuse: `Then they keep taking. And you keep guarding it.`, report: `Of course. Who signs your cheques?` },
+  ceasefire: { from: 'self', when: c => c.good, name: 'Quiet Shift', unit: 'self', calm: 0.75,
+    lines: (x, k) => [`${k.A.envoy}. ${x.client} isn't the worst of them. We'd rather nobody bled on ${x.planet}.`, `Let ${k.n} of ours pass and we'll pull most of the rest back.`],
+    reward: k => `This contract's waves are 25% smaller. Standing: ${standLine([[k.fac, 1]])}.`,
+    effect: k => { shiftStanding(k.fac, 1, 'quiet shift'); return `A quiet shift on ${k.x.planet}. Fewer hostiles than forecast. HR has filed it as "efficiency".`; },
+    accept: `Good. Keep your heads down.`, refuse: `Then we come in full.`, report: `That's a shame. For everyone.` },
+  sabotage: { from: 'rival', when: () => true, name: 'Common Enemy', unit: 'self', mark: 0.15,
+    lines: (x, k) => [`${k.A.envoy}. You're up against ${theF(k.tgt)} on ${x.planet}. So are we, most days.`, `Let ${k.n} of our people slip through. They'll leave something nasty for ${theF(k.tgt)} on the way.`],
+    reward: k => `Hostiles here take 15% more damage. Standing: ${standLine([[k.fac, 1], [k.tgt, -1]])}.`,
+    effect: k => { shiftStanding(k.fac, 1, 'common enemy'); shiftStanding(k.tgt, -1, 'sabotaged'); return `${TheF(k.tgt)} on ${k.x.planet} found their gear tampered with. They blame you. They are right.`; },
+    accept: `Lovely. Try not to shoot the help.`, refuse: `Your loss. Theirs too, eventually.`, report: `Telling HR on the people helping you. Bold.` },
+  mercy: { from: 'ally', when: () => true, name: 'Safe Passage', unit: 'target',
+    lines: (x, k) => [`${k.A.envoy}. ${TheF(k.tgt)} are friends of ours, whatever ${x.client} is paying you.`, `${k.n} of them want off ${x.planet} alive. Let them walk.`],
+    reward: k => `Standing: ${standLine([[k.fac, 1], [k.tgt, 1]])}.`,
+    effect: k => { shiftStanding(k.fac, 1, 'safe passage'); shiftStanding(k.tgt, 1, 'safe passage'); return `${k.n} of ${theF(k.tgt)} left ${k.x.planet} on foot. ${TheF(k.fac)} sent a thank-you note. HR intercepted it.`; },
+    accept: `Thank you. They'll tell their families.`, refuse: `Then they fight. Remember that you chose it.`, report: `They were only trying to leave.` },
+  salvage: { from: 'any', when: (c, f) => ARCS[f].kind === 'bribe', name: 'Salvage Rights', unit: 'self', pay: true,
+    lines: (x, k) => [`${k.A.envoy}. ${x.planet} is about to be a scrapyard. We'd like first pick.`, `${k.n} of our people, a little of the ${x.asset}, and ${k.pay} scrip for your trouble.`],
+    reward: k => `+${k.pay} scrip now, clawed back if one of them dies. Standing: ${standLine([[k.fac, 1]])}.`,
+    effect: k => { shiftStanding(k.fac, 1, 'salvage'); return `Salvage from ${k.x.planet} has turned up for sale. Kindly has bought it back at a markup.`; },
+    accept: `Pleasure. The money's already moved.`, refuse: `Someone else will take the money. Someone always does.`, report: `I'll add that to your file. We keep files too.` },
+  cover: { from: 'any', when: () => RUN.story.heat >= 35, name: 'Lost Paperwork', unit: 'self', heat: 0,
+    lines: (x, k) => [`${k.A.envoy}. HR has a file on you this thick. We happen to own a shredder.`, `Let ${k.n} of ours through and the file loses a few pages.`],
+    reward: k => `HR suspicion −25 when it's done. Standing: ${standLine([[k.fac, 1]])}.`,
+    effect: k => { RUN.story.heat = Math.max(0, RUN.story.heat - 25); shiftStanding(k.fac, 1, 'paperwork'); return `Several pages of your HR file were recycled in error. HR apologises for the inconvenience to itself.`; },
+    accept: `Consider it shredded.`, refuse: `Enjoy the audit.`, report: `Reporting the people hiding your file. Inspired.` },
+  dirt: { from: 'self', when: c => !c.good, name: 'Paper Trail', unit: 'self',
+    lines: (x, k) => [`${k.A.envoy}. ${x.client} cooks its books, and we can prove it if ${k.n} of us reach the site office on ${x.planet}.`, `Kindly won't thank you. Everyone else will.`],
+    reward: k => `Standing: ${standLine([[k.fac, 1], ...alliesOf(k.fac).map(f => [f, 1]), ['kindly!', -1]])}.`,
+    effect: k => { shiftStanding(k.fac, 1, 'paper trail'); for (const f of alliesOf(k.fac)) shiftStanding(f, 1, 'paper trail'); RUN.story.loyalty = Math.max(0, RUN.story.loyalty - 1); return `${k.x.client}'s accounts from ${k.x.planet} were leaked. Kindly's name appears 340 times. HR would like a word.`; },
+    accept: `We'll make it count.`, refuse: `Then they get away with it. Again.`, report: `Naturally. The books stay cooked.` },
+  transfer: { from: 'self', when: (c, f) => standingOf(f) >= 1 && RUN.roster.length < 8, name: 'Transfer Request', unit: 'self',
+    lines: (x, k) => [`${k.A.envoy}. One of ours wants to see how the other half lives. Your half.`, `Let ${k.n} of us through and they'll sign your paperwork.`],
+    reward: k => `A rank 2 recruit joins your crew. Standing: ${standLine([[k.fac, 1]])}.`,
+    effect: k => { shiftStanding(k.fac, 1, 'transfer'); if (RUN.roster.length < 8) { const cr = mkCrew(pick(Object.keys(TOWERS).filter(t => t !== 'liaison')), freshName(), genLook()); cr.level = 2; cr.xp = XP_TH[1]; RUN.roster.push(cr); RUN.usedNames.add(cr.name); return `${cr.name} has transferred in from ${theF(k.fac)}. HR has lost the paperwork.`; } return `The transfer fell through. No desks.`; },
+    accept: `They'll meet you at the dropship.`, refuse: `Pity. They were keen.`, report: `HR will be thrilled.` },
+};
+// the deal itself, for a side offer coded as 'side:<kind>:<target faction>'
+function sideBeat(fac, beat) {
+  const [, id, tgt] = beat.split(':'), D = SIDE_DEALS[id], A = ARCS[fac], act = actOf(RUN.idx);
+  const k = { fac, tgt, A, T: FACTIONS[tgt], n: 3 + Math.floor(act / 2), pay: 30 + 10 * act, x: null };
+  const B = {
+    name: D.name, special: 'side', side: id, tgt, ask: { kind: 'couriers', cat: 'swarm', n: k.n, each: 2 + (act >= 3 ? 1 : 0), unit: 'Marked ' + (D.unit === 'target' ? FACTIONS[tgt].short : FACTIONS[fac].short) },
+    heat: D.heat ?? 10, pay: D.pay ? k.pay : 0, unitFac: D.unit === 'target' ? tgt : fac, calm: D.calm, mark: D.mark,
+    lines: x => { k.x = x; return D.lines(x, k); }, reward: D.reward(k), accept: D.accept, refuse: D.refuse, report: D.report,
+    effect: x => { k.x = x; return D.effect(k); },
+  };
+  return B;
+}
+// a side offer for this contract, if anyone has one: from the faction you're fighting, its enemies or its friends
+function rollSide(o) {
+  if (o.boss || o.idx < 1 || o.ship) return null;
+  const T = o.facKey, out = [];
+  for (const [id, D] of Object.entries(SIDE_DEALS)) {
+    const from = D.from === 'self' ? [T] : D.from === 'rival' ? rivalsOf(T) : D.from === 'ally' ? alliesOf(T) : [T, ...rivalsOf(T)];
+    for (const f of from) if (canCall(f, o.idx) && FACTIONS[T] && D.when(o.client, f) && standingOf(f) > -3) out.push({ fac: f, beat: `side:${id}:${T}` });
+  }
+  return out.length ? pick(out) : null;
+}
+
 // standing-only envoys: a truce from a faction that hates you, a favour from one that loves you
 function standingEnvoy(o) {
   if (o.boss || o.idx < 1) return null;
@@ -6722,6 +6819,8 @@ function rollEnvoy(o) {
   }
   // no faction envoy: an evil client might want its own crystals stolen
   if (!o.client.good && envoyBeat('fraud', false) === 0 && rnd() < 0.18) return { fac: 'fraud', beat: 0 };
+  // or someone with a stake in this fight has a side offer
+  if (rnd() < 0.3) return rollSide(o);
   return null;
 }
 function envoyCtx(o, fac) {
@@ -6757,7 +6856,8 @@ function showMessenger(i) {
         <div class="deal ask"><div class="lbl">The ask</div><p>${esc(B.free ? 'Nothing. That is what worries HR.' : askLine)}</p></div>
         <div class="deal reward"><div class="lbl">The reward</div><p>${esc(B.reward)}</p></div>
         <div class="deal risk"><div class="lbl">The risk</div><p>HR suspicion +${heat} (now ${RUN.story.heat}). Break the deal and ${esc(A.envoy)} remembers.</p></div>
-        <div class="row" id="envBtns"><button class="btn" data-act="envoy" data-v="accept">Accept</button><button class="btn ghost" data-act="envoy" data-v="refuse">Refuse</button><button class="btn ghost" data-act="envoy" data-v="report">Report to HR (+${A.reportPay} scrip)</button></div>
+        <div class="row" id="envBtns"><button class="btn" data-act="envoy" data-v="accept">Accept</button><button class="btn ghost" data-act="envoy" data-v="refuse">Refuse</button><button class="btn ghost" data-act="envoy" data-v="report">Report to HR</button></div>
+        <div class="colony report-prev">If reported: ${esc(standLine(reportShifts(fac, B.special)))}</div>
       </div>
     </div>
   </div></div>`;
@@ -6806,15 +6906,18 @@ function envoyChoice(v) {
     if (!sp) a.refusals++; st.loyalty += 0.5;
     S.pendingEcho = { fac: E.fac, kind: 'refused' };
   } else {
-    if (!sp) a.state = 'reported'; st.loyalty += 1;
-    if (FACTIONS[E.fac]) shiftStanding(E.fac, sp === 'favour' ? -2 : sp === 'truce' ? -1 : -2, 'reported'); else st.grudge[E.fac] = 1.15;
-    RUN.scrip += A.reportPay;
-    S.pendingEcho = { fac: E.fac, kind: 'reported', pay: A.reportPay };
+    // reporting pays in relations: Kindly trusts you more and HR stops looking so hard, the faction and its friends
+    // trust you less, and its enemies take note
+    if (!sp) a.state = 'reported';
+    for (const [f, d] of reportShifts(E.fac, sp)) { if (f === 'kindly!') st.loyalty += d; else shiftStanding(f, d, 'reported'); }
+    if (!FACTIONS[E.fac]) st.grudge[E.fac] = 1.15;
+    st.heat = Math.max(0, st.heat - 10);
+    S.pendingEcho = { fac: E.fac, kind: 'reported' };
   }
   st.log.push(log);
   // after loyalty has moved, so the perk lands on the choice that earned it
   if (v === 'refuse') loyaltyReward(10);
-  if (v === 'report') loyaltyReward(25);
+  if (v === 'report') loyaltyReward(0);
   sfx(v === 'accept' ? 'confirm' : v === 'report' ? 'buy' : 'click');
   $('#envSkip').textContent = v === 'accept' ? 'Deal struck.' : v === 'refuse' ? 'Channel closed.' : 'Transcript forwarded to HR-BOT.';
   $('#envBtns').innerHTML = `<button class="btn" data-act="envoydeploy">Deploy to ${esc(o.planet)}</button>`;
@@ -7500,7 +7603,7 @@ function envoyBust(fac, beat) {
 function makeDeal(pd, c) {
   const A = ARCS[pd.fac], B = beatDef(pd.fac, pd.beat);
   // insurance fraud marks the contract's own hostiles; every other deal brings the envoy's people
-  return { fac: pd.fac, unitFac: A.oneOff ? c.facKey : pd.fac, beat: pd.beat, ask: B.ask, A, B, spawned: 0, through: 0, broken: null, done: false, extra: 0, at: Array.from({ length: B.ask.n }, (_, k) => 0.12 + 0.62 * k / Math.max(1, B.ask.n - 1)) };
+  return { fac: pd.fac, unitFac: B.unitFac || (A.oneOff ? c.facKey : pd.fac), beat: pd.beat, ask: B.ask, A, B, spawned: 0, through: 0, broken: null, done: false, extra: 0, at: Array.from({ length: B.ask.n }, (_, k) => 0.12 + 0.62 * k / Math.max(1, B.ask.n - 1)) };
 }
 const dealHolds = () => M && M.deal && !M.deal.broken;
 function stepDeal(dt) {
@@ -7519,7 +7622,7 @@ function breakDeal(how) {
   const a = arcOf(d.fac), st = RUN.story;
   moraleEvent(how, d.fac); if (how === 'betrayed') { st.loyalty += 1; loyaltyReward(15); quarter().betrayed++; }
   for (const tw of M.towers) barkAs(tw, 'betray', how === 'betrayed' ? 0.6 : 0.2);
-  a.state = 'hostile'; if (!d.A.oneOff) shiftStanding(d.fac, how === 'betrayed' ? -2 : -1, how); st.flags.betrayed = (st.flags.betrayed || 0) + 1;
+  if (d.B.special !== 'side') a.state = 'hostile'; if (!d.A.oneOff) shiftStanding(d.fac, how === 'betrayed' ? -2 : -1, how); st.flags.betrayed = (st.flags.betrayed || 0) + 1;
   if (d.B.pay) RUN.scrip = Math.max(0, RUN.scrip - d.B.pay);
   st.log.push({ fac: d.fac, beat: d.beat, planet: M.c.planet, choice: how, idx: M.c.idx });
   sfx('fail'); shake(3);
@@ -7555,7 +7658,7 @@ function resolveDeal(m) {
   const d = m.deal, st = RUN.story, ev = [];
   if (S.pendingEcho) { ev.push(S.pendingEcho); S.pendingEcho = null; }
   if (d) {
-    const a = arcOf(d.fac), x = { planet: m.c.planet, asset: m.c.client.asset, lost: d.through * d.ask.each, pay: d.B.pay, sector: RUN.sectorName, extra: Math.round(d.extra) };
+    const a = arcOf(d.fac), x = { planet: m.c.planet, client: m.c.client.n, asset: m.c.client.asset, lost: d.through * d.ask.each, pay: d.B.pay, sector: RUN.sectorName, extra: Math.round(d.extra) };
     if (d.broken) ev.push({ fac: d.fac, kind: d.broken, x });
     else if (d.A.oneOff) {
       st.fraud = (st.fraud || 0) + 1;
@@ -7563,6 +7666,9 @@ function resolveDeal(m) {
       st.log.push({ fac: d.fac, beat: 0, planet: m.c.planet, choice: 'honoured', idx: m.c.idx });
       ev.push({ fac: d.fac, kind: 'honoured', beat: 0, x });
       st.news.push(d.A.news[0](x));
+    } else if (d.B.special === 'side') {
+      ev.push({ fac: d.fac, kind: 'side', text: d.B.effect(x) }); moraleEvent('honoured', d.fac);
+      st.log.push({ fac: d.fac, beat: d.beat, planet: m.c.planet, choice: 'honoured', idx: m.c.idx });
     } else if (d.B.special === 'truce') {
       // reparations paid: back to neutral, and their story can pick up where it left off
       if (standingOf(d.fac) < 0) shiftStanding(d.fac, -standingOf(d.fac), 'truce');
@@ -7606,7 +7712,8 @@ function storyEcho(events) {
   const out = [];
   for (const ev of events) {
     const H = ARCS[ev.fac].hr;
-    if (ev.kind === 'honoured') out.push(H.honoured[ev.beat](ev.x));
+    if (ev.kind === 'side') out.push(ev.text);
+    else if (ev.kind === 'honoured') out.push(H.honoured[ev.beat](ev.x));
     else if (ev.kind === 'betrayed' || ev.kind === 'collateral') out.push(H[ev.kind](ev.x));
     else out.push(H[ev.kind]({ pay: ev.pay }));
   }
@@ -8949,17 +9056,8 @@ function showTitle() {
     <h1 class="big">Quarterly<br><em>Losses</em></h1>
     <p class="tagline">Your safety is our second priority.</p>
     <figure class="lineup" style="margin:0">${Array.from({ length: 9 }, () => `<img src="${fullBodyUrl(genLook(), pick(Object.keys(TOWERS)))}" alt="">`).join('')}<figcaption>Your new colleagues. Subject to change.</figcaption></figure>
-    <div class="memo">WELCOME, NEW HIRE.
-You have been deployed. Protect each client's crystals until extraction completes.
-If losses push company profit margin to <b>0%</b>, your return shuttle will be reallocated.
-Breaks are not scheduled. Good luck.                                    — HR-BOT</div>
-    <ul class="steps">
-      <li><b>Pick a contract</b>Choose a planet on the star map. Harder jobs pay more.</li>
-      <li><b>Deploy your crew</b>Select a crew member, then a tile beside the path.</li>
-      <li><b>Hold the drill</b>Survive until extraction hits 100%, then clear the area.</li>
-      <li><b>Spend your scrip</b>Hire crew and buy relics at the Company Store.</li>
-      <li><b>Review your crew</b>Promotions offer perk cards, a specialisation at rank 4 and a capstone at rank 5.</li>
-    </ul>
+    <div class="memo">WELCOME, NEW HIRE. Guard the crystals.
+If the margin hits <b>0%</b>, so do you.                — HR-BOT</div>
     ${(() => { const sv = loadRun(); return sv ? `<div class="row"><button class="btn" data-act="continue">Resume shift</button><span class="colony">${esc(saveSummary(sv))}</span></div>` : ''; })()}
     <div class="row"><button class="btn${loadRun() ? ' ghost' : ''}" data-act="newrun">${loadRun() ? 'Clock in (new run)' : 'Clock in'}</button>
     ${colony ? `<span class="colony">Colony of the Abandoned: ${colony} survivor${colony === 1 ? '' : 's'} · new hires start with +${Math.min(50, colony * 5)} scrip</span>` : ''}
@@ -8970,14 +9068,18 @@ function showMap() {
   S.screen = 'map'; S.mapSel = -1; S.mapHover = -1; M = null; clearMissionUi(); setMusic('map');
   saveRun('map');
   mapView();
-  $('#overlay').innerHTML = `<button class="btn sm shipbtn" data-act="walkship" title="Walk around your ship, look after the crew">▾ Minimise · walk the ship</button><div class="maphint">${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? (sectorOf(RUN.idx) >= MAX_SECTOR ? 'Board priority. The final contract.' : 'Executive priority. One contract available.') : 'Select a planet to review the contract.'}</div>`;
+  $('#overlay').innerHTML = `<button class="btn sm shipbtn" data-act="walkship" title="Walk around your ship, look after the crew">▾ Minimise · walk the ship</button><div class="maphint">${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? (sectorOf(RUN.idx) >= MAX_SECTOR ? 'Board priority. The final contract.' : 'Executive priority. One contract available.') : 'Pick a planet.'}</div>`;
   $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">Sector ${sectorOf(RUN.idx)} · ${esc(RUN.sectorName)}</div><div class="val">Choose your next deployment</div></div>
     <div class="hud-meter"><div class="lbl">Profit margin <span class="mono">${RUN.margin}%</span></div><div class="meter m-margin${RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''}"><i style="width:${RUN.margin}%"></i></div></div>
-    <div class="hud-meter" title="HR suspicion. Deals raise it; it cools by 5 each contract."><div class="lbl">Heat <span class="mono">${RUN.story.heat}</span></div><div class="meter m-heat"><i style="width:${RUN.story.heat}%"></i></div></div>
+    <div class="hud-meter" title="HR suspicion"><div class="lbl">Heat <span class="mono">${RUN.story.heat}</span></div><div class="meter m-heat"><i style="width:${RUN.story.heat}%"></i></div></div>
     <div class="hud-block"><div class="lbl">Scrip</div><div class="val mono">${RUN.scrip}</div></div>
     <div class="hud-block"><div class="lbl">${RUN.side ? `${esc(FACTIONS[RUN.side].short)} member` : 'Employee'}</div><div class="val mono">#${RUN.empId}</div></div>`;
 }
 const SHIP = { x: 120, y: 290 };
+// clients are coloured, not labelled: green-teal for decent people, red for the other kind
+const CLIENT_GOOD = '#5ff0b8', CLIENT_BAD = '#ff5a6a';
+const clientCol = c => c && c.good ? CLIENT_GOOD : CLIENT_BAD;
+const clientShort = c => { const n = (c && c.n) || 'Kindly'; const w = n.split(/ (?:&|and|of|\(|-) /)[0].split(' '); let out = w[0]; for (let k = 1; k < w.length && (out + ' ' + w[k]).length <= 16; k++) out += ' ' + w[k]; return out; };
 function mapView() {
   const portrait = isPortrait();
   if (portrait) { setView(600, 940); SHIP.x = 300; SHIP.y = 850; } else { setView(1000, 560); SHIP.x = 120; SHIP.y = 290; }
@@ -9001,32 +9103,30 @@ function layoutPlanets(portrait) {
 }
 function showContractCard(i) {
   const o = RUN.options[i]; S.mapSel = i;
-  const cats = Object.keys(o.fac.cats).map(k => CATS[k].label);
-  if (o.biome.mod.flyers && !cats.includes('Flyer')) cats.push('Flyer');
-  const moral = o.client.good ? '<span class="pill good">Good people</span>' : '<span class="pill bad">Bad people</span>';
-  const mins = Math.floor(o.T * (has('overtime') ? 0.85 : 1) / 60), secs = Math.round(o.T * (has('overtime') ? 0.85 : 1) % 60);
+  const T = o.T * (has('overtime') ? 0.85 : 1), mins = Math.floor(T / 60), secs = Math.round(T % 60);
+  const tag = actOfFaction(o.facKey) === actOf(o.idx) && actOf(o.idx) > 1 ? '<span class="pill new">New</span>' : actOfFaction(o.facKey) < actOf(o.idx) && returnReason(o.facKey) ? `<span class="pill back">${esc(returnReason(o.facKey))}</span>` : '';
+  const hz = o.biome.hazard.includes(':') ? o.biome.hazard.split(':').slice(1).join(':').trim() : o.biome.hazard;
+  const notes = [
+    o.boss ? `<div class="intel">Target: ${esc(o.bossDef.name)}</div>` : '',
+    o.envoy ? `<div class="intel" style="--brand:${ARCS[o.envoy.fac].col};color:${ARCS[o.envoy.fac].col}">${RUN.story.arcs[o.envoy.fac] && RUN.story.arcs[o.envoy.fac].state === 'active' ? esc(ARCS[o.envoy.fac].envoy) + ' is calling again.' : 'Incoming call before landing.'}</div>` : '',
+    RUN.story.grudge[o.facKey] ? `<div class="intel" style="color:var(--danger)">They remember you. +${Math.round((RUN.story.grudge[o.facKey] - 1) * 100)}% HP.</div>` : '',
+    o.grudge ? `<div class="intel recall">Survivors of ${esc(o.grudge)}. +10% HP.</div>` : '',
+  ].join('');
   $('#overlay').innerHTML = `<div class="card" role="dialog" aria-label="Contract details">
     ${titlebar(`Contract_${String(o.idx + 1).padStart(2, '0')}.doc`, 'mapback')}
-    <div class="sub">${o.boss ? (sectorOf(o.idx) >= MAX_SECTOR ? 'Board priority contract' : 'Executive priority contract') : `Contract ${o.idx + 1} · ${esc(o.diffLabel)}`}</div>
+    <div class="sub">${o.boss ? (sectorOf(o.idx) >= MAX_SECTOR ? 'Board priority' : 'Executive priority') : esc(o.diffLabel)} <span class="stars">${'■'.repeat(o.stars)}</span></div>
     <h2>${esc(o.planet)}</h2>
-    <figure class="scenebox">${sceneImg(o.biomeKey, o.facKey, 'unresolved', Math.floor(o.seed * 3), 'scene', 0, actOf(o.idx))}<figcaption>Live: ${esc(o.fac.short)} on site. Status: unresolved.</figcaption></figure>
-    <p style="margin:0">${esc(o.client.n)} wants its ${esc(o.client.asset)} protected.</p>
+    <figure class="scenebox">${sceneImg(o.biomeKey, o.facKey, 'unresolved', Math.floor(o.seed * 3), 'scene', 0, actOf(o.idx))}</figure>
+    <div class="vs"><b style="color:${clientCol(o.client)}">${esc(o.client.n)}</b><i>vs</i><b style="color:${o.fac.color}">${esc(o.fac.name)}</b>${tag}</div>
     <dl class="kv">
-      <dt>Client</dt><dd>${esc(o.client.n)} ${moral}</dd>
-      <dt>Ethics review</dt><dd>Waived</dd>
-      <dt>Hostiles</dt><dd>${esc(o.fac.name)} ${actOfFaction(o.facKey) === actOf(o.idx) && actOf(o.idx) > 1 ? '<span class="pill new">New this act</span>' : actOfFaction(o.facKey) < actOf(o.idx) && returnReason(o.facKey) ? `<span class="pill back">${esc(returnReason(o.facKey))}</span>` : ''}<br><span style="color:var(--muted)">${cats.join(', ')}</span></dd>
-      ${!RUN.side && sectorOf(o.idx) >= 4 ? `<dt>Purge</dt><dd>${(RUN.purge || {})[o.facKey] || standingOf(o.facKey) <= -2 || (RUN.worlds || []).some(w => w.fac === o.facKey && w.state === 'crushed') ? 'One win purges them' : 'Two wins purge them'}</dd>` : ''}
-      <dt>Standing</dt><dd>${standingHtml(o.facKey)}${standingOf(o.facKey) >= 2 ? '<br><span style="color:var(--muted)">Smaller waves. Some of them may defect.</span>' : ''}</dd>
-      <dt>Biome</dt><dd>${esc(o.biome.name)}. ${esc(o.biome.hazard)}</dd>
-      <dt>Extraction</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} approach${o.spawns > 1 ? 'es' : ''}</dd>
-      <dt>Pay</dt><dd class="mono">${o.pay.toFixed(2)}× base rate</dd>
+      <dt>Pay</dt><dd class="mono">${o.pay.toFixed(2)}×</dd>
+      <dt>Shift</dt><dd class="mono">${mins}:${String(secs).padStart(2, '0')} · ${o.spawns} ${o.spawns > 1 ? 'roads' : 'road'}</dd>
+      <dt>World</dt><dd>${esc(o.biome.name)} <span class="hz">${esc(hz)}</span></dd>
+      <dt>Standing</dt><dd>${standingHtml(o.facKey)}</dd>
+      ${!RUN.side && sectorOf(o.idx) >= 4 ? `<dt>Purge</dt><dd>${(RUN.purge || {})[o.facKey] || standingOf(o.facKey) <= -2 || (RUN.worlds || []).some(w => w.fac === o.facKey && w.state === 'crushed') ? 'One win' : 'Two wins'}</dd>` : ''}
     </dl>
-    ${o.fac.trait ? `<div class="intel" style="--brand:${o.fac.color};color:${o.fac.color}">${esc(o.fac.trait)}</div>` : ''}
-    ${o.boss ? `<div class="intel">Target: ${esc(o.bossDef.name)}. ${esc(o.bossDef.desc)} You have fought the ${esc(o.fac.short)} more than anyone else this quarter. They noticed.</div>` : ''}
-    ${o.envoy ? `<div class="intel" style="--brand:${ARCS[o.envoy.fac].col};color:${ARCS[o.envoy.fac].col}">Encrypted chatter on this planet. ${RUN.story.arcs[o.envoy.fac] && RUN.story.arcs[o.envoy.fac].state === 'active' ? esc(ARCS[o.envoy.fac].envoy) + ' wants to talk again.' : 'Someone wants to talk before you land.'}</div>` : ''}
-    ${RUN.story.grudge[o.facKey] ? `<div class="intel" style="color:var(--danger)">The ${esc(o.fac.short)} know what you did. Expect them to be tougher (+${Math.round((RUN.story.grudge[o.facKey] - 1) * 100)}% HP).</div>` : ''}
-    ${o.grudge ? (() => { const w = [...(RUN.worlds || [])].reverse().find(w => w.fac === o.facKey); return `<div class="intel recall">${w ? sceneImg(w.bk, w.fac, w.state, w.v, 'thumb', deadShown(w.kills), w.act || 1) : ''}<span>Survivors of ${esc(o.grudge)} are among them${w ? ` (you left it ${w.state === 'helped' ? 'in their hands' : 'under company flags'})` : ''}. +10% HP.</span></div>`; })() : ''}
-    <div class="row"><button class="btn" data-act="accept" data-i="${i}">Accept deployment</button><button class="btn ghost" data-act="mapback">Back</button></div>
+    ${notes}
+    <div class="row"><button class="btn" data-act="accept" data-i="${i}">Deploy</button><button class="btn ghost" data-act="mapback">Back</button></div>
   </div>`;
 }
 // ================================================================
@@ -9413,14 +9513,14 @@ function showStore() {
       <div class="row" style="justify-content:space-between"><div><div class="lbl">${esc(employer().store)}</div><h2>${employer().storeHead}</h2></div><div style="text-align:right"><div class="lbl">Balance</div><div class="scrip mono">${RUN.scrip}</div></div></div>
       ${S.promotePick ? '<div class="intel">Choose a crew member to promote in the roster.</div>' : ''}
       <div class="offers">${offerHtml}</div>
-      <div class="row"><button class="btn ghost sm" data-act="reroll" ${RUN.scrip < rerollCost() ? 'disabled' : ''}>Reroll the shelves · ${rerollCost()} scrip</button><span class="colony">Restocks everything you haven't bought.</span></div>
+      <div class="row"><button class="btn ghost sm" data-act="reroll" ${RUN.scrip < rerollCost() ? 'disabled' : ''}>Reroll the shelves · ${rerollCost()} scrip</button></div>
       <div class="row"><button class="btn" data-act="tomap" ${S.promotePick ? 'disabled' : ''}>Accept next deployment</button><span class="colony">Margin ${RUN.margin}% · Sector ${sectorOf(RUN.idx)} · Contract ${sectorPos(RUN.idx) + 1} next${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? ' (boss)' : ''}</span></div>
     </div>
     <div class="paper" style="width:100%">
       ${titlebar('Personnel.db')}
       <h3>Roster ${RUN.roster.length}/8</h3><div class="rlist">${rosterHtml}</div>
       <h3>Relics</h3><div class="relics">${relicHtml}</div>
-      <h3>Artifacts</h3><div class="relics">${(RUN.artifacts || []).length ? RUN.artifacts.map(a => `<span class="relic" style="color:${ARTIFACTS[a.id].col}" title="${esc(ARTIFACTS[a.id].desc)}">${esc(ARTIFACTS[a.id].name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span>`).join('') : '<span class="colony">Kill a boss to recover one.</span>'}</div>
+      <h3>Artifacts</h3><div class="relics">${(RUN.artifacts || []).length ? RUN.artifacts.map(a => `<span class="relic" style="color:${ARTIFACTS[a.id].col}" title="${esc(ARTIFACTS[a.id].desc)}">${esc(ARTIFACTS[a.id].name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span>`).join('') : '<span class="colony">None yet.</span>'}</div>
     </div>
   </div></div>`;
 }
@@ -9875,7 +9975,7 @@ ARCS.lumen = {
     ],
     betrayed: x => `You fired on lampbearers mid-agreement on ${x.planet}. HR has reclassified the village from "community" to "obstacle". Congratulations.`,
     collateral: x => `A lantern broke in your crossfire on ${x.planet}. The village has gone dark. HR has logged this as "energy efficiency".`,
-    reported: x => `Thank you for reporting Sefa Ninelights. The village is now a "Crystal Opportunity Zone". A loyalty bonus of ${x.pay} scrip has been issued.`,
+    reported: x => `Thank you for reporting Sefa Ninelights. The village is now a "Crystal Opportunity Zone". Your loyalty file has been updated.`,
     refused: x => `HR notes you declined to negotiate with a hut. HR approves. Huts are not stakeholders.`,
   },
   news: [x => `Village lights return on ${x.planet}; Kindly calls it "unscheduled shrinkage"`, x => `Kin glass-reader joins Kindly security crew, refuses lanyard`, x => `Every lamp in the ${x.sector} relit in one night; Kindly HQ reports "a glare problem"`],
@@ -10233,7 +10333,7 @@ ARCS.abandoned = {
     honoured: [x => `Severance was paid to unregistered former employees on ${x.planet}. Severance is not a benefit Kindly offers. Please explain.`, x => `A Ms. D. Okafor has been rehired without HR's involvement. Her personnel file was found in a skip. It has been returned to the skip.`, x => `Hundreds of former employees are walking towards headquarters. Their badges still work. HR is "looking into" deactivating them, any decade now.`],
     betrayed: x => `You fired on former colleagues under an agreement on ${x.planet}. HR notes this is consistent with company policy and inconsistent with being a person.`,
     collateral: x => `A former employee died in your crossfire on ${x.planet}. They are being billed for the shell.`,
-    reported: x => `Thank you for reporting Ms. Marguerite Vance. Her Employee of the Month plaques have been revoked retroactively. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    reported: x => `Thank you for reporting Ms. Marguerite Vance. Her Employee of the Month plaques have been revoked retroactively. Your loyalty file has been updated.`,
     refused: x => `HR notes you declined to negotiate with ex-employees. Former staff are not stakeholders. They are a liability.`,
   },
   news: [x => `Abandoned colony collects "severance" on ${x.planet}; Kindly denies it owed any`, x => `Ex-Kindly HR clerk rehired by field crew; Kindly HR "not consulted"`, x => `Thousands of ex-employees march on Kindly HQ; badges "still technically active"`],
@@ -10260,7 +10360,7 @@ ARCS.haulers = {
     honoured: [x => `Inventory drones on ${x.planet} report cargo "flying away on its own". Insurance has been informed. Insurance has also been robbed.`, x => `An unregistered artifact has appeared in your equipment locker labelled "NOT AN ARTIFACT". HR accepts this explanation.`, x => `Every warehouse in the ${x.sector} has been declared a "free port". HR does not know what that means and is afraid to ask.`],
     betrayed: x => `You fired on smugglers you'd agreed to let through on ${x.planet}. HR appreciates your loyalty. The Guild has put a price on your head. HR has matched it.`,
     collateral: x => `A Guild runner died in your crossfire on ${x.planet}. The Guild has sent an invoice.`,
-    reported: x => `Thank you for reporting Quartermaster Ironwake. A Guild crawler was impounded and auctioned. You did not win the auction. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    reported: x => `Thank you for reporting Quartermaster Ironwake. A Guild crawler was impounded and auctioned. You did not win the auction. Your loyalty file has been updated.`,
     refused: x => `HR notes you refused a bribe. HR is suspicious of people who refuse bribes.`,
   },
   news: [x => `Cargo "flies off" ${x.planet} drill; Guild denies all knowledge, offers a discount`, x => `Mysterious artifact found in Kindly locker; "not an artifact", says label`, x => `Free Haulers declare free port across the ${x.sector}; customs officers "on holiday"`],
@@ -10287,7 +10387,7 @@ ARCS.precursors = {
     honoured: [x => `Extraction on ${x.planet} paused while "the ground hummed". Geology has been billed for the delay.`, x => `Your drill's memory was read by an unauthorised party. The party was a rock. HR is drafting a policy on rocks.`, x => `Something under the ${x.sector} woke up and filed a report about us. HR has never been reported on before. HR does not like it.`],
     betrayed: x => `You destroyed sleeping constructs under an agreement on ${x.planet}. HR has classified this as "demolition". The Archive has classified it differently.`,
     collateral: x => `A sarcophagus was damaged in your crossfire on ${x.planet}. Whatever was inside it is now outside it.`,
-    reported: x => `Thank you for reporting "the Archivist". It has been filed as geology. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    reported: x => `Thank you for reporting "the Archivist". It has been filed as geology. Your loyalty file has been updated.`,
     refused: x => `HR notes you refused to negotiate with a tomb. HR approves. Tombs do not have a seat at the table.`,
   },
   news: [x => `Ground on ${x.planet} "hums for an hour"; Kindly blames the drill, the drill blames the ground`, x => `Kindly drill "read by a rock", says field report; HR drafting rock policy`, x => `Ancient constructs wake across the ${x.sector}; Kindly stock "unaffected", Kindly insists`],
@@ -10681,7 +10781,7 @@ ARCS.kindly = {
     honoured: [x => `Two Asset Protection auditors inspected your drill on ${x.planet}. HR was not informed. HR is starting to feel left out.`, x => `Your crew are wearing Asset Protection armour. HR did not approve the armour. The armour did not ask.`, x => `Asset Protection has locked down the ${x.sector}. HR has been asked to stay in its office. HR is complying.`],
     betrayed: x => `You fired on Asset Protection staff under an agreement on ${x.planet}. Both halves of the company are now angry with you. Impressive.`,
     collateral: x => `An Asset Protection officer died in your crossfire on ${x.planet}. Their department has requested your home address.`,
-    reported: x => `Thank you for reporting Director Haldane. HR has forwarded your report to Asset Protection for review. A loyalty bonus of ${x.pay} scrip has been issued, possibly by mistake.`,
+    reported: x => `Thank you for reporting Director Haldane. HR has forwarded your report to Asset Protection for review. Your loyalty file has been updated.`,
     refused: x => `HR notes you refused Asset Protection. HR is quietly delighted. HR will deny this.`,
   },
   news: [x => `Asset Protection "inventories" field sites across the ${x.sector}`, x => `Field crews spotted in Asset Protection armour; Procurement furious`, x => `Asset Protection declares lockdown; board "unavailable for comment"`],
@@ -10708,7 +10808,7 @@ ARCS.church = {
     honoured: [x => `Congregants collected a "tithe" from your drill on ${x.planet}. Finance would like to know if it is tax-deductible.`, x => `Your crew report feeling "heard" after a visit from the Church. HR reminds you that feelings are not an approved benefit.`, x => `Pilgrims are walking towards headquarters across the ${x.sector}. Security says they are singing. Security has started humming along.`],
     betrayed: x => `You fired on pilgrims under an agreement on ${x.planet}. The Church has made you a saint, ironically. HR has made you a note.`,
     collateral: x => `A congregant died in your crossfire on ${x.planet}. The Church is calling it a sacrifice. HR is calling it a Tuesday.`,
-    reported: x => `Thank you for reporting the Deacon. HR's own chaplain has been informed. HR did not know it had a chaplain. A loyalty bonus of ${x.pay} scrip has been issued.`,
+    reported: x => `Thank you for reporting the Deacon. HR's own chaplain has been informed. HR did not know it had a chaplain. Your loyalty file has been updated.`,
     refused: x => `HR notes you refused the Church. HR reminds staff that religion is a personal matter and must be practised outside billable hours.`,
   },
   news: [x => `Church "tithe" collected from ${x.planet}; Finance confused`, x => `Field crew morale up after Church visits; HR "investigating"`, x => `Pilgrims march on Kindly HQ; security "joins in"`],
@@ -11885,7 +11985,7 @@ function openStation(st) {
   else if (st.key === 'payroll') body = remedyBtn('payroll');
   else if (st.key === 'counsel') body = `<p class="lede">${esc(REMEDIES.counsel.desc)} ${remedyPrice('counsel')} scrip a session, one each per contract.</p><div class="rlist">${RUN.roster.map(cr => crewRow(cr, true)).join('')}</div>`;
   else if (st.key === 'files') body = `<div class="rlist">${RUN.roster.map(cr => crewRow(cr, false)).join('')}</div>`;
-  else if (st.key === 'reactor') body = `<p class="lede">The fuel crystals hum. If a faction ever boards the ship, this is what they come for. Fit-out: <b>${esc(T.name)}</b>. ${esc(T.desc)}</p><p class="colony">Your fit-out follows company standing: margin, loyalty to Kindly and HR heat.</p>`;
+  else if (st.key === 'reactor') body = `<p class="lede">The fuel crystals hum. If a faction ever boards the ship, this is what they come for. Fit-out: <b>${esc(T.name)}</b>. ${esc(T.desc)}</p>`;
   else if (st.key === 'cargo') body = (RUN.artifacts || []).length ? `<div class="relics">${RUN.artifacts.map(a => `<span class="relic" style="color:${ARTIFACTS[a.id].col}" title="${esc(ARTIFACTS[a.id].desc)}">${esc(ARTIFACTS[a.id].name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span>`).join('')}</div>` : '<p class="lede">Empty. Bosses drop artifacts; this is where they live.</p>';
   shipPanel(st.name, body);
 }
@@ -12176,11 +12276,9 @@ function showOnboarding() {
   const lines = [
     { t: `Welcome to Kindly Security Solutions, Employee #${RUN.empId}. Douglas Pryce, Regional Manager.`, pose: 'spread', expr: 'smile' },
     { t: 'You guard our clients\' crystals. Lose too many and your margin hits zero. Then you are cargo.', pose: 'tablet', expr: 'smug' },
-    { t: 'I come aboard every quarter. Impress me and the company shares its toys. Do not, and I find someone who will.', pose: 'point', expr: 'smile' },
+    { t: 'I will be watching your numbers.', pose: 'point', expr: 'smile' },
   ];
-  const card = `<div class="deal ask"><div class="lbl">Your job</div><p>Hold each drill until extraction is done. Keep profit margin above 0%.</p></div>
-    <div class="deal reward"><div class="lbl">Every ${QUARTER} contracts</div><p>A quarterly review: crew morale, HR suspicion and your star ratings, plus whatever he asked of you. The best grade earns Executive Technology. The worst ends your career.</p></div>
-    <div class="row"><button class="btn" data-act="mgronboard">Sign the waiver</button></div>`;
+  const card = `<div class="row"><button class="btn" data-act="mgronboard">Sign the waiver</button></div>`;
   managerScene({ title: 'Onboarding_Orientation.mtg', head: 'Day one', lines, card, holo: null, mood: 'up' });
 }
 // ---------- the scene ----------

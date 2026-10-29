@@ -186,6 +186,27 @@ Before some deployments a faction's envoy gets onto your channel. This is what s
 
 The reckoning envoy appears before the final contract, whichever faction the final target belongs to.
 
+### Reporting to HR
+Reporting an envoy pays in relations, never scrip: Kindly's trust in you rises (loyalty +1, which still unlocks the corporate perks), HR suspicion drops by 10, the reported faction's standing falls (−2; −1 for truce and side offers), its closest friend that is around this act falls by 1 and its closest enemy rises by 1. The call screen shows exactly which way each moves before you choose ("If reported: Kindly +1 · Striking Miners −2 · Protesters −1 · Rival Contractors +1").
+
+### Friends, enemies and side deals
+Factions have friends and enemies (`ALLY_PAIRS`, `RIVAL_PAIRS`): the union with the activists and the Abandoned, VectorCorp with Asset Protection, the wildlife with the Kin and the Kin with the Precursors, and so on; rivals include the union and VectorCorp, the miners and the wildlife, the Church and the Precursors.
+
+Besides each faction's three-part storyline, a contract can bring a **side deal** (about one contract in five once the storylines are under way), offered by the faction you are fighting, one of its enemies or one of its friends, and shaped by the client:
+
+| Deal | Who calls | When | Reward |
+|---|---|---|---|
+| Back Pay | the faction you fight | the client is a bad one | standing +1 with them and their friends |
+| Quiet Shift | the faction you fight | the client is a decent one | this contract's waves 25% smaller, standing +1 |
+| Common Enemy | an enemy of the faction you fight | always | hostiles take 15% more damage this contract; standing +1 with the caller, −1 with your target |
+| Safe Passage | a friend of the faction you fight | always (the marked units are your target's own people) | standing +1 with the caller and with your target |
+| Salvage Rights | a bribing faction (VectorCorp, the Haulers, Asset Protection) | always | scrip now (30 + 10 per act), standing +1 |
+| Lost Paperwork | anyone | HR suspicion 35 or more | HR suspicion −25, standing +1 |
+| Paper Trail | the faction you fight | the client is a bad one | standing +1 with them and their friends, Kindly −1 |
+| Transfer Request | the faction you fight | you are on good terms and have room | a rank 2 recruit, standing +1 |
+
+Side deals use the usual deal mechanics (let the marked units through; breaking it costs standing) but never change a faction's storyline. Coded as `side:<deal>:<target>` beats so they travel through saves and the existing deal code.
+
 ## Endings
 The victory email changes with the run. Endings are checked in this order:
 
