@@ -143,8 +143,8 @@ A run is three sectors (acts), each of four contracts plus a boss.
   - The star map scales its labels up on phones and shows only name, pips and difficulty there (the card has the matchup); on desktop a matchup too wide for one line splits onto two.
 - **Text**: no label is smaller than 11px and no body text smaller than 13px; grey text is lighter (#a6aed4) for contrast.
 - **The crew peek** (hovering a crew card) is 300px wide with one fact per line and its label inline, instead of a two-column grid that wrapped into stacked fragments; on phones it shows only the name and stats.
-- **Placing crew**: on touch screens (or with *Confirm before deploying crew* in Settings) the first tap proposes a tile, holding the ghost and range there, and a box over it offers *Deploy · $fee* or cancel; tapping the same tile again also confirms.
-- **Deploying**: the crew member drops in down a beam of light over 0.45s with a growing shadow, squashes on landing, and kicks up a ring of dust with a thud and their name; they can't fire until they've landed.
+- **Placing crew**: on every device a tap or click only proposes a tile, holding the ghost and range there, and a box over it offers *Deploy · $fee* or cancel. Only that button (or Enter on a keyboard) deploys; tapping another tile moves the proposal, Escape cancels.
+- **Deploying**: the crew member drops in down a beam of light over 0.45s with a growing shadow, squashes on landing, and kicks up a ring of dust with a thud and their name; they can't fire until they've landed. The drop runs on its own clock (`M.ft`), which keeps ticking in the pre-wave prep phase; `M.t` holds still then, which once left crew frozen in mid-air above their tile.
 
 ## Envoys and deals
 Every envoy says their piece in two lines (plus a line about your standing with them): who they are and what they want. The ask, reward and risk panels carry the numbers.

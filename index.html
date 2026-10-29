@@ -2624,7 +2624,7 @@ const SOLAR_NAMES = ['Verdance', 'New Arcadia Commons', 'Sunfield Cooperative', 
 // and a small chiptune sequencer. Browsers only allow sound after the first
 // tap or key press, so audioInit() runs on the first interaction.
 // ================================================================
-const CFG = Object.assign({ master: 0.7, music: 0.5, sfx: 0.7, muted: false, shake: true, confirmPlace: false }, store.get('al_settings', {}));
+const CFG = Object.assign({ master: 0.7, music: 0.5, sfx: 0.7, muted: false, shake: true }, store.get('al_settings', {}));
 const AU = { ctx: null, pan: 0, last: {}, voices: 0, track: null, step: 0, next: 0, intensity: 0, boss: 0, bossTarget: 0, beats: [] };
 const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
 function audioInit() {
@@ -2921,7 +2921,6 @@ function showSettings() {
     <h3>Display</h3>
     <label class="toggle"><input type="checkbox" id="cfgShake" ${CFG.shake ? 'checked' : ''}> Screen shake</label>
     <h3>Controls</h3>
-    <label class="toggle"><input type="checkbox" id="cfgConfirm" ${CFG.confirmPlace ? 'checked' : ''}> Confirm before deploying crew <span class="colony">(always on for touch)</span></label>
     <div class="row"><button class="btn" data-act="closecfg">Done</button><button class="btn ghost" data-act="testsfx">Test sound</button></div>
     ${M ? '<p class="colony">Paused. HR has logged it as an unscheduled break.</p>' : ''}
   </div>`;
@@ -2944,7 +2943,6 @@ document.addEventListener('input', ev => {
 document.addEventListener('change', ev => {
   if (ev.target.id === 'cfgMute') { CFG.muted = ev.target.checked; saveCfg(); }
   if (ev.target.id === 'cfgShake') { CFG.shake = ev.target.checked; saveCfg(); }
-  if (ev.target.id === 'cfgConfirm') { CFG.confirmPlace = ev.target.checked; saveCfg(); }
 });
 document.addEventListener('pointerdown', audioInit, true);
 document.addEventListener('keydown', audioInit, true);
@@ -4980,7 +4978,7 @@ function damage(e, dmg, pierce, tw, quiet) {
 
 // crew drop in down a beam of light: they fall onto the tile, squash on landing, kick up a ring of dust
 const DROP_T = 0.45;
-const dropK = tw => tw.dropAt == null || !M ? 0 : clamp(1 - (M.t - tw.dropAt) / DROP_T, 0, 1);
+const dropK = tw => tw.dropAt == null || !M ? 0 : clamp(1 - ((M.ft || 0) - tw.dropAt) / DROP_T, 0, 1);
 function landCrew(tw) {
   tw.landed = true; shake(1.5); sfx('bodyfall', tw.x);
   M.fx.push({ k: 'ring', x: tw.x, y: tw.y + 8, r: TILE * 0.7, life: 0.45, max: 0.45, color: '#3af0ff' });
@@ -4998,7 +4996,7 @@ function deploy(crewIdx, tx, ty) {
   const st = towerStats(crew);
   M.fx.push({ k: 'drop', x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, life: DROP_T + 0.15, max: DROP_T + 0.15 });
   M.towers.push({ crew, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, cd: 0.3, hp: st.maxhp, maxhp: st.maxhp, down: false, ang: 0, vis: 0, face: 1, recoil: 0, muzzle: 0, dx: 12, dy: -24, aim: null, flash: 0, paid: fee, mkills: 0, pulses: 0, roof: onRoof(tx, ty), plat: platformAt(tx, ty) ? ARTIFACTS[platformAt(tx, ty).id].kind : null });
-  const tw = M.towers[M.towers.length - 1]; tw.dropAt = M.t; tw.cd = DROP_T + 0.25;
+  const tw = M.towers[M.towers.length - 1]; tw.dropAt = M.ft || 0; tw.cd = DROP_T + 0.25;
   M.deployedIds.add(crew.id);
   S.selCrew = -1;
   buildRosterBar();
@@ -5202,6 +5200,7 @@ function loseMargin(n, x, y) {
 function stepMission(dt) {
   const m = M;
   stepFx(dt); stepPortals(dt);
+  m.ft = (m.ft || 0) + dt;   // the clock for drop-ins, which runs during prep too
   if (m.phase === 'prep') return;
   if (m.phase === 'done' || m.phase === 'failed') {
     m.endTimer -= dt;
@@ -6052,7 +6051,7 @@ function perchOf(tw) {
 function drawTowerPx(g, tw, t, ride) {
   const dk = dropK(tw);
   if (tw.dropAt != null && !tw.landed && dk <= 0 && !M.paused) landCrew(tw);
-  const sq = tw.dropAt != null ? clamp(1 - (M.t - tw.dropAt - DROP_T) / 0.16, 0, 1) : 0;
+  const sq = tw.dropAt != null ? clamp(1 - ((M.ft || 0) - tw.dropAt - DROP_T) / 0.16, 0, 1) : 0;
   if (dk > 0 || sq > 0) {
     const ax = Math.round(tw.x / AP), ay = Math.round(tw.y / AP) + 6 + (ride || 0), lift = Math.round(dk * dk * 64);
     g.globalAlpha = 0.3 * (1 - dk * 0.7); g.fillStyle = '#000'; const sw = Math.round(4 + 8 * (1 - dk)); g.fillRect(ax - sw / 2, ay - 1, sw, 2); g.globalAlpha = 1;
@@ -9854,13 +9853,10 @@ cv.addEventListener('pointerdown', ev => {
   if (tw) { S.selTower = tw; S.selCrew = -1; renderTowerInfo(); buildRosterBar(); return; }
   if (S.selCrew >= 0) {
     if (!canBuild(tl.tx, tl.ty)) { toast(deployRefusal(tl.tx, tl.ty), 1600); return; }
-    // on touch (or with the setting on) the first tap only proposes the spot; confirm, or tap it again
-    const pp = S.pendingPlace;
-    if (confirmPlace() && !(pp && pp.i === S.selCrew && pp.tx === tl.tx && pp.ty === tl.ty)) { S.pendingPlace = { i: S.selCrew, tx: tl.tx, ty: tl.ty }; S.hover = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2 }; sfx('hover'); renderPlaceBox(); return; }
-    clearPlace(); deploy(S.selCrew, tl.tx, tl.ty);
+    // a tap or click only proposes the spot; the Deploy button (or Enter) commits it
+    S.pendingPlace = { i: S.selCrew, tx: tl.tx, ty: tl.ty }; S.hover = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2 }; sfx('hover'); renderPlaceBox();
   } else if (S.selTower) { S.selTower = null; renderTowerInfo(); }
 });
-const confirmPlace = () => S.touchUi || CFG.confirmPlace;
 function clearPlace() { S.pendingPlace = null; const el = document.getElementById('placebox'); if (el) el.remove(); }
 // the confirm box floats over the proposed tile: deploy (with the fee) or cancel
 function renderPlaceBox() {
@@ -9897,6 +9893,7 @@ document.addEventListener('keydown', ev => {
   if (ev.key === ' ') { ev.preventDefault(); if (M.phase === 'prep') { M.phase = 'drill'; sfx('start'); } else M.paused = !M.paused; }
   else if (ev.key >= '1' && ev.key <= '8') { const i = +ev.key - 1; if (RUN.roster[i] && !M.deployedIds.has(RUN.roster[i].id)) { S.selCrew = S.selCrew === i ? -1 : i; buildRosterBar(); } }
   else if (ABIL_KEYS.includes(ev.key.toUpperCase()) && ev.key.length === 1) { const ab = abilList()[ABIL_KEYS.indexOf(ev.key.toUpperCase())]; if (ab) useAbility(ab.a, ab.slot); }
+  else if (ev.key === 'Enter' && S.pendingPlace) { ev.preventDefault(); const pp = S.pendingPlace; clearPlace(); deploy(pp.i, pp.tx, pp.ty); }
   else if (ev.key === 'Escape') { clearPlace(); S.selArt = null; S.artMode = null; S.selCrew = -1; S.selTower = null; renderTowerInfo(); buildRosterBar(); }
 });
 
