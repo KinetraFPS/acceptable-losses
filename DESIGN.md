@@ -724,14 +724,7 @@ Hostiles can't be shot or damaged for their first 0.1 seconds (`SPAWN_GRACE`): c
     - The Church: an organ hymn in F.
     - The manager gets the hold music, a semitone flat and in no hurry.
   - **The boss layer**: the music no longer switches track when a boss arrives. A boss layer comes in over the world's own song instead (half as much for a mini-boss): double-time kick, snare fills, a pumping triangle octave bass, soft filtered chord stabs, constant arpeggios, a brighter filter and up to +7% tempo. It eases in over a couple of bars and back out after the kill.
-  - **The uncanny layer**: on an immoral contract the same song turns slightly wrong:
-    - everything drifts a few cents off true;
-    - the chord's fifth sags to a tritone on alternate bars;
-    - the arpeggio now and then lands a semitone wide;
-    - the lead wobbles, with a faint ghost of every note a tritone up;
-    - the hats thin out.
-
-    A contract counts as immoral when you work for "Bad people", or, after defecting, when your side is VectorCorp, Asset Protection or the Church.
+  - **No evil-contract music, for now.** There used to be an uncanny layer on immoral contracts (detuning, a sagging fifth, stray arpeggio notes, and a ghost of each melody note a tritone off that swelled in over 0.2s and so landed behind the beat). Testers heard it as a sound out of sync with the music, most often in the Neon Megacity where clients are usually bad, so it was removed. Every contract plays the world's song as written.
   - A sad trombone when you're abandoned, and a fanfare when you evacuate or win.
   - **Staying in key**: every melody keeps to one key (the minor-key songs use one seventh degree, not both), strong beats sit on chord tones, vibrato is set in cents so a low note wobbles no wider than a high one (default 9 cents, toxic 16, wildlife 18), and the twang slides up into each note from 0.6% under it instead of sagging flat. The uncanny layer is the only thing meant to sound off.
 - **On the beat**: the sequencer keeps a beat clock (`beatNow`). Crew bop on it, half on the beat and half off; flower heads sway with it; the crystal deposit pulses with it, harder on the downbeat.

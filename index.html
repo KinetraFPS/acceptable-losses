@@ -2625,7 +2625,7 @@ const SOLAR_NAMES = ['Verdance', 'New Arcadia Commons', 'Sunfield Cooperative', 
 // tap or key press, so audioInit() runs on the first interaction.
 // ================================================================
 const CFG = Object.assign({ master: 0.7, music: 0.5, sfx: 0.7, muted: false, shake: true, confirmPlace: false }, store.get('al_settings', {}));
-const AU = { ctx: null, pan: 0, last: {}, voices: 0, track: null, step: 0, next: 0, intensity: 0, boss: 0, bossTarget: 0, uncanny: 0, uncannyTarget: 0, beats: [] };
+const AU = { ctx: null, pan: 0, last: {}, voices: 0, track: null, step: 0, next: 0, intensity: 0, boss: 0, bossTarget: 0, beats: [] };
 const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
 function audioInit() {
   if (AU.ctx) { if (AU.ctx.state === 'suspended' && !document.hidden) AU.ctx.resume(); return; }
@@ -2834,7 +2834,7 @@ function beatNow() {
   if (c && c.state === 'running' && B.length && AU.track) { const now = c.currentTime; for (let i = B.length - 1; i >= 0; i--) if (B[i].t <= now) return { n: B[i].n, f: clamp((now - B[i].t) / B[i].len, 0, 1) }; }
   const x = performance.now() / 1000 * 138 / 60; return { n: Math.floor(x), f: x % 1 };
 }
-// the mood of a contract: the boss layer follows bosses on the field, the uncanny layer follows the contract's ethics
+// the mood of a contract: the boss layer follows bosses on the field
 function musicMood() {
   if (!M || S.screen !== 'mission') { AU.bossTarget = 0; return; }
   let b = 0; for (const e of M.enemies) if (e.boss && !e.dead) { b = e.mini ? Math.max(b, 0.5) : 1; if (b === 1) break; }
@@ -2843,17 +2843,15 @@ function musicMood() {
 function scheduleStep(tr, step, t, spb) {
   const bars = tr.chords.length, s = step % 16, bar = Math.floor(step / 16) % bars, loop = Math.floor(step / (16 * bars)), tp = tr.transpose || 0;
   // the layers ease in and out over a couple of bars rather than cutting
-  AU.boss += (AU.bossTarget - AU.boss) * 0.05; AU.uncanny += (AU.uncannyTarget - AU.uncanny) * 0.05;
-  const bo = AU.boss, un = AU.uncanny, lpM = (tr.lpMul || 1) * (1 + 0.25 * bo);
+  AU.boss += (AU.bossTarget - AU.boss) * 0.05;
+  const bo = AU.boss, lpM = (tr.lpMul || 1) * (1 + 0.25 * bo);
   const root = tr.chords[bar][0] + tp, ch = CHORDS[tr.chords[bar][1]].map(i => root + i), mb = AU.music, on = p => p && p[s] === 'x';
-  // uncanny: the fifth sags to a tritone on alternate bars, and everything drifts a few cents off true
-  if (un > 0.4 && bar % 2 === 1 && ch.length > 2) ch[2] -= 1;
-  const drift = 1 + un * 0.012 * Math.sin(step * 0.37), F = n => mtof(n) * drift;
+  const F = n => mtof(n);
   if (s % 4 === 0) { AU.beats.push({ t, n: Math.floor(step / 4), len: spb * 4 }); if (AU.beats.length > 8) AU.beats.shift(); }
   const kick = bo > 0.3 ? 'x...x...x...x.x.' : tr.kick, snare = bo > 0.3 ? (tr.snare || '....x.......x...').slice(0, 13) + 'x.x' : tr.snare;
   if (on(kick)) { tone({ type: 'sine', f: 160, f2: 42, dur: 0.14, vol: tr.kickVol || 0.55, when: t, bus: mb }); if (tr.sub) tone({ type: 'sine', f: 70, f2: 30, dur: 0.22, vol: 0.3, when: t, bus: mb }); }
   if (on(snare)) { noise({ f: 1800, q: 0.8, dur: 0.12, vol: 0.26, when: t, bus: mb }); tone({ type: 'triangle', f: 220, f2: 160, dur: 0.05, vol: 0.12, when: t, bus: mb }); }
-  if ((on(tr.hat) || (tr.intense && AU.intensity > 0.8 && s % 2 === 1) || (bo > 0.6 && s % 2 === 1)) && un < 0.9 || (un >= 0.9 && on(tr.hat) && s % 4 === 2)) noise({ type: 'highpass', f: 7000, dur: 0.03, vol: tr.hatVol || 0.07, when: t, bus: mb });
+  if (on(tr.hat) || (tr.intense && AU.intensity > 0.8 && s % 2 === 1) || (bo > 0.6 && s % 2 === 1)) noise({ type: 'highpass', f: 7000, dur: 0.03, vol: tr.hatVol || 0.07, when: t, bus: mb });
   if (on(tr.crunch)) noise({ type: 'bandpass', f: 1300, q: 1.4, dur: 0.06, vol: 0.05, when: t, bus: mb });
   if (tr.shaker && s % 2 === 1) noise({ type: 'bandpass', f: 5200, q: 2, dur: 0.05, vol: 0.035, when: t, bus: mb });
   if (tr.clank && (s === 6 || s === 14)) noise({ type: 'bandpass', f: 1900, q: 6, dur: 0.08, vol: 0.1, when: t, bus: mb });
@@ -2876,19 +2874,14 @@ function scheduleStep(tr, step, t, spb) {
   const leadOn = tr.lead && (!tr.leadAlt || loop % 2 === 0 || bo > 0.6);
   if (tr.arp && (tr.arpAlways || bo > 0.3 || !leadOn || (tr.intense && AU.intensity > 0.5))) {
     const fast = tr.arpAlways || bo > 0.3, k = fast ? s : s >> 1;
-    // uncanny: now and then the arpeggio lands a semitone wide
-    const wrong = un > 0.3 && ((step * 7919) % 13) === 0 ? 1 : 0;
-    if (fast || s % 2 === 0) tone({ type: tr.arpType || 'square', f: F(ch[[0, 1, 2, 1][k % 4] % ch.length] + (tr.arpOct ?? 24) + wrong), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000 * lpM, when: t, bus: mb });
+    if (fast || s % 2 === 0) tone({ type: tr.arpType || 'square', f: F(ch[[0, 1, 2, 1][k % 4] % ch.length] + (tr.arpOct ?? 24)), dur: spb * 0.8, vol: tr.arpVol || 0.03, lp: 3000 * lpM, when: t, bus: mb });
   }
   if (leadOn && tr.lead[bar][s]) {
-    const n = tr.lead[bar][s] + tp + (tr.leadOct || 0), lt = tr.leadType || 'square', vc = tr.wobble || (un > 0.3 ? [3.1, 12 + 14 * un] : [5.5, 9]), vib = [vc[0], F(n) * vc[1] * 0.000578];   // depth in cents
+    const n = tr.lead[bar][s] + tp + (tr.leadOct || 0), lt = tr.leadType || 'square', vc = tr.wobble || [5.5, 9], vib = [vc[0], F(n) * vc[1] * 0.000578];   // depth in cents
     tone({ type: lt, f: tr.twang ? F(n) * 0.994 : F(n), f2: tr.twang ? F(n) : undefined, dur: spb * (tr.twang ? 1.2 : 1.9), vol: tr.leadVol || (lt === 'sine' || lt === 'triangle' ? 0.08 : 0.055), lp: 2600 * lpM, vib, when: t, bus: mb });
     // the bell chimes in unison with the melody; an octave up, as a pure sine, it whistled
     if (tr.bell) tone({ type: 'sine', f: F(n), dur: spb * 5, vol: 0.026, a: 0.005, when: t, bus: mb });
     if (tr.echo) tone({ type: lt, f: F(n), dur: spb * 1.6, vol: 0.055 * tr.echo * 0.6, lp: 1800 * lpM, when: t + spb * 3, bus: mb });
-    // uncanny: a ghost of every note, a tritone off and barely there; it sits under the melody on a triangle,
-    // because a sine a tritone above it whistled
-    if (un > 0.2) tone({ type: 'triangle', f: F(n - 6), dur: spb * 3, vol: 0.022 * un, a: 0.2, when: t, bus: mb });
   }
 }
 function startTrack() {
@@ -2897,7 +2890,7 @@ function startTrack() {
   AU.mfade.gain.cancelScheduledValues(now); AU.mfade.gain.setValueAtTime(0.0001, now); AU.mfade.gain.exponentialRampToValueAtTime(1, now + 0.8);
 }
 function setMusic(name) {
-  if (name !== 'boss' && !(name && name.startsWith('mission'))) { AU.bossTarget = 0; AU.uncannyTarget = 0; }
+  if (name !== 'boss' && !(name && name.startsWith('mission'))) AU.bossTarget = 0;
   if (name === 'boss') return;   // bosses no longer swap the track: the boss layer comes in over the world's own music
   if (AU.track === name) return;
   AU.track = name; AU.beats = [];
@@ -4609,7 +4602,6 @@ function startMission(contract) {
   if (!contract.ship) saveRun('mission', { contract });
   S.screen = 'mission'; setMusic('mission:' + (contract.ship ? 'ship' : contract.biomeKey));
   AU.boss = AU.bossTarget = 0;
-  AU.uncannyTarget = contract.ship || !contract.client ? 0 : RUN.side ? (FACTION_MORAL[RUN.side] === 'evil' ? 1 : 0) : contract.client.good ? 0 : 1;
   $('#bar').innerHTML = ''; $('#overlay').innerHTML = ''; hudCache = {};
   const portrait = isPortrait();
   GW = 22; GH = 13;
