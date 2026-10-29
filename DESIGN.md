@@ -144,6 +144,7 @@ A run is three sectors (acts), each of four contracts plus a boss.
 - **Text**: no label is smaller than 11px and no body text smaller than 13px; grey text is lighter (#a6aed4) for contrast.
 - **The crew peek** (hovering a crew card) is 300px wide with one fact per line and its label inline, instead of a two-column grid that wrapped into stacked fragments; on phones it shows only the name and stats.
 - **Placing crew**: on every device a tap or click only proposes a tile, holding the ghost and range there, and a box over it offers *Deploy · $fee* or cancel. Only that button (or Enter on a keyboard) deploys; tapping another tile moves the proposal, Escape cancels.
+- **Dragging** (`initDrag`, `dragMove`, `dragEnd`): crew can be dragged from their card onto the map (their portrait follows the pointer until it reaches the map, then the ghost and range take over), and a proposed spot can be pressed and dragged to another tile. The ghost turns red over tiles they can't stand on; letting go there says why. A drag only proposes: the Deploy button still commits. On touch, a sideways swipe on the roster still scrolls it; a drag has to head up out of the bar.
 - **Deploying**: the crew member drops in down a beam of light over 0.45s with a growing shadow, squashes on landing, and kicks up a ring of dust with a thud and their name; they can't fire until they've landed. The drop runs on its own clock (`M.ft`), which keeps ticking in the pre-wave prep phase; `M.t` holds still then, which once left crew frozen in mid-air above their tile.
 
 ## Envoys and deals

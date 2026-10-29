@@ -58,6 +58,9 @@ button{font:inherit;color:inherit}
 #overlay{position:absolute;inset:0;pointer-events:none}
 #overlay > *{pointer-events:auto}
 #bar{display:flex;flex-direction:column;gap:6px;min-width:0}
+#bar .crew[data-act="crew"]{touch-action:pan-x}
+.dragchip{position:fixed;z-index:60;pointer-events:none;transform:translate(-50%,-70%) scale(1.25);filter:drop-shadow(0 4px 0 rgba(0,0,0,.5));opacity:.92}
+.dragchip img{display:block;width:44px;height:44px;image-rendering:pixelated;box-shadow:0 0 0 2px var(--brand)}
 #bar:empty{display:none}
 
 /* shared pixel frame */
@@ -6314,7 +6317,7 @@ function buildRosterBar() {
   buildAbilBar();
   if (S.pendingPlace && S.pendingPlace.i !== S.selCrew) clearPlace(); else renderPlaceBox();
   refreshRosterAfford();
-  initPeek(); refreshPeek();
+  initPeek(); initDrag(); refreshPeek();
 }
 function refreshRosterAfford() {
   document.querySelectorAll('#bar .crew').forEach(b => {
@@ -10172,6 +10175,7 @@ document.addEventListener('click', ev => {
   else if (act === 'placeno') { clearPlace(); S.selCrew = -1; buildRosterBar(); }
   else if (act === 'art') artCardClick(b.dataset.id);
   else if (act === 'crew') {
+    if (S.dragEndAt && performance.now() - S.dragEndAt < 400) return;
     S.selArt = null; S.artMode = null;
     const cr = RUN.roster[i];
     if (cr.dead && !M.deployedIds.has(cr.id)) { replaceCrew(cr); return; }
@@ -10240,11 +10244,67 @@ cv.addEventListener('pointerdown', ev => {
   const tw = towerAtTile(tl.tx, tl.ty);
   if (tw) { S.selTower = tw; S.selCrew = -1; renderTowerInfo(); buildRosterBar(); return; }
   if (S.selCrew >= 0) {
-    if (!canBuild(tl.tx, tl.ty)) { toast(deployRefusal(tl.tx, tl.ty), 1600); return; }
+    S.drag = { i: S.selCrew, id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, on: true, src: 'map' };
+    if (!canBuild(tl.tx, tl.ty)) { S.pendingPlace = null; const el = document.getElementById('placebox'); if (el) el.remove(); return; }
     // a tap or click only proposes the spot; the Deploy button (or Enter) commits it
     S.pendingPlace = { i: S.selCrew, tx: tl.tx, ty: tl.ty }; S.hover = { x: tl.tx * TILE + TILE / 2, y: tl.ty * TILE + TILE / 2 }; sfx('hover'); renderPlaceBox();
   } else if (S.selTower) { S.selTower = null; renderTowerInfo(); }
 });
+// ---------- drag to place ----------
+// Crew can be dragged from their card onto the map, and a proposed spot can be dragged around the map before
+// it is confirmed. A drag only ever proposes a spot: the Deploy button (or Enter) still commits it.
+const canDragCrew = i => { const cr = RUN.roster[i]; return !!(cr && M && !cr.dead && !M.deployedIds.has(cr.id) && !(cr.reviews.length && !cr.snooze)); };
+function dragChip(ev, show) {
+  let el = document.getElementById('dragchip');
+  if (!show) { if (el) el.remove(); return; }
+  if (!el) { const cr = RUN.roster[S.drag.i]; el = document.createElement('div'); el.id = 'dragchip'; el.className = 'dragchip'; el.innerHTML = portraitImg(cr); document.body.appendChild(el); }
+  el.style.left = ev.clientX + 'px'; el.style.top = ev.clientY + 'px';
+}
+// where the pointer is on the map, if it is over it
+function dragOverMap(ev) {
+  const r = cv.getBoundingClientRect();
+  if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return null;
+  const p = toLogical(ev), tl = tileAt(p.x, p.y); return tl ? { p, tl } : null;
+}
+function dragMove(ev) {
+  const d = S.drag; if (!d || d.id !== ev.pointerId || S.screen !== 'mission' || !M) return;
+  if (!d.on) {
+    const dx = ev.clientX - d.x0, dy = ev.clientY - d.y0;
+    // on touch, sideways is the roster scrolling; a drag has to head up out of the bar
+    if (Math.hypot(dx, dy) < 9 || (ev.pointerType === 'touch' && Math.abs(dx) > Math.abs(dy))) return;
+    d.on = true; S.selCrew = d.i; S.selTower = null; S.selArt = null; S.artMode = null; renderTowerInfo(); hidePeek();
+    document.querySelectorAll('#bar .crew[data-act="crew"]').forEach(b => { const on = +b.dataset.i === d.i; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on); });
+    sfx('hover');
+  }
+  const over = dragOverMap(ev), box = document.getElementById('placebox'); if (box) box.remove();
+  if (d.src === 'card') dragChip(ev, !over);
+  if (!over) { S.hover = null; return; }
+  S.hover = over.p;
+  const { tx, ty } = over.tl;
+  if (canBuild(tx, ty)) { const pp = S.pendingPlace; if (!pp || pp.tx !== tx || pp.ty !== ty || pp.i !== d.i) { S.pendingPlace = { i: d.i, tx, ty }; d.moved = true; } }
+  else S.pendingPlace = null;
+}
+function dragEnd(ev, cancel) {
+  const d = S.drag; if (!d || d.id !== ev.pointerId) return;
+  S.drag = null; dragChip(ev, false);
+  if (!d.on || !M || S.screen !== 'mission') return;
+  if (d.src === 'card') S.dragEndAt = performance.now();
+  const over = cancel ? null : dragOverMap(ev);
+  if (over && canBuild(over.tl.tx, over.tl.ty)) { S.pendingPlace = { i: d.i, tx: over.tl.tx, ty: over.tl.ty }; S.hover = { x: over.tl.tx * TILE + TILE / 2, y: over.tl.ty * TILE + TILE / 2 }; if (d.src === 'card' || d.moved) sfx('hover'); }
+  else { S.pendingPlace = null; if (over) toast(deployRefusal(over.tl.tx, over.tl.ty), 1600); }
+  buildRosterBar();
+}
+function initDrag() {
+  const bar = $('#bar'); if (!bar || bar.dataset.drag) return; bar.dataset.drag = '1';
+  bar.addEventListener('pointerdown', ev => {
+    const b = ev.target.closest('.crew[data-act="crew"]'); if (!b || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+    const i = +b.dataset.i; if (!canDragCrew(i)) return;
+    S.drag = { i, id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, on: false, src: 'card' };
+  });
+  window.addEventListener('pointermove', dragMove);
+  window.addEventListener('pointerup', ev => dragEnd(ev, false));
+  window.addEventListener('pointercancel', ev => dragEnd(ev, true));
+}
 function clearPlace() { S.pendingPlace = null; const el = document.getElementById('placebox'); if (el) el.remove(); }
 // the confirm box floats over the proposed tile: deploy (with the fee) or cancel
 function renderPlaceBox() {
