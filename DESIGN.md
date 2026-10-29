@@ -134,6 +134,18 @@ A run is three sectors (acts), each of four contracts plus a boss.
 - **Star map:** a scan ring and faction · biome line on the hovered planet, a sector banner when you enter a new sector, sector-numbered progress.
 - Reduced-motion settings switch the animations off.
 
+## Layout and readability
+- **No screen scrolls**, at 1280×800, 1366×680, 390×844 and 375×667 (`screens.js`, `screens2.js`, `envshot.js` measure every screen at those sizes and report anything that scrolls).
+  - Calls and quarterly reviews: video and transcript on the left, the offer or scorecard on the right; on phones the video is shorter and the standing box is dropped (the report preview and contract card show it).
+  - The debrief's payslip folds behind its total; the store shows three offers a row, item text clamped to three lines, and a two-line roster row.
+  - On phones, screens with two panels (debrief: Report / Feed; store: Shop / Crew) show one at a time behind tabs (`phoneTabs`). Short phones also drop item descriptions in the store.
+  - The mission on a phone: a three-row top bar, crew as tiles that all fit (portrait, level, fee), no news ticker. On desktop, crew cards share the bar's width instead of scrolling.
+  - The star map scales its labels up on phones and shows only name, pips and difficulty there (the card has the matchup); on desktop a matchup too wide for one line splits onto two.
+- **Text**: no label is smaller than 11px and no body text smaller than 13px; grey text is lighter (#a6aed4) for contrast.
+- **The crew peek** (hovering a crew card) is 300px wide with one fact per line and its label inline, instead of a two-column grid that wrapped into stacked fragments; on phones it shows only the name and stats.
+- **Placing crew**: on touch screens (or with *Confirm before deploying crew* in Settings) the first tap proposes a tile, holding the ghost and range there, and a box over it offers *Deploy · $fee* or cancel; tapping the same tile again also confirms.
+- **Deploying**: the crew member drops in down a beam of light over 0.45s with a growing shadow, squashes on landing, and kicks up a ring of dust with a thud and their name; they can't fire until they've landed.
+
 ## Envoys and deals
 Every envoy says their piece in two lines (plus a line about your standing with them): who they are and what they want. The ask, reward and risk panels carry the numbers.
 Before some deployments a faction's envoy gets onto your channel. This is what sets the game apart: some deals mean certain enemies must get **through**, and you spend your own margin to keep a promise.
