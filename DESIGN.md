@@ -147,7 +147,10 @@ A run is three sectors (acts), each of four contracts plus a boss.
 - **Deploying**: the crew member drops in down a beam of light over 0.45s with a growing shadow, squashes on landing, and kicks up a ring of dust with a thud and their name; they can't fire until they've landed. The drop runs on its own clock (`M.ft`), which keeps ticking in the pre-wave prep phase; `M.t` holds still then, which once left crew frozen in mid-air above their tile.
 
 ## Envoys and deals
-Every envoy says their piece in two lines (plus a line about your standing with them): who they are and what they want. The ask, reward and risk panels carry the numbers.
+Every envoy says their piece in two or three short lines (plus a line about your standing with them), each at most about 64 characters: who they are and why. The numbers live in the **They want** banner, so nobody has to read the call to know the deal.
+- **Speech bubbles** (`bubbleTalk`): the envoy talks in comic bubbles over their video, one line at a time, typed fast. Numbers, money, HR, Kindly and every faction and envoy name are lit in their colours (`bubbleSegs`). Long lines split at sentence ends. A bubble waits about a second plus its reading time, then moves on; tapping hurries it, then skips to the next; the last one loops back. Dots show how many there are. The full transcript stays in a hidden log for screen readers. The manager talks the same way, keeping his pose for each source line.
+- **The envoy acts each line out** (`lineMood`): threats (war, regret, "for good") turn the face angry with a head shake and a red pulse round the call; sad lines (children, winter, medicine, afraid) glance down with a cold dim; good news smiles and bobs with a warm glint; asks lean in; the first line nods hello. The bubble's border takes the mood's colour.
+- **They want** (`wantHtml`): one banner in the faction's colour, shown at once: the deal's name, the marked unit's own sprite, *Let 4 Picketers through* in large type, then *You get* and *It costs* (margin or time, and HR heat with the stage it lands you in, plus a warning when it would reach 100).
 Before some deployments a faction's envoy gets onto your channel. This is what sets the game apart: some deals mean certain enemies must get **through**, and you spend your own margin to keep a promise.
 
 **When envoys appear**
@@ -394,7 +397,7 @@ Each faction sits from −3 (Vendetta) to +3 (Allied), shown as seven pips on co
 Douglas Pryce, Regional Manager, is Kindly in person and the most recurring face in the game (`showOnboarding`, `showQuarterly`, `managerScene`).
 - **Day one:** every run opens with his three-line orientation on your ship's bridge: who he is, the job, and the quarterly review. "Sign the waiver" takes you to the star map.
 - **Quarterly reviews:** every 3 contracts, on the way from the store to the star map (before any faction demand), he comes aboard and grades the quarter.
-  - **Score** = (average stars − 3) × 0.8 + (crew morale − 55) ÷ 25 − (HR suspicion − 20) ÷ 30 + 0.7 per task done − 0.5 per task failed (`grade`).
+  - **Score** = (average stars − 3) × 0.8 + (crew morale − 55) ÷ 25 − (HR suspicion − 20) ÷ 30 + 0.7 per task done − 0.5 per task failed (`grade`). Under review (heat 50+), heat counts for more: ÷ 18 instead of ÷ 30.
 
 | Grade | Score | He… | Effect |
 |---|---|---|---|
@@ -555,13 +558,37 @@ A run is five acts of five contracts (`MAX_SECTOR = 5`); difficulty growth flatt
 | Act 4–5 contracts | Mostly against Asset Protection and Kindly loyalists | Beating a faction **purges** it for good: one win if it is Hostile or worse or you have crushed one of its worlds (or it's a boss), two otherwise; contract cards say which (`purgeAfter`) |
 | Final contract | The Board: Kindly's board out of the sub-basement with Pryce at the controls (Asset Protection's apex, +35% HP) | The last faction standing's apex, +20% HP |
 
+### Payback
+Losing crystals makes the company want the thief punished (`paybackFrom`, `RUN.payback`).
+- Every contract logs who carried crystals off (`noteStolen`): the faction you fought, or a deal partner whose marked units got through. The quarter keeps a tally per faction (`q.lostBy`).
+- At the review, if one faction took 5% or more, he names it ("Striking Miners walked off with 22% of our crystals. I want them to pay.") and issues a **Payback order**: kill 20 + 2.5 × their haul of their troops (rounded to 5) as one of his two tasks, a bounty of 1 scrip per kill plus 1 per 12% they took (up to 4), paid on the payslip, and their contracts pay × (1 + haul ÷ 80, up to ×1.5).
+- One of their planets is always on the star map while they can be fought, ringed in red with *PAYBACK 2S/KILL*; the contract card shows the bounty and progress, and a toast reminds you on landing.
+
+### HR suspicion
+Heat climbs with every deal and drops 5 per clean contract. Each stage costs something real (`HR_STAGES`, `hrStage`):
+
+| Heat | Stage | Cost |
+|---|---|---|
+| 30 | Watched | −5 scrip a contract for the monitoring software |
+| 50 | Under review | a fifth of net pay garnished, store prices +15%, Executive Technology frozen (an S grade pays +110 scrip instead), loyalty tests at reviews, heat weighs more on the grade |
+| 75 | Audit | at the next payslip: a fine of up to 40 scrip, a relic confiscated, heat −30 |
+| 100 | Terminated | the run ends at the next payslip (or straight after a failed sting) |
+
+- **Stings:** from heat 40, up to 45% of envoy calls (heat − 30 %) are HR in disguise, as a side deal. Tells: the title bar says *relay KSS-HR7*, and a faint company mark flickers in the corner of the video. Taking it voids the deal and sends you to an HR follow-up with the manager: heat +25, −30 scrip, loyalty −1. Refusing passes the test (heat −10); reporting it passes better (heat −20, loyalty +1).
+- **Loyalty tests:** under review, one of the manager's two tasks becomes a test: crush a faction that likes you (standing 1+), accept no deals all quarter, or report an envoy. Passing one cools heat by 15; failing one adds 10.
+- The HUD, the desk notes and the deal banner all name the current stage.
+
 ## Planet scenes and the desk
 - **Planet scenes:** each of the 9 worlds has a pixel-art postcard for each of the 4 factions, in 3 states: unresolved (the faction is on site and the drill is contested), helped (you honoured their deal, so the site is theirs and the rig is repainted) and crushed (Kindly flags, guards and the faction's wreckage). That is 108 scenes, built in code from each biome's own sky, ground, road, liquid, building, landmark, props and weather, plus the faction's real unit sprites (`planetScene`, `SCENE_FAC`).
 - **The fallen:** resolved scenes show the bodies of the faction's units you killed there, two for every ten kills, up to 12. People and creatures lie on their side in a pool of blood (green ichor for wildlife); machines are dark, smoking wrecks (`sceneFallen`).
 - **Continuity:** every finished contract is stored in `RUN.worlds` with its outcome. Contract cards show the planet live and unresolved. A faction you've fought before shows a thumbnail of how you left their last planet. Sector reviews, game over and endings show a montage of your planets.
 - **The desk:** the debrief is now a first-person view of your desk.
   - **Kindly Intranet (left):** a one-line HR quip, a performance rating, margin and net pay, a compact payslip, one line per story event, and Kindly News.
-  - **Faction channel (right):** Local 404 Radio, VectorCorp Markets, Glitch.Live or the WREN-7 Wildlife Cam. It shows the planet as you left it, with a headline and the strip of your planets.
+  - **Faction channel (right):** Local 404 Radio, VectorCorp Markets, Glitch.Live, the WREN-7 Wildlife Cam and the rest. It is a **live broadcast** of the planet as you left it (`newsSetup`, `drawNewsFrame`), with a headline and the strip of your planets.
+    - **What it shows** comes from the contract's record (`packAfter`, kept on `RUN.worlds`): the ten commonest ways your enemies died, the abilities you used, your crew types and who stole what. Bodies lie along the road by family and by how they died (`newsRemains`): shot (lying in a pool), burned (charred on ash, still smouldering), electrocuted (a grey heap with the skull on top), blown apart (scorch and scattered remains), wrecked machines and downed flyers (smoking, some burning), crumbled Precursor stone. Every lost percent leaves a crystal shard in the dirt, cracks run through the deposit and a big loss leaves a hole, with glitter still falling.
+    - **Moving parts:** smoke rising from wrecks and craters, flickering fires, the gunship circling if you flew it, the blimp sweeping its spotlight over the bodies, orbital craters, the barricade, van, nest or lantern where you left them, company drones circling the drill if you deployed a drone operator, and the faction's flyers: a victory swarm if they won, a couple limping off if you shot theirs down.
+    - **The anchor:** the faction's envoy reads the news from a desk in the corner, mouth moving while a lower-third types it out (`newsLines`): the matchup, who holds the site and how many died, who got away with how many crystals (and whether under a deal), the faction's running haul from the theft log, and the company hardware overhead. A channel bug marks it LIVE; the lower third shows the dead and the crystals lost.
+    - **The theft log** (`logTheft`, `RUN.story.stolen`, `RUN.story.theft`): every crystal a faction has carried off, by contract. It changes nothing yet; it is kept so a later update can let factions spend what they took, as enemies or allies.
   - **The desk itself:** a mug, a sticky note, a nameplate, and a plant that wilts as the margin falls.
 - **Less reading:** HR letters became one-liners. Endings keep two paragraphs (the setup and the punchline). Termination, sector review and envoy deal terms are each down to a sentence or two.
 
@@ -771,3 +798,5 @@ Difficulty is designed from a planned crew-power curve rather than tuned run by 
 - Abilities are capped by the loadout (above).
 ## Next up
 Sector 2+, more factions and relics, crew permadeath (an option), real art and audio, a narrative event system, deeper colony meta.
+- **War chests:** let factions spend what the theft log says they took, as stronger enemies or better allies.
+- **Dialogue pass:** rewrite envoy lines once the lore is written; the bubble system and the 64-character limit stay.

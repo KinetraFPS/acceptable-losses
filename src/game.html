@@ -195,6 +195,31 @@ button{font:inherit;color:inherit}
 .envoy-talk{display:flex;flex-direction:column;gap:8px}
 .dialog{font:400 20px/1.2 var(--f-mono);background:#070a12;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px);box-shadow:var(--frame);padding:14px 16px;color:#e6dcc4;min-height:190px;cursor:pointer;display:flex;flex-direction:column;gap:10px;clip-path:var(--notch)}
 .dialog p{margin:0}
+/* the transcript stays for screen readers; on screen the envoy talks in bubbles */
+.paper .dialog#envDlg{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.envoy-scene{container-type:inline-size}
+.sbub{position:absolute;left:calc(var(--b) + 3%);top:calc(var(--b) + 5%);max-width:58%;z-index:2;cursor:pointer;background:rgba(8,10,20,.93);color:#f4eedc;font:400 clamp(14px,4.4cqw,24px)/1.15 var(--f-mono);padding:.5em .7em .35em;box-shadow:0 0 0 2px var(--bc,#f4eedc),4px 4px 0 2px rgba(0,0,0,.5);transform-origin:100% 100%;--bc:#f4eedc}
+.sbub::after{content:'';position:absolute;right:-15px;bottom:9px;width:15px;height:13px;background:var(--bc,#f4eedc);clip-path:polygon(0 0,100% 75%,0 100%)}
+.sbub p{margin:0;min-height:1.25em}.sbub b{font-weight:700}
+.sbub[data-mood=warn]{--bc:var(--danger)}.sbub[data-mood=pleased]{--bc:var(--ok)}.sbub[data-mood=sad]{--bc:#8a9ad0}.sbub[data-mood=ask]{--bc:#ffd23f}
+.sbub.pop{animation:sbubPop .24s steps(3)}.sbub.pop[data-mood=warn]{animation:sbubPop .24s steps(3),sbubShake .3s steps(4) .24s}
+@keyframes sbubPop{from{transform:scale(.55);opacity:0}to{transform:none;opacity:1}}
+@keyframes sbubShake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.sbub-ft{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:.3em;min-height:.7em}
+.sbub-n{display:flex;gap:4px}.sbub-n i{width:6px;height:6px;background:rgba(244,238,220,.28)}.sbub-n i.on{background:var(--bc)}
+.sbub-go{font-size:.85em;color:var(--bc);animation:sbubBlink 1s steps(2) infinite}@keyframes sbubBlink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.sbub.pop,.sbub-go{animation:none}}
+/* the deal at a glance */
+.want{padding:10px 12px 11px;background:color-mix(in srgb,var(--wc) 13%,var(--panel2));box-shadow:inset 4px 0 0 var(--wc),inset 0 0 0 2px color-mix(in srgb,var(--wc) 45%,transparent);clip-path:var(--notch)}
+.want > .lbl{color:var(--wc);display:flex;justify-content:space-between;gap:8px}.want > .lbl span{color:var(--muted)}
+.paper.envoy:has(.want) .envoy-talk h3{display:none}
+.want-ask{display:flex;align-items:center;gap:10px;margin:5px 0 8px}
+.want-ask img{width:52px;height:52px;object-fit:contain;image-rendering:pixelated;background:rgba(0,0,0,.35);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--wc) 50%,transparent);flex:none}
+.want-ask b{font:400 24px/1.05 var(--f-display);color:#fff;font-weight:400}
+.want-kv{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;margin:0;font-size:14.5px;line-height:1.35}
+.want-kv dt{font:400 11px/1.7 var(--f-label);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.want-kv dd{margin:0}.want-kv small{color:var(--muted);font-size:12.5px}
+.want .neg{color:#ffd23f;font-weight:400}.want .hr{color:var(--danger);font-weight:400}
 .envoy-offer{display:flex;flex-direction:column;gap:9px}
 .deal{padding:9px 12px 10px;background:var(--panel2);box-shadow:inset var(--b) 0 0 0 var(--dc,var(--line));clip-path:var(--notch)}
 .deal p{margin:3px 0 0;font-size:14.5px;line-height:1.4}
@@ -409,6 +434,17 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 @keyframes liveblink{50%{opacity:.35}}
 .scenebox{margin:0;position:relative}
 .scenebox img.scene{width:100%;height:auto;aspect-ratio:2/1;image-rendering:pixelated;display:block;box-shadow:0 0 0 2px #0b0c12}
+.scenebox.live canvas{display:block;width:100%;height:auto;aspect-ratio:2/1;image-rendering:pixelated;box-shadow:0 0 0 2px #0b0c12}
+.nv-bug{position:absolute;left:6px;top:6px;display:flex;gap:6px;align-items:center;font:400 11px/1 var(--f-label);letter-spacing:.04em;text-transform:uppercase;background:rgba(5,7,10,.8);padding:5px 7px}
+.nv-bug b{font-weight:400;color:var(--fc)}.nv-bug span{color:#ff4d5e;animation:sbubBlink 1.2s steps(2) infinite}
+.nv-stats{display:flex;flex-direction:column;gap:4px;font:400 16px/1 var(--f-mono);align-self:center}.nv-stats span{background:rgba(255,255,255,.06);padding:4px 7px;color:var(--fg);white-space:nowrap}.nv-stats .neg{color:#ff6a7a}.nv-stats .ok{color:var(--ok)}
+.chyron{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;background:#06070c;box-shadow:inset 0 3px 0 var(--fc),0 0 0 2px #0b0c12;padding:8px 9px 7px;min-height:4.4em}
+.chyron > div:first-child{display:flex;flex-direction:column;gap:2px}
+.chyron b{font:400 11px/1.2 var(--f-label);letter-spacing:.04em;text-transform:uppercase;color:var(--fc);font-weight:400}
+.chyron span{font:400 clamp(15px,3.6cqw,20px)/1.15 var(--f-mono);color:#f4eedc;text-transform:none;letter-spacing:0}.chyron span b{font:inherit;text-transform:none;letter-spacing:0;font-weight:700}
+.scenebox.live{container-type:inline-size}
+@media (max-width:760px){.scenebox.big.live canvas{max-height:none}}
+@media (min-width:761px) and (max-height:800px){.scenebox.big.live canvas{height:22vh;width:auto;max-width:100%;margin:0 auto}.chyron{min-height:0;padding-block:6px 5px}}
 .scenebox figcaption{position:absolute;left:6px;bottom:6px;font:400 14px/1 var(--f-mono);background:rgba(5,7,10,.78);padding:3px 7px;color:var(--fg)}
 .feed .headline{margin:0;font:400 26px/1 var(--f-display);color:var(--fc)}
 .feed.crushed .headline{color:var(--fg)}
@@ -597,10 +633,10 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
   .paper.envoy .dialog{min-height:110px}
 }
 @media (min-width:761px) and (max-height:760px){.paper.envoy > .envoy-scene{width:min(100%,calc(46vh * 1.786));justify-self:center}}
-@media (max-width:760px){.envoy-scene{width:min(100%,calc(22vh * 1.786))}.envoy-tag span{display:none}.dialog{min-height:76px}.envoy-talk h3{display:none}}
+@media (max-width:760px){.envoy-scene{width:min(100%,calc(30vh * 1.786))}.envoy-tag span{display:none}.dialog{min-height:76px}.envoy-talk h3{display:none}}
 
 @media (max-width:760px){.envoy-offer .deal.standing{display:none}.paper.envoy{gap:8px}.envoy-offer .row .btn{padding:9px 10px 11px}}
-@media (max-width:760px) and (max-height:760px){.envoy-scene{width:min(100%,calc(17vh * 1.786))}.dialog{min-height:60px;font-size:16px}.deal p{font-size:13px;line-height:1.3}.paper.envoy > .titlebar{padding-block:6px}}
+@media (max-width:760px) and (max-height:760px){.envoy-scene{width:min(100%,calc(24vh * 1.786))}.dialog{min-height:60px;font-size:16px}.deal p{font-size:13px;line-height:1.3}.paper.envoy > .titlebar{padding-block:6px}}
 </style>
 
 <div id="app">
@@ -1112,7 +1148,11 @@ function renderMap(now) {
     // difficulty: pips then the label
     const pips = Math.max(3, o.stars), ps = L(8), pg = L(12); for (let k = 0; k < pips; k++) { const qx = Math.round(x - pips * pg / 2 + k * pg + 2); ctx.fillStyle = '#05070a'; ctx.fillRect(qx - 1, y + dy + L(47), ps + 2, ps + 2); ctx.fillStyle = k < o.stars ? (o.boss ? '#ff4d6d' : '#ffd23f') : '#323b66'; ctx.fillRect(qx, y + dy + L(48), ps, ps); }
     pxText(o.diffLabel.toUpperCase(), x, y + dy + L(72), o.boss ? '#ff4d6d' : '#a9b1d6', L(11));
-    if (o.envoy && Math.floor(performance.now() / 500) % 4) pxText('INCOMING CALL', x, y + dy + L(87), ARCS[o.envoy.fac].col, L(11));
+    // the payback target gets a red ring and its own line, taking turns with an incoming call
+    const pbOn = o.payback && RUN.payback, beat = Math.floor(performance.now() / 500);
+    if (pbOn) { ctx.save(); ctx.strokeStyle = 'rgba(255,77,94,0.75)'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -beat * 3; ctx.beginPath(); ctx.arc(pos[i].cx * A, pos[i].cy * A, o.pr * 1.32, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+    if (pbOn && (!o.envoy || beat % 8 >= 4)) pxText(`PAYBACK ${RUN.payback.bounty}S/KILL`, x, y + dy + L(87), '#ff4d5e', L(11));
+    else if (o.envoy && beat % 4) pxText('INCOMING CALL', x, y + dy + L(87), ARCS[o.envoy.fac].col, L(11));
   });
 }
 
@@ -3332,6 +3372,10 @@ function genOptions() {
   // a new sector should show off its new worlds
   const nb = NEW_BIOMES[sectorOf(RUN.idx)] || [];
   if (nb.length) for (let g = 0; g < 20 && opts.filter(o => nb.includes(o.biomeKey)).length < 2; g++) { const k = ri(0, n - 1); if (opts[k].envoy) continue; const c = genContract(RUN.idx, opts[k].diff, false); if (nb.includes(c.biomeKey)) opts[k] = c; }
+  // the payback target always has a planet on offer, if it can be fought this act
+  const pb = RUN.payback;
+  if (pb && actOfFaction(pb.fac) <= actOf(RUN.idx) && !dissolved(pb.fac) && !opts.some(o => o.facKey === pb.fac)) { let k = opts.findIndex(o => !o.envoy); if (k < 0) k = n - 1; opts[k] = genContract(RUN.idx, opts[k].diff, false, pb.fac); }
+  if (pb) for (const o of opts) if (o.facKey === pb.fac && !o.payback) { o.pay = +(o.pay * pb.pay).toFixed(2); o.payback = true; }
   return opts;
 }
 
@@ -4584,6 +4628,7 @@ function transposeMap(map) {
   };
 }
 function startMission(contract) {
+  if (paybackOn(contract) && !contract.ship) { const p = RUN.payback; setTimeout(() => toast(`Payback: ${p.bounty} scrip per ${FACTIONS[p.fac].short} killed. ${p.kills}/${p.need} so far.`, 3200), 1800); }
   if (!contract.ship) saveRun('mission', { contract });
   S.screen = 'mission'; setMusic('mission:' + (contract.ship ? 'ship' : contract.biomeKey));
   AU.boss = AU.bossTarget = 0;
@@ -4931,7 +4976,7 @@ function damage(e, dmg, pierce, tw, quiet) {
     e.killK = DMG_SRC ? DMG_SRC.k : (tw && tw.crew && KILL_KIND[tw.crew.type]) || 'shot';
     e.killFrom = DMG_SRC || (tw ? { x: tw.x, y: tw.y } : null);
     if (e.deal) { deathFx(e); sfx('splat', e.x); dealCasualty(e, tw); return; }
-    M.kills++; RUN.kills++;
+    M.kills++; RUN.kills++; noteDead(e);
     if (e.volatile) volatileBlast(e);
     if (e.splitDeath) splitBoss(e);
     if (e.defector) { e.defector.dead = true; moraleEvent('traitor', null); toast(`${e.defector.name} is dead. They used to sit two desks down.`, 3000); }
@@ -5105,7 +5150,7 @@ function spawnEnemy(q) {
   if (q.deal) {
     // marked units carry no auras or tricks: they just want to get to the drill
     Object.assign(e, { deal: q.deal, cost: q.deal.ask.each, bounty: 0, sab: false, healAura: null, shieldAura: null, jamAura: null, split: 0, cloakT: undefined, shoot: null, spawn: null, blink: null, rage: false, burrow: null, color: FACTIONS[q.deal.unitFac].color });
-    e.name = (q.deal.A.oneOff ? c.fac.names[q.cat] || CATS[q.cat].label : (q.deal.ask.unit || UNIT_NAMES[q.deal.ask.kind])) + ' (marked)';
+    e.name = (q.deal.A.oneOff ? c.fac.names[q.cat] || CATS[q.cat].label : dealUnitName(q.deal.B, q.deal.unitFac)) + ' (marked)';
   } else {
     if (has('pheromone') && c.facKey === 'fauna') e.spd *= 0.75;
     if (c.facKey === 'lumen') e.spd *= 1 + 0.3 * clamp(M.t / M.T, 0, 1);
@@ -5162,16 +5207,17 @@ function spawnBoss(B, mini, child) {
   return e;
 }
 
-function loseMargin(n, x, y) {
+function loseMargin(n, x, y, e) {
   let take = n;
   if (M.insured > 0) { const a = Math.min(M.insured, take); M.insured -= a; take -= a; if (a > 0) fxText(x, y - 14, 'insured', '#4fd1a1'); }
   if (take <= 0) return;
   if (M.c.ship) {
-    take = Math.max(1, Math.round(take * 0.8)); M.fuel -= take; M.lost += take; sfx('leak', x); fxText(M.dep.x, M.dep.y - 28, `-${take}% fuel`, '#ff4d5e');
+    take = Math.max(1, Math.round(take * 0.8)); noteStolen(e, take); M.fuel -= take; M.lost += take; sfx('leak', x); fxText(M.dep.x, M.dep.y - 28, `-${take}% fuel`, '#ff4d5e');
     if (M.fuel <= 0) { M.fuel = 0; M.phase = 'failed'; M.endTimer = 2.2; sfx('fail'); setMusic(null); toast('The fuel crystals are gone', 2200); }
     return;
   }
   if (has('exec_margin')) take = Math.max(1, Math.round(take / 2));
+  noteStolen(e, take);
   RUN.margin -= take; M.lost += take; RUN.lostTotal += take; sfx('leak', x);
   if (has('pill') && !M.pillUsed && RUN.margin < 30) { M.pillUsed = true; for (const e of M.enemies) if (!e.dead && !e.deal) stunE(e, 3); toast('Poison Pill: every hostile stunned', 2000); shake(4); }
   fxText(M.dep.x, M.dep.y - 28, `-${take}% margin`, '#ff4d5e');
@@ -5543,7 +5589,7 @@ function leak(e) {
   if (e.naval) { navalUnload(e); return; }
   // only the contract boss circles back for more; understudies take their cut and leave
   if (e.boss && !e.mini) {
-    loseMargin(e.cost, e.x, e.y);
+    loseMargin(e.cost, e.x, e.y, e);
     // the boss grabs what it can and circles back for more
     const p = e.path[0]; e.x = p.x; e.y = p.y; e.wi = 1; e.dist = 0; if (e.fly) { e.sx = p.x; e.sy = p.y; }
     toast(`${e.name} looted the deposit and is coming back`, 2200);
@@ -5551,7 +5597,7 @@ function leak(e) {
   }
   if (e.deal && dealArrive(e)) return;
   e.gone = true;
-  loseMargin(e.cost, e.x, e.y);
+  loseMargin(e.cost, e.x, e.y, e);
 }
 
 // ---------- fx & particles ----------
@@ -6549,7 +6595,7 @@ const ARCS = {
     beats: [
       {
         name: 'The Strike Fund', ask: { kind: 'couriers', cat: 'swarm', n: 4, each: 3 }, heat: 15,
-        lines: x => [`Dot, Local 404. Forty-one years under ${x.planet} and I still owe ${x.client} for the shovel.`, `Four of ours wear white armbands. Let them each fill a lunchbox. That's the kids' winter.`],
+        lines: x => [`Dot, Local 404. Forty-one years down ${x.planet}'s mines.`, `I still owe ${x.client} for the shovel.`, `Four of ours need a lunchbox each. That's the kids' winter.`],
         reward: 'Relic: Picket Line. Crew standing next to other crew fire 10% faster.',
         accept: `Good. Watch where your mortar lands, love. Lunchboxes don't stop shrapnel.`,
         refuse: `Suit yourself. We'll be on that road either way. Just know who you're aiming at.`,
@@ -6557,7 +6603,7 @@ const ARCS = {
       },
       {
         name: 'The Walkout', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 3 }, heat: 15,
-        lines: x => [`${x.prevThrough} lunchboxes from ${x.prevPlanet} bought insulin and boots. Thank you.`, `Five more need out of ${x.planet} to keep the strike alive. And my nephew Rafa wants a job with you.`],
+        lines: x => [`${x.prevThrough} lunchboxes from ${x.prevPlanet} bought insulin and boots.`, `Five more need out to keep the strike alive.`, `And my nephew Rafa wants a job with you.`],
         reward: `Rafa "Dynamite" Okonkwo joins your crew: a rank 3 mortar operator with the Unionised quirk (+20% damage).`,
         accept: `Rafa'll meet you at the dropship. Don't let them make him wear the polo.`,
         refuse: `I thought you were different. Maybe you still are. Maybe you're just tired.`,
@@ -6565,7 +6611,7 @@ const ARCS = {
       },
       {
         name: 'General Strike', ask: { kind: 'couriers', cat: 'swarm', n: 6, each: 2 }, heat: 20,
-        lines: x => [`Every mine in the ${x.sector} downs tools today.`, `Let six of ours reach the drill, and when the big one comes you won't stand alone.`],
+        lines: x => [`Every mine in the ${x.sector} downs tools today.`, `Let six of ours reach the drill.`, `When the big one comes, you won't stand alone.`],
         reward: 'General Strike: every 22s, a picket of three miners marches out from the drill and holds the line, stunning and hitting hostiles.',
         accept: `Solidarity, kid. See you on the line.`,
         refuse: `Then we strike without you. History won't mention you either way. That's the worst part.`,
@@ -6590,7 +6636,7 @@ const ARCS = {
     beats: [
       {
         name: 'Quiet Acquisition', ask: { kind: 'skim', cat: 'flyer', n: 3, each: 4 }, heat: 20, pay: 60,
-        lines: x => [`Julian Sable, VectorCorp. ${x.client} on ${x.planet} has undeclared ${x.asset}. We'd like some.`, `Three of our drones will drift past your drill. Don't shoot them. Sixty scrip says you won't.`],
+        lines: x => [`Julian Sable, VectorCorp.`, `${x.client} is sitting on ${x.asset}. Off the books.`, `Sixty scrip says you won't shoot our drones.`],
         reward: '+60 scrip, paid now. If a marked drone dies, VectorCorp claws it back.',
         accept: `Pleasure doing business. The money's already in your account. So, technically, are we.`,
         refuse: `Loyalty. How quaint. Let me know when it pays dividends.`,
@@ -6598,7 +6644,7 @@ const ARCS = {
       },
       {
         name: 'Due Diligence', ask: { kind: 'skim', cat: 'flyer', n: 4, each: 4 }, heat: 20, pay: 40,
-        lines: x => [`${x.prevThrough} drones home from ${x.prevPlanet}. The board was moved.`, `Four drones at ${x.planet}, and you get our other catalogue. Tasteful war crimes.`],
+        lines: x => [`${x.prevThrough} drones came home from ${x.prevPlanet}. The board was moved.`, `Four more, and you get our other catalogue.`, `Tasteful war crimes.`],
         reward: '+40 scrip now, and a Black Market opens in the Company Store selling illicit relics.',
         accept: `Excellent. Your catalogue will arrive in an unmarked crate. Don't open it near HR.`,
         refuse: `I'll keep the catalogue warm. Everyone comes back to the catalogue.`,
@@ -6606,7 +6652,7 @@ const ARCS = {
       },
       {
         name: 'Hostile Takeover', ask: { kind: 'skim', cat: 'flyer', n: 5, each: 4 }, heat: 25, pay: 0,
-        lines: x => [`Today VectorCorp acquires Kindly. We just need one embarrassing quarter.`, `Let our drones take a fifth of the deposit, and your final target arrives pre-softened.`],
+        lines: x => [`Today, VectorCorp acquires Kindly.`, `We just need you to have one embarrassing quarter.`, `Your final target will arrive pre-softened.`],
         reward: 'Hostile Takeover: the final target arrives with 30% less HP and permanently marked (+20% damage taken).',
         accept: `Welcome to management. Mind the step. It's a long way down.`,
         refuse: `Then you go down with Kindly. We'll buy the wreckage. We always do.`,
@@ -6631,7 +6677,7 @@ const ARCS = {
     beats: [
       {
         name: 'Migration', ask: { kind: 'escort', cat: 'splitter', n: 3, each: 0, secs: 8 }, heat: 12,
-        lines: x => [`[SIGNAL] I am WREN-7, translating for the Mother. Her children must cross your road on ${x.planet}.`, `Three brood sacs will hatch at your drill. Extraction runs long. If they burst, she declares war.`],
+        lines: x => [`[SIGNAL] WREN-7, translating for the Mother.`, `Her children must hatch on your drill.`, `If the sacs burst, she declares war.`],
         reward: 'Relic: Pheromone Tag. Wildlife hostiles move 25% slower. They recognise your smell.',
         accept: `[TRANSLATING] The Mother says your smell is now "tolerable". This is her highest honour. [I AM VERY PROUD OF YOU.]`,
         refuse: `[TRANSLATING] ...I will not translate that. It was very rude. And very sad.`,
@@ -6639,7 +6685,7 @@ const ARCS = {
       },
       {
         name: 'The Nursery', ask: { kind: 'escort', cat: 'splitter', n: 4, each: 0, secs: 8 }, heat: 12,
-        lines: x => [`[SIGNAL] The ${x.prevPlanet} broods hatched. The Mother named one after you. The name is a smell. A good one.`, `Four sacs nest under your drill on ${x.planet}. Also, a hatchling has imprinted on you. It bites.`],
+        lines: x => [`[SIGNAL] The ${x.prevPlanet} broods hatched. One is named after you.`, `The name is a smell. A good one.`, `Also, a hatchling has imprinted on you. It bites.`],
         reward: 'Biscuit, a hatchling Lopehound, joins every contract: it patrols the path biting hostiles, and gets back up if knocked out.',
         accept: `[TRANSLATING] The Mother says: "Feed it twice a day. It eats Kindly employees, so perhaps three times." [THAT WAS A JOKE. I THINK.]`,
         refuse: `[TRANSLATING] The Mother says she will remember your smell. [THAT IS NOT A COMPLIMENT THIS TIME.]`,
@@ -6647,7 +6693,7 @@ const ARCS = {
       },
       {
         name: 'The Swarm Hunts', ask: { kind: 'escort', cat: 'splitter', n: 5, each: 0, secs: 6 }, heat: 15,
-        lines: x => [`[SIGNAL] The Mother smells something old under your company that eats fear. [SHE IS AFRAID.]`, `Let five broods nest. When the great enemy comes, the swarm comes for it, not you.`],
+        lines: x => [`[SIGNAL] Something old under your company eats fear.`, `[THE MOTHER IS AFRAID.]`, `Let her broods nest. The swarm will fight it, not you.`],
         reward: 'The Swarm Hunts: every 15s, a wave of allied skitterlings bursts from the drill and swarms the nearest hostile, preferring the biggest.',
         accept: `[TRANSLATING] The Mother says: "Hunt well, small-shiny-friend." [SHE HAS NEVER SAID FRIEND BEFORE.]`,
         refuse: `[TRANSLATING] Then the swarm will hunt alone. And afterwards it will still be hungry.`,
@@ -6672,7 +6718,7 @@ const ARCS = {
     beats: [
       {
         name: 'The Leak', ask: { kind: 'uplink', cat: 'jammer', n: 1, each: 0, secs: 10 }, heat: 18,
-        lines: x => [`[LIVE] Glitch here. I've got 40 gigs of Kindly memos, and your drill on ${x.planet} is on their network.`, `One of us uploads at your drill for ten seconds. You get the leak, including the wave schedules Kindly sells your enemies.`],
+        lines: x => [`[LIVE] Glitch here. 40 gigs of Kindly memos, hi.`, `Your drill is on their network. One upload, ten seconds.`, `You get the wave schedules Kindly sells your enemies.`],
         reward: 'Relic: Leaked Schedule. Cloaked hostiles are always visible to your crew, and the HUD shows what is in every incoming wave.',
         accept: `Legend. Smash that accept button. Oh, you did. Ok bye.`,
         refuse: `Ok boomer. Ok corporate boomer.`,
@@ -6680,7 +6726,7 @@ const ARCS = {
       },
       {
         name: 'Doxxed', ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10 }, heat: 18,
-        lines: x => [`[LIVE] The ${x.prevPlanet} leak got nine million views. Chat is obsessed with you.`, `Two of us at ${x.planet} pull every enemy commander's file. Their elites won't know what hit them.`],
+        lines: x => [`[LIVE] The ${x.prevPlanet} leak hit nine million views.`, `Chat is obsessed with you.`, `Two of us pull every enemy commander's file. Elites, exposed.`],
         reward: 'Relic: Doxxed. Elite hostiles and bosses take 15% more damage from the moment they arrive.',
         accept: `W. Absolute W. Chat is spamming your employee number. That's probably fine.`,
         refuse: `Mid. Genuinely mid. Chat is booing you. I muted them. Mostly.`,
@@ -6688,7 +6734,7 @@ const ARCS = {
       },
       {
         name: 'Livestream', ask: { kind: 'uplink', cat: 'jammer', n: 3, each: 0, secs: 8 }, heat: 22,
-        lines: x => [`[LIVE · 2.3M] The leak had a folder called SUB-BASEMENT 9. Feeding schedules, in "units of suffering".`, `Three of us stream your final fight. When the big one shows, it gets cancelled live.`],
+        lines: x => [`[LIVE · 2.3M] The leak had a folder: SUB-BASEMENT 9.`, `Feeding schedules. In "units of suffering".`, `We stream your last fight. The big one gets cancelled live.`],
         reward: 'Livestream: when the final target arrives it is cancelled for 25s, all its abilities switched off, and it takes 25% more damage while chat watches.',
         accept: `Let's GOOO. Hydrate. Seriously, you look awful.`,
         refuse: `Then we stream you losing instead. Content is content.`,
@@ -6714,7 +6760,7 @@ const ARCS = {
     beats: [
       {
         name: 'Act of God', ask: { kind: 'couriers', cat: 'fast', n: 4, each: 4 }, heat: 30, pay: 50,
-        lines: x => [`Brent from Claims, for ${x.client}. Our ${x.asset} on ${x.planet} is insured for four times its worth.`, `Let the marked hostiles take it. Fifty scrip now, half your margin back when we claim. HR is also us.`],
+        lines: x => [`Brent from Claims, for ${x.client}.`, `Our ${x.asset} is insured for four times its worth.`, `Let it get stolen. We all get paid. HR is also us.`],
         reward: '+50 scrip now, and half the margin you let them take is refunded when the claim pays.',
         accept: `Pleasure! I'll put you down as "act of God". Which, in a sense, you are.`,
         refuse: `Wow. Okay. Integrity. Bold. I'll note that on your file, under "concerns".`,
@@ -6866,42 +6912,42 @@ function reportShifts(fac, sp) {
 const isSide = b => typeof b === 'string' && b.startsWith('side:');
 const SIDE_DEALS = {
   payback: { from: 'self', when: c => !c.good, name: 'Back Pay', unit: 'self',
-    lines: (x, k) => [`${k.A.envoy}. ${x.client} has owed our people on ${x.planet} for years.`, `Let ${k.n} of ours through to take some of it back. Nobody else gets hurt.`],
+    lines: (x, k) => [`${k.A.envoy}. ${x.client} has owed us for years.`, `Let ${k.n} of ours take some of it back.`, `Nobody else gets hurt.`],
     reward: k => `Standing: ${standLine([[k.fac, 1], ...alliesOf(k.fac).map(f => [f, 1])])}.`,
     effect: k => { shiftStanding(k.fac, 1, 'back pay'); for (const f of alliesOf(k.fac)) shiftStanding(f, 1, 'back pay'); return `${k.n} people walked off ${k.x.planet} with what they were owed. ${k.x.client} has not noticed. HR has.`; },
     accept: `That's decent of you.`, refuse: `Then they keep taking. And you keep guarding it.`, report: `Of course. Who signs your cheques?` },
   ceasefire: { from: 'self', when: c => c.good, name: 'Quiet Shift', unit: 'self', calm: 0.75,
-    lines: (x, k) => [`${k.A.envoy}. ${x.client} isn't the worst of them. We'd rather nobody bled on ${x.planet}.`, `Let ${k.n} of ours pass and we'll pull most of the rest back.`],
+    lines: (x, k) => [`${k.A.envoy}. ${x.client} isn't the worst of them.`, `Let ${k.n} of ours pass.`, `We'll pull most of the rest back.`],
     reward: k => `This contract's waves are 25% smaller. Standing: ${standLine([[k.fac, 1]])}.`,
     effect: k => { shiftStanding(k.fac, 1, 'quiet shift'); return `A quiet shift on ${k.x.planet}. Fewer hostiles than forecast. HR has filed it as "efficiency".`; },
     accept: `Good. Keep your heads down.`, refuse: `Then we come in full.`, report: `That's a shame. For everyone.` },
   sabotage: { from: 'rival', when: () => true, name: 'Common Enemy', unit: 'self', mark: 0.15,
-    lines: (x, k) => [`${k.A.envoy}. You're up against ${theF(k.tgt)} on ${x.planet}. So are we, most days.`, `Let ${k.n} of our people slip through. They'll leave something nasty for ${theF(k.tgt)} on the way.`],
+    lines: (x, k) => [`${k.A.envoy}. We hate ${theF(k.tgt)} too.`, `Let ${k.n} of ours slip through.`, `They'll leave something nasty on the way.`],
     reward: k => `Hostiles here take 15% more damage. Standing: ${standLine([[k.fac, 1], [k.tgt, -1]])}.`,
     effect: k => { shiftStanding(k.fac, 1, 'common enemy'); shiftStanding(k.tgt, -1, 'sabotaged'); return `${TheF(k.tgt)} on ${k.x.planet} found their gear tampered with. They blame you. They are right.`; },
     accept: `Lovely. Try not to shoot the help.`, refuse: `Your loss. Theirs too, eventually.`, report: `Telling HR on the people helping you. Bold.` },
   mercy: { from: 'ally', when: () => true, name: 'Safe Passage', unit: 'target',
-    lines: (x, k) => [`${k.A.envoy}. ${TheF(k.tgt)} are friends of ours, whatever ${x.client} is paying you.`, `${k.n} of them want off ${x.planet} alive. Let them walk.`],
+    lines: (x, k) => [`${k.A.envoy}. ${TheF(k.tgt)} are friends of ours.`, `${k.n} of them want off ${x.planet} alive.`, `Let them walk.`],
     reward: k => `Standing: ${standLine([[k.fac, 1], [k.tgt, 1]])}.`,
     effect: k => { shiftStanding(k.fac, 1, 'safe passage'); shiftStanding(k.tgt, 1, 'safe passage'); return `${k.n} of ${theF(k.tgt)} left ${k.x.planet} on foot. ${TheF(k.fac)} sent a thank-you note. HR intercepted it.`; },
     accept: `Thank you. They'll tell their families.`, refuse: `Then they fight. Remember that you chose it.`, report: `They were only trying to leave.` },
   salvage: { from: 'any', when: (c, f) => ARCS[f].kind === 'bribe', name: 'Salvage Rights', unit: 'self', pay: true,
-    lines: (x, k) => [`${k.A.envoy}. ${x.planet} is about to be a scrapyard. We'd like first pick.`, `${k.n} of our people, a little of the ${x.asset}, and ${k.pay} scrip for your trouble.`],
+    lines: (x, k) => [`${k.A.envoy}. ${x.planet} is about to be a scrapyard.`, `We'd like first pick.`, `${k.pay} scrip for your trouble.`],
     reward: k => `+${k.pay} scrip now, clawed back if one of them dies. Standing: ${standLine([[k.fac, 1]])}.`,
     effect: k => { shiftStanding(k.fac, 1, 'salvage'); return `Salvage from ${k.x.planet} has turned up for sale. Kindly has bought it back at a markup.`; },
     accept: `Pleasure. The money's already moved.`, refuse: `Someone else will take the money. Someone always does.`, report: `I'll add that to your file. We keep files too.` },
   cover: { from: 'any', when: () => RUN.story.heat >= 35, name: 'Lost Paperwork', unit: 'self', heat: 0,
-    lines: (x, k) => [`${k.A.envoy}. HR has a file on you this thick. We happen to own a shredder.`, `Let ${k.n} of ours through and the file loses a few pages.`],
+    lines: (x, k) => [`${k.A.envoy}. HR has a file on you this thick.`, `We happen to own a shredder.`],
     reward: k => `HR suspicion −25 when it's done. Standing: ${standLine([[k.fac, 1]])}.`,
     effect: k => { RUN.story.heat = Math.max(0, RUN.story.heat - 25); shiftStanding(k.fac, 1, 'paperwork'); return `Several pages of your HR file were recycled in error. HR apologises for the inconvenience to itself.`; },
     accept: `Consider it shredded.`, refuse: `Enjoy the audit.`, report: `Reporting the people hiding your file. Inspired.` },
   dirt: { from: 'self', when: c => !c.good, name: 'Paper Trail', unit: 'self',
-    lines: (x, k) => [`${k.A.envoy}. ${x.client} cooks its books, and we can prove it if ${k.n} of us reach the site office on ${x.planet}.`, `Kindly won't thank you. Everyone else will.`],
+    lines: (x, k) => [`${k.A.envoy}. ${x.client} cooks its books.`, `Get ${k.n} of us to the site office and we can prove it.`, `Kindly won't thank you. Everyone else will.`],
     reward: k => `Standing: ${standLine([[k.fac, 1], ...alliesOf(k.fac).map(f => [f, 1]), ['kindly!', -1]])}.`,
     effect: k => { shiftStanding(k.fac, 1, 'paper trail'); for (const f of alliesOf(k.fac)) shiftStanding(f, 1, 'paper trail'); RUN.story.loyalty = Math.max(0, RUN.story.loyalty - 1); return `${k.x.client}'s accounts from ${k.x.planet} were leaked. Kindly's name appears 340 times. HR would like a word.`; },
     accept: `We'll make it count.`, refuse: `Then they get away with it. Again.`, report: `Naturally. The books stay cooked.` },
   transfer: { from: 'self', when: (c, f) => standingOf(f) >= 1 && RUN.roster.length < 8, name: 'Transfer Request', unit: 'self',
-    lines: (x, k) => [`${k.A.envoy}. One of ours wants to see how the other half lives. Your half.`, `Let ${k.n} of us through and they'll sign your paperwork.`],
+    lines: (x, k) => [`${k.A.envoy}. One of ours wants to see how the other half lives.`, `Your half. They'll sign the paperwork.`],
     reward: k => `A rank 2 recruit joins your crew. Standing: ${standLine([[k.fac, 1]])}.`,
     effect: k => { shiftStanding(k.fac, 1, 'transfer'); if (RUN.roster.length < 8) { const cr = mkCrew(pick(Object.keys(TOWERS).filter(t => t !== 'liaison')), freshName(), genLook()); cr.level = 2; cr.xp = XP_TH[1]; RUN.roster.push(cr); RUN.usedNames.add(cr.name); return `${cr.name} has transferred in from ${theF(k.fac)}. HR has lost the paperwork.`; } return `The transfer fell through. No desks.`; },
     accept: `They'll meet you at the dropship.`, refuse: `Pity. They were keen.`, report: `HR will be thrilled.` },
@@ -6944,6 +6990,8 @@ function standingEnvoy(o) {
 function rollEnvoy(o) {
   if (!RUN.story) return null;
   const se = standingEnvoy(o); if (se) return se;
+  // a hot enough employee gets tested: HR dresses up as someone with a side offer, and waits to see what you do
+  if (!o.boss && o.idx >= 1 && !RUN.side && RUN.story.heat >= 40 && rnd() < Math.min(0.45, (RUN.story.heat - 30) / 100)) { const s = rollSide(o); if (s) return { ...s, sting: true }; }
   if (o.boss) {
     if (sectorOf(o.idx) > 3) return null;
     // a storyline's reckoning comes before an act's boss contract, whoever the target is
@@ -6973,30 +7021,19 @@ function envoyCtx(o, fac) {
 function showMessenger(i) {
   const o = RUN.options[i], { fac, beat } = o.envoy, A = ARCS[fac], B = beatDef(fac, beat), x = envoyCtx(o, fac);
   x.lastPlanet = ([...(RUN.worlds || [])].reverse().find(w => w.fac === fac) || {}).planet || x.prevPlanet;
-  S.screen = 'envoy'; S.envoy = { i, fac, beat, t0: performance.now(), done: false };
+  S.screen = 'envoy'; S.envoy = { i, fac, beat, t0: performance.now(), done: false, sting: !!o.envoy.sting };
   clearMissionUi(); backdropView(); setMusic('envoy:' + fac); sfx('review');
-  const ask = B.ask || { kind: 'couriers', n: 0, each: 0 }, total = ask.n * ask.each;
-  const splash = 'Splash can still kill them.';
-  const askTxt = {
-    couriers: `Let ${ask.n} marked ${A.oneOff ? 'hostiles' : 'couriers'} through: −${total}% margin. ${splash}`,
-    skim: `Let ${ask.n} marked drones skim the drill: −${total}% margin.`,
-    escort: `Let ${ask.n} brood sacs nest at the drill: +${ask.secs}s extraction each. ${splash}`,
-    uplink: `Let ${ask.n} ${ask.n > 1 ? 'hackers' : 'hacker'} upload at the drill: ${ask.secs}s pause each. ${splash}`,
-  }[ask.kind];
-  const askLine = ask.txt ? ask.txt(ask) : askTxt;
   const heat = has('shredder') ? Math.ceil(B.heat / 2) : B.heat;
   $('#overlay').innerHTML = `<div class="screen"><div class="paper envoy">
-    ${titlebar(`Encrypted_Channel · ${A.kind === 'bribe' ? 'origin: offshore' : 'origin: untraced'}`)}
+    ${titlebar(`Encrypted_Channel · ${o.envoy.sting ? 'origin: untraced · relay KSS-HR7' : A.kind === 'bribe' ? 'origin: offshore' : 'origin: untraced'}`)}
     <div class="envoy-scene"><canvas id="envcv" width="200" height="112" aria-label="${esc(A.envoy)} on a video call"></canvas>
       <div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div>
       <div class="envoy-beat">${A.kind === 'bribe' ? 'Bribe' : 'Plea'} · ${beatLabel(A, beat)}</div></div>
     <div class="envoy-grid">
-      <div class="envoy-talk"><h3>${esc(B.name)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
+      <div class="envoy-talk"><h3>${esc(B.name)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip"></div></div>
       <div class="envoy-offer">
         ${FACTIONS[fac] ? `<div class="deal standing"><div class="lbl">Your standing with them</div>${standingHtml(fac)}</div>` : ''}
-        <div class="deal ask"><div class="lbl">The ask</div><p>${esc(B.free ? 'Nothing. That is what worries HR.' : askLine)}</p></div>
-        <div class="deal reward"><div class="lbl">The reward</div><p>${esc(B.reward)}</p></div>
-        <div class="deal risk"><div class="lbl">The risk</div><p>HR suspicion +${heat} (now ${RUN.story.heat}). Break the deal and ${esc(A.envoy)} remembers.</p></div>
+        ${wantHtml(B, fac, B.unitFac || (A.oneOff ? o.facKey : fac), heat)}
         <div class="row" id="envBtns"><button class="btn" data-act="envoy" data-v="accept">Accept</button><button class="btn ghost" data-act="envoy" data-v="refuse">Refuse</button><button class="btn ghost" data-act="envoy" data-v="report">Report to HR</button></div>
         <div class="colony report-prev">If reported: ${esc(standLine(reportShifts(fac, B.special)))}</div>
       </div>
@@ -7005,27 +7042,127 @@ function showMessenger(i) {
   const opener = typeof beat === 'number' && FACTIONS[fac] ? standingOpener(fac, x) : null;
   typeLines((opener ? [opener] : []).concat(B.lines(x)).filter(Boolean));
 }
+// ---------- the deal at a glance ----------
+// Who they send, what you get and what it costs, shown at once in the faction's colour with the unit's own
+// sprite, so the deal is clear without reading the call and the marked units are recognisable in the field.
+const plural = (u, n) => n === 1 ? u : /us$/.test(u) ? u.replace(/us$/, 'i') : /s$/.test(u) ? u : u + 's';
+function dealUnitName(B, unitFac) { const a = B.ask || {}, F = FACTIONS[unitFac]; return (a.unit && B.special !== 'side' && a.unit) || (F && F.names && F.names[a.cat]) || UNIT_NAMES[a.kind] || 'Courier'; }
+const UNIT_ICONS = new Map();
+function unitIconUrl(fac, cat) {
+  const key = fac + '|' + cat; if (UNIT_ICONS.has(key)) return UNIT_ICONS.get(key);
+  let url = '';
+  try { const v = makeVariant(fac, cat), im = v.frames[0], c = mkCanvas(im.width + 2, im.height + 2); c.getContext('2d').drawImage(im, 1, 1); url = c.toDataURL(); } catch (e) { }
+  UNIT_ICONS.set(key, url); return url;
+}
+function wantHtml(B, fac, unitFac, heat) {
+  const col = (ARCS[fac] && ARCS[fac].col) || 'var(--brand)', now = RUN.story.heat, hs = hrStage(now + heat), hr = `<b class="hr">HR +${heat}</b> <small>(now ${now}${hs.key !== 'clear' ? ` → ${hs.name}` : ''})</small>${now + heat >= 100 ? '<br><b class="hr">At 100, HR ends your contract.</b>' : ''}`;
+  if (B.free || !B.ask) return `<div class="want" style="--wc:${col}"><div class="lbl">They want<span>${esc(B.name || '')}</span></div><div class="want-ask"><b>Nothing. That worries HR.</b></div>
+    <dl class="want-kv"><dt>You get</dt><dd>${esc(B.reward)}</dd><dt>It costs</dt><dd>${hr}</dd></dl></div>`;
+  const a = B.ask, unit = plural(dealUnitName(B, unitFac), a.n), icon = unitIconUrl(unitFac, a.cat);
+  const verb = { couriers: 'through', skim: 'skim your drill', escort: 'nest at your drill', uplink: 'use your drill' }[a.kind] || 'through';
+  const cost = a.kind === 'escort' ? `+${a.secs}s extraction each` : a.kind === 'uplink' ? `${a.secs}s drill pause each` : `−${a.n * a.each}% margin`;
+  return `<div class="want" style="--wc:${col}"><div class="lbl">They want<span>${esc(B.name || '')}</span></div>
+    <div class="want-ask">${icon ? `<img src="${icon}" alt="">` : ''}<b>Let ${a.n} ${esc(unit)} ${verb}</b></div>
+    <dl class="want-kv"><dt>You get</dt><dd>${esc(B.reward)}</dd><dt>It costs</dt><dd><b class="neg">${cost}</b> · ${hr}${a.kind === 'skim' ? '' : '<br><small>Splash can still kill them.</small>'}</dd></dl></div>`;
+}
 let typeTimer = 0;
+// ---------- speech bubbles ----------
+// Envoys and the manager talk in comic bubbles over their video: one short line at a time, typed fast, with
+// numbers, names and money lit up. Long lines split at sentence ends. Tap the bubble to hurry it or move on;
+// the whole transcript sits in a hidden log for screen readers.
+const BUBBLE_MAX = 64;
+function bubbleSplit(lines) {
+  const out = [];
+  lines.forEach((l, src) => {
+    const raw = String(l).replace(/\b(Mr|Mrs|Ms|Dr|St)\. /g, '$1․ ');
+    if (raw.length <= BUBBLE_MAX) { out.push({ t: raw.replace(/․/g, '.'), src }); return; }
+    const parts = raw.match(/[^.!?]+(?:[.!?]+["')\]]*|$)\s*/g) || [raw];
+    let cur = '';
+    for (const p of parts) { if (cur && (cur + p).trim().length > BUBBLE_MAX) { out.push({ t: cur.trim().replace(/․/g, '.'), src }); cur = ''; } cur += p; }
+    if (cur.trim()) out.push({ t: cur.trim().replace(/․/g, '.'), src });
+  });
+  return out;
+}
+// the words worth catching: counts and money in gold, HR in red, factions and their envoys in their colours
+function bubbleTerms() {
+  if (bubbleTerms.c) return bubbleTerms.c;
+  const t = [];
+  for (const f of Object.keys(FACTIONS)) { t.push([FACTIONS[f].short, FACTIONS[f].color]); if (FACTIONS[f].name) t.push([FACTIONS[f].name, FACTIONS[f].color]); }
+  for (const f of Object.keys(ARCS)) if (ARCS[f].envoy) t.push([ARCS[f].envoy, ARCS[f].col]);
+  t.sort((a, b) => b[0].length - a[0].length);
+  return (bubbleTerms.c = t);
+}
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function bubbleSegs(text) {
+  const terms = bubbleTerms(), names = terms.map(([n]) => reEsc(n)).join('|');
+  const re = new RegExp(`(${names ? names + '|' : ''}[−+-]?\\$?\\d[\\d,.]*%?|\\b(?:one|two|three|four|five|six|seven|eight|nine|ten|sixty|fifty|forty|thirty)\\b|\\bHR\\b|\\bscrip\\b|\\bmargin\\b|\\bKindly\\b)`, 'gi');
+  const segs = []; let last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) segs.push([text.slice(last, m.index), null]);
+    const w = m[0], hit = terms.find(([n]) => n.toLowerCase() === w.toLowerCase());
+    segs.push([w, hit ? hit[1] : /^hr$/i.test(w) ? 'var(--danger)' : /^kindly$/i.test(w) ? '#ffd23f' : '#ffd23f']);
+    last = m.index + w.length; if (!w.length) re.lastIndex++;
+  }
+  if (last < text.length) segs.push([text.slice(last), null]);
+  return segs;
+}
+const segsHtml = (segs, n = Infinity) => { let out = '', left = n; for (const [t, col] of segs) { if (left <= 0) break; const part = esc(t.slice(0, left)); left -= t.length; out += col ? `<b style="color:${col}">${part}</b>` : part; } return out; };
+// what the speaker is doing on this line, read from the words: the rig and the call react to it
+function lineMood(t, i) {
+  if (/\b(war|burst|regret|stop calling|for good|hungry|eats|lawyers|watching|do not stand|done talking|coming aboard|or else|not you)\b/i.test(t)) return 'warn';
+  if (/\b(children|kids|winter|medicine|tired|loss|afraid|dark|hurt|owe|owed|insulin|severance|martyr)/i.test(t)) return 'sad';
+  if (/\b(thank|bright|good|friend|gift|paid|bonus|kin|obsessed|moved|happier|proud|bought|welcome|pleasure|exemplary)/i.test(t)) return 'pleased';
+  if (/\?$/.test(t) || /^(let|get|give|pick)\b/i.test(t) || /\b(need|want|must)\b/i.test(t)) return 'ask';
+  return i === 0 ? 'greet' : 'talk';
+}
+// bubbleTalk(lines, {onLine(srcIndex, bubble), done}) plays the lines over the scene next to #envDlg
+function bubbleTalk(lines, o = {}) {
+  const log = $('#envDlg'); if (!log) return;
+  const scene = log.closest('.paper') ? log.closest('.paper').querySelector('.envoy-scene') : null;
+  clearInterval(typeTimer); clearTimeout(bubbleTalk.hold);
+  const bs = bubbleSplit(lines.filter(Boolean));
+  log.innerHTML = lines.filter(Boolean).map(l => `<p>${esc(l)}</p>`).join('');
+  let el = scene && scene.querySelector('.sbub');
+  if (scene && !el) { el = document.createElement('div'); el.className = 'sbub'; el.setAttribute('aria-hidden', 'true'); scene.appendChild(el); }
+  if (!el || !bs.length) { if (o.done) o.done(); return; }
+  let i = 0, ci = 0, segs = null, len = 0, typing = false, ended = false;
+  const foot = () => `<span class="sbub-n">${bs.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</span><span class="sbub-go">${i < bs.length - 1 ? '▸' : '↺'}</span>`;
+  const draw = () => { el.innerHTML = `<p>${segsHtml(segs, ci)}</p><div class="sbub-ft">${typing ? '' : foot()}</div>`; };
+  const end = () => { if (ended) return; ended = true; S.envoyTalking = false; if (o.done) o.done(); };
+  const settle = () => {
+    clearInterval(typeTimer); typing = false; ci = len; draw(); S.envoyTalking = false;
+    if (o.onIdle) o.onIdle(i);
+    if (i < bs.length - 1) bubbleTalk.hold = setTimeout(next, 1100 + len * 42); else end();
+  };
+  const show = k => {
+    clearTimeout(bubbleTalk.hold); clearInterval(typeTimer);
+    i = k; segs = bubbleSegs(bs[i].t); len = bs[i].t.length; ci = 0; typing = true; S.envoyTalking = true;
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    el.dataset.mood = lineMood(bs[i].t, i);
+    if (o.onLine) o.onLine(bs[i].src, { mood: el.dataset.mood, i, last: i === bs.length - 1 });
+    if (RM) { settle(); return; }
+    draw();
+    typeTimer = setInterval(() => {
+      if (!document.body.contains(el)) { clearInterval(typeTimer); clearTimeout(bubbleTalk.hold); return; }
+      ci = Math.min(len, ci + 2); draw(); if (ci % 6 === 0) sfx('type');
+      if (ci >= len) settle();
+    }, 26);
+  };
+  const next = () => { if (i < bs.length - 1) show(i + 1); };
+  el.onclick = () => { if (typing) settle(); else if (i < bs.length - 1) next(); else show(0); };
+  show(0);
+}
+// the envoy screens: each bubble also sets the envoy's mood, so the face and the call react to the words
 function typeLines(lines, done) {
-  const el = $('#envDlg'); if (!el) return;
-  clearInterval(typeTimer);
-  el.innerHTML = '';
-  const ps = lines.map(() => { const p = document.createElement('p'); el.appendChild(p); return p; });
-  let li = 0, ci = 0;
-  const finish = () => { clearInterval(typeTimer); lines.forEach((l, k) => { ps[k].textContent = l; }); el.onclick = null; S.envoyTalking = false; if (done) done(); };
-  el.onclick = finish; S.envoyTalking = true;
-  if (RM) { finish(); return; }
-  typeTimer = setInterval(() => {
-    if (!document.body.contains(el)) { clearInterval(typeTimer); return; }
-    if (li >= lines.length) { finish(); return; }
-    ps[li].textContent = lines[li].slice(0, ++ci);
-    if (ci % 3 === 0) sfx('type');
-    if (ci >= lines[li].length) { li++; ci = 0; }
-  }, 22);
+  bubbleTalk(lines, {
+    done,
+    onLine: (src, b) => { if (S.envoy) S.envoy.say = { mood: b.mood, t0: (performance.now() - S.envoy.t0) / 1000 }; },
+  });
 }
 function envoyChoice(v) {
   const E = S.envoy; if (!E || E.done) return;
   E.done = true; E.react = { kind: v, t0: (performance.now() - E.t0) / 1000 };
+  if (E.sting) return stingChoice(v);
   const o = RUN.options[E.i], A = ARCS[E.fac], B = beatDef(E.fac, E.beat), a = arcOf(E.fac), st = RUN.story, sp = B.special;
   st.met++;
   const log = { fac: E.fac, beat: E.beat, planet: o.planet, choice: v, idx: o.idx };
@@ -7036,11 +7173,11 @@ function envoyChoice(v) {
   if (v === 'report') { moraleEvent('reported', E.fac); quarter().reported++; }
   if (v === 'accept' && sp === 'favour') {
     S.pendingFavour = E.fac;
-    st.heat = Math.min(100, st.heat + B.heat);
+    addHeat(B.heat);
   } else if (v === 'accept') {
     if (!sp) a.state = 'active';
-    S.pendingDeal = { fac: E.fac, beat: E.beat };
-    st.heat = Math.min(100, st.heat + (has('shredder') ? Math.ceil(B.heat / 2) : B.heat));
+    S.pendingDeal = { fac: E.fac, beat: E.beat }; quarter().deals = (quarter().deals || 0) + 1;
+    addHeat(has('shredder') ? Math.ceil(B.heat / 2) : B.heat);
     if (B.pay) { RUN.scrip += B.pay; log.pay = B.pay; }
   } else if (v === 'refuse') {
     if (sp === 'truce') shiftStanding(E.fac, -1, 'refused truce');
@@ -7063,6 +7200,31 @@ function envoyChoice(v) {
   $('#envSkip').textContent = v === 'accept' ? 'Deal struck.' : v === 'refuse' ? 'Channel closed.' : 'Transcript forwarded to HR-BOT.';
   $('#envBtns').innerHTML = `<button class="btn" data-act="envoydeploy">Deploy to ${esc(o.planet)}</button>`;
   typeLines([B[v]]);
+}
+// An HR sting: nothing you say reaches the faction. Taking the deal gets you an awkward meeting and a lot of heat;
+// turning it down or reporting it is a loyalty test passed without knowing it was one.
+function stingChoice(v) {
+  const E = S.envoy, o = RUN.options[E.i], B = beatDef(E.fac, E.beat), st = RUN.story;
+  st.met++; st.log.push({ fac: E.fac, beat: 'sting', planet: o.planet, choice: v, idx: o.idx });
+  if (v === 'accept') { S.pendingSting = true; quarter().deals = (quarter().deals || 0) + 1; }
+  else { addHeat(v === 'report' ? -20 : -10); if (v === 'report') { quarter().reported++; st.loyalty += 1; loyaltyReward(0); } else loyaltyReward(10); }
+  sfx(v === 'accept' ? 'confirm' : 'click');
+  $('#envSkip').textContent = v === 'accept' ? 'Deal struck.' : v === 'refuse' ? 'Channel closed.' : 'Transcript forwarded to HR-BOT.';
+  $('#envBtns').innerHTML = `<button class="btn" data-act="envoydeploy">Deploy to ${esc(o.planet)}</button>`;
+  typeLines(v === 'accept' ? [B.accept] : [v === 'report' ? 'Thank you for your report. This call was a loyalty test. You passed.' : 'Noted. This call was a loyalty test. You passed.']);
+  if (v !== 'accept') toast(`It was HR all along. Suspicion −${v === 'report' ? 20 : 10}.`, 3000);
+}
+function showSting() {
+  const fine = Math.min(RUN.scrip, 30), heat = 25;
+  RUN.scrip -= fine; addHeat(heat); RUN.story.loyalty -= 1;
+  const lines = [
+    { t: 'Sit down. That call you took on the way in?', pose: 'tie', expr: 'frown' },
+    { t: 'That was HR. We call it a loyalty sting.', pose: 'tablet', expr: 'smug' },
+    { t: 'You failed it. There is no deal. There never was.', pose: 'slam', expr: 'angry' },
+  ];
+  const card = `<div class="deal risk"><div class="lbl">HR follow-up</div><p>HR suspicion +${heat} (now ${RUN.story.heat} · ${hrStage().name}).${fine ? ` −${fine} scrip "processing fee".` : ''}</p></div>
+    <div class="row"><button class="btn" data-act="stingdone">Back to work</button></div>`;
+  managerScene({ title: 'HR_Followup.mtg', head: 'A quick word', lines, card, holo: null, mood: 'down', react: 'fury' });
 }
 // the envoy's video feed, redrawn every frame while the screen is open
 // ================================================================
@@ -7444,6 +7606,14 @@ function rigLayer(key, draw) {
 function rigState(R, t, E) {
   const st = { expr: 'neutral', blink: (t + 1.3) % 3.7 < 0.13, mouth: 0, look: 0, hx: 0, hy: 0, bob: Math.sin(t * 1.7) > 0.35 ? 1 : 0, react: null };
   if (S.envoyTalking) { st.mouth = [0, 1, 2, 1][Math.floor(t * 9) % 4]; st.hx = Math.round(Math.sin(t * 2.1) * 0.7); }
+  if (E && E.say && !E.react) {
+    const dt = t - E.say.t0, m = E.say.mood;
+    if (m === 'greet' && dt < 0.7) st.hy = Math.round(Math.abs(Math.sin(dt * 9)) * 1.4);
+    else if (m === 'ask') { st.hy = 1; if (dt < 0.5) st.hx = 1; }
+    else if (m === 'warn') { st.expr = 'angry'; if (dt < 0.45) st.hx = Math.round(Math.sin(dt * 40)); }
+    else if (m === 'sad') { st.expr = 'sad'; st.look = -1; st.hy = 1; }
+    else if (m === 'pleased') { st.expr = 'smile'; if (dt < 0.8) st.hy = Math.round(Math.abs(Math.sin(dt * 8))); }
+  }
   if (E && E.react) {
     const dt = t - E.react.t0, kind = E.react.kind; st.react = kind;
     st.expr = (R.react && R.react[kind]) || ({ accept: 'smile', refuse: 'sad', report: 'angry' })[kind];
@@ -7486,6 +7656,14 @@ function envoyReactionFx(g, t, E, col) {
   g.globalAlpha = 1;
 }
 
+function envoyMoodFx(g, t, E) {
+  if (!E || !E.say || E.react) return;
+  const dt = t - E.say.t0, m = E.say.mood;
+  if (m === 'warn' && dt < 0.9) { const a = 0.32 * (1 - dt / 0.9); g.fillStyle = `rgba(255,40,60,${a})`; g.fillRect(0, 0, 200, 4); g.fillRect(0, 108, 200, 4); g.fillRect(0, 0, 4, 112); g.fillRect(196, 0, 4, 112); }
+  else if (m === 'pleased' && dt < 1.2) for (let k = 0; k < 6; k++) { const a = k * 1.05 + dt * 3, r = 18 + dt * 12; g.globalAlpha = Math.max(0, 1 - dt / 1.2); px(g, Math.round(152 + Math.cos(a) * r), Math.round(48 + Math.sin(a) * r * 0.6), 1, 1, k % 2 ? '#ffd23f' : '#ffffff'); }
+  else if (m === 'sad') { g.globalAlpha = Math.min(0.22, dt * 0.3); g.fillStyle = '#0a1830'; g.fillRect(0, 0, 200, 112); }
+  g.globalAlpha = 1;
+}
 function drawEnvoyFrame(now) {
   const cvs = document.getElementById('envcv'); if (!cvs || !S.envoy) return;
   const g = cvs.getContext('2d'), t = (now - S.envoy.t0) / 1000;
@@ -7501,6 +7679,8 @@ function drawEnvoyFrame(now) {
     g.globalAlpha = 1;
   }
   envoyReactionFx(g, t, S.envoy, A.col);
+  envoyMoodFx(g, t, S.envoy, A.col);
+  if (S.envoy.sting && Math.sin(t * 0.9) > 0.55) { g.globalAlpha = 0.28; g.fillStyle = '#ffd23f'; g.fillRect(186, 100, 2, 7); g.fillRect(188, 103, 2, 1); g.fillRect(190, 101, 1, 2); g.fillRect(190, 104, 1, 3); g.globalAlpha = 1; }
   // scanlines and a little signal noise
   g.fillStyle = 'rgba(0,0,0,0.18)'; for (let y = 0; y < 112; y += 2) g.fillRect(0, y, 200, 1);
   if (Math.sin(t * 1.7) > 0.97) { g.fillStyle = rgba(A.col, 0.35); g.fillRect(0, (t * 300) % 112, 200, 2); }
@@ -8167,7 +8347,7 @@ function juiceScreen() {
   stagger(ov, '.mailbody > p, .slip tr, .memo, .paper > .row, .paper > h2, .paper > .lbl');
   stagger(ov, '.offers > .offer, .rlist > .ritem', 45);
   stagger(ov, '.title-wrap > *, .steps > li', 70);
-  stagger(ov, '.envoy-offer > .deal, .envoy-offer > .row', 90);
+  stagger(ov, '.envoy-offer > .deal, .envoy-offer > .want, .envoy-offer > .row', 90);
 }
 function countUp(el, from, to, ms = 700, fmt = v => String(v)) {
   if (!el) return;
@@ -8786,6 +8966,7 @@ function useAbility(a, slot = 'main') {
 function fireAbility(a, p) {
   const m = M, A = ARTIFACTS[a.id], B = ABIL[A.kind], lv = a.level;
   a.cd = B.cd(lv); a.on = B.dur(lv); S.artMode = null;
+  const used = afterOf(m).used; used[A.kind] = (used[A.kind] || 0) + 1;
   if (A.kind === 'dozer') {
     const tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
     Object.assign(a, { deployed: true, tx, ty, x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, hp: artMaxHp(a), down: 0 });
@@ -9128,6 +9309,37 @@ Object.assign(FACTIONS.fauna.names, { shield: 'Shell Guardian', jammer: 'Screech
 function fullRoster(fac, w = 0.5) { for (const k of Object.keys(CATS)) if (!fac.cats[k]) fac.cats[k] = k === 'naval' || k === 'gunship' ? 0.9 : w; }
 for (const f of Object.keys(FACTIONS)) fullRoster(FACTIONS[f]);
 
+// ---------- what the news sees ----------
+// Each contract keeps a short record of how it went: the dead by family and by how they died, which company
+// hardware flew, and who walked off with crystals. The faction's channel replays it after the contract.
+const afterOf = m => m.after || (m.after = { dead: {}, n: 0, used: {}, stolen: {}, dealt: 0 });
+function noteDead(e) {
+  const fam = e.boss || e.lt ? 'boss' : e.fly ? 'air' : e.naval ? 'boat' : !e.v || e.v.kind === 'human' ? 'human' : e.v.kind === 'vehicle' ? 'machine' : M.c.facKey === 'precursors' ? 'stone' : 'creature';
+  const k = e.burnT > 0 ? 'burn' : e.killK || 'shot', key = `${fam}|${k}|${e.cat || 'swarm'}`, A = afterOf(M);
+  A.dead[key] = (A.dead[key] || 0) + 1; A.n++;
+  if (paybackOn(M.c)) { RUN.payback.kills++; M.pbKills = (M.pbKills || 0) + 1; }
+}
+function noteStolen(e, n) {
+  const A = afterOf(M), f = e && e.deal ? e.deal.unitFac : M.c.facKey;
+  A.stolen[f] = (A.stolen[f] || 0) + n; if (e && e.deal) A.dealt += n;
+}
+// what goes on the planet's record: the ten commonest ways to die, the hardware, the crew kinds, the thieves
+function packAfter(m) {
+  const A = afterOf(m);
+  return { dead: Object.entries(A.dead).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, n]) => [...k.split('|'), n]), used: { ...A.used }, stolen: { ...A.stolen }, dealt: A.dealt, crew: [...new Set(m.towers.map(t => t.crew.type))] };
+}
+// The theft log: every crystal a faction has carried off, by contract. It changes nothing yet; it is kept so
+// a later update can let factions spend what they took. The quarter's tally feeds the manager's payback ask.
+function logTheft(c, after) {
+  const st = RUN.story, q = quarter(); st.stolen = st.stolen || {}; st.theft = st.theft || []; q.lostBy = q.lostBy || {};
+  for (const [f, n] of Object.entries(after.stolen)) {
+    if (!n) continue;
+    st.stolen[f] = (st.stolen[f] || 0) + n; q.lostBy[f] = (q.lostBy[f] || 0) + n;
+    st.theft.push({ idx: c.idx, planet: c.planet, fac: f, n, deal: f !== c.facKey || after.dealt > 0 });
+  }
+  if (st.theft.length > 60) st.theft.splice(0, st.theft.length - 60);
+}
+
 // ---------- finishing a mission ----------
 function finishMission(success) {
   const m = M, c = m.c;
@@ -9140,7 +9352,8 @@ function finishMission(success) {
   if (c.boss) { shiftStanding(c.facKey, -1, 'boss'); moraleEvent('boss', c.facKey); }
   // the planet keeps what happened to it: theirs if you honoured their deal, the company's otherwise
   const d0 = m.deal, wstate = d0 && !d0.broken && d0.fac === c.facKey ? 'helped' : 'crushed';
-  (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, kills: m.kills, act: actOf(c.idx), boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null });
+  (RUN.worlds = RUN.worlds || []).push({ planet: c.planet, bk: c.biomeKey, fac: c.facKey, state: wstate, idx: c.idx, v: Math.floor(c.seed * 3), lost: m.lost, kills: m.kills, act: actOf(c.idx), boss: !!c.boss, deal: d0 ? (d0.broken || 'honoured') : null, dealFac: d0 ? d0.fac : null, after: packAfter(m) });
+  logTheft(c, RUN.worlds[RUN.worlds.length - 1].after);
   moraleEvent(wstate, c.facKey);
   if (m.lost === 0) moraleEvent('clean'); else if (m.lost >= 25) moraleEvent('bloodbath');
   if (m.downed.length) moraleEvent('grief', null, Math.min(2, m.downed.length));
@@ -9159,6 +9372,7 @@ function finishMission(success) {
   const gross = Math.round((50 + 12 * c.idx) * c.pay * (has('tithe') ? 1.2 : 1));
   const lines = [['Base contract fee', gross], ['Pacification incentive (' + m.kills + ' incidents)', Math.floor(m.kills * 0.25)]];
   if (m.lost === 0) lines.push(['Zero-loss bonus', 25]);
+  if (m.pbKills && RUN.payback) lines.push([`Payback bounty (${m.pbKills} ${FACTIONS[RUN.payback.fac].short})`, m.pbKills * RUN.payback.bounty]);
   if (c.diff === 2 && !c.boss) {
     lines.push(['Hazard pay (Suicidal)', 25 + 15 * actOf(c.idx)]);
     const pool = Object.keys(RELICS).filter(r => !RUN.relics.includes(r) && !RELICS[r].special && !RELICS[r].black && relicTier(r) >= 2 && relicTier(r) <= relicMaxTier());
@@ -9169,9 +9383,17 @@ function finishMission(success) {
   const all = lines.concat(ded);
   let net = all.reduce((s, l) => s + l[1], 0);
   if (net < 10) { all.push(['Minimum wage adjustment (reluctant)', 10 - net]); net = 10; }
-  // a hot enough employee gets audited, which is expensive and cools things down
+  // HR's stages, each with its cost: monitoring, garnished wages, then a full audit that fines you and takes a relic
   const st = RUN.story;
-  if (st.heat >= 75) { const fee = Math.min(25, net); all.push(['Internal audit (suspicion surcharge)', -fee]); net -= fee; st.heat -= 30; story.push({ audit: true }); }
+  if (st.heat >= 100) { showGameOver('hr'); return; }
+  if (hrAtLeast('watched')) { all.push(['HR monitoring software licence', -5]); net -= 5; }
+  if (hrAtLeast('review')) { const g = Math.round(Math.max(0, net) * 0.2); if (g) { all.push(['Wage garnishment (under review)', -g]); net -= g; } }
+  if (st.heat >= 75) {
+    const fee = Math.min(40, Math.max(0, net)); all.push(['Internal audit (suspicion surcharge)', -fee]); net -= fee; st.heat -= 30;
+    const take = RUN.relics.filter(r => !RELICS[r].special && !RELICS[r].exec); const r = take.length ? pick(take) : null;
+    if (r) RUN.relics.splice(RUN.relics.indexOf(r), 1);
+    story.push({ audit: true, relic: r });
+  }
   st.heat = Math.max(0, st.heat - 5);
   RUN.scrip += net;
   const ledger = companyLedger(c, m, net); noteContract(c, m, ledger, wstate);
@@ -9183,7 +9405,7 @@ function finishMission(success) {
   }
   RUN.idx++;
   saveRun('store');
-  showDebrief({ c, ledger, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], quits, dividend: m.dividendPaid || 0, slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit) });
+  showDebrief({ c, ledger, lost: m.lost, kills: m.kills, promos: m.promos, downed: m.downed, replacements: m.replacements || [], quits, dividend: m.dividendPaid || 0, slip: all, net, story: story.filter(e => !e.audit), audited: story.some(e => e.audit), auditRelic: (story.find(e => e.audit) || {}).relic || null });
 }
 
 // ---------- screens ----------
@@ -9212,7 +9434,7 @@ function showMap() {
   $('#overlay').innerHTML = `<button class="btn sm shipbtn" data-act="walkship" title="Walk around your ship, look after the crew">▾ Minimise · walk the ship</button><div class="maphint">${sectorPos(RUN.idx) >= CONTRACTS_PER_SECTOR ? (sectorOf(RUN.idx) >= MAX_SECTOR ? 'Board priority. The final contract.' : 'Executive priority. One contract available.') : 'Pick a planet.'}</div>`;
   $('#hud').innerHTML = `<div class="hud-block"><div class="lbl">Sector ${sectorOf(RUN.idx)} · ${esc(RUN.sectorName)}</div><div class="val">Choose your next deployment</div></div>
     <div class="hud-meter"><div class="lbl">Profit margin <span class="mono">${RUN.margin}%</span></div><div class="meter m-margin${RUN.margin <= 25 ? ' crit' : RUN.margin <= 50 ? ' warn' : ''}"><i style="width:${RUN.margin}%"></i></div></div>
-    <div class="hud-meter" title="HR suspicion"><div class="lbl">Heat <span class="mono">${RUN.story.heat}</span></div><div class="meter m-heat"><i style="width:${RUN.story.heat}%"></i></div></div>
+    <div class="hud-meter" title="HR suspicion: ${hrStage().name}"><div class="lbl">Heat <span class="mono">${RUN.story.heat}</span>${RUN.story.heat >= 30 ? ` · ${hrStage().name}` : ''}</div><div class="meter m-heat"><i style="width:${RUN.story.heat}%"></i></div></div>
     <div class="hud-block"><div class="lbl">Scrip</div><div class="val mono">${RUN.scrip}</div></div>
     <div class="hud-block"><div class="lbl">${RUN.side ? `${esc(FACTIONS[RUN.side].short)} member` : 'Employee'}</div><div class="val mono">#${RUN.empId}</div></div>`;
 }
@@ -9252,6 +9474,7 @@ function showContractCard(i) {
     o.envoy ? `<div class="intel" style="--brand:${ARCS[o.envoy.fac].col};color:${ARCS[o.envoy.fac].col}">${RUN.story.arcs[o.envoy.fac] && RUN.story.arcs[o.envoy.fac].state === 'active' ? esc(ARCS[o.envoy.fac].envoy) + ' is calling again.' : 'Incoming call before landing.'}</div>` : '',
     RUN.story.grudge[o.facKey] ? `<div class="intel" style="color:var(--danger)">They remember you. +${Math.round((RUN.story.grudge[o.facKey] - 1) * 100)}% HP.</div>` : '',
     o.grudge ? `<div class="intel recall">Survivors of ${esc(o.grudge)}. +10% HP.</div>` : '',
+    o.payback && RUN.payback ? `<div class="intel" style="color:var(--danger)">Payback: ${RUN.payback.bounty} scrip per one killed (${RUN.payback.kills}/${RUN.payback.need}). Pay ×${RUN.payback.pay} included.</div>` : '',
   ].join('');
   $('#overlay').innerHTML = `<div class="card" role="dialog" aria-label="Contract details">
     ${titlebar(`Contract_${String(o.idx + 1).padStart(2, '0')}.doc`, 'mapback')}
@@ -9482,6 +9705,165 @@ const deadShown = kills => kills ? clamp(Math.round(kills / 10) * 2, 2, 12) : 0;
 const sceneImg = (bk, facKey, state, variant, cls = 'scene', dead = 0, act = 1) => `<img class="${cls}" src="${planetScene(bk, facKey, state, variant, dead, act)}" alt="" width="${SCENE_W}" height="${SCENE_H}">`;
 
 // ================================================================
+// THE NEWS. After a contract the faction's own channel goes live from the site: the planet as you left it,
+// the dead where they fell (shot, burned to the bone, electrocuted to ash, blown apart, wrecked), the crystals
+// you lost, the company hardware still in the sky, and the faction's envoy in the corner reading the summary.
+// ================================================================
+const NEWS_W = 400, NEWS_H = 200;
+let NEWS = null;
+const roadAt = x => Math.round(78 - Math.sin(x / 30) * 6 - Math.max(0, x - 70) * 0.25);
+const artOfKind = k => ((RUN.artifacts || []).find(a => ARTIFACTS[a.id] && ARTIFACTS[a.id].kind === k) || {}).id || Object.keys(ARTIFACTS).find(id => ARTIFACTS[id].kind === k);
+// one body, wreck or heap, by family and by how it died
+function newsRemains(g, fac, fam, k, cat, x, y, out) {
+  const blood = BLOOD[fac] || '#6a1416';
+  let v = null; try { v = makeVariant(fac, cat); } catch (e) { try { v = makeVariant(fac, 'swarm'); } catch (e2) { } }
+  const lying = (im, col) => { const w = im.width, h = im.height, sil = col ? silhouette(im, col) : im; const side = rnd() < 0.5 ? -1 : 1; g.save(); g.translate(x, y - Math.min(w, h) / 2 + 1); g.rotate(side * Math.PI / 2); g.drawImage(sil, -(w >> 1), -(h >> 1)); g.restore(); };
+  if (fam === 'machine' || fam === 'boat' || (v && v.kind === 'vehicle')) {
+    sceneCorpse(g, fac, cat, x, y); out.smokes.push([x, y - 8, 1.4]);
+    if (k === 'burn' || k === 'blast') out.fires.push([x, y - 5, 2]);
+    return;
+  }
+  if (fam === 'air') {
+    // a downed flyer, nose in the dirt, still smoking
+    if (v) { const im = v.frames[0], sil = silhouette(im, '#2a2a30'); g.save(); g.translate(x, y - 2); g.rotate(0.6); g.globalAlpha = 0.9; g.drawImage(im, -(im.width >> 1), -(im.height >> 1)); g.globalAlpha = 0.55; g.drawImage(sil, -(im.width >> 1), -(im.height >> 1)); g.restore(); g.globalAlpha = 1; }
+    px(g, x - 6, y, 13, 2, 'rgba(10,8,8,0.5)'); out.smokes.push([x, y - 5, 1]); if (k !== 'shot') out.fires.push([x, y - 3, 1]);
+    return;
+  }
+  if (fam === 'stone') {
+    // a construct crumbled to rubble; fire leaves it glowing
+    for (let i = 0; i < 9; i++) { const dx = Math.round((rnd() - 0.5) * 12), dy = Math.round((rnd() - 0.5) * 3); px(g, x + dx, y + dy - 1, 2 + (i % 2), 2, i % 3 ? '#8a8e96' : '#5a5e66'); }
+    if (k === 'burn') for (let i = 0; i < 4; i++) px(g, x + Math.round((rnd() - 0.5) * 10), y - 1, 1, 1, '#ff5a2a');
+    if (k === 'blast') out.smokes.push([x, y - 3, 0.7]);
+    return;
+  }
+  if (k === 'blast') {
+    // scorch, and what was left of them scattered round it
+    g.globalAlpha = 0.55; for (let yy = -2; yy <= 2; yy++) for (let xx = -8; xx <= 8; xx++) if ((xx / 8) ** 2 + (yy / 2.5) ** 2 <= 1) px(g, x + xx, y + yy, 1, 1, '#1a1210'); g.globalAlpha = 1;
+    const col = v ? FACTIONS[fac].color : blood;
+    for (let i = 0; i < 12; i++) { const a = rnd() * 6.283, r = 3 + rnd() * 9; px(g, x + Math.round(Math.cos(a) * r), y + Math.round(Math.sin(a) * r * 0.4), 1 + (i % 3 === 0 ? 1 : 0), 1, i % 3 ? blood : col); }
+    out.smokes.push([x, y - 2, 0.6]);
+    return;
+  }
+  if (k === 'burn') {
+    // burned to the bone: a charred shape on a bed of ash, still smouldering
+    g.globalAlpha = 0.7; for (let xx = -7; xx <= 7; xx++) px(g, x + xx, y + (Math.abs(xx) > 5 ? 1 : 0), 1, 1, xx % 2 ? '#6a6670' : '#4a4650'); g.globalAlpha = 1;
+    if (v) lying(v.frames[0], '#1c1614');
+    px(g, x - 2, y - 3, 2, 2, '#d8d0c0'); px(g, x - 2, y - 2, 1, 1, '#1a1416');
+    out.fires.push([x, y - 1, 0.6]);
+    return;
+  }
+  if (k === 'shock') {
+    // electrocuted to dust: a grey heap with the skull on top
+    for (let yy = -2; yy <= 0; yy++) for (let xx = -5 - yy * 2; xx <= 5 + yy * 2; xx++) px(g, x + xx, y + yy, 1, 1, (xx + yy) % 2 ? '#8a8a90' : '#6a6a72');
+    px(g, x - 1, y - 5, 3, 3, '#e8e4dc'); px(g, x - 1, y - 4, 1, 1, '#1a1416'); px(g, x + 1, y - 4, 1, 1, '#1a1416');
+    for (const dx of [-5, 4]) px(g, x + dx, y - 1, 2, 1, '#d8d4cc');
+    return;
+  }
+  sceneCorpse(g, fac, cat, x, y);
+}
+// the still part of the broadcast: the dead, the scorch, the broken crystals, the hardware left on the ground
+function newsLayer(w) {
+  const c = mkCanvas(SCENE_W, SCENE_H), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const out = { smokes: [], fires: [] }, A = w.after || { dead: [], used: {}, stolen: {}, crew: [] };
+  let dead = A.dead && A.dead.length ? A.dead.map(([fam, k, cat, n]) => ({ fam, k, cat, n: +n })) : (w.kills ? [{ fam: 'human', k: 'shot', cat: 'swarm', n: w.kills }] : []);
+  const total = dead.reduce((a, d) => a + d.n, 0), CAP = clamp(Math.round(total / 4), total ? 3 : 0, 16), items = [];
+  for (const d of dead) { const share = Math.max(1, Math.round(d.n / total * CAP)); for (let i = 0; i < share && items.length < 18; i++) items.push(d); }
+  // spread along the road, clear of the drill, drawn back to front
+  const spots = items.map((d, i) => { let x = Math.round(10 + (i + 0.2 + rnd() * 0.6) * (176 / Math.max(1, items.length))); if (x > 116 && x < 150) x = x < 133 ? 112 - ri(0, 8) : 154 + ri(0, 10); return [x, clamp(roadAt(x) + ri(-7, 11), SCENE_HZ + 14, SCENE_H - 4), d]; });
+  spots.sort((a, b) => a[1] - b[1]);
+  // hardware left behind: the barricade, the jammer van, the nest, a lantern, orbital craters
+  const U = A.used || {}, put = (k, x, y) => { const id = artOfKind(k); if (!id) return; try { const s = artSprite(id, 0); g.drawImage(s.c, x - s.ax, y - s.ay); } catch (e) { } };
+  if (U.orbital) for (let i = 0; i < Math.min(3, U.orbital); i++) { const x = 60 + i * 34, y = roadAt(60 + i * 34) + 6; g.globalAlpha = 0.75; for (let yy = -3; yy <= 3; yy++) for (let xx = -10; xx <= 10; xx++) if ((xx / 10) ** 2 + (yy / 3) ** 2 <= 1) px(g, x + xx, y + yy, 1, 1, (xx / 10) ** 2 + (yy / 3) ** 2 > 0.6 ? '#3a2a20' : '#140c0a'); g.globalAlpha = 1; out.smokes.push([x, y - 2, 1.2]); out.fires.push([x + 4, y - 1, 1]); }
+  if (U.dozer) put('dozer', 96, 92);
+  if (U.van) put('van', 22, 74);
+  if (U.nest) put('nest', 168, 96);
+  if (U.lantern) put('lantern', 156, 80);
+  for (const [x, y, d] of spots) newsRemains(g, w.fac, d.fam, d.k, d.cat, x, y, out);
+  // the deposit: every lost percent is a shard in the dirt, cracks run through what's left, and a big loss leaves a hole
+  const L = w.lost || 0;
+  if (L > 0) {
+    if (L >= 25) { for (let yy = -2; yy <= 2; yy++) for (let xx = -9; xx <= 9; xx++) if ((xx / 9) ** 2 + (yy / 2.5) ** 2 <= 1) px(g, 132 + xx, 86 + yy, 1, 1, '#140c1c'); }
+    for (let i = 0; i < Math.min(16, Math.ceil(L / 3)); i++) { const x = 132 + Math.round((rnd() - 0.5) * 50), y = 84 + Math.round((rnd() - 0.2) * 12); px(g, x, y, rnd() < 0.5 ? 2 : 1, rnd() < 0.5 ? 1 : 2, rnd() < 0.3 ? '#e8d8ff' : '#9a6ae8'); }
+    for (let i = 0; i < Math.min(6, Math.ceil(L / 8)); i++) { let x = 124 + ri(0, 16), y = 60 + ri(0, 10); for (let k = 0; k < 7; k++) { px(g, x, y, 1, 1, '#24123a'); x += ri(-1, 1); y++; } }
+  }
+  return { c, ...out };
+}
+// what the anchor reads: the matchup, who won, what walked off, the faction's running haul, the hardware
+function newsLines(w, c, d) {
+  const F = FACTIONS[w.fac], who = F.short, A = w.after || { stolen: {}, used: {} }, st = RUN.story || {}, emp = RUN.side ? FACTIONS[RUN.side].short : 'Kindly';
+  const out = [`${who} vs ${c.client.n} on ${c.planet}. ${emp} held the drill.`];
+  out.push(w.state === 'helped' ? `${who} hold the site. ${emp}'s guards looked away.` : `${emp} holds the site. ${w.kills || 0} ${who} dead.`);
+  const thieves = Object.entries(A.stolen || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  if (!thieves.length) out.push(`They got away with nothing. Not one crystal.`);
+  for (const [f, n] of thieves.slice(0, 2)) out.push(`${FACTIONS[f] ? FACTIONS[f].short : 'Someone'} got away with ${n}% of the crystals${f !== w.fac ? ', under a deal' : ''}.`);
+  const tot = (st.stolen || {})[w.fac] || 0;
+  if (tot > 0) out.push(`${who} have taken ${tot}% of ${emp}'s crystals so far.`);
+  const U = A.used || {};
+  if (U.heli) out.push(`${emp} gunships flew ${U.heli} ${U.heli > 1 ? 'sorties' : 'sortie'} over ${c.planet}.`);
+  else if (U.orbital) out.push(`Orbital strikes hit ${c.planet} ${U.orbital} ${U.orbital > 1 ? 'times' : 'time'}. The craters are still warm.`);
+  else if (U.blimp) out.push(`A ${emp} blimp watched it all from above.`);
+  return out;
+}
+function newsSetup(w, c, d) {
+  const base = new Image(); base.src = planetScene(w.bk, w.fac, w.state, w.v, 0, w.act || 1);
+  const lay = newsLayer(w), A = w.after || {}, airDead = (A.dead || []).some(x => x[0] === 'air');
+  let flyer = null; try { flyer = makeVariant(w.fac, 'flyer'); } catch (e) { }
+  const R = RIGS[w.fac];
+  NEWS = { w, base, lay, t0: performance.now(), lines: newsLines(w, c, d), li: 0, ci: -1, at: 0, flyer, swarm: w.state === 'helped' ? 5 : airDead ? 2 : 0,
+    drones: (A.crew || []).includes('drone'), used: A.used || {}, mood: R ? (w.state === 'helped' ? (R.react && R.react.accept) || 'smile' : (R.react && R.react.refuse) || 'sad') : null };
+}
+// the envoy at the anchor desk, head and shoulders
+function newsAnchor(g, t, talking) {
+  const f = NEWS.w.fac, R = RIGS[f]; if (!R) return;
+  const st = { expr: NEWS.mood || 'neutral', blink: (t + 0.7) % 3.9 < 0.13, mouth: talking ? [0, 1, 2, 1][Math.floor(t * 9) % 4] : 0, look: 0, hx: talking ? Math.round(Math.sin(t * 2.3) * 0.7) : 0, hy: 0, bob: Math.sin(t * 1.5) > 0.4 ? 1 : 0, react: null };
+  st.key = `${st.expr}|${st.blink ? 1 : 0}|${st.mouth}|${st.look}|`;
+  const body = rigLayer(f + '|body', P => R.body(P)), head = rigLayer(f + '|head|' + st.key, P => R.head(P, st)), front = R.front ? rigLayer(f + '|front|', P => R.front(P, st)) : null;
+  const bx = NEWS_W - 92, by = 4, col = FACTIONS[f].color;
+  const gr = g.createLinearGradient(bx, by, bx, by + 70); gr.addColorStop(0, shade(col, -0.62)); gr.addColorStop(1, '#07080e');
+  g.fillStyle = gr; g.fillRect(bx, by, 88, 72); g.fillStyle = rgba(col, 0.25); for (let x = bx + 4; x < bx + 88; x += 8) g.fillRect(x, by + 6, 4, 1);
+  g.save(); g.beginPath(); g.rect(bx, by, 88, 72); g.clip();
+  g.drawImage(body, bx + 2, by - 6 + st.bob); g.drawImage(head, bx + 2 + st.hx, by - 6 + st.hy + st.bob); if (front) g.drawImage(front, bx + 2, by - 6 + st.bob);
+  if (R.glow) R.glow(g, t, st, bx + 2 + st.hx, by - 6 + st.hy + st.bob);
+  g.restore();
+  // the desk and the frame
+  g.fillStyle = '#12141c'; g.fillRect(bx, by + 62, 88, 10); g.fillStyle = col; g.fillRect(bx, by + 62, 88, 1);
+  g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(bx + 1, by + 1, 86, 70);
+}
+function drawNewsFrame(now) {
+  const cvs = document.getElementById('newscv'); if (!cvs || !NEWS) return;
+  const g = cvs.getContext('2d'), t = Math.max(0, (now - NEWS.t0) / 1000), N = NEWS, w = N.w;
+  g.imageSmoothingEnabled = false; g.setTransform(2, 0, 0, 2, 0, 0);
+  if (N.base.complete && N.base.naturalWidth) g.drawImage(N.base, 0, 0); else { g.fillStyle = '#07080e'; g.fillRect(0, 0, SCENE_W, SCENE_H); }
+  g.drawImage(N.lay.c, 0, 0);
+  // smoke from wrecks and craters, flames where things burned
+  for (const [x, y, s] of N.lay.smokes) for (let i = 0; i < 5; i++) { const ph = (t * 0.35 + i / 5 + x * 0.013) % 1, r = Math.round(1 + ph * 3 * s); g.globalAlpha = 0.42 * (1 - ph); g.fillStyle = ph < 0.2 ? '#4a4650' : '#8a8690'; g.fillRect(Math.round(x + Math.sin(t + i + x) * 2 * ph * s) - r, Math.round(y - ph * 26 * s) - r, r * 2, r * 2); }
+  g.globalAlpha = 1;
+  for (const [x, y, s] of N.lay.fires) { const n = Math.max(2, Math.round(3 * s)); for (let i = 0; i < n; i++) { const h = 1 + Math.round((0.5 + 0.5 * Math.sin(t * 17 + i * 2.3 + x)) * 3 * s); px(g, Math.round(x - n / 2 + i), y - h, 1, h, i % 2 ? '#ff8a2a' : '#ffd23f'); px(g, Math.round(x - n / 2 + i), y - h - 1, 1, 1, '#fff2c0'); } if (Math.sin(t * 5 + x) > 0.6) px(g, x + Math.round(Math.sin(t * 3 + y) * 3), y - 6 - Math.round(((t * 9 + x) % 8)), 1, 1, '#ffb040'); }
+  // glitter still falling from the cracked deposit
+  if (w.lost > 0) for (let i = 0; i < Math.min(6, Math.ceil(w.lost / 6)); i++) { const ph = (t * 0.6 + i * 0.37) % 1; g.globalAlpha = 1 - ph; px(g, 124 + ((i * 7) % 18), 62 + Math.round(ph * 22), 1, 1, i % 2 ? '#e8d8ff' : '#b98cff'); }
+  g.globalAlpha = 1;
+  // the faction's flyers: a victory swarm over the drill, or a couple limping away
+  if (N.swarm && N.flyer) for (let i = 0; i < N.swarm; i++) {
+    const fr = N.flyer.frames[Math.floor(t * 6 + i) % N.flyer.frames.length];
+    const x = w.state === 'helped' ? 132 + Math.cos(t * 0.9 + i * 1.26) * (30 + i * 4) : 170 + i * 14 + ((t * 8) % 60), y = w.state === 'helped' ? 30 + Math.sin(t * 1.3 + i * 1.7) * 7 : 26 + i * 6 + Math.sin(t * 3 + i) * 2;
+    if (x > SCENE_W + 10) continue;
+    g.drawImage(fr, Math.round(x - N.flyer.ax), Math.round(y - N.flyer.ay));
+  }
+  // company drones still circling the deposit
+  if (N.drones) for (let i = 0; i < 3; i++) { const a = t * 1.4 + i * 2.09, x = Math.round(132 + Math.cos(a) * 24), y = Math.round(44 + Math.sin(a) * 6); px(g, x - 2, y, 5, 2, '#3a3e4a'); px(g, x - 1, y - 1, 3, 1, '#ffd23f'); if (Math.floor(t * 12 + i) % 2) { px(g, x - 3, y - 1, 2, 1, '#c8ccd4'); px(g, x + 2, y - 1, 2, 1, '#c8ccd4'); } px(g, x, y + 2, 1, 1, Math.floor(t * 3 + i) % 2 ? '#ff4d5e' : '#4fe0a6'); }
+  // the blimp's spotlight sweeping the bodies, and the gunship circling
+  if (N.used.blimp) { const id = artOfKind('blimp'), s = id && artSprite(id, 0), bx = Math.round(100 + Math.sin(t * 0.18) * 70), by = 14, sx = bx + Math.round(Math.sin(t * 0.7) * 26); g.globalAlpha = 0.16; g.fillStyle = '#fff6c8'; g.beginPath(); g.moveTo(bx - 2, by + 4); g.lineTo(bx + 2, by + 4); g.lineTo(sx + 14, 86); g.lineTo(sx - 14, 86); g.closePath(); g.fill(); g.globalAlpha = 1; if (s) g.drawImage(s.c, bx - s.ax, by - s.ay + 6); }
+  if (N.used.heli) { const id = artOfKind('heli'), s = id && artSprite(id, Math.floor(t * 20) % 4), a = t * 0.45, hx = Math.round(100 + Math.cos(a) * 74), hy = Math.round(22 + Math.sin(a) * 6); if (s) { g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(hx - 7, roadAt(clamp(hx, 0, 200)) + 4, 14, 2); const flip = Math.sin(a) > 0; if (flip) { g.save(); g.translate(2 * hx, 0); g.scale(-1, 1); g.drawImage(s.c, hx - s.ax, hy - s.ay); g.restore(); } else g.drawImage(s.c, hx - s.ax, hy - s.ay); } }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  // the anchor reads the summary, a line at a time
+  const line = N.lines[N.li] || '', typed = Math.min(line.length, Math.floor((t - N.at) * 38));
+  if (typed !== N.ci) { N.ci = typed; const el = document.getElementById('chyTxt'); if (el) el.innerHTML = segsHtml(bubbleSegs(line), typed); }
+  if (t - N.at > line.length / 38 + 2.8) { N.li = (N.li + 1) % N.lines.length; N.at = t; N.ci = -1; }
+  newsAnchor(g, t, typed < line.length);
+  g.fillStyle = 'rgba(0,0,0,0.12)'; for (let y = 0; y < NEWS_H; y += 2) g.fillRect(0, y, NEWS_W, 1);
+}
+
+// ================================================================
 // THE DESK. After each contract you are back at your workstation: Kindly's intranet on the left,
 // the faction's own channel on the right, showing the planet as you left it.
 // ================================================================
@@ -9580,10 +9962,10 @@ function showDebrief(d) {
   const quip = (QUIPS.find(([lim]) => d.lost <= lim) || QUIPS[QUIPS.length - 1])[1](c.planet);
   const notes = [];
   for (const ev of d.story || []) { const t = shortEcho(ev); if (t) notes.push(t); }
-  if (d.audited) notes.push('Audited: 25 scrip for the time HR spent suspecting you.');
+  if (d.audited) notes.push(`Audited. HR fined you for the time it spent suspecting you${d.auditRelic ? ` and confiscated ${RELICS[d.auditRelic].name}` : ''}.`);
   if (d.promos.length) notes.push('Promoted (no raise): ' + d.promos.map(p => `${p.name}, ${p.rank}`).join('; ') + '.');
   if (d.replacements.length) notes.push(d.replacements.map(r => `${r.old} replaced by ${r.name}`).join('; ') + '. Same kit, new face.');
-  if (RUN.story.heat >= 50) notes.push('Your Loyalty Score is under review.');
+  { const hs = hrStage(); if (hs.key !== 'clear') notes.push({ watched: 'HR stage: Watched. You are paying for the software that watches you.', review: 'HR stage: Under review. Pay garnished, store marked up, Executive Technology frozen.', audit: 'HR stage: Audit. One more push and HR ends your contract.' }[hs.key] || ''); }
   // the payslip: earnings, then every deduction on its own line, so you can see where your pay went
   const slip = d.slip.map(([k, v]) => [v > 0 ? k.replace(/ \(.*\)/, '') : k, v]);
   const am = avgMorale(), plant = am >= 60 ? 0 : am >= 35 ? 1 : 2;
@@ -9613,7 +9995,10 @@ function showDebrief(d) {
       <section class="win feed ${w.state}" style="--fc:${FACTIONS[c.facKey].color}" aria-label="${esc(F.ch)}">
         <div class="titlebar"><span>${esc(F.ch)}</span><i></i><em class="live">● ${esc(F.tag)}</em></div>
         <div class="wbody">
-          <figure class="scenebox big">${sceneImg(w.bk, w.fac, w.state, w.v, 'scene', deadShown(w.kills), w.act || 1)}<figcaption>${esc(c.planet)} · ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}</figcaption></figure>
+          <figure class="scenebox big live"><canvas id="newscv" width="${NEWS_W}" height="${NEWS_H}" aria-label="${esc(c.planet)}, live: ${w.state === 'helped' ? esc(FACTIONS[c.facKey].short) + ' hold the site' : 'Kindly holds the site'}"></canvas>
+            <div class="nv-bug"><b>${esc(F.ch)}</b><span>● LIVE</span></div>
+            <div class="chyron" style="--fc:${FACTIONS[c.facKey].color}"><div><b>${esc(ARCS[c.facKey] ? ARCS[c.facKey].envoy : F.ch)}</b><span id="chyTxt" aria-live="polite"></span></div>
+            <div class="nv-stats"><span title="Dead">☠ ${w.kills || 0}</span><span class="${d.lost ? 'neg' : 'ok'}" title="Crystals lost">◆ ${d.lost ? '−' + d.lost + '%' : 'intact'}</span></div></div></figure>
           <h3 class="headline">${esc(F[w.state][w.v % 2](c.planet))}</h3>
           <p class="sub">${esc(F.sub[w.state])}</p>
           ${(() => { const ch = (RUN.story.standLog || []).filter(l => l.idx === c.idx).reduce((m, l) => { m[l.f] = (m[l.f] || 0) + l.d; return m; }, {}); const fs = [...new Set([c.facKey, ...Object.keys(ch)])].filter(f => FACTIONS[f]); return `<div class="standrow">${fs.map(f => `<div><span>${esc(FACTIONS[f].short)}</span>${standingHtml(f)}${ch[f] ? `<em class="${ch[f] > 0 ? 'up' : 'down'}">${ch[f] > 0 ? '▲' : '▼'}${Math.abs(ch[f])}</em>` : ''}</div>`).join('')}</div>`; })()}
@@ -9625,6 +10010,7 @@ function showDebrief(d) {
     <div class="desktop" aria-hidden="true">${act >= 2 ? '<i class="lamp"></i>' : ''}<img class="prop plant" src="${deskPropUrl('plant', plant)}" alt=""><span class="nameplate">EMPLOYEE #${RUN.empId}</span><img class="prop" src="${deskPropUrl('note')}" alt=""><img class="prop" src="${deskPropUrl('mug')}" alt=""></div>
     <div class="row deskbtns"><button class="btn" data-act="tostore">${pendingReviews() ? `Hold performance reviews (${pendingReviews()})` : 'Go to the Company Store'}</button><span class="mono" style="color:var(--muted);font-size:19px">Balance: ${RUN.scrip} scrip</span></div>
   </div></div>`;
+  newsSetup(w, c, d);
   phoneTabs($('#overlay .glass'), [['.intranet', 'Report'], ['.feed', 'Feed']]);
   RUN.offers = genOffers(); RUN.rerolls = 0; RUN.offersAt = RUN.idx; saveRun('store');
 }
@@ -9643,6 +10029,7 @@ function genOffers() {
   if (RUN.margin < 60 && !offers.some(o => o.kind === 'account')) offers.push({ kind: 'account', price: 55 });
   if (has('blackcard')) for (const o of offers) o.price = Math.round(o.price * 0.75);
   if (has('clearance')) for (const o of offers) o.price = Math.round(o.price * 0.8);
+  if (hrAtLeast('review')) for (const o of offers) o.price = Math.round(o.price * 1.15);
   return offers;
 }
 function showStore() {
@@ -9714,7 +10101,7 @@ function showGameOver(why) {
     ${titlebar('Termination_Notice.txt')}
     <div class="lbl" style="color:var(--danger)">Notice of contract termination</div>
     <h2>${saved ? 'Rescued from' : 'Stranded on'} ${esc(where)}</h2>
-    <p class="lede">${why === 'fired' ? `Douglas Pryce failed your quarterly review. Security walked you off your own ship at the next port. Your crew were reassigned before you reached the airlock. — HR-BOT` : `Margin hit 0% on ${esc(c ? c.planet : 'assignment')}. Your shuttle seat went to 3 crates of ${esc(c ? c.client.asset : 'crystals')}. Rent is still due. — HR-BOT`}</p>
+    <p class="lede">${why === 'hr' ? `HR reached 100% suspicion. Your badge stopped working mid-corridor, and an auditor you had never seen read out every deal you took. Your crew were reassigned before you reached the airlock. — HR-BOT` : why === 'fired' ? `Douglas Pryce failed your quarterly review. Security walked you off your own ship at the next port. Your crew were reassigned before you reached the airlock. — HR-BOT` : `Margin hit 0% on ${esc(c ? c.planet : 'assignment')}. Your shuttle seat went to 3 crates of ${esc(c ? c.client.asset : 'crystals')}. Rent is still due. — HR-BOT`}</p>
     ${saved ? `<div class="intel" style="--brand:${ARCS[saved].col};color:${ARCS[saved].col}">${esc(RESCUES[saved])}</div>` : ''}
     <p class="lede dim">${saved ? 'The' : 'You join the'} <b>Colony of the Abandoned</b>${saved ? ' hears of it and is only a little bitter' : ''}. Survivors: <b>${colony}</b>, each worth +5 starting scrip to future hires (up to 50).</p>
     ${worldMontage(RUN.worlds)}
@@ -9758,7 +10145,8 @@ document.addEventListener('click', ev => {
   else if (act === 'title') showTitle();
   else if (act === 'accept') { const o = RUN.options[i]; if (o.envoy && envoyBeat(o.envoy.fac, o.boss) === o.envoy.beat) showMessenger(i); else beginFlight(i); }
   else if (act === 'envoy') envoyChoice(b.dataset.v);
-  else if (act === 'envoydeploy') { clearInterval(typeTimer); S.envoy = null; startMission(RUN.options[S.mapSel]); }
+  else if (act === 'envoydeploy') { clearInterval(typeTimer); S.envoy = null; if (S.pendingSting) { S.pendingSting = false; showSting(); } else startMission(RUN.options[S.mapSel]); }
+  else if (act === 'stingdone') { S.mgr = null; if (RUN.story.heat >= 100) showGameOver('hr'); else startMission(RUN.options[S.mapSel]); }
   else if (act === 'betray') { if (dealHolds()) breakDeal('betrayed'); }
   else if (act === 'mapback') { S.mapSel = -1; showMap(); }
   else if (act === 'settings') showSettings();
@@ -9915,7 +10303,7 @@ function frame(now) {
       if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; musicMood(); renderMission(now); updateHud(); }
     } else if (S.screen === 'map') renderMap(now);
     else if (S.screen === 'ship') renderShip(now, dt);
-    else { beginDraw(); drawStars(now / 1000); if (S.screen === 'envoy') drawEnvoyFrame(now); else if (S.screen === 'manager') drawManagerFrame(now); }
+    else { beginDraw(); drawStars(now / 1000); if (S.screen === 'envoy') drawEnvoyFrame(now); else if (S.screen === 'manager') drawManagerFrame(now); else if (S.screen === 'debrief') drawNewsFrame(now); }
   } catch (e) { acc = 0; reportFrameError(e); }
 }
 
@@ -10118,7 +10506,7 @@ ARCS.lumen = {
   beats: [
     {
       name: 'The Dimming', ask: { kind: 'couriers', cat: 'swarm', n: 4, each: 3, unit: 'Lampbearer', txt: a => `Let ${a.n} lampbearers fill their lanterns at the drill and go home: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 15,
-      lines: x => [`Sefa Ninelights. Your drill on ${x.planet} is draining the Light that warms our children.`, `Four lampbearers will fill their lanterns for winter. Let them go home.`],
+      lines: x => [`Sefa Ninelights. Your drill drains the Light.`, `The Light keeps our children warm.`, `Four lampbearers fill their lanterns, then go home.`],
       reward: 'Relic: Kin Lantern. Your crew slowly heal while they are not taking damage.',
       accept: `Thank you. We will remember the lanyard that looked away.`,
       refuse: `Then we will come anyway, in the dark. It is harder to tell friends from enemies in the dark.`,
@@ -10126,7 +10514,7 @@ ARCS.lumen = {
     },
     {
       name: 'The Promise', ask: { kind: 'escort', cat: 'medic', n: 3, each: 0, secs: 8, unit: 'Mender', txt: a => `Let ${a.n} Menders sing the seam closed for a while: +${a.secs}s extraction each. Splash can still kill them.` }, heat: 15,
-      lines: x => [`${x.prevThrough} lanterns came home from ${x.prevPlanet}. The village was bright again.`, `Our Menders will sing the seam on ${x.planet} closed for a while. And my cousin Ilo wants to join your crew.`],
+      lines: x => [`${x.prevThrough} lanterns came home from ${x.prevPlanet}.`, `The village was bright again.`, `Our Menders will sing the seam closed. And Ilo wants to join you.`],
       reward: 'Ilo Threefold joins your crew: a rank 3 marksman with the Lightborn quirk (+15% range).',
       accept: `Ilo is packing. Ilo has never packed before. It is mostly lanterns.`,
       refuse: `Then the seam bleeds, and so do we.`,
@@ -10134,7 +10522,7 @@ ARCS.lumen = {
     },
     {
       name: 'The Relighting', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 2, unit: 'Lampbearer', txt: a => `Let ${a.n} lampbearers carry light back from the drill: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 20,
-      lines: x => [`Tonight every village relights the lamps your company switched off.`, `Let five lampbearers reach the drill on ${x.planet}. The light comes back for everyone near it.`],
+      lines: x => [`Tonight, every village relights the lamps Kindly switched off.`, `Let five lampbearers reach your drill.`, `The light comes back for everyone near it.`],
       reward: 'The Relighting: on the final contract, village light bursts from the drill every 20s, stunning nearby hostiles and healing your crew.',
       accept: `Stand close to the drill when it happens. It will be very bright.`,
       refuse: `Then we will light them without you, and you will be on the wrong side of the window.`,
@@ -10491,15 +10879,15 @@ ARCS.abandoned = {
   envoy: 'Marguerite Vance', title: 'Mayor, Colony of the Abandoned. Employee of the Month (x3)', kind: 'plea', scene: 'colony', col: '#c8a040', reportPay: 25,
   beats: [
     { name: 'Severance', ask: { kind: 'couriers', cat: 'swarm', n: 4, each: 3, unit: 'Ex-Employee', txt: a => `Let ${a.n} ex-employees collect the severance Kindly never paid: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 15,
-      lines: x => [`Marguerite Vance. Three times Employee of the Month, once "an acceptable loss".`, `Four of the Abandoned are coming to ${x.planet} for the severance Kindly never paid. Look away.`],
+      lines: x => [`Marguerite Vance. Three times Employee of the Month.`, `Once, "an acceptable loss".`, `We're here for the severance Kindly never paid. Look away.`],
       reward: 'Relic: Exit Package. Replacement hires cost 40% less.',
       accept: `Thank you, dear. You still have a conscience. Keep it somewhere HR can't reach.`, refuse: `They said the same thing to me, in that same voice. Then they left me on a moon.`, report: `Oh, sweetheart. They'll leave you on a rock too. We'll save you a seat.` },
     { name: 'References', ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10, unit: 'Ex-HR Clerk', txt: a => `Let ${a.n} ex-HR clerks wipe the Colony's debts at your drill terminal: ${a.secs}s pause each. Splash can still kill them.` }, heat: 15,
-      lines: x => [`${x.prevThrough} of ours came home from ${x.prevPlanet} with real money. We bought medicine.`, `Let two old HR clerks at your drill terminal and our debts vanish. And Dee wants to work for you.`],
+      lines: x => [`${x.prevThrough === 'All your' ? 'All' : x.prevThrough} of ours came home from ${x.prevPlanet} with real money.`, `We bought medicine.`, `Two old HR clerks can wipe our debts. And Dee wants to work for you.`],
       reward: 'Dee "Spreadsheet" Okafor joins your crew: a rank 3 taser technician with the Tenured quirk (+35% HP).',
       accept: `Dee's bringing her own mug. She doesn't trust ours.`, refuse: `Then we stay in debt to the people who abandoned us. Very on-brand.`, report: `Dee says she isn't surprised. Dee is never surprised. Kindly did that to her.` },
     { name: 'The Walkout', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 2, unit: 'Ex-Employee', txt: a => `Let ${a.n} ex-employees through: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 20,
-      lines: x => [`Every abandoned employee in the ${x.sector} is walking back towards Kindly's money.`, `Let five through on ${x.planet}. When the board's last job comes, the Colony stands with you.`],
+      lines: x => [`Every abandoned employee in the ${x.sector} is walking home.`, `Home is Kindly's money.`, `Let five through. When the board comes, the Colony stands with you.`],
       reward: 'The Colony Marches: on the final contract, every 18s three armed ex-employees march out from the drill and hold the road.',
       accept: `See you on the last day, dear. Bring a coat.`, refuse: `Then we'll walk without you. We're used to it.`, report: `Of course. Employee of the Month, I expect.` },
   ],
@@ -10518,15 +10906,15 @@ ARCS.haulers = {
   envoy: 'Bex Ironwake', title: 'Quartermaster, Free Haulers Guild', kind: 'bribe', scene: 'hold', col: '#3ab8a0', reportPay: 30,
   beats: [
     { name: 'Cargo', pay: 40, ask: { kind: 'skim', cat: 'flyer', n: 3, each: 4, unit: 'Smuggler Drone', txt: a => `Let ${a.n} smuggler drones skim the drill: −${a.n * a.each}% margin. They pay 40 scrip up front.` }, heat: 20,
-      lines: x => [`Bex Ironwake, Free Haulers. Your drill is full of cargo. My hold is empty.`, `Three drones skim ${x.planet} quietly. Forty scrip before you land.`],
+      lines: x => [`Bex Ironwake, Free Haulers.`, `Your drill is full of cargo. My hold is empty.`, `Three drones, one quiet skim. Forty scrip before you land.`],
       reward: 'Forty scrip now, and the Guild opens its black market: the Company Store stocks smuggled relics.',
       accept: `Pleasure doing crime with you.`, refuse: `Your loss. You lose the cargo either way, just slower.`, report: `Ha. Kindly will fine us. We'll pay it with your crystals.` },
     { name: 'Contraband', pay: 30, ask: { kind: 'couriers', cat: 'fast', n: 4, each: 3, unit: 'Runner', txt: a => `Let ${a.n} runners through: −${a.n * a.each}% margin. They pay 30 scrip up front. Splash can still kill them.` }, heat: 20,
-      lines: x => [`${x.prevThrough} crates moved clean on ${x.prevPlanet}. The Guild pays people who impress it.`, `Four runners on ${x.planet}: thirty scrip and something from the Captain's collection.`],
+      lines: x => [`${x.prevThrough} crates moved clean on ${x.prevPlanet}.`, `The Guild pays people who impress it.`, `Four runners: thirty scrip and a gift from the Captain.`],
       reward: `Thirty scrip now, and a free artifact from the Captain's collection.`,
       accept: `It's in a crate marked "not an artifact". Very subtle.`, refuse: `The Captain will be disappointed. He's very bad at being disappointed.`, report: `Bounty on you just went up. Congratulations, you're famous.` },
     { name: 'Free Port', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 3, unit: 'Deckhand', txt: courierTxt('Deckhand') }, heat: 25,
-      lines: x => [`The Guild is declaring a free port across the ${x.sector}.`, `Five of ours through on ${x.planet}, unpaid. When the board comes for you, Corsair gunships will be overhead.`],
+      lines: x => [`The Guild declares a free port across the ${x.sector}.`, `Five of ours through, unpaid.`, `When the board comes for you, Corsair gunships will be overhead.`],
       reward: 'Free Port: on the final contract, Corsair gunships strafe the hostiles every 25s.',
       accept: `Look up when it gets bad. We'll be there.`, refuse: `Then the Guild sails without you.`, report: `Shame. You'd have looked good with a skull on your lanyard.` },
   ],
@@ -10545,15 +10933,15 @@ ARCS.precursors = {
   envoy: 'The Archivist', title: 'Last Voice of the Precursor Archive', kind: 'plea', scene: 'archive', col: '#ff5ad1', reportPay: 25,
   beats: [
     { name: 'The Sleepers', ask: { kind: 'escort', cat: 'carrier', n: 3, each: 0, secs: 8, unit: 'Sarcophagus', txt: a => `Let ${a.n} sarcophagi settle beneath the drill: +${a.secs}s extraction each. Splash can still destroy them.` }, heat: 12,
-      lines: x => [`WE ARE THE ARCHIVE. YOUR DRILL ON ${x.planet.toUpperCase()} WOKE THE SLEEPERS.`, `LET THREE RETURN TO THEIR REST BENEATH IT. THE ALTERNATIVE IS THAT THEY STAY AWAKE.`],
+      lines: x => [`WE ARE THE ARCHIVE.`, `YOUR DRILL WOKE THE SLEEPERS.`, `LET THREE RETURN TO REST BENEATH IT. OR THEY STAY AWAKE.`],
       reward: 'Relic: Glyph of Patience. Your crew gain 20% more experience.',
       accept: `ACKNOWLEDGED. YOU ARE MARGINALLY LESS DISAPPOINTING.`, refuse: `THEN THEY WILL NOT SLEEP. NEITHER WILL YOU.`, report: `YOUR HR HAS FILED US AS "GEOLOGY". WE WILL REMEMBER THIS.` },
     { name: 'The Archive', ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10, unit: 'Whisper Spire', txt: a => `Let ${a.n} whisper spires read your drill's memory: ${a.secs}s pause each. Splash can still destroy them.` }, heat: 12,
-      lines: x => [`${(x.prevPlanet || '').toUpperCase()} IS QUIET AGAIN. NOW WE MUST READ YOUR MACHINE.`, `TWO SPIRES WILL LISTEN TO YOUR DRILL. IN RETURN, WE SHOW YOUR CREW WHERE THE BIG ONES ARE SOFT.`],
+      lines: x => [`${(x.prevPlanet || '').toUpperCase()} IS QUIET AGAIN.`, `NOW WE MUST READ YOUR MACHINE.`, `IN RETURN: WHERE THE BIG ONES ARE SOFT.`],
       reward: "Relic: The Archive's Memory. Your crew deal 20% more damage to bosses and elites.",
       accept: `READING. YOUR COMPANY IS... LOUD.`, refuse: `THEN WE WILL READ IT ANOTHER WAY. YOU WILL NOT ENJOY THE OTHER WAY.`, report: `FILED. CROSS-REFERENCED. REMEMBERED.` },
     { name: 'The Waking', ask: { kind: 'escort', cat: 'carrier', n: 4, each: 0, secs: 6, unit: 'Sarcophagus', txt: a => `Let ${a.n} sarcophagi settle beneath the drill: +${a.secs}s extraction each. Splash can still destroy them.` }, heat: 15,
-      lines: x => [`SOMETHING HUNGRY LIVES BENEATH YOUR COMPANY.`, `LET FOUR SLEEPERS SETTLE UNDER YOUR DRILL ON ${x.planet.toUpperCase()}. AT THE LAST CONTRACT WE WAKE IT. DO NOT STAND IN FRONT.`],
+      lines: x => [`SOMETHING HUNGRY LIVES BENEATH YOUR COMPANY.`, `LET FOUR SLEEPERS SETTLE UNDER YOUR DRILL.`, `AT THE LAST CONTRACT WE WAKE IT. DO NOT STAND IN FRONT.`],
       reward: 'The Waking: on the final contract, the drill fires a precursor beam at the three toughest hostiles every 18s.',
       accept: `IT WILL BE LOUD. WE APOLOGISE IN ADVANCE. WE DO NOT USUALLY APOLOGISE.`, refuse: `THEN THE HUNGRY THING WILL EAT. IT IS NOT PARTICULAR.`, report: `THE ARCHIVE HAS ADDED YOUR NAME TO A LIST. IT IS NOT A GOOD LIST.` },
   ],
@@ -10939,15 +11327,15 @@ ARCS.kindly = {
   envoy: 'Director Ines Haldane', title: 'Head of Kindly Asset Protection', kind: 'bribe', scene: 'opsroom', col: '#4a7ae8', reportPay: 40,
   beats: [
     { name: 'Inventory', pay: 50, ask: { kind: 'uplink', cat: 'jammer', n: 2, each: 0, secs: 10, unit: 'Auditor', txt: a => `Let ${a.n} auditors inventory your drill: ${a.secs}s pause each. Asset Protection pays 50 scrip up front.` }, heat: 10,
-      lines: x => [`Ines Haldane, Asset Protection. The company is splitting, and I count the assets.`, `Two auditors need ten seconds each at your drill on ${x.planet}. You're an asset too. Pick a side.`],
+      lines: x => [`Ines Haldane, Asset Protection.`, `The company is splitting, and I count the assets.`, `You're an asset too. Pick a side.`],
       reward: 'Fifty scrip now, and Relic: Executive Clearance. The Company Store charges you 20% less.',
       accept: `Good. You'll find the company is very generous to the people it keeps.`, refuse: `Noted. Everything is noted.`, report: `You reported Asset Protection to HR. HR reports to me.` },
     { name: 'Requisition', pay: 40, ask: { kind: 'couriers', cat: 'armored', n: 2, each: 4, unit: 'Recovery Tank', txt: a => `Let ${a.n} recovery tanks requisition crystals: −${a.n * a.each}% margin. 40 scrip up front.` }, heat: 10,
-      lines: x => [`Your inventory on ${x.prevPlanet} was spotless. You're on the good list.`, `Two recovery tanks collect what we're owed on ${x.planet}. You're paid, and your crew get proper armour.`],
+      lines: x => [`Your inventory on ${x.prevPlanet} was spotless.`, `Two recovery tanks collect what we're owed.`, `You get paid. Your crew get proper armour.`],
       reward: 'Forty scrip now, and Relic: Asset Protection Kit. Crew have 15% more HP.',
       accept: `See? Loyalty pays. It's in the handbook.`, refuse: `Interesting. Your file just got thicker.`, report: `HR forwarded your complaint to me. I've filed it under "threats".` },
     { name: 'Lockdown', ask: { kind: 'couriers', cat: 'swarm', n: 5, each: 2, unit: 'Compliance Officer', txt: a => `Let ${a.n} compliance officers through: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 15,
-      lines: x => [`Asset Protection is locking down the ${x.sector}.`, `Let five officers through ${x.planet}. At the last contract, my snipers will be on your rooftops.`],
+      lines: x => [`Asset Protection is locking down the ${x.sector}.`, `Let five officers through.`, `At the last contract, my snipers take your rooftops.`],
       reward: 'Lockdown: on the final contract, Asset Protection snipers hit the four hostiles nearest the drill every 20s.',
       accept: `Welcome to Asset Protection. You were always one of us.`, refuse: `Then you're a liability. We have procedures for those.`, report: `There's no one left to report to. There's only us.` },
   ],
@@ -10966,15 +11354,15 @@ ARCS.church = {
   envoy: 'The Deacon', title: 'Deacon of the Eternal Quarter. Formerly Kindly Brand Strategy', kind: 'plea', scene: 'chapel', col: '#c83a5a', reportPay: 30,
   beats: [
     { name: 'Collection', ask: { kind: 'skim', cat: 'swarm', n: 4, each: 3, unit: 'Congregant', txt: a => `Let ${a.n} congregants take a tithe from the drill: −${a.n * a.each}% margin.` }, heat: 15,
-      lines: x => [`Peace be with your margins. I'm the Deacon. I used to write Kindly's slogans.`, `Four of the faithful will take a ten percent tithe on ${x.planet}. Give, and the quarter gives back.`],
+      lines: x => [`Peace be with your margins.`, `I'm the Deacon. I used to write Kindly's slogans.`, `A ten percent tithe. Give, and the quarter gives back.`],
       reward: 'Relic: The Tithe Plate. Contracts pay 20% more scrip.',
       accept: `Blessed are the flexible.`, refuse: `The quarter will provide. Just not for you.`, report: `HR? Oh, HR is with us now. Half of HR, anyway.` },
     { name: 'Confession', ask: { kind: 'escort', cat: 'medic', n: 3, each: 0, secs: 6, unit: 'Confessor', txt: a => `Let ${a.n} confessors sit with the drill: +${a.secs}s extraction each. Splash can still kill them.` }, heat: 15,
-      lines: x => [`Your crew looked tired on ${x.prevPlanet}. They always do.`, `Three confessors will sit by your drill on ${x.planet}. Your crew will never sink too low again.`],
+      lines: x => [`Your crew looked tired on ${x.prevPlanet}.`, `They always do.`, `Three confessors will sit with them. They'll never sink so low again.`],
       reward: 'Relic: Communion. Crew morale never falls below 30.',
       accept: `They're lighter already. Can you feel it?`, refuse: `Then they'll carry it alone. You all do.`, report: `Report us. We have people in every department. We are the departments.` },
     { name: 'The Rapture', ask: { kind: 'couriers', cat: 'swarm', n: 6, each: 2, unit: 'Congregant', txt: a => `Let ${a.n} congregants through: −${a.n * a.each}% margin. Splash can still kill them.` }, heat: 20,
-      lines: x => [`The real quarter is ending, under headquarters.`, `Six pilgrims walk through ${x.planet}. At the last contract, the choir sings and the enemy stops to listen.`],
+      lines: x => [`The real quarter is ending, under headquarters.`, `Six pilgrims walk through.`, `At the end, the choir sings and the enemy stops to listen.`],
       reward: 'The Rapture: on the final contract, the choir converts the two hostiles nearest the drill to your side every 22s.',
       accept: `See you at the end of the quarter. Bring everyone.`, refuse: `Then we'll pray for you. Out loud. Near your office.`, report: `Of course. Even the lost ones file reports.` },
   ],
@@ -12254,7 +12642,7 @@ function showDemand(f) {
       <div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div>
       <div class="envoy-beat">Demand · Raid ${raid} of 3 if refused</div></div>
     <div class="envoy-grid">
-      <div class="envoy-talk"><h3>Protection money</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
+      <div class="envoy-talk"><h3>Protection money</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip"></div></div>
       <div class="envoy-offer">
         <div class="deal standing"><div class="lbl">Your standing with them</div>${standingHtml(f)}</div>
         <div class="deal ask"><div class="lbl">The demand</div><p>${price} scrip. You have ${RUN.scrip}.</p></div>
@@ -12380,7 +12768,36 @@ const MGR_TASKS = {
   expenses: { text: 'Budget Discipline: return $2,500 of unspent field budget. We bill the client for it anyway.', check: q => q.unspent >= 2500 },
   insurance: { text: 'Insurance Event: lose a crew member in the field. We are covered. They are not.', check: q => q.downed >= 1 },
   shrinkage: { text: 'Zero Shrinkage: two contracts without losing a single crystal.', check: q => q.zeroLoss >= 2 },
+  loyal_clean: { text: 'Loyalty Test: accept no envoy deals at all.', loyal: true, check: q => !q.deals },
+  loyal_crush: { get text() { const f = RUN && RUN.loyalFac; return f ? `Loyalty Test: leave a ${FACTIONS[f].short} planet in Kindly hands. They seem to like you.` : 'Loyalty Test: crush a faction that likes you.'; }, loyal: true, check: q => !!(RUN.loyalFac && (q.crushedFacs || []).includes(RUN.loyalFac)) },
+  payback: { get text() { const p = RUN && RUN.payback; return p ? `Payback: kill ${p.need} ${FACTIONS[p.fac].short}. They took ${p.lost}% of our crystals.` : 'Payback: punish whoever took our crystals.'; }, check: () => !!(RUN.payback && RUN.payback.kills >= RUN.payback.need) },
 };
+// ---------- HR suspicion ----------
+// Heat climbs with every deal and falls slowly with clean work. Each stage costs something real:
+// Watched (30) bills you for the monitoring software, Under review (50) garnishes a fifth of your pay, marks up the
+// store, freezes Executive Technology and has the manager set loyalty tests, Audit (75) fines you and confiscates a
+// relic, and at 100 HR ends your contract. From 40, some envoy calls are HR stings.
+const HR_STAGES = [
+  { min: 100, key: 'fired', name: 'Terminated' },
+  { min: 75, key: 'audit', name: 'Audit' },
+  { min: 50, key: 'review', name: 'Under review' },
+  { min: 30, key: 'watched', name: 'Watched' },
+  { min: 0, key: 'clear', name: 'Clear' },
+];
+const hrStage = (h = RUN.story.heat) => HR_STAGES.find(x => h >= x.min);
+const hrAtLeast = (key, h) => hrStage(h).min >= HR_STAGES.find(x => x.key === key).min;
+function addHeat(n) { const st = RUN.story; st.heat = clamp(st.heat + n, 0, 100); return st.heat; }
+
+// ---------- payback ----------
+// Lose crystals to a faction and the company wants them punished. At the quarterly review the manager names the
+// faction that took the most that quarter, makes killing their troops one of his two tasks, pays a scrip bounty
+// on every one of them killed, and pays more for contracts against them. All of it scales with what they took.
+function paybackFrom(q) {
+  const [f, n] = Object.entries(q.lostBy || {}).filter(([k]) => FACTIONS[k] && !dissolved(k) && k !== RUN.side).sort((a, b) => b[1] - a[1])[0] || [];
+  if (!f || n < 5) return null;
+  return { fac: f, lost: n, need: Math.round((20 + n * 2.5) / 5) * 5, bounty: clamp(1 + Math.floor(n / 12), 1, 4), pay: +(1 + Math.min(0.5, n / 80)).toFixed(2), kills: 0 };
+}
+const paybackOn = c => !!(RUN.payback && c && c.facKey === RUN.payback.fac);
 // Executive Technology: what selling your morals to corporate buys you
 Object.assign(RELICS, {
   exec_overclock: { name: 'Overclocked Neural Contracts', desc: 'Executive Tech. Crew fire 35% faster and hit 15% harder. Side effects are proprietary.', special: true, exec: true },
@@ -12399,22 +12816,23 @@ const GRADES = [
 function quarter() { return RUN.qtr || (RUN.qtr = { start: RUN.idx, n: 1, stars: [], kills: 0, crushed: 0, reported: 0, betrayed: 0, downed: 0, unspent: 0, zeroLoss: 0, tasks: [] }); }
 function noteContract(c, m, ledger, wstate) {
   const q = quarter(); q.stars.push(perfStars(m.lost)); q.kills += m.kills; q.downed += m.downed.length; q.unspent += ledger.leftover;
-  if (m.lost === 0) q.zeroLoss++; if (wstate === 'crushed') q.crushed++;
+  if (m.lost === 0) q.zeroLoss++; if (wstate === 'crushed') { q.crushed++; (q.crushedFacs = q.crushedFacs || []).push(c.facKey); }
 }
 const reviewDue = () => RUN && !RUN.side && RUN.idx > 0 && RUN.idx % QUARTER === 0 && RUN.reviewedAt !== RUN.idx;
 // how the quarter went, as numbers and a grade
 function grade() {
   const q = quarter(), stars = q.stars.length ? q.stars.reduce((a, b) => a + b, 0) / q.stars.length : 3, morale = avgMorale(), heat = RUN.story.heat;
   const done = q.tasks.filter(k => MGR_TASKS[k].check(q)), failed = q.tasks.filter(k => !MGR_TASKS[k].check(q));
-  const score = (stars - 3) * 0.8 + (morale - 55) / 25 - (heat - 20) / 30 + done.length * 0.7 - failed.length * 0.5;
+  // once HR has you under review, suspicion counts for more than anything else on the scorecard
+  const score = (stars - 3) * 0.8 + (morale - 55) / 25 - (heat - 20) / (heat >= 50 ? 18 : 30) + done.length * 0.7 - failed.length * 0.5;
   return { stars, morale, heat, done, failed, score, G: GRADES.find(g => score >= g.min) };
 }
 // the verdict: what he says, how he moves, and what it does to you
 const VERDICTS = {
-  S: { pose: 'clap', expr: 'smile', line: 'Outstanding. The board wants you to have something from the executive floor.', apply: () => { RUN.scrip += 50; return '+50 scrip, and pick a piece of Executive Technology.'; } },
+  S: { pose: 'clap', expr: 'smile', line: 'Outstanding. The board wants you to have something from the executive floor.', apply: () => { if (hrAtLeast('review')) { RUN.scrip += 110; return '+110 scrip. HR has frozen your Executive Technology while you are under review.'; } RUN.scrip += 50; return '+50 scrip, and pick a piece of Executive Technology.'; } },
   A: { pose: 'point', expr: 'smile', line: 'Strong quarter. Here is a bonus. Do not spend it on your crew.', apply: () => { RUN.scrip += 90; RUN.margin = Math.min(100, RUN.margin + 10); return '+90 scrip, +10% margin.'; } },
   B: { pose: 'sip', expr: 'neutral', line: 'Adequate. Kindly does not reward adequate, but here is a pizza voucher.', apply: () => { RUN.scrip += 20; return '+20 scrip (one slice).'; } },
-  C: { pose: 'tie', expr: 'frown', line: 'Disappointing. You are on a Performance Improvement Plan.', apply: () => { const f = Math.min(RUN.scrip, 40); RUN.scrip -= f; RUN.story.heat = Math.min(100, RUN.story.heat + 10); return `−${f} scrip, HR suspicion +10.`; } },
+  C: { pose: 'tie', expr: 'frown', line: 'Disappointing. You are on a Performance Improvement Plan.', apply: () => { const f = Math.min(RUN.scrip, 40); RUN.scrip -= f; addHeat(10); return `${f ? `−${f} scrip, ` : ''}HR suspicion +10.`; } },
   D: { pose: 'facepalm', expr: 'angry', line: 'Unacceptable. The shortfall comes out of your margin, and your crew know why.', apply: () => { RUN.margin = Math.max(1, RUN.margin - 15); for (const cr of RUN.roster) bumpMorale(cr, -8, 'disciplinary'); return '−15% margin, crew morale −8.'; } },
   F: { pose: 'slam', expr: 'angry', line: 'You are done. Security will walk you off your own ship.', apply: () => 'Terminated.' },
 };
@@ -12427,23 +12845,38 @@ function showQuarterly() {
   const V = VERDICTS[G], effect = V.apply();
   // corporate work sits badly with good crew and well with the rest
   if (R.done.length) moraleEvent('corporate', null, R.done.length);
-  const pick2 = shuffle(Object.keys(MGR_TASKS)).slice(0, 2), qn = RUN.reviews;
+  const pick2 = shuffle(Object.keys(MGR_TASKS).filter(k => k !== 'payback' && !MGR_TASKS[k].loyal)).slice(0, 2), qn = RUN.reviews;
   const worst = R.heat >= 60 ? 'HR flags you as a suspicion risk.' : R.morale < 45 ? 'Your crew are miserable, and miserable crew miss.' : R.stars < 3 ? 'Your star ratings are embarrassing the region.' : 'Your numbers are, for once, numbers.';
   const lines = [
     { t: `Quarter ${qn} review. Let us look at your numbers.`, pose: 'tablet', expr: 'neutral' },
     { t: worst, pose: R.score >= 0.2 ? 'tablet' : 'tie', expr: R.score >= 0.2 ? 'smug' : 'frown' },
     { t: probation ? 'By rights you are finished. Consider this your one final warning.' : V.line, pose: V.pose, expr: V.expr },
   ];
+  const pb = G === 'F' ? null : paybackFrom(q);
+  if (pb) lines.push({ t: `${FACTIONS[pb.fac].short} walked off with ${pb.lost}% of our crystals. I want them to pay.`, pose: 'point', expr: 'angry' });
   if (G !== 'F') lines.push({ t: 'Next quarter, the company needs two things from you.', pose: 'point', expr: 'smug' });
-  RUN.qtr = { start: RUN.idx, n: qn + 1, stars: [], kills: 0, crushed: 0, reported: 0, betrayed: 0, downed: 0, unspent: 0, zeroLoss: 0, tasks: G === 'F' ? [] : pick2 };
+  RUN.payback = pb;
+  // loyalty tests: passing one cools HR off, failing one heats it up; a suspect employee gets one as a task
+  const lt = q.tasks.filter(k => MGR_TASKS[k].loyal), ltPass = lt.filter(k => R.done.includes(k)).length, ltFail = lt.length - ltPass;
+  if (lt.length) addHeat(ltFail * 10 - ltPass * 15);
+  let test = null;
+  if (G !== 'F' && hrAtLeast('review', R.heat)) {
+    const friends = Object.keys(FACTIONS).filter(f => standingOf(f) >= 1 && !dissolved(f) && actOfFaction(f) <= actOf(RUN.idx));
+    test = friends.length && rnd() < 0.6 ? 'loyal_crush' : rnd() < 0.5 ? 'whistle' : 'loyal_clean';
+    RUN.loyalFac = test === 'loyal_crush' ? pick(friends) : null;
+    lines.splice(lines.length - (G !== 'F' ? 1 : 0), 0, { t: 'HR has concerns about you. So I have a test for you.', pose: 'tie', expr: 'frown' });
+  }
+  const tasks = G === 'F' ? [] : [pb ? 'payback' : null, test, ...pick2].filter(Boolean).filter((k, i, a) => a.indexOf(k) === i).slice(0, 2);
+  RUN.qtr = { start: RUN.idx, n: qn + 1, stars: [], kills: 0, crushed: 0, reported: 0, betrayed: 0, downed: 0, unspent: 0, zeroLoss: 0, lostBy: {}, deals: 0, crushedFacs: [], tasks };
   const card = `<div class="deal"><div class="lbl">Quarter ${qn} scorecard</div><dl class="kv score">
       <dt>Crew morale</dt><dd>${R.morale}</dd><dt>HR suspicion</dt><dd>${R.heat}</dd><dt>Average rating</dt><dd>${'★'.repeat(Math.round(R.stars))}<i>${'★'.repeat(5 - Math.round(R.stars))}</i> ${R.stars.toFixed(1)}</dd>
       ${q.tasks.length ? `<dt>Tasks</dt><dd>${q.tasks.map(k => `<span class="${R.done.includes(k) ? 'ok' : 'no'}">${R.done.includes(k) ? '✓' : '✗'} ${esc(MGR_TASKS[k].text.split(':')[0])}</span>`).join('<br>')}</dd>` : ''}
     </dl><div class="grade" style="--gc:${GRADES.find(g => g.g === G).col}">${G}${probation ? '<small>probation</small>' : ''}</div></div>
     <div class="deal ${goodGrade(G) ? 'reward' : 'risk'}"><div class="lbl">Verdict</div><p>${esc(effect)}</p></div>
-    ${G === 'S' ? `<div class="deal reward"><div class="lbl">Executive Technology: choose one</div>${execOffer().map(id => `<button class="btn sm exec" data-act="mgrtech" data-id="${id}"><b>${esc(RELICS[id].name)}</b><span>${esc(RELICS[id].desc.replace('Executive Tech. ', ''))}</span></button>`).join('')}</div>` : ''}
+    ${G === 'S' && !hrAtLeast('review') ? `<div class="deal reward"><div class="lbl">Executive Technology: choose one</div>${execOffer().map(id => `<button class="btn sm exec" data-act="mgrtech" data-id="${id}"><b>${esc(RELICS[id].name)}</b><span>${esc(RELICS[id].desc.replace('Executive Tech. ', ''))}</span></button>`).join('')}</div>` : ''}
+    ${pb ? `<div class="deal risk" style="--dc:${FACTIONS[pb.fac].color}"><div class="lbl">Payback order</div><p><b style="color:${FACTIONS[pb.fac].color}">${esc(FACTIONS[pb.fac].short)}</b> took ${pb.lost}% of our crystals. <b class="mono">${pb.bounty} scrip</b> per one killed; their contracts pay <b class="mono">×${pb.pay}</b>.</p></div>` : ''}
     ${G !== 'F' ? `<div class="deal ask"><div class="lbl">Next quarter's priorities</div>${RUN.qtr.tasks.map(k => `<p>• ${esc(MGR_TASKS[k].text)}</p>`).join('')}</div>` : ''}
-    <div class="row" id="mgrBtns"><button class="btn" data-act="${G === 'F' ? 'mgrfired' : 'mgrdone'}" ${G === 'S' ? 'disabled' : ''}>${G === 'F' ? 'Hand over your badge' : 'Back to work'}</button></div>`;
+    <div class="row" id="mgrBtns"><button class="btn" data-act="${G === 'F' ? 'mgrfired' : 'mgrdone'}" ${G === 'S' && !hrAtLeast('review') ? 'disabled' : ''}>${G === 'F' ? 'Hand over your badge' : 'Back to work'}</button></div>`;
   managerScene({ title: `Quarterly_Review_Q${qn}.mtg`, head: `Quarter ${qn} review`, lines, card, holo: { morale: R.morale, heat: R.heat, stars: R.stars, grade: G }, mood: goodGrade(G) ? 'up' : 'down', react: G === 'S' || G === 'A' ? 'delight' : G === 'F' ? 'fury' : null });
 }
 const execOffer = () => { if (S.mgrOffer) return S.mgrOffer; return (S.mgrOffer = shuffle(Object.keys(RELICS).filter(k => RELICS[k].exec && !RUN.relics.includes(k))).slice(0, 2)); };
@@ -12466,27 +12899,19 @@ function managerScene(o) {
     <div class="envoy-scene"><canvas id="mgrcv" width="240" height="135" aria-label="${esc(MGR.name)} on the bridge"></canvas>
       <div class="envoy-tag" style="--ec:${MGR.col}"><b>${esc(MGR.name)}</b><span>${esc(MGR.title)}</span></div></div>
     <div class="envoy-grid">
-      <div class="envoy-talk"><h3>${esc(o.head)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
+      <div class="envoy-talk"><h3>${esc(o.head)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip"></div></div>
       <div class="envoy-offer">${o.card}</div>
     </div></div></div>`;
   mgrType();
 }
 // typewriter that tells the rig which line it's on, so pose and face follow the words
 function mgrType() {
-  const el = $('#envDlg'), M_ = S.mgr; if (!el) return;
-  clearInterval(typeTimer); el.innerHTML = '';
-  const lines = M_.lines.map(l => l.t), ps = lines.map(() => { const p = document.createElement('p'); el.appendChild(p); return p; });
-  let ci = 0;
-  const finish = () => { clearInterval(typeTimer); lines.forEach((l, k) => { ps[k].textContent = l; }); el.onclick = null; M_.talking = false; M_.li = lines.length - 1; if (M_.react && M_.reactAt == null) M_.reactAt = (performance.now() - M_.t0) / 1000; };
-  el.onclick = finish;
-  if (RM) { finish(); return; }
-  typeTimer = setInterval(() => {
-    if (!document.body.contains(el)) { clearInterval(typeTimer); return; }
-    if (M_.li >= lines.length) { finish(); return; }
-    ps[M_.li].textContent = lines[M_.li].slice(0, ++ci);
-    if (ci % 3 === 0) sfx('type');
-    if (ci >= lines[M_.li].length) { if (M_.li === lines.length - 1) { finish(); return; } M_.li++; ci = 0; M_.lineAt = (performance.now() - M_.t0) / 1000; }
-  }, 24);
+  const M_ = S.mgr; if (!M_) return;
+  bubbleTalk(M_.lines.map(l => l.t), {
+    onLine: src => { M_.talking = true; if (src !== M_.li) { M_.li = src; M_.lineAt = (performance.now() - M_.t0) / 1000; } },
+    onIdle: () => { M_.talking = false; },
+    done: () => { M_.talking = false; M_.li = M_.lines.length - 1; if (M_.react && M_.reactAt == null) M_.reactAt = (performance.now() - M_.t0) / 1000; },
+  });
 }
 
 // ---------- the rig: a full sculpted figure, head and arms posed every frame ----------
@@ -12766,7 +13191,7 @@ function showInvitation(f, then) {
     <div class="envoy-scene"><canvas id="envcv" width="200" height="112" aria-label="${esc(A.envoy)}"></canvas>
       <div class="envoy-tag" style="--ec:${A.col}"><b>${esc(A.envoy)}</b><span>${esc(A.title)}</span></div><div class="envoy-beat">Invitation</div></div>
     <div class="envoy-grid">
-      <div class="envoy-talk"><h3>Join the ${esc(F.short)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip">Click the transcript to skip.</div></div>
+      <div class="envoy-talk"><h3>Join the ${esc(F.short)}</h3><div class="dialog" id="envDlg" role="log" aria-live="polite"></div><div class="colony" id="envSkip"></div></div>
       <div class="envoy-offer">
         <div class="deal reward"><div class="lbl">If you defect</div><p>You work for the ${esc(F.short)} from now on: their contracts against Kindly and their rivals, their morals, their commissary. Two of their people join you as troops with their own kit (${esc(FACTION_KIT[f].name)}). Acts 4 and 5 become a plan to overthrow Kindly.</p></div>
         <div class="deal ask"><div class="lbl">Who comes with you</div><p>${follow.length ? esc(andList(follow.map(c => c.name))) : 'Nobody. They like you that little.'}</p>${stay.length ? `<p class="colony">Staying with Kindly: ${esc(andList(stay.map(c => c.name)))}. Expect to see them again.</p>` : ''}</div>
