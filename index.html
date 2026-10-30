@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}
@@ -43,7 +43,7 @@ img{max-width:100%}
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;touch-action:manipulation;overscroll-behavior:none}
 *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 img,canvas{-webkit-user-drag:none}
 body{background-color:var(--bg);background-image:radial-gradient(rgba(140,150,220,.07) 1px,transparent 1.2px);background-size:9px 9px;color:var(--fg);font:15px/1.5 var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:none;font-variant-ligatures:none}
@@ -315,7 +315,7 @@ button{font:inherit;color:inherit}
 .ab.on{box-shadow:inset 0 0 0 2px #fff,0 0 14px var(--ac)}
 .ab.sel{box-shadow:inset 0 0 0 2px var(--ac),0 0 0 2px var(--ac)}
 .loadout{position:absolute;right:62px;bottom:84px;display:flex;flex-direction:column;gap:6px;max-width:calc(100% - 74px);padding:8px 10px;background:rgba(5,7,10,.82);box-shadow:inset 0 0 0 2px var(--line)}
-.loadout .lo-row{display:flex;flex-wrap:wrap;gap:5px}
+.lo-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
 .ab.lo{opacity:.45}.ab.lo.on{opacity:1;box-shadow:inset 0 0 0 2px var(--ac),0 0 0 2px var(--ac)}
 .ab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 @media (max-width:640px){.abil{gap:4px;padding:4px}.ab{width:42px;height:42px}.ab img{width:22px;height:22px}.ab .ab-nm{display:none}.ab .ab-cd{font-size:18px}}
@@ -609,6 +609,118 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
   .maphint{font-size:15px}
 }
 
+/* ---------- fullscreen contract ---------- */
+#bgfill{display:none}
+body.fs #app{padding:0;gap:0}
+body.fs #stage{position:fixed;inset:0;padding:var(--inT,0px) var(--inR,0px) var(--inB,0px) var(--inL,0px);z-index:0;background:#05060c}
+body.fs #bgfill{display:block;position:absolute;left:-30px;top:-30px;width:calc(100% + 60px);height:calc(100% + 60px);filter:blur(14px) brightness(.42) saturate(1.2);pointer-events:none;image-rendering:auto}
+body.fs #cv{position:relative;box-shadow:0 0 0 1px rgba(0,0,0,.5),0 0 40px 10px rgba(0,0,0,.45)}
+body.fs #overlay{top:var(--inT,0px);right:var(--inR,0px);bottom:var(--inB,0px);left:var(--inL,0px)}
+body.fs #hud,body.fs #bar{position:fixed;z-index:8}
+body.fs .cfg-btn{top:calc(var(--inT,0px) + 8px);right:calc(var(--inR,0px) + 8px);bottom:auto;width:36px;height:36px}
+body.fs .abil{right:10px}
+body.fs .toast{top:calc(var(--inT,0px) + 12px);left:calc(var(--inL,0px) + (100% - var(--inL,0px) - var(--inR,0px)) / 2);max-width:calc(100% - var(--inL,0px) - var(--inR,0px) - 24px)}
+body.fs .banner{left:var(--inL,0px);right:var(--inR,0px)}
+@media (max-height:520px),(max-width:560px){body.fs .toast{font-size:10.5px;padding:7px 11px 9px}}
+/* strips: the HUD along the top, the crew along the bottom */
+body.fs #app[data-lay=strips] #hud{top:0;left:0;right:0;padding:8px max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left));background:linear-gradient(rgba(6,8,16,.92),rgba(6,8,16,.66));box-shadow:0 1px 0 rgba(255,255,255,.06)}
+body.fs #app[data-lay=strips] #bar{bottom:0;left:0;right:0;padding:7px max(14px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));background:linear-gradient(rgba(6,8,16,.66),rgba(6,8,16,.92));box-shadow:0 -1px 0 rgba(255,255,255,.06)}
+/* rails: the HUD down the left, the crew down the right */
+body.fs #app[data-lay=rails] #hud{top:0;bottom:0;left:0;width:var(--railL);flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:9px;padding:10px 8px 10px max(8px,env(safe-area-inset-left));background:linear-gradient(90deg,rgba(6,8,16,.94),rgba(6,8,16,.7));overflow-y:auto;scrollbar-width:none}
+body.fs #app[data-lay=rails] #hud .hud-meter{flex:0 0 auto;min-width:0;max-width:none;gap:3px}
+body.fs #app[data-lay=rails] #hud .hud-block .val{max-width:100%;font-size:15px;white-space:normal;line-height:1.05}
+body.fs #app[data-lay=rails] #hud .hud-block .val.mono{font-size:20px}
+body.fs #app[data-lay=rails] #hud .meter{height:12px;padding:3px}
+body.fs #app[data-lay=rails] #hud .hud-ctrl{margin:0;width:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+body.fs #app[data-lay=rails] #hud .hud-ctrl #bStart,body.fs #app[data-lay=rails] #hud .hud-ctrl #bPause{grid-column:1 / -1}
+body.fs #app[data-lay=rails] #hud .hud-ctrl .btn.sm{padding:7px 4px 9px;font-size:10px;white-space:normal;line-height:1.05}
+body.fs #app[data-lay=rails] #hud .reclaim{display:none}
+body.fs #app[data-lay=rails] #bar{top:0;bottom:0;right:0;width:var(--railR);padding:8px max(8px,env(safe-area-inset-right)) 8px 8px;background:linear-gradient(270deg,rgba(6,8,16,.94),rgba(6,8,16,.7))}
+body.fs #app[data-lay=rails] .roster{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;gap:5px;padding:0;scrollbar-width:none}
+body.fs #app[data-lay=rails] .roster .crew{flex:0 0 auto;max-width:none;min-width:0}
+body.fs #app[data-lay=rails] #bar .crew[data-act="crew"]{touch-action:pan-y}
+body.fs #app[data-lay=rails] .ticker{display:none}
+@media (max-height:520px){
+  body.fs #app[data-lay=rails] .roster .crew{grid-template-columns:1fr;justify-items:center;padding:5px 4px 7px;gap:1px;text-align:center}
+  body.fs #app[data-lay=rails] .roster .crew .pt{width:32px;height:32px}
+  body.fs #app[data-lay=rails] .roster .crew .nm,body.fs #app[data-lay=rails] .roster .crew .role{display:none}
+  body.fs #app[data-lay=rails] .roster .crew .meta{font-size:13px}
+  body.fs #app[data-lay=rails] #hud .hud-block .lbl{font-size:10px}
+  body.fs #app[data-lay=rails] #hud .hud-block:first-child .lbl{display:none}
+  body.fs .abil .ab{width:40px;height:40px}body.fs .abil .ab img{width:20px;height:20px}body.fs .abil .ab .ab-nm{display:none}
+}
+
+/* ---------- phones held sideways: short screens get the phone tabs and tighter screens ---------- */
+@media (max-height:520px) and (min-width:561px){
+  #app{padding-block:4px;gap:4px}
+  .screen{padding:4px 0}
+  .paper{--pad:10px;gap:8px}
+  .paper h2{font-size:28px}
+  .ptabs{display:flex;gap:4px;margin:0 0 2px}
+  .ptab{flex:1;border:0;cursor:pointer;font:400 12px/1 var(--f-label);text-transform:uppercase;letter-spacing:.04em;padding:8px 6px;background:var(--panel2);color:var(--muted);box-shadow:inset 0 0 0 2px var(--line);clip-path:var(--notch)}
+  .ptab.on{background:var(--brand);color:var(--brand-ink);box-shadow:none}
+  .ppane:not(.pon){display:none!important}
+  /* title */
+  .title-wrap{gap:10px}.big{font-size:clamp(30px,9vh,52px)}.lineup{display:none}
+  /* contract card: the picture beside the terms */
+  .card{--pad:10px;gap:7px;width:min(560px,calc(100% - 24px));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-content:start;column-gap:12px}
+  .card > .titlebar,.card > .sub,.card > h2,.card > .row{grid-column:1 / -1}
+  .card h2{font-size:28px}
+  .card .scenebox{grid-column:1;grid-row:span 3}
+  .card .scenebox img.scene{max-height:none}
+  .card > :not(.titlebar):not(.sub):not(h2):not(.row):not(.scenebox){grid-column:2}
+  .card .kv{font-size:13px}
+  /* calls and reviews: video on the left, the offer on the right */
+  .paper.envoy{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-rows:auto auto 1fr;column-gap:12px;row-gap:8px;align-items:start;width:min(900px,100%)}
+  .paper.envoy > .titlebar{grid-column:1 / -1}
+  .paper.envoy > .envoy-scene{grid-column:1;grid-row:2;width:100%}
+  .paper.envoy > .envoy-grid{display:contents}
+  .paper.envoy .envoy-talk{grid-column:1;grid-row:3}
+  .paper.envoy .envoy-offer,.paper.envoy .envoy-grid > :not(.envoy-talk){grid-column:2;grid-row:2 / span 2}
+  .envoy-tag{position:absolute;padding:4px 7px}.envoy-tag b{font-size:18px}.envoy-tag span{display:none}
+  .want-ask b{font-size:18px}.want-ask img{width:40px;height:40px}.want-kv{font-size:13px}
+  .envoy-offer .deal.standing{display:none}.envoy-offer{gap:6px}
+  .deal{padding:6px 10px 7px}.deal p{font-size:13px;line-height:1.3}
+  .grade{font-size:40px}
+  /* desk */
+  .desktop .prop,.desktop .plant,.desktop .lamp,.mstand,.nameplate{display:none}
+  .desktop{padding:4px 10px}.monitor{padding:4px 4px 8px}.glass{padding:4px;gap:6px}
+  .win .wbody{padding:7px 9px 8px;gap:6px}.feed .headline{font-size:20px}.wstrip{display:none}
+  .scenebox.big.live canvas{height:34vh!important;width:auto!important;margin:0 auto}
+  /* store */
+  .glass{grid-template-columns:minmax(0,1fr)!important;display:flex;flex-direction:column}
+  .store{display:flex;flex-direction:column}
+  .ptabs{width:100%;flex:0 0 auto}
+  .store{gap:6px}.store .offers{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .store .offer{gap:3px;padding:6px 8px 8px}.store .offer .t{font-size:17px}.store .offer .d{-webkit-line-clamp:2;font-size:12.5px}
+  .store .paper h2,.store .paper .lbl:first-child{display:none}
+  .store .offer .d,.store .offer .arch small{display:none}
+  .cnews p + p,.kpis small{display:none}.kpis b{font-size:20px}
+}
+
+/* panels never take over the screen: capped height, an X that hides them but keeps the selection */
+.tinfo{max-height:calc(100% - 20px);overflow-y:auto;scrollbar-width:thin}
+.tinfo-x,.pk-x{position:absolute;right:6px;top:6px;z-index:2;appearance:none;border:0;cursor:pointer;width:26px;height:24px;background:var(--panel2);color:var(--fg);font:700 12px/1 var(--f-label);box-shadow:inset 0 0 0 2px var(--line)}
+.tinfo-x:hover,.pk-x:hover{background:var(--danger);color:var(--ink)}
+.tinfo h4{padding-right:26px}
+.trait.more{appearance:none;border:0;cursor:pointer;color:var(--brand)}
+.tinfo-chip{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:7px;appearance:none;border:0;cursor:pointer;background:rgba(10,12,22,.9);color:var(--fg);padding:4px 10px 4px 4px;box-shadow:inset 0 0 0 2px var(--line);clip-path:var(--notch);font:400 15px/1 var(--f-mono)}
+.tinfo-chip .pt{width:26px;height:26px}.tinfo-chip b{font-weight:400}.tinfo-chip span{color:var(--brand)}
+.crewpeek{max-height:min(62vh,520px);overflow:hidden}
+.crewpeek .pk-x{display:none}
+.crewpeek.pinned{pointer-events:auto}.crewpeek.pinned .pk-x{display:block}
+.crewpeek .pk-head{padding-right:28px}
+@media (max-width:560px),(max-height:520px){
+  .tinfo{width:min(236px,64%);padding:9px 10px;gap:6px;font-size:12.5px}
+  .tinfo h4{font-size:19px}.tinfo .mono{font-size:13.5px}.tinfo .pt.big{width:34px;height:34px}
+  .tinfo .tnote{display:none}.tinfo .trait{font-size:13px;padding:2px 5px 3px}
+  .tinfo .chip{font-size:11px;padding:4px 6px}
+  .tinfo .btn.sm{padding:7px 8px 9px;font-size:10px}
+  .crewpeek{max-height:min(52vh,320px)}
+  .crewpeek .pk-traits{display:none}
+}
+@media (max-height:520px){.crewpeek .pk-line{display:none}.crewpeek{width:220px!important}}
+
 /* the crew peek: wider, larger, one line per fact */
 .crewpeek{width:300px;font-size:14px;line-height:1.3;gap:7px}
 .crewpeek .pk-head{display:grid;grid-template-columns:1fr auto;align-items:end;gap:2px 8px}
@@ -658,6 +770,7 @@ input[type=range]:focus-visible{outline:2px dashed var(--fg);outline-offset:3px}
 <div id="app">
   <header id="hud"></header>
   <main id="stage">
+    <canvas id="bgfill" aria-hidden="true"></canvas>
     <canvas id="cv" aria-label="Game field"></canvas>
     <div id="overlay"></div>
     <div id="modal"></div>
@@ -932,9 +1045,40 @@ const has = id => RUN && RUN.relics.includes(id);
 const cv = $('#cv'), ctx = cv.getContext('2d');
 const VIEW = { w: 1000, h: 560, scale: 1, dpr: 1 };
 function setView(w, h) { VIEW.w = w; VIEW.h = h; resize(); }
+// ---------- the mission fills the screen ----------
+// In a contract the map takes the whole screen, with a blurred extension of itself behind it, and the HUD and the
+// crew float over that: as strips along the top and bottom, or as rails down the sides (phones held sideways,
+// short laptops), whichever leaves the map bigger. The map itself is never covered.
+const fsRails = () => innerHeight <= 520 ? [128, 98] : [196, 214];
+function fsLayout() {
+  const fs = S.screen === 'mission' && !!M, app = $('#app'), sst = $('#stage').style;
+  document.body.classList.toggle('fs', fs);
+  if (!fs) { delete app.dataset.lay; for (const k of ['--inT', '--inR', '--inB', '--inL']) sst.removeProperty(k); return; }
+  const W = innerWidth, H = innerHeight, [L, R] = fsRails();
+  app.dataset.lay = 'strips';
+  const T = $('#hud').offsetHeight, B = $('#bar').offsetHeight;
+  const sS = Math.min(W / VIEW.w, (H - T - B) / VIEW.h), sR = Math.min((W - L - R) / VIEW.w, H / VIEW.h);
+  const rails = sR > sS * 1.04;
+  app.dataset.lay = rails ? 'rails' : 'strips';
+  app.style.setProperty('--railL', L + 'px'); app.style.setProperty('--railR', R + 'px');
+  const ins = rails ? [0, R, 0, L] : [T, 0, B, 0];
+  ['--inT', '--inR', '--inB', '--inL'].forEach((k, i) => sst.setProperty(k, ins[i] + 'px'));
+}
+// the blurred surround: a small copy of the map stretched to cover the screen, refreshed a few times a second
+let bgFillAt = 0;
+function drawBgFill(now) {
+  if (now - bgFillAt < 250) return; bgFillAt = now;
+  const b = document.getElementById('bgfill'); if (!b || !cv.width) return;
+  const w = Math.max(32, Math.round(innerWidth / 10)), h = Math.max(32, Math.round(innerHeight / 10));
+  if (b.width !== w || b.height !== h) { b.width = w; b.height = h; }
+  const g = b.getContext('2d'), k = Math.max(w / cv.width, h / cv.height), sw = w / k, sh = h / k;
+  g.drawImage(cv, (cv.width - sw) / 2, (cv.height - sh) / 2, sw, sh, 0, 0, w, h);
+}
 function resize() {
-  const st = $('#stage').getBoundingClientRect();
-  const m = S.screen === 'mission' || S.screen === 'map' || S.screen === 'ship' ? 12 : 0;
+  if (S.screen === 'mission') fsLayout(); else if (document.body.classList.contains('fs')) fsLayout();
+  const sEl = $('#stage'), r0 = sEl.getBoundingClientRect(), cs = getComputedStyle(sEl);
+  const st = { width: r0.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), height: r0.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) };
+  const m = S.screen === 'map' || S.screen === 'ship' ? 12 : 0;
   cv.classList.toggle('framed', m > 0);
   const s = Math.max(0.1, Math.min((st.width - m) / VIEW.w, (st.height - m) / VIEW.h));
   VIEW.scale = s;
@@ -952,7 +1096,9 @@ window.addEventListener('resize', onStageResize);
 // nothing in the game is text to copy: no selection highlights and no ghost images when a drag starts on a sprite
 document.addEventListener('selectstart', e => e.preventDefault());
 document.addEventListener('dragstart', e => e.preventDefault());
-if (window.ResizeObserver) new ResizeObserver(onStageResize).observe($('#stage'));
+// no zooming on phones: double-tap and pinch would throw the playfield around mid-contract
+for (const t of ['gesturestart', 'gesturechange', 'dblclick']) document.addEventListener(t, e => e.preventDefault(), { passive: false });
+if (window.ResizeObserver) { const ro = new ResizeObserver(onStageResize); ro.observe($('#stage')); ro.observe($('#hud')); ro.observe($('#bar')); }
 
 // ---------- pixel space: star map and menu backdrops ----------
 const MAP_AP = 3;
@@ -4644,6 +4790,7 @@ function transposeMap(map) {
   };
 }
 function startMission(contract) {
+  if (RUN && !RUN.loHint && ownedAbils().length > abilSlots()) { RUN.loHint = true; setTimeout(() => toast('More abilities than slots. Swap them in the ship\'s cargo hold.', 3200), 2600); }
   if (paybackOn(contract) && !contract.ship) { const p = RUN.payback; setTimeout(() => toast(`Payback: ${p.bounty} scrip per ${FACTIONS[p.fac].short} killed. ${p.kills}/${p.need} so far.`, 3200), 1800); }
   if (!contract.ship) saveRun('mission', { contract });
   S.screen = 'mission'; setMusic('mission:' + (contract.ship ? 'ship' : contract.biomeKey));
@@ -4810,7 +4957,7 @@ function crewPeekHtml(cr) {
   const perks = perkSummary(cr), pr = PRIO[prioOf(cr)], mt = moraleTier(cr), conds = crewConditions(cr, tw);
   const what = T.aoe ? ' each' : T.splash ? ' blast' : '';
   // one fact per line, its label inline, so nothing wraps into a narrow column
-  return `<div class="pk-head"><b>${esc(cr.name)}</b><em>Lv${cr.level}</em><span>${esc(T.name)}</span></div>
+  return `<button class="pk-x" data-act="peekshut" aria-label="Hide details (keeps ${esc(cr.name)} selected)">✕</button><div class="pk-head"><b>${esc(cr.name)}</b><em>Lv${cr.level}</em><span>${esc(T.name)}</span></div>
     <div class="pk-stats">
       <span>DPS</span><em>${dps.toFixed(1)}${what}</em>${bar(dps, 40, T.color)}
       <span>Range</span><em>${st.range.toFixed(1)}</em>${bar(st.range, 6, '#5ab8ff')}
@@ -4822,7 +4969,7 @@ function crewPeekHtml(cr) {
     <p class="pk-line"><span>Quirk</span><b>${esc(QUIRKS[cr.quirk].name)}</b> · ${esc(QUIRKS[cr.quirk].desc)}</p>
     <p class="pk-line pk-mood"><span>Morale</span>${moraleBar(cr)}<b style="color:${mt.col}">${cr.morale} ${esc(mt.name)}</b></p>
     ${moodEffects(cr).length || conds.length ? `<div class="pk-traits">${moodEffects(cr).map(f => `<i class="${f.min >= 80 ? 'good' : 'warn'}">${esc(f.name)}</i>`).join('')}${conds.map(c => `<i class="${c.k}">${esc(c.t)}</i>`).join('')}</div>` : ''}
-    ${perks.length ? `<div class="pk-traits">${perks.map((n, k) => `<i class="${k === 0 && cr.spec ? 'sp' : ''}">${esc(n)}</i>`).join('')}</div>` : ''}
+    ${perks.length ? `<div class="pk-traits">${perks.slice(0, 4).map((n, k) => `<i class="${k === 0 && cr.spec ? 'sp' : ''}">${esc(n)}</i>`).join('')}${perks.length > 4 ? `<i>+${perks.length - 4} more</i>` : ''}</div>` : ''}
     <div class="pk-foot">${cr.dead ? `KIA · replacement $${replaceCost(cr)}` : tw ? 'Deployed' : `Fee $${crewFee(cr)}`}${cr.kills ? ` · ${cr.kills} kills` : ''}</div>`;
 }
 function artPeekHtml(a) {
@@ -4842,20 +4989,21 @@ function showPeek(btn) {
   if (el.dataset.k !== key || el.innerHTML !== html) { const fresh = el.dataset.k !== key; el.innerHTML = html; el.dataset.k = key; if (fresh) { el.classList.remove('open'); void el.offsetWidth; } }
   const r = btn.getBoundingClientRect(), w = Math.max(r.width, 270);
   el.style.width = w + 'px';
-  el.style.left = clamp(r.left, 6, window.innerWidth - w - 6) + 'px';
-  el.style.bottom = (window.innerHeight - r.top - 3) + 'px';
+  if ($('#app').dataset.lay === 'rails') { el.style.left = Math.max(6, r.left - w - 8) + 'px'; el.style.bottom = 'auto'; el.style.top = clamp(r.top, 6, window.innerHeight - el.offsetHeight - 6) + 'px'; }
+  else { el.style.top = 'auto'; el.style.left = clamp(r.left, 6, window.innerWidth - w - 6) + 'px'; el.style.bottom = (window.innerHeight - r.top - 3) + 'px'; }
   el.classList.add('open');
   document.querySelectorAll('#bar .peeking').forEach(b => b !== btn && b.classList.remove('peeking'));
   btn.classList.add('peeking'); S.peekBtn = key;
 }
 function hidePeek() {
-  const el = document.getElementById('crewpeek'); if (el) { el.classList.remove('open'); el.dataset.k = ''; }
+  const el = document.getElementById('crewpeek'); if (el) { el.classList.remove('open', 'pinned'); el.dataset.k = ''; }
   document.querySelectorAll('#bar .peeking').forEach(b => b.classList.remove('peeking')); S.peekBtn = null;
 }
 // the sheet follows the pointer and keyboard focus; on touch screens the selected card keeps it open
 function peekFallback() {
-  const b = S.selCrew >= 0 && S.touchUi ? document.querySelector(`#bar .crew[data-act="crew"][data-i="${S.selCrew}"]`) : null;
-  if (b) showPeek(b); else hidePeek();
+  if (S.selCrew < 0 || S.peekShut !== S.selCrew) S.peekShut = null;
+  const b = S.selCrew >= 0 && S.touchUi && S.peekShut == null ? document.querySelector(`#bar .crew[data-act="crew"][data-i="${S.selCrew}"]`) : null;
+  if (b) { showPeek(b); const el = document.getElementById('crewpeek'); if (el) el.classList.add('pinned'); } else hidePeek();
 }
 function refreshPeek() {
   if (!S.peekHover || !S.peekBtn) return peekFallback();
@@ -6331,17 +6479,23 @@ function renderTowerInfo() {
   const old = ov.querySelector('.tinfo'); if (old) old.remove();
   const tw = S.selTower; if (!tw || !M.towers.includes(tw)) return;
   const st = tw.st || towerStats(tw.crew, tw), cr = tw.crew;
+  // the X tucks the panel into a small tab; the crew member stays selected with their range showing
+  if (S.infoFor !== tw) { S.infoFor = tw; S.infoMin = false; S.tinfoAll = false; }
+  if (S.infoMin) { const chip = document.createElement('button'); chip.className = 'tinfo-chip'; chip.dataset.act = 'tinfoopen'; chip.setAttribute('aria-label', `Show ${cr.name}'s details`); chip.innerHTML = `${portraitImg(cr)}<b>${esc(cr.name)}</b><span>▸</span>`; ov.appendChild(chip); return; }
   const next = cr.level >= MAXL ? 'Max rank. Still no raise.' : cr.level >= actCap(RUN.idx) ? `Promotion freeze until next sector (${Math.floor(cr.xp)}/${XP_TH[cr.level]} xp banked)` : `${Math.floor(cr.xp)}/${XP_TH[cr.level]} xp to next review`;
-  const traits = `<span class="trait q" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}</span>` + perkSummary(cr).map((n, k) => `<span class="trait${k === 0 && cr.spec ? ' sp' : ''}">${esc(n)}</span>`).join('');
+  // a veteran's perk list can run long: four show, the rest wait behind a +N
+  const perks = perkSummary(cr), cap = S.tinfoAll ? perks.length : 4;
+  const traits = `<span class="trait q" title="${esc(QUIRKS[cr.quirk].desc)}">${esc(QUIRKS[cr.quirk].name)}</span>` + perks.slice(0, cap).map((n, k) => `<span class="trait${k === 0 && cr.spec ? ' sp' : ''}">${esc(n)}</span>`).join('')
+    + (perks.length > 4 ? `<button class="trait more" data-act="tmore">${S.tinfoAll ? 'less' : '+' + (perks.length - 4) + ' more'}</button>` : '');
   const div = document.createElement('div'); div.className = 'tinfo';
-  div.innerHTML = `<div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
+  div.innerHTML = `<button class="tinfo-x" data-act="tinfomin" aria-label="Hide panel (keeps ${esc(cr.name)} selected)">✕</button><div class="row" style="gap:8px">${portraitImg(cr, 'pt big')}<div><h4>${esc(cr.name)}</h4><div class="lbl">${esc(RANKS[cr.level - 1])} · ${esc(st.name)}</div></div></div>
     <div class="mono" style="color:var(--muted)">DPS ${crewDps(cr, st).toFixed(1)} · DMG ${st.dmg.toFixed(0)} · RATE ${st.rate.toFixed(2)}/s<br>RNG ${st.range.toFixed(1)}${tw.roof ? ' <span style="color:var(--brand)">(rooftop +15%)</span>' : ''} · HP ${Math.max(0, Math.round(tw.hp))}/${Math.round(tw.maxhp)}<br>Kills ${cr.kills} · ${next}${tw.down ? '<br><span style="color:var(--danger)">Killed in action. Claim denied.</span>' : ''}</div>
     <div class="traits">${traits}</div>
     <div class="lbl">Conditions</div>${conditionsHtml(crewConditions(cr, tw))}
     <div class="tprio"><div class="lbl">Preferred targets</div><div class="chips">${Object.entries(PRIO).filter(([k, p]) => !p.air || st.air).map(([k, p]) => `<button class="chip${prioOf(cr) === k ? ' on' : ''}" data-act="prio" data-v="${k}" title="${esc(p.desc)}" aria-pressed="${prioOf(cr) === k}">${esc(p.name)}</button>`).join('')}</div>
       <div class="tnote">${esc(PRIO[prioOf(cr)].desc)}. Good against ${esc(GOOD_VS[cr.type].toLowerCase())}.</div>
       <div class="tnote">${seesOverAt(cr.type, tw.tx, tw.ty) ? (cr.type === 'mortar' ? 'Lobs shells over buildings.' : cr.type === 'drone' ? 'Drone flies over buildings.' : 'Up high: sees over buildings.') : 'Buildings block line of sight (shaded).'}</div></div>
-    <div class="row">${tw.down ? `<button class="btn sm" data-act="replace" ${M.budget < replaceCost(cr) ? 'disabled' : ''}>Hire replacement ($${replaceCost(cr)})</button>` : ''}${cr.reviews.length && !tw.down ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Hold review</button>` : ''}<button class="btn sm ghost" data-act="reassign" ${st.noReassign && !tw.down ? 'disabled' : ''}>${tw.down ? 'Remove' : st.noReassign ? 'Bound by contract' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Close</button></div>`;
+    <div class="row">${tw.down ? `<button class="btn sm" data-act="replace" ${M.budget < replaceCost(cr) ? 'disabled' : ''}>Hire replacement ($${replaceCost(cr)})</button>` : ''}${cr.reviews.length && !tw.down ? `<button class="btn sm" data-act="review" data-id="${cr.id}">Hold review</button>` : ''}<button class="btn sm ghost" data-act="reassign" ${st.noReassign && !tw.down ? 'disabled' : ''}>${tw.down ? 'Remove' : st.noReassign ? 'Bound by contract' : `Reassign (+$${Math.floor(tw.paid * 0.5)})`}</button><button class="btn sm ghost" data-act="closeinfo">Deselect</button></div>`;
   ov.appendChild(div);
 }
 let toastTimer = 0;
@@ -8939,22 +9093,24 @@ function syncLoadout() {
   for (const id of own) if (!seen.includes(id)) { seen.push(id); if (RUN.loadout.length < n) RUN.loadout.push(id); }
   return RUN.loadout;
 }
+// The loadout is chosen on the ship, in the cargo hold, between contracts; it can't change mid-contract.
 function toggleLoadout(id) {
-  if (!M || M.phase !== 'prep') return;
+  if (M) return;
   const L = syncLoadout();
   if (L.includes(id)) RUN.loadout = L.filter(x => x !== id);
   else if (L.length < abilSlots()) L.push(id);
   else { toast(`All ${abilSlots()} slots are full. Take something off first.`, 1500); sfx('deny'); return; }
-  sfx('click'); buildRosterBar();
+  sfx('click'); saveRun('store');
+  if (S.screen === 'ship' && SW) openStation(SW.stations.find(st => st.key === 'cargo'));
 }
-// before extraction: every owned ability, the ones going on this contract lit
-function buildLoadoutPanel() {
-  let el = document.getElementById('loadout');
-  const own = ownedAbils(), show = M && M.phase === 'prep' && own.length > abilSlots();
-  if (!show) { if (el) el.remove(); return; }
-  if (!el) { el = document.createElement('div'); el.id = 'loadout'; el.className = 'loadout'; $('#overlay').appendChild(el); }
-  const L = RUN.loadout;
-  el.innerHTML = `<div class="lbl">Ability loadout · ${L.length} of ${abilSlots()}</div><div class="lo-row">${own.map(id => { const A = ARTIFACTS[id], on = L.includes(id); return `<button class="ab lo${on ? ' on' : ''}" data-act="loadout" data-id="${id}" style="--ac:${A.col}" aria-pressed="${on}" title="${esc(A.name)}: ${esc(A.desc)}"><img src="${artIconUrl(id)}" alt=""><span class="ab-nm">${esc(ABIL[A.kind].verb)}</span></button>`; }).join('')}</div><div class="tnote">Locked once extraction starts.</div>`;
+// the hold: every owned ability, the ones going on the next contract lit
+function loadoutHtml() {
+  const own = ownedAbils(), L = syncLoadout(), plat = (RUN.artifacts || []).filter(a => isPlatform(a.id));
+  if (!own.length && !plat.length) return '<p class="lede">Empty. Bosses drop artifacts; this is where they live.</p>';
+  return `${own.length ? `<div class="lbl">Ability loadout · ${L.length} of ${abilSlots()} slots</div>
+    <div class="lo-row">${own.map(id => { const A = ARTIFACTS[id], on = L.includes(id), lv = ((RUN.artifacts || []).find(a => a.id === id) || {}).level || 1; return `<button class="ab lo${on ? ' on' : ''}" data-act="loadout" data-id="${id}" style="--ac:${A.col}" aria-pressed="${on}" title="${esc(A.name)}: ${esc(A.desc)}"><img src="${artIconUrl(id)}" alt=""><span class="ab-nm">${esc(ABIL[A.kind].verb)}${lv > 1 ? ' +' + (lv - 1) : ''}</span></button>`; }).join('')}</div>
+    <p class="colony">${own.length > abilSlots() ? 'Tap to swap what flies with you. The rest stay in the hold.' : 'Everything you own fits. More slots open in later acts.'}</p>` : ''}
+    ${plat.length ? `<div class="lbl">Platforms</div><div class="relics">${plat.map(a => `<span class="relic" style="color:${ARTIFACTS[a.id].col}" title="${esc(ARTIFACTS[a.id].desc)}">${esc(ARTIFACTS[a.id].name)}</span>`).join('')}</div>` : ''}`;
 }
 const ABIL_KEYS = 'QWEASDZXC';
 const abilRadius = a => { const k = ARTIFACTS[a.id].kind; return (k === 'van' ? 2.5 : k === 'blimp' ? 3.2 : k === 'nest' ? 0.8 : 1.3) * TILE + (k === 'van' || k === 'blimp' ? 0.3 * (a.level - 1) * TILE : 0); };
@@ -9157,7 +9313,7 @@ function artCardsHtml() {
 // One square per ability, bottom right of the map: icon, hotkey, a cooldown sweep and the seconds left.
 function buildAbilBar() {
   if (S.screen !== 'mission' || !M) return;
-  syncLoadout(); buildLoadoutPanel();
+  syncLoadout();
   const list = abilList(), ov = $('#overlay');
   let bar = document.getElementById('abil');
   if (!list.length) { if (bar) bar.remove(); return; }
@@ -9187,7 +9343,7 @@ function updateAbilBar(force) {
     b.classList.toggle('on', a.on > 0 && slot === 'main');
   }
 }
-function updateArtCards() { updateAbilBar(); if (M.phase !== 'prep' && document.getElementById('loadout')) buildLoadoutPanel(); }
+function updateArtCards() { updateAbilBar(); }
 // ---------- sprites ----------
 const ART_CACHE = {};
 const ART_EXTRA = {};
@@ -9426,7 +9582,7 @@ function finishMission(success) {
 
 // ---------- screens ----------
 const titlebar = (title, close) => `<div class="titlebar"><span>${title}</span><i></i>${close ? `<button class="xbtn" data-act="${close}" aria-label="Close">x</button>` : ''}</div>`;
-function clearMissionUi() { hidePeek(); $('#hud').innerHTML = ''; $('#bar').innerHTML = ''; hudCache = {}; const bn = $('#stage > .banner'); if (bn) bn.classList.remove('show'); const t = $('#stage .toast'); if (t) t.classList.add('hide'); }
+function clearMissionUi() { hidePeek(); if (document.body.classList.contains('fs')) { document.body.classList.remove('fs'); delete $('#app').dataset.lay; } $('#hud').innerHTML = ''; $('#bar').innerHTML = ''; hudCache = {}; const bn = $('#stage > .banner'); if (bn) bn.classList.remove('show'); const t = $('#stage .toast'); if (t) t.classList.add('hide'); }
 function showTitle() {
   S.screen = 'title'; M = null; clearMissionUi(); backdropView(); setMusic('menu');
   const colony = store.get('al_colony', 0);
@@ -10188,6 +10344,10 @@ document.addEventListener('click', ev => {
   else if (act === 'reassign') { if (S.selTower) reassign(S.selTower); }
   else if (act === 'replace') { if (S.selTower) replaceCrew(S.selTower.crew); }
   else if (act === 'closeinfo') { S.selTower = null; renderTowerInfo(); }
+  else if (act === 'tinfomin') { S.infoMin = true; renderTowerInfo(); }
+  else if (act === 'tinfoopen') { S.infoMin = false; renderTowerInfo(); }
+  else if (act === 'tmore') { S.tinfoAll = !S.tinfoAll; renderTowerInfo(); }
+  else if (act === 'peekshut') { S.peekShut = S.selCrew; hidePeek(); }
   else if (act === 'loadout') toggleLoadout(b.dataset.id);
   else if (act === 'abil') { const a = M && M.arts.find(x => x.id === b.dataset.id); if (a) useAbility(a, b.dataset.slot); }
   else if (act === 'tostore') { if (!startReviewFlow()) showStore(); }
@@ -10266,17 +10426,24 @@ function dragOverMap(ev) {
   if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return null;
   const p = toLogical(ev), tl = tileAt(p.x, p.y); return tl ? { p, tl } : null;
 }
+// on touch the finger would hide the ghost, so once a drag is under way the spot sits a tile and a half above it
+function dragPoint(ev, d) {
+  if (ev.pointerType !== 'touch' || !(d.lift || d.src === 'card' || Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) > 9)) return ev;
+  d.lift = true; const r = cv.getBoundingClientRect();
+  return { clientX: ev.clientX, clientY: ev.clientY - r.height / VIEW.h * TILE * 1.5, pointerType: ev.pointerType };
+}
 function dragMove(ev) {
   const d = S.drag; if (!d || d.id !== ev.pointerId || S.screen !== 'mission' || !M) return;
   if (!d.on) {
     const dx = ev.clientX - d.x0, dy = ev.clientY - d.y0;
     // on touch, sideways is the roster scrolling; a drag has to head up out of the bar
-    if (Math.hypot(dx, dy) < 9 || (ev.pointerType === 'touch' && Math.abs(dx) > Math.abs(dy))) return;
+    const rails = $('#app').dataset.lay === 'rails';
+    if (Math.hypot(dx, dy) < 9 || (ev.pointerType === 'touch' && (rails ? Math.abs(dy) > Math.abs(dx) : Math.abs(dx) > Math.abs(dy)))) return;
     d.on = true; S.selCrew = d.i; S.selTower = null; S.selArt = null; S.artMode = null; renderTowerInfo(); hidePeek();
     document.querySelectorAll('#bar .crew[data-act="crew"]').forEach(b => { const on = +b.dataset.i === d.i; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on); });
     sfx('hover');
   }
-  const over = dragOverMap(ev), box = document.getElementById('placebox'); if (box) box.remove();
+  const over = dragOverMap(dragPoint(ev, d)), box = document.getElementById('placebox'); if (box) box.remove();
   if (d.src === 'card') dragChip(ev, !over);
   if (!over) { S.hover = null; return; }
   S.hover = over.p;
@@ -10289,7 +10456,7 @@ function dragEnd(ev, cancel) {
   S.drag = null; dragChip(ev, false);
   if (!d.on || !M || S.screen !== 'mission') return;
   if (d.src === 'card') S.dragEndAt = performance.now();
-  const over = cancel ? null : dragOverMap(ev);
+  const over = cancel ? null : dragOverMap(dragPoint(ev, d));
   if (over && canBuild(over.tl.tx, over.tl.ty)) { S.pendingPlace = { i: d.i, tx: over.tl.tx, ty: over.tl.ty }; S.hover = { x: over.tl.tx * TILE + TILE / 2, y: over.tl.ty * TILE + TILE / 2 }; if (d.src === 'card' || d.moved) sfx('hover'); }
   else { S.pendingPlace = null; if (over) toast(deployRefusal(over.tl.tx, over.tl.ty), 1600); }
   buildRosterBar();
@@ -10315,7 +10482,7 @@ function renderPlaceBox() {
   hidePeek();
   const fee = crewFee(cr), ok = M.budget >= fee;
   el.innerHTML = `<button class="btn sm" data-act="placeok" ${ok ? '' : 'disabled'}>Deploy · $${fee}</button><button class="btn sm ghost" data-act="placeno" aria-label="Cancel">✕</button>`;
-  const r = cv.getBoundingClientRect(), sr = $('#stage').getBoundingClientRect(), cx = r.left - sr.left + (pp.tx * TILE + TILE / 2) / VIEW.w * r.width, cy = r.top - sr.top + (pp.ty * TILE) / VIEW.h * r.height;
+  const r = cv.getBoundingClientRect(), sr = $('#overlay').getBoundingClientRect(), cx = r.left - sr.left + (pp.tx * TILE + TILE / 2) / VIEW.w * r.width, cy = r.top - sr.top + (pp.ty * TILE) / VIEW.h * r.height;
   const w = el.offsetWidth || 170, h = el.offsetHeight || 40, below = cy - h - 30 < 4;
   el.style.left = clamp(cx - w / 2, 4, sr.width - w - 4) + 'px';
   el.style.top = (below ? cy + r.height / VIEW.h * TILE + 8 : cy - h - 28) + 'px';
@@ -10373,7 +10540,7 @@ function frame(now) {
   try {
     if (S.screen === 'mission' && M) {
       if (!M.paused) { acc += dt * M.speed; const cap = Math.ceil(M.speed) + 2; let n = 0; while (acc >= STEP && n < cap) { n++; stepMission(STEP); acc -= STEP; if (!M) break; } if (n >= cap) acc = Math.min(acc, STEP); }
-      if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; musicMood(); renderMission(now); updateHud(); }
+      if (M && S.screen === 'mission') { AU.intensity = M.t / M.T; musicMood(); renderMission(now); updateHud(); drawBgFill(now); }
     } else if (S.screen === 'map') renderMap(now);
     else if (S.screen === 'ship') renderShip(now, dt);
     else { beginDraw(); drawStars(now / 1000); if (S.screen === 'envoy') drawEnvoyFrame(now); else if (S.screen === 'manager') drawManagerFrame(now); else if (S.screen === 'debrief') drawNewsFrame(now); }
@@ -11802,20 +11969,21 @@ const BT = {
       if (K.church === 'dome') { roofFlat(P, 0, 0, W, RH, K); sculptBall(P, W / 2 + 4, RH * 0.62, Math.min(W, RH * 2) / 2 - 4, RH * 0.6, K.domeCol || K.roof, { clip: (x, y) => y <= RH - 2 }); P.r(Math.round(W / 2 + 4), 0, 1, 3, K.sign); }
       else { roofStep(P, 0, 0, W, RH, K); P.ell(W / 2, RH * 0.45, 4, 2.6, '#f2efe6'); P.ell(W / 2, RH * 0.45, 2, 2, K.glow); P.p(Math.round(W / 2), Math.round(RH * 0.45), '#1a0a1e'); c.L.push({ x: W / 2, y: RH * 0.45, color: K.glow, r: 18, pulse: true }); }
       wallFace(P, 0, RH, W, FH, KS);
-      const tx = 2; P.g.globalAlpha = 0.4; P.r(tx + 7, 2, 4, RH + FH - 4, '#000000'); P.g.globalAlpha = 1;
-      wallFace(P, tx, 0, 7, RH + FH - 2, KS, { noSide: true }); sculptBall(P, tx + 3.5, 0, 3.5, 2.5, K.domeCol || K.roof); P.r(tx + 2, 4, 3, 3, '#1a1414');
+      // the tower stands at the front and only just clears the eaves, so the roof behind it stays usable
+      const tx = 2, top = Math.max(3, RH - 7); P.g.globalAlpha = 0.4; P.r(tx + 7, top + 2, 4, RH + FH - 4 - top, '#000000'); P.g.globalAlpha = 1;
+      wallFace(P, tx, top, 7, RH + FH - 2 - top, KS, { noSide: true }); sculptBall(P, tx + 3.5, top, 3.5, 2.5, K.domeCol || K.roof); P.r(tx + 2, top + 4, 3, 3, '#1a1414');
       door(P, (W >> 1) - 1, RH + FH - 9, 7, 7, K, { arch: true }); win(P, W - 9, RH + 5, 3, 5, K, true); win(P, 13, RH + 5, 3, 5, K, true);
       return;
     }
     roofGable(P, 0, 0, W, RH, { ...K, roof: K.roofs.church === 'gable' ? dk(K.roof, 0.25) : K.roof }, { steep: true });
     wallFace(P, 0, RH, W, FH, KS);
-    // the bell tower stands in the front left corner and rises over the roof
-    const tw = 12, th = RH + FH - 2, tx = 2;
-    P.g.globalAlpha = 0.4; P.r(tx + tw, 4, 5, th - 6, '#000000'); P.g.globalAlpha = 1;
-    wallFace(P, tx, 6, tw, th - 4, KS);
-    for (let k = 0; k < 6; k++) P.r(tx + 6 - k, k, 1 + k * 2 > tw ? tw : 1 + k * 2, 1, k % 2 ? dk(K.roof, 0.3) : dk(K.roof, 0.1));
-    P.r(tx + 1, 6, tw - 2, 1, dk(stone, 0.4)); P.r(tx + 5, 9, 3, 4, '#1a1414'); P.p(tx + 6, 11, '#c8a040');      // belfry
-    P.r(tx + 6, -2 + 0, 1, 3, '#c8a040'); P.r(tx + 5, -1, 3, 1, '#c8a040');                                  // cross on the spire
+    // a squat bell tower at the front left corner: it only just clears the eaves, so the roof behind it stays usable
+    const tw = 12, th = RH + FH - 2, tx = 2, top = Math.max(4, RH - 10);
+    P.g.globalAlpha = 0.4; P.r(tx + tw, top + 4, 5, th - top - 6, '#000000'); P.g.globalAlpha = 1;
+    wallFace(P, tx, top + 6, tw, th - top - 4, KS);
+    for (let k = 0; k < 6; k++) P.r(tx + 6 - k, top + k, 1 + k * 2 > tw ? tw : 1 + k * 2, 1, k % 2 ? dk(K.roof, 0.3) : dk(K.roof, 0.1));
+    P.r(tx + 1, top + 6, tw - 2, 1, dk(stone, 0.4)); P.r(tx + 5, top + 9, 3, 4, '#1a1414'); P.p(tx + 6, top + 11, '#c8a040');      // belfry
+    P.r(tx + 6, top - 2, 1, 3, '#c8a040'); P.r(tx + 5, top - 1, 3, 1, '#c8a040');                                              // cross on the spire
     // a rose window in the gable end and an arched door
     const rx = Math.round((tx + tw + W) / 2) - 1, ry = RH + 6;
     P.ell(rx, ry, 4, 4, dk(stone, 0.45)); for (let a = 0; a < 8; a++) P.p(Math.round(rx + Math.cos(a * 0.785) * 2.5), Math.round(ry + Math.sin(a * 0.785) * 2.5), pick(['#ff6fae', '#5fd4ff', '#ffd23f']));
@@ -12120,7 +12288,7 @@ const MARGIN = 6;
 // the part of each roof crew can stand on, as rectangles in the building's own pixels; null = nowhere
 const DECK = {
   skyscraper: (W, H, RH) => [[4, 0, W - 8, 12]],
-  church: (W, H, RH) => [[16, 0, W - 16, RH]], chapel: (W, H, RH) => [[16, 0, W - 16, RH]],
+  church: (W, H, RH) => [[2, 0, W - 4, Math.max(0, RH - 12)], [16, Math.max(0, RH - 12), W - 16, Math.min(RH, 12)]], chapel: (W, H, RH) => [[16, 0, W - 16, RH]],
   shrine: (W, H, RH) => [[16, 0, W - 16, RH]],
   ziggurat: (W, H) => [[W * 0.28, 0, W * 0.44, H * 0.5]],
   growhouse: null, broodmound: null, lodge: null,
@@ -12173,7 +12341,7 @@ function drawOpenings(o, openings) {
     if (op.side === 'right') px(g, m + o.W - 4, m + op.i * ATILE + 3, 4, 12, '#0a0b10');
   }
 }
-const TALL = { skyscraper: 2.6, office: 1.4, branch: 1.4, shrine: 1.2, elderhall: 1.4, church: 1.3, chapel: 1.3, ziggurat: 1.3 };
+const TALL = { skyscraper: 2.6, office: 1.4, branch: 1.4, shrine: 1.2, elderhall: 1.4, church: 1.1, chapel: 1.3, ziggurat: 1.3 };
 // each faction puts up its own buildings: how many, and which
 const FAC_BUILD = { union: ['unionhall', 1], activists: ['squat', 2], fauna: ['infested', 2], rival: ['branch', 1], abandoned: ['prefab', 2], haulers: ['warehouse', 1], precursors: ['ziggurat', 1], kindly: ['barracks', 1], church: ['chapel', 1] };
 Object.assign(BTYPE_NAME, { squat: 'Squat', broodmound: 'Brood mound', infested: 'Infested block', lodge: 'Glass lodge', branch: 'VectorCorp branch', prefab: 'Abandoned prefab', warehouse: 'Guild warehouse', ziggurat: 'Ziggurat', barracks: 'AP barracks', chapel: 'Chapel' });
@@ -12461,7 +12629,7 @@ const SHIP_STATIONS = [
   { key: 'counsel', room: 'm', at: [2, 0], name: 'Wellness pod', hint: 'One-to-one sessions' },
   { key: 'files', room: 'q', at: [0, 0], name: 'Personnel files', hint: 'Who is who' },
   { key: 'reactor', room: 'r', at: [0, 1], name: 'Reactor', hint: 'Fuel status' },
-  { key: 'cargo', room: 'c', at: [0, 0], name: 'Cargo manifest', hint: 'Artifacts in the hold' },
+  { key: 'cargo', room: 'c', at: [0, 0], name: 'Cargo hold', hint: 'Choose your abilities' },
 ];
 // remedies: what they cost (before the fit-out's price factor) and what they do
 const REMEDIES = {
@@ -12623,7 +12791,7 @@ function openStation(st) {
   else if (st.key === 'counsel') body = `<p class="lede">${esc(REMEDIES.counsel.desc)} ${remedyPrice('counsel')} scrip a session, one each per contract.</p><div class="rlist">${RUN.roster.map(cr => crewRow(cr, true)).join('')}</div>`;
   else if (st.key === 'files') body = `<div class="rlist">${RUN.roster.map(cr => crewRow(cr, false)).join('')}</div>`;
   else if (st.key === 'reactor') body = `<p class="lede">The fuel crystals hum. If a faction ever boards the ship, this is what they come for. Fit-out: <b>${esc(T.name)}</b>. ${esc(T.desc)}</p>`;
-  else if (st.key === 'cargo') body = (RUN.artifacts || []).length ? `<div class="relics">${RUN.artifacts.map(a => `<span class="relic" style="color:${ARTIFACTS[a.id].col}" title="${esc(ARTIFACTS[a.id].desc)}">${esc(ARTIFACTS[a.id].name)}${a.level > 1 ? ' +' + (a.level - 1) : ''}</span>`).join('')}</div>` : '<p class="lede">Empty. Bosses drop artifacts; this is where they live.</p>';
+  else if (st.key === 'cargo') body = loadoutHtml();
   shipPanel(st.name, body);
 }
 function crewRow(cr, counsel) {
